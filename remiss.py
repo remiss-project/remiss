@@ -3,6 +3,7 @@ import os
 import zipfile
 from pathlib import Path
 import pandas as pd
+from tqdm import tqdm
 from twarc import ensure_flattened
 
 from twarc_csv import DataFrameConverter
@@ -17,8 +18,10 @@ def flatten_tweets(data_jsonl):
         raise FileNotFoundError(f"{data_jsonl} does not exist.")
 
     with open(data_jsonl, "r") as infile:
+        num_lines = sum(1 for _ in infile)
+    with open(data_jsonl, "r") as infile:
         with open(data_jsonl.with_suffix('.flattened.jsonl'), "w") as outfile:
-            for line in infile:
+            for line in tqdm(infile, total=num_lines):
                 line = json.loads(line)
                 tweets = ensure_flattened(line)
                 for tweet in tweets:
