@@ -1,14 +1,8 @@
 import json
-import os
-import zipfile
 from pathlib import Path
-import pandas as pd
 from tqdm import tqdm
 from twarc import ensure_flattened
 
-from twarc_csv import DataFrameConverter
-from twarc_csv import CSVConverter
-from itertools import chain
 
 
 def flatten_tweets(data_jsonl):
