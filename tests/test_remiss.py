@@ -82,3 +82,19 @@ class TestRemiss(TestCase):
         actual_missing = expected_keys - actual_keys | actual_keys - expected_keys
         self.assertEqual(expected_missing, actual_missing)
         Path('test_resources/test.flattened.jsonl').unlink()
+        Path('test_resources/test.media.jsonl').unlink()
+
+    def test_flatten_tweets_with_media(self):
+        flatten_tweets('test_resources/test.jsonl.zip')
+        # check that every tweet with media has a corresponding entry in the media file
+        with open('test_resources/test.flattened.jsonl') as f:
+            tweets = [json.loads(line) for line in f]
+        with open('test_resources/test.media.jsonl') as f:
+            media = [json.loads(line) for line in f]
+
+        media_ids = set([m['id'] for m in media])
+        tweets_with_media = [t for t in tweets if 'attachments' in t and 'media' in t['attachments']]
+        tweets_with_media_ids = set([t['id'] for t in tweets_with_media])
+        self.assertEqual(media_ids, tweets_with_media_ids)
+        Path('test_resources/test.flattened.jsonl').unlink()
+        Path('test_resources/test.media.jsonl').unlink()
