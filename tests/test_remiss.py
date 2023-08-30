@@ -20,7 +20,7 @@ def extract_paths(base_path, dd):
 
 class TestRemiss(TestCase):
     def test_flatten_tweets(self):
-        flatten_tweets('test_resources/test.jsonl')
+        flatten_tweets('test_resources/test.jsonl.zip')
         # check number of lines is correct
         with open('test_resources/test.flattened.jsonl') as f:
             self.assertEqual(len(f.readlines()), 934)
