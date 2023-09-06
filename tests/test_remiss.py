@@ -105,8 +105,10 @@ class TestRemiss(TestCase):
         with open('test_resources/test.preprocessed.jsonl') as f:
             tweets = [json.loads(line) for line in f]
 
-        expected_usual_suspects = {'Fernanfm', 'plural21cat'}
-        expected_politicians = {'WolfV0X', 'plural21cat'}
+        expected_usual_suspects = pd.read_excel('test_resources/test_metadata.xlsx', sheet_name='NOVA LLISTA USUAL SUSPECTS')
+        expected_usual_suspects = set(expected_usual_suspects['ENLLAÇ'].str.split('/').str[-1].str.split('?').str[0].to_list())
+        expected_politicians = pd.read_excel('test_resources/test_metadata.xlsx', sheet_name='LLISTA POLÍTICS')
+        expected_politicians = set(expected_politicians['ENLLAÇ TW'].str.split('/').str[-1].str.split('?').str[0].to_list())
         actual_usual_suspects = set([t['author']['username'] for t in tweets if t['author']['username'] in expected_usual_suspects])
         actual_politicians = set([t['author']['username'] for t in tweets if t['author']['username'] in expected_politicians])
         self.assertEqual(expected_usual_suspects, actual_usual_suspects)
