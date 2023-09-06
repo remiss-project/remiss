@@ -1,5 +1,5 @@
-from remiss import flatten_tweets
+from remiss import preprocess_tweets
 import fire
 
 if __name__ == '__main__':
-    fire.Fire({'flatten_tweets': flatten_tweets})
+    fire.Fire({'preprocess_tweets': preprocess_tweets})

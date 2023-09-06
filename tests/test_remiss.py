@@ -3,7 +3,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from unittest import TestCase
 
-from remiss import flatten_tweets
+from remiss import preprocess_tweets
 import pandas as pd
 
 
@@ -19,10 +19,10 @@ def extract_paths(base_path, dd):
 
 
 class TestRemiss(TestCase):
-    def test_flatten_tweets(self):
-        flatten_tweets('test_resources/test.jsonl.zip')
+    def test_preprocess_tweets(self):
+        preprocess_tweets('test_resources/test.jsonl.zip')
         # check number of lines is correct
-        with open('test_resources/test.flattened.jsonl') as f:
+        with open('test_resources/test.preprocessed.jsonl') as f:
             self.assertEqual(len(f.readlines()), 934)
 
         expected_keys = ['id', 'conversation_id', 'referenced_tweets.replied_to.id', 'referenced_tweets.retweeted.id',
@@ -53,7 +53,7 @@ class TestRemiss(TestCase):
         # check that the file is valid jsonl and the keys are correct
         expected_keys = set(expected_keys)
         actual_keys = set()
-        with open('test_resources/test.flattened.jsonl') as f:
+        with open('test_resources/test.preprocessed.jsonl') as f:
             for line in f:
                 tweet = json.loads(line)
                 actual_keys.update(extract_paths('', tweet))
@@ -81,13 +81,13 @@ class TestRemiss(TestCase):
 
         actual_missing = expected_keys - actual_keys | actual_keys - expected_keys
         self.assertEqual(expected_missing, actual_missing)
-        Path('test_resources/test.flattened.jsonl').unlink()
+        Path('test_resources/test.preprocessed.jsonl').unlink()
         Path('test_resources/test.media.jsonl').unlink()
 
-    def test_flatten_tweets_with_media(self):
-        flatten_tweets('test_resources/test.jsonl.zip')
+    def test_preprocess_tweets_with_media(self):
+        preprocess_tweets('test_resources/test.jsonl.zip')
         # check that every tweet with media has a corresponding entry in the media file
-        with open('test_resources/test.flattened.jsonl') as f:
+        with open('test_resources/test.preprocessed.jsonl') as f:
             tweets = [json.loads(line) for line in f]
         with open('test_resources/test.media.jsonl') as f:
             media = [json.loads(line) for line in f]
@@ -96,5 +96,20 @@ class TestRemiss(TestCase):
         tweets_with_media = [t for t in tweets if 'attachments' in t and 'media' in t['attachments']]
         tweets_with_media_ids = set([t['id'] for t in tweets_with_media])
         self.assertEqual(media_ids, tweets_with_media_ids)
-        Path('test_resources/test.flattened.jsonl').unlink()
+        Path('test_resources/test.preprocessed.jsonl').unlink()
+        Path('test_resources/test.media.jsonl').unlink()
+
+    def test_preprocess_tweets_with_metadata(self):
+        preprocess_tweets('test_resources/test.jsonl.zip', metadata_file='test_resources/test_metadata.xlsx')
+        # check that every tweet with media has a corresponding entry in the media file
+        with open('test_resources/test.preprocessed.jsonl') as f:
+            tweets = [json.loads(line) for line in f]
+
+        expected_usual_suspects = {'Fernanfm', 'plural21cat'}
+        expected_politicians = {'WolfV0X', 'plural21cat'}
+        actual_usual_suspects = set([t['author']['username'] for t in tweets if t['author']['username'] in expected_usual_suspects])
+        actual_politicians = set([t['author']['username'] for t in tweets if t['author']['username'] in expected_politicians])
+        self.assertEqual(expected_usual_suspects, actual_usual_suspects)
+        self.assertEqual(expected_politicians, actual_politicians)
+        Path('test_resources/test.preprocessed.jsonl').unlink()
         Path('test_resources/test.media.jsonl').unlink()
