@@ -83,6 +83,8 @@ class TestRemiss(TestCase):
         self.assertEqual(expected_missing, actual_missing)
         Path('test_resources/test.preprocessed.jsonl').unlink()
         Path('test_resources/test.media.jsonl').unlink()
+        Path('test_resources/test.mongodbimport.jsonl').unlink()
+
 
     def test_preprocess_tweets_with_media(self):
         preprocess_tweets('test_resources/test.jsonl.zip')
@@ -98,6 +100,8 @@ class TestRemiss(TestCase):
         self.assertEqual(media_ids, tweets_with_media_ids)
         Path('test_resources/test.preprocessed.jsonl').unlink()
         Path('test_resources/test.media.jsonl').unlink()
+        Path('test_resources/test.mongodbimport.jsonl').unlink()
+
 
     def test_preprocess_tweets_with_metadata(self):
         preprocess_tweets('test_resources/test.jsonl.zip', metadata_file='test_resources/test_metadata.xlsx')
@@ -113,5 +117,36 @@ class TestRemiss(TestCase):
         actual_politicians = set([t['author']['username'] for t in tweets if t['author']['username'] in expected_politicians])
         self.assertEqual(expected_usual_suspects, actual_usual_suspects)
         self.assertEqual(expected_politicians, actual_politicians)
+        Path('test_resources/test.preprocessed.jsonl').unlink()
+        Path('test_resources/test.media.jsonl').unlink()
+        Path('test_resources/test.mongodbimport.jsonl').unlink()
+
+
+    def test_preprocess_timestamps(self):
+        preprocess_tweets('test_resources/test.jsonl.zip')
+        # retrieve all the fields that are timestamps
+        date_fields = ['created_at', 'editable_until', 'retrieved_at']
+
+        def assert_mongoimport_date_format(tweet):
+            date_fields = {'created_at', 'editable_until', 'retrieved_at'}
+            for field, value in tweet.items():
+                if field in date_fields:
+                    self.assertIsInstance(value, dict)
+                    self.assertEqual(len(value), 1)
+                    self.assertEqual(list(value.keys()), ['$date'])
+                    date = list(value.values())
+                    self.assertEqual(len(date), 1)
+                    date_str = date[0]
+                    self.assertTrue('T' in date_str)
+                elif isinstance(value, dict):
+                    assert_mongoimport_date_format(value)
+
+        with open('test_resources/test.mongodbimport.jsonl') as f:
+            for line in f:
+                tweet = json.loads(line)
+                # find all nested fields that contain timestamps
+                assert_mongoimport_date_format(tweet)
+
+        Path('test_resources/test.mongodbimport.jsonl').unlink()
         Path('test_resources/test.preprocessed.jsonl').unlink()
         Path('test_resources/test.media.jsonl').unlink()
