@@ -17,7 +17,7 @@ def preprocess_tweets(twitter_jsonl_zip, metadata_file=None):
     Optionally, if metadata_file is provided, add the metadata containing whether a tweet comes from
     a usual suspect or a politician to the tweets.
 
-    $ mongoimport --db test_remiss --collection test_tweets --file import_test.flattened.jsonl
+    $ mongoimport --db test_remiss --collection test_tweets --file import_test.mongodbimport.jsonl
 
 
     :param twitter_jsonl_zip: Source tweets in jsonl format, compressed in a zip file,as outputted by twarc
