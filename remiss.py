@@ -102,6 +102,9 @@ def fix_timestamps(tweet):
                 if '$date' not in value:
                     raise ValueError(f'Unexpected format in timestamp field {field}: {value}')
             else:
-                tweet[field] = {'$date': value.replace(' ', 'T') + 'Z'}
+                date = value.replace(' ', 'T')
+                # if not date.endswith('Z'):
+                #     date += 'Z'
+                tweet[field] = {'$date': date}
         elif isinstance(value, dict):
             fix_timestamps(value)
