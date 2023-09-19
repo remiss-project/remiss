@@ -8,7 +8,19 @@ import zipfile
 
 
 def preprocess_tweets(twitter_jsonl_zip, metadata_file=None):
-    """Flatten the tweets from a JSONL zipped file."""
+    """
+    Preprocess the tweets gathered by running twarc and store them as a single tweet per line in a jsonl file named
+    <twitter_jsonl_zip>.preprocessed.jsonl.
+    Also store the media related information in a separate file named <twitter_jsonl_zip>.media.jsonl.
+    Finally, store the tweets in a format in which the dates are correctly imported as such can by mongodbimport
+    in a file named <twitter_jsonl_zip>.mongodbimport.jsonl.
+    Optionally, if metadata_file is provided, add the metadata containing whether a tweet comes from
+    a usual suspect or a politician to the tweets.
+
+    :param twitter_jsonl_zip: Source tweets in jsonl format, compressed in a zip file,as outputted by twarc
+    :param metadata_file: Additional Laia metadata in xlsx format
+    :return:
+    """
     twitter_jsonl_zip = Path(twitter_jsonl_zip)
     with zipfile.ZipFile(twitter_jsonl_zip, 'r') as zip_ref:
         with zip_ref.open(zip_ref.namelist()[0], 'r') as infile:
