@@ -137,7 +137,9 @@ class TestRemiss(TestCase):
                     date = list(value.values())
                     self.assertEqual(len(date), 1)
                     date_str = date[0]
-                    self.assertTrue('T' in date_str)
+                    # check that the date_str is an actual iso8601 date
+                    pd.to_datetime(date_str)
+
                 elif isinstance(value, dict):
                     assert_mongoimport_date_format(value)
 
