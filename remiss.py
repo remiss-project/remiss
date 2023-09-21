@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+from datetime import datetime
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
 from tqdm import tqdm
@@ -120,15 +121,14 @@ def load_data(host, port, database, collection, unit='day', bin_size=1):
     database = client.get_database(database)
     collection = database.get_collection(collection)
 
-    df = collection.aggregate(
+    df = collection.aggregate_pandas_all(
         [
-            {
-                '$group': {
-                    "_id": {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}},
-                    "count": {'$count': {}}
-                }
-            },
-        ]
+            {'$group': {
+                "_id": {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}},
+                "count": {'$count': {}}
+            }},
+            {'$sort': {'_id': 1}}
+        ],
+        schema=Schema({'_id': datetime, 'count': int})
     )
-    df = pd.DataFrame(list(df)).set_index('_id').squeeze().sort_index()
-    return df
+    return df.set_index('_id').squeeze()
