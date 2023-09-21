@@ -24,7 +24,7 @@ def preprocess_tweets(twitter_jsonl_zip, metadata_file=None):
     Optionally, if metadata_file is provided, add the metadata containing whether a tweet comes from
     a usual suspect or a politician to the tweets.
 
-    $ mongoimport --db test_remiss --collection test_tweets --file import_test.mongodbimport.jsonl
+    $ mongoimport --db test_remiss --collection test_tweets --file test.mongodbimport.jsonl
 
 
     :param twitter_jsonl_zip: Source tweets in jsonl format, compressed in a zip file,as outputted by twarc
@@ -117,7 +117,7 @@ def fix_timestamps(tweet):
             fix_timestamps(value)
 
 
-def load_tweet_count_evolution(host, port, database, collection, unit='day', bin_size=1):
+def load_tweet_count_evolution(host, port, database, collection, start_date=None, end_date=None, unit='day', bin_size=1):
     client = MongoClient(host, port)
     database = client.get_database(database)
 
@@ -133,6 +133,8 @@ def load_tweet_count_evolution(host, port, database, collection, unit='day', bin
 
     df = collection.aggregate_pandas_all(
         [
+            {'$match': {'created_at': {'$gte': pd.to_datetime(start_date)}} if start_date else {}},
+            {'$match': {'created_at': {'$lte': pd.to_datetime(end_date)}} if end_date else {}},
             {'$group': {
                 "_id": {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}},
                 "count": {'$count': {}}

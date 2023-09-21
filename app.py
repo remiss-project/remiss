@@ -24,8 +24,8 @@ pymongoarrow.monkey.patch_all()
 client = MongoClient(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT)
 database = client.get_database(REMISS_MONGODB_DATABASE)
 available_datasets = database.list_collection_names()
-min_date_allowed = database.get_collection(available_datasets[0]).find_one(sort=[('created_at', 1)])['created_at']
-max_date_allowed = database.get_collection(available_datasets[0]).find_one(sort=[('created_at', -1)])['created_at']
+min_date_allowed = database.get_collection(available_datasets[0]).find_one(sort=[('created_at', 1)])['created_at'].date()
+max_date_allowed = database.get_collection(available_datasets[0]).find_one(sort=[('created_at', -1)])['created_at'].date()
 client.close()
 
 # Initialize the app - incorporate a Dash Bootstrap theme
@@ -49,11 +49,12 @@ app.layout = dbc.Container([
     dbc.Row([
         dcc.DatePickerRange(
             id='temporal-evolution-date-picker-range',
-            # min_date_allowed=min_date_allowed,
-            # max_date_allowed=max_date_allowed,
-            # initial_visible_month=min_date_allowed,
-            # start_date=min_date_allowed,
-            # end_date=max_date_allowed
+            min_date_allowed=min_date_allowed,
+            max_date_allowed=max_date_allowed,
+            initial_visible_month=min_date_allowed,
+            start_date=min_date_allowed,
+            end_date=max_date_allowed,
+            display_format='DD/MM/YYYY',
         ),
     ])
 ], fluid=True)
@@ -68,7 +69,7 @@ app.layout = dbc.Container([
 )
 def update_graph(chosen_dataset, start_date, end_date):
     data = load_tweet_count_evolution(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE,
-                                      chosen_dataset, start_date, end_date
+                                      chosen_dataset, start_date, end_date)
     fig = px.bar(data, labels={"value": "Count"})
     return fig
 
