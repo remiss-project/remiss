@@ -2,9 +2,14 @@ import json
 from pathlib import Path
 
 import pandas as pd
+from pymongo import MongoClient
+from pymongoarrow.schema import Schema
 from tqdm import tqdm
 from twarc import ensure_flattened
 import zipfile
+import pymongoarrow.monkey
+
+pymongoarrow.monkey.patch_all()
 
 
 def preprocess_tweets(twitter_jsonl_zip, metadata_file=None):
@@ -108,3 +113,22 @@ def fix_timestamps(tweet):
                 tweet[field] = {'$date': date}
         elif isinstance(value, dict):
             fix_timestamps(value)
+
+
+def load_data(host, port, database, collection, unit='day', bin_size=1):
+    client = MongoClient(host, port)
+    database = client.get_database(database)
+    collection = database.get_collection(collection)
+
+    df = collection.aggregate(
+        [
+            {
+                '$group': {
+                    "_id": {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}},
+                    "count": {'$count': {}}
+                }
+            },
+        ]
+    )
+    df = pd.DataFrame(list(df)).set_index('_id').squeeze().sort_index()
+    return df

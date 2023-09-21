@@ -3,8 +3,11 @@ from collections.abc import Mapping
 from pathlib import Path
 from unittest import TestCase
 
-from remiss import preprocess_tweets
+from pymongo import MongoClient
+
+from remiss import preprocess_tweets, load_data
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def extract_paths(base_path, dd):
@@ -152,3 +155,15 @@ class TestRemiss(TestCase):
         Path('test_resources/test.mongodbimport.jsonl').unlink()
         Path('test_resources/test.preprocessed.jsonl').unlink()
         Path('test_resources/test.media.jsonl').unlink()
+
+    def test_load_temporal_evolution_data(self):
+        # df = load_data('localhost', 27017, 'test_remiss', 'test_tweets')
+        client = MongoClient("localhost", 27017)
+        database = client.get_database("test_remiss")
+        collection = database.get_collection('test_tweets')
+        df = pd.DataFrame(list(collection.find()))
+        expected = df.groupby(pd.Grouper(key='created_at', freq='10Min')).size()
+        actual = load_data('localhost', 27017, 'test_remiss', 'test_tweets', unit='minute',
+                           bin_size=10)
+        self.assertEqual(actual.to_dict(), expected.to_dict())
+
