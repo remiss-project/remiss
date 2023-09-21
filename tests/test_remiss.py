@@ -5,10 +5,10 @@ from unittest import TestCase
 
 from pymongo import MongoClient
 
-from remiss import preprocess_tweets, load_data
+from app import update_graph
+from remiss import preprocess_tweets, load_tweet_count_evolution
 import pandas as pd
-import matplotlib.pyplot as plt
-
+import plotly.express as px
 
 def extract_paths(base_path, dd):
     new_paths = []
@@ -156,14 +156,18 @@ class TestRemiss(TestCase):
         Path('test_resources/test.preprocessed.jsonl').unlink()
         Path('test_resources/test.media.jsonl').unlink()
 
-    def test_load_temporal_evolution_data(self):
-        # df = load_data('localhost', 27017, 'test_remiss', 'test_tweets')
+    def test_load_tweet_count_evolution(self):
         client = MongoClient("localhost", 27017)
         database = client.get_database("test_remiss")
         collection = database.get_collection('test_tweets')
         df = pd.DataFrame(list(collection.find()))
         expected = df.groupby(pd.Grouper(key='created_at', freq='10Min')).size()
-        actual = load_data('localhost', 27017, 'test_remiss', 'test_tweets', unit='minute',
-                           bin_size=10)
+        actual = load_tweet_count_evolution('localhost', 27017, 'test_remiss', 'test_tweets',
+                                            unit='minute', bin_size=10)
         self.assertEqual(actual.to_dict(), expected.to_dict())
 
+
+    def test_update_graph(self):
+        fig = update_graph('test_tweets')
+
+        fig.show()
