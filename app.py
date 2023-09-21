@@ -21,9 +21,11 @@ server = app.server
 
 pymongoarrow.monkey.patch_all()
 
-client = MongoClient("localhost", 27017)
-database = client.get_database("test_remiss")
+client = MongoClient(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT)
+database = client.get_database(REMISS_MONGODB_DATABASE)
 available_datasets = database.list_collection_names()
+min_date_allowed = database.get_collection(available_datasets[0]).find_one(sort=[('created_at', 1)])['created_at']
+max_date_allowed = database.get_collection(available_datasets[0]).find_one(sort=[('created_at', -1)])['created_at']
 client.close()
 
 # Initialize the app - incorporate a Dash Bootstrap theme
@@ -37,28 +39,36 @@ app.layout = dbc.Container([
     ]),
 
     dbc.Row([
-        dbc.RadioItems(options=[{"label": x, "value": x} for x in available_datasets],
-                       value='test_tweets',
-                       inline=True,
-                       id='radio-buttons-dataset')
+        dcc.Dropdown(options=[{"label": x, "value": x} for x in available_datasets],
+                     value=available_datasets[0],
+                     id='dropdown-dataset')
     ]),
-
     dbc.Row([
-        dbc.Col([
-            dcc.Graph(figure={}, id='temporal-evolution')
-        ], width=6),
+        dcc.Graph(figure={}, id='temporal-evolution')
     ]),
-
+    dbc.Row([
+        dcc.DatePickerRange(
+            id='temporal-evolution-date-picker-range',
+            # min_date_allowed=min_date_allowed,
+            # max_date_allowed=max_date_allowed,
+            # initial_visible_month=min_date_allowed,
+            # start_date=min_date_allowed,
+            # end_date=max_date_allowed
+        ),
+    ])
 ], fluid=True)
 
 
 # Add controls to build the interaction
 @callback(
     Output(component_id='temporal-evolution', component_property='figure'),
-    Input(component_id='radio-buttons-dataset', component_property='value')
+    Input(component_id='dropdown-dataset', component_property='value'),
+    Input(component_id='temporal-evolution-date-picker-range', component_property='start_date'),
+    Input(component_id='temporal-evolution-date-picker-range', component_property='end_date')
 )
-def update_graph(chosen_dataset):
-    data = load_tweet_count_evolution(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE, chosen_dataset)
+def update_graph(chosen_dataset, start_date, end_date):
+    data = load_tweet_count_evolution(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE,
+                                      chosen_dataset, start_date, end_date
     fig = px.bar(data, labels={"value": "Count"})
     return fig
 
