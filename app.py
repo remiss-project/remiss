@@ -10,8 +10,11 @@ from pymongo import MongoClient
 import pymongoarrow.monkey
 from pymongoarrow.api import Schema
 
-# import data with mongoimport first
-# $ mongoimport --db test_remiss --collection <collection> --file <dataset>.preprocessed.jsonl --drop
+from remiss import load_tweet_count_evolution
+
+REMISS_MONGODB_HOST = os.environ.get('REMISS_MONGODB_HOST', 'localhost')
+REMISS_MONGODB_PORT = int(os.environ.get('REMISS_MONGODB_PORT', 27017))
+REMISS_MONGODB_DATABASE = os.environ.get('REMISS_MONGODB_DATABASE', 'test_remiss')
 
 app = dash.Dash(external_stylesheets=[dbc.themes.JOURNAL])
 server = app.server
@@ -54,26 +57,12 @@ app.layout = dbc.Container([
     Output(component_id='temporal-evolution', component_property='figure'),
     Input(component_id='radio-buttons-dataset', component_property='value')
 )
-def update_graph(dataset_chosen):
-    client = MongoClient("localhost", 27017)
-    database = client.get_database("test_remiss")
-    collection = database.get_collection(dataset_chosen)
-    # get available fields
-    # available_fields = collection.find_one()
-    df = collection.aggregate_pandas_all(
-        [
-            {'$group': {'_id': {'$dayOfYear': '$created_at'},
-                        'count': {'$sum': 1}}}
-        ],
-        schema=Schema({'_id': int, 'count': int})
-    )
-    fig = px.histogram(df, x='continent', y=dataset_chosen, histfunc='avg')
+def update_graph(chosen_dataset):
+    data = load_tweet_count_evolution(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE, chosen_dataset)
+    fig = px.bar(data, labels={"value": "Count"})
     return fig
 
 
 # Run the app
 if __name__ == '__main__':
     app.run(debug=True)
-
-if __name__ == "__main__":
-    app.run_server(debug=True)

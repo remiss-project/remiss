@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 from datetime import datetime
 from pymongo import MongoClient
+from pymongo.errors import OperationFailure
 from pymongoarrow.schema import Schema
 from tqdm import tqdm
 from twarc import ensure_flattened
@@ -116,9 +117,18 @@ def fix_timestamps(tweet):
             fix_timestamps(value)
 
 
-def load_data(host, port, database, collection, unit='day', bin_size=1):
+def load_tweet_count_evolution(host, port, database, collection, unit='day', bin_size=1):
     client = MongoClient(host, port)
     database = client.get_database(database)
+
+    try:
+        database.validate_collection(collection)
+    except OperationFailure as ex:
+        if ex.details['code'] == 26:
+            raise ValueError(f'Dataset {collection} does not exist') from ex
+        else:
+            raise ex
+
     collection = database.get_collection(collection)
 
     df = collection.aggregate_pandas_all(
@@ -131,4 +141,4 @@ def load_data(host, port, database, collection, unit='day', bin_size=1):
         ],
         schema=Schema({'_id': datetime, 'count': int})
     )
-    return df.set_index('_id').squeeze()
+    return df.rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time').squeeze()
