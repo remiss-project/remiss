@@ -117,7 +117,8 @@ def fix_timestamps(tweet):
             fix_timestamps(value)
 
 
-def load_tweet_count_evolution(host, port, database, collection, start_date=None, end_date=None, unit='day', bin_size=1):
+def load_tweet_count_evolution(host, port, database, collection, start_date=None, end_date=None, hashtag=None,
+                               unit='day', bin_size=1, ):
     client = MongoClient(host, port)
     database = client.get_database(database)
 
@@ -130,17 +131,22 @@ def load_tweet_count_evolution(host, port, database, collection, start_date=None
             raise ex
 
     collection = database.get_collection(collection)
+    pipeline = [
+        {'$group': {
+            "_id": {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}},
+            "count": {'$count': {}}}},
+        {'$sort': {'_id': 1}}
+    ]
+    if hashtag:
+        pipeline.insert(0, {'$match': {'entities.hashtags.tag': hashtag}})
+    if end_date:
+        pipeline.insert(0, {'$match': {'created_at': {'$lte': pd.to_datetime(end_date)}}})
+    if start_date:
+        pipeline.insert(0, {'$match': {'created_at': {'$gte': pd.to_datetime(start_date)}}})
 
     df = collection.aggregate_pandas_all(
-        [
-            {'$match': {'created_at': {'$gte': pd.to_datetime(start_date)}} if start_date else {}},
-            {'$match': {'created_at': {'$lte': pd.to_datetime(end_date)}} if end_date else {}},
-            {'$group': {
-                "_id": {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}},
-                "count": {'$count': {}}
-            }},
-            {'$sort': {'_id': 1}}
-        ],
+        pipeline,
         schema=Schema({'_id': datetime, 'count': int})
     )
-    return df.rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time').squeeze()
+    df = df.rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time').squeeze()
+    return df
