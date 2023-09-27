@@ -385,5 +385,5 @@ class TestRemiss(TestCase):
         database = client.get_database("test_remiss")
         collection = database.get_collection('test_tweets_original')
         graph = compute_hidden_graph(collection)
-        print(graph)
-
+        self.assertEqual(len(graph.nodes), 878)
+        self.assertEqual(len(graph.edges), 838)
