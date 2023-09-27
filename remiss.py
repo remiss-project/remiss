@@ -150,3 +150,40 @@ def load_tweet_count_evolution(host, port, database, collection, start_date=None
     )
     df = df.rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time').squeeze()
     return df
+
+def load_user_count_evolution(host, port, database, collection, start_date=None, end_date=None, hashtag=None,
+                               unit='day', bin_size=1, ):
+    client = MongoClient(host, port)
+    database = client.get_database(database)
+
+    try:
+        database.validate_collection(collection)
+    except OperationFailure as ex:
+        if ex.details['code'] == 26:
+            raise ValueError(f'Dataset {collection} does not exist') from ex
+        else:
+            raise ex
+
+    collection = database.get_collection(collection)
+    pipeline = [
+        {'$group': {
+            "_id": {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}},
+            "users": {'$addToSet': "$author.username"}}
+        },
+        {'$project': {'count': {'$size': '$users'}}},
+        {'$sort': {'_id': 1}}
+    ]
+    if hashtag:
+        pipeline.insert(0, {'$match': {'entities.hashtags.tag': hashtag}})
+    if end_date:
+        pipeline.insert(0, {'$match': {'created_at': {'$lte': pd.to_datetime(end_date)}}})
+    if start_date:
+        pipeline.insert(0, {'$match': {'created_at': {'$gte': pd.to_datetime(start_date)}}})
+
+    df = collection.aggregate_pandas_all(
+        pipeline,
+        schema=Schema({'_id': datetime, 'count': int})
+    )
+    df = df.rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time').squeeze()
+    return df
+
