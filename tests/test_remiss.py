@@ -7,7 +7,7 @@ from unittest import TestCase
 from pymongo import MongoClient
 
 from app import update_graph
-from remiss import preprocess_tweets, load_tweet_count_evolution, load_user_count_evolution
+from remiss import preprocess_tweets, load_tweet_count_evolution, load_user_count_evolution, compute_hidden_graph
 import pandas as pd
 import plotly.express as px
 import numpy as np
@@ -379,3 +379,11 @@ class TestRemiss(TestCase):
         output_file = 'test_resources/test.jsonl'
         generate_test_data(start_date, end_date, hashtags, parties, num_tweets, prob_hashtag, prob_party,
                            prob_usual_suspects, output_file)
+
+    def test_compute_hidden_graph(self):
+        client = MongoClient("localhost", 27017)
+        database = client.get_database("test_remiss")
+        collection = database.get_collection('test_tweets_original')
+        graph = compute_hidden_graph(collection)
+        print(graph)
+

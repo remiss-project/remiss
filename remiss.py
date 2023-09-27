@@ -10,6 +10,7 @@ from tqdm import tqdm
 from twarc import ensure_flattened
 import zipfile
 import pymongoarrow.monkey
+import networkx
 
 pymongoarrow.monkey.patch_all()
 
@@ -151,8 +152,9 @@ def load_tweet_count_evolution(host, port, database, collection, start_date=None
     df = df.rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time').squeeze()
     return df
 
+
 def load_user_count_evolution(host, port, database, collection, start_date=None, end_date=None, hashtag=None,
-                               unit='day', bin_size=1, ):
+                              unit='day', bin_size=1, ):
     client = MongoClient(host, port)
     database = client.get_database(database)
 
@@ -187,3 +189,31 @@ def load_user_count_evolution(host, port, database, collection, start_date=None,
     df = df.rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time').squeeze()
     return df
 
+
+def compute_hidden_graph(collection):
+    """
+    Computes the hidden graph, this is, the graph of users that have interacted with each other.
+    :param collection: collection where the tweets are stored
+    :return: a networkx graph with the users as nodes and the edges representing interactions between users
+    """
+    graph = networkx.DiGraph()
+    for tweet in tqdm(collection.find()):
+        if 'referenced_tweets' in tweet:
+            for referenced_tweet in tweet['referenced_tweets']:
+                if referenced_tweet['type'] == 'replied_to':
+                    if 'author' in referenced_tweet:
+                        graph.add_edge(tweet['author']['username'], referenced_tweet['author']['username'])
+                    else:
+                        referenced_tweet_id = referenced_tweet['id']
+                        referenced_tweet = collection.find_one({'id': referenced_tweet_id})
+                        if referenced_tweet:
+                            graph.add_edge(tweet['author']['username'], referenced_tweet['author']['username'])
+                        else:
+                            print(f'Could not find tweet {referenced_tweet_id}')
+                elif referenced_tweet['type'] == 'quoted':
+                    graph.add_edge(tweet['author']['username'], referenced_tweet['author']['username'])
+                elif referenced_tweet['type'] == 'retweeted':
+                    graph.add_edge(tweet['author']['username'], referenced_tweet['author']['username'])
+                elif referenced_tweet['type'] == 'replied_to':
+                    graph.add_edge(tweet['author']['username'], referenced_tweet['author']['username'])
+    return graph

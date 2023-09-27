@@ -11,7 +11,7 @@ from pymongo import MongoClient
 import pymongoarrow.monkey
 from pymongoarrow.api import Schema
 
-from remiss import load_tweet_count_evolution
+from remiss import load_tweet_count_evolution, load_user_count_evolution
 
 REMISS_MONGODB_HOST = os.environ.get('REMISS_MONGODB_HOST', 'localhost')
 REMISS_MONGODB_PORT = int(os.environ.get('REMISS_MONGODB_PORT', 27017))
@@ -96,6 +96,30 @@ app.layout = dbc.Container([
 ], fluid=True)
 
 
+@callback(
+    Output(component_id='temporal-evolution-date-picker-range', component_property='min_date_allowed'),
+    Output(component_id='temporal-evolution-date-picker-range', component_property='max_date_allowed'),
+    Output(component_id='temporal-evolution-date-picker-range', component_property='start_date'),
+    Output(component_id='temporal-evolution-date-picker-range', component_property='end_date'),
+    Output(component_id='wordcloud', component_property='list'),
+    Input(component_id='dropdown-dataset', component_property='value')
+)
+def update_data_picker_range(chosen_dataset):
+    client = MongoClient(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT)
+    database = client.get_database(REMISS_MONGODB_DATABASE)
+    dataset = database.get_collection(chosen_dataset)
+    min_date_allowed = dataset.find_one(sort=[('created_at', 1)])['created_at'].date()
+    max_date_allowed = dataset.find_one(sort=[('created_at', -1)])['created_at'].date()
+    available_hashtags_freqs = list(dataset.aggregate([
+        {'$unwind': '$entities.hashtags'},
+        {'$group': {'_id': '$entities.hashtags.tag', 'count': {'$sum': 1}}},
+        {'$sort': {'count': -1}}
+    ]))
+    available_hashtags_freqs = [(x['_id'], x['count']) for x in available_hashtags_freqs]
+
+    client.close()
+    return min_date_allowed, max_date_allowed, min_date_allowed, max_date_allowed, available_hashtags_freqs
+
 # Add controls to build the interaction
 @callback(
     Output(component_id='tweets-per-day', component_property='figure'),
@@ -114,7 +138,7 @@ def update_graph(chosen_dataset, start_date, end_date, hashtag):
                                       hashtag=hashtag)
     fig_tweets_per_day = px.bar(data_tweet_count, labels={"value": "Count"})
 
-    data_user_count = load_tweet_count_evolution(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE,
+    data_user_count = load_user_count_evolution(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE,
                                         collection=chosen_dataset,
                                         start_date=start_date,
                                         end_date=end_date,
