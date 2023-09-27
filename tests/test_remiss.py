@@ -7,7 +7,7 @@ from unittest import TestCase
 from pymongo import MongoClient
 
 from app import update_graph
-from remiss import preprocess_tweets, load_tweet_count_evolution
+from remiss import preprocess_tweets, load_tweet_count_evolution, load_user_count_evolution
 import pandas as pd
 import plotly.express as px
 import numpy as np
@@ -32,7 +32,7 @@ def generate_test_data(start_date, end_date, hashtags, parties,
         for i in range(num_tweets):
             tweet = {'id': i,
                      'created_at': {'$date': dates[i].replace(microsecond=0).isoformat() + 'Z'},
-                     'author': {'username': f'TEST_USER_{i}',
+                     'author': {'username': f'TEST_USER_{i//2}',
                                 'remiss_metadata': {}
                                 }}
             if np.random.rand() < prob_hashtag:
@@ -252,24 +252,103 @@ class TestRemiss(TestCase):
         self.maxDiff = None
         self.assertEqual(actual.to_dict(), expected.to_dict())
 
+    def test_update_graph_tweets(self):
+        fig, _ = update_graph('test_tweets', start_date=None, end_date=None, hashtag=None)
+        fig.show()
+
+    def test_update_graph_hashtag_tweets(self):
+        fig, _ = update_graph('test_tweets', start_date=None, end_date=None, hashtag=['CataluñaPorEspaña', 1])
+        fig.show()
+
+    def test_update_graph_date_range_tweets(self):
+        start_date = pd.to_datetime('2019-01-01 23:20:00')
+        end_date = pd.to_datetime('2020-01-1 23:59:59')
+        fig, _ = update_graph('test_tweets', start_date=start_date, end_date=end_date, hashtag=None)
+        fig.show()
+
+    def test_update_graph_date_range_hashtag_tweets(self):
+        start_date = pd.to_datetime('2019-01-01 23:20:00')
+        end_date = pd.to_datetime('2020-01-1 23:59:59')
+        fig, _ = update_graph('test_tweets', start_date=start_date, end_date=end_date,
+                           hashtag=['CataluñaPorEspaña', 1])
+        fig.show()
+
+    def test_load_user_count_evolution(self):
+        client = MongoClient("localhost", 27017)
+        database = client.get_database("test_remiss")
+        collection = database.get_collection('test_tweets')
+        df = pd.DataFrame(list(collection.find()))
+        df['username'] = df['author'].apply(lambda x: x['username'])
+        expected = df.groupby(pd.Grouper(key='created_at', freq='1D'))['username'].nunique()
+        actual = load_user_count_evolution('localhost', 27017, 'test_remiss', 'test_tweets',
+                                           unit='day', bin_size=1)
+        self.assertEqual(actual.to_dict(), expected.to_dict())
+
+    def test_load_user_count_evolution_start_end_date(self):
+        start_date = pd.to_datetime('2019-01-01 23:20:00')
+        end_date = pd.to_datetime('2020-12-31 23:59:59')
+        client = MongoClient("localhost", 27017)
+        database = client.get_database("test_remiss")
+        collection = database.get_collection('test_tweets')
+        df = pd.DataFrame(list(collection.find()))
+        df['username'] = df['author'].apply(lambda x: x['username'])
+        expected = df.groupby(pd.Grouper(key='created_at', freq='1D'))['username'].nunique()
+        actual = load_user_count_evolution('localhost', 27017, 'test_remiss', 'test_tweets',
+                                            unit='day', bin_size=1,
+                                            start_date=start_date, end_date=end_date)
+
+        self.assertEqual(actual.to_dict(), expected.to_dict())
+
+    def test_load_user_count_evolution_start_end_date_2(self):
+        start_date = pd.to_datetime('2019-01-01 23:20:00')
+        end_date = pd.to_datetime('2020-12-30 23:59:59')
+        client = MongoClient("localhost", 27017)
+        database = client.get_database("test_remiss")
+        collection = database.get_collection('test_tweets')
+        df = pd.DataFrame(list(collection.find()))
+        df = df[df['created_at'] < end_date]
+        df['username'] = df['author'].apply(lambda x: x['username'])
+        expected = df.groupby(pd.Grouper(key='created_at', freq='1D'))['username'].nunique()
+        actual = load_user_count_evolution('localhost', 27017, 'test_remiss', 'test_tweets',
+                                            unit='day', bin_size=1,
+                                            start_date=start_date, end_date=end_date)
+
+        self.assertEqual(actual.to_dict(), expected.to_dict())
+
+    def test_load_user_count_evolution_hashtag(self):
+        hashtag = 'CataluñaPorEspaña'
+        client = MongoClient("localhost", 27017)
+        database = client.get_database("test_remiss")
+        collection = database.get_collection('test_tweets')
+        df = pd.DataFrame(list(collection.find()))
+        df = df[df['entities'].apply(lambda x: x['hashtags'][0]['tag'] == hashtag if len(x['hashtags']) else False)]
+        df['username'] = df['author'].apply(lambda x: x['username'])
+        expected = df.groupby(pd.Grouper(key='created_at', freq='1D'))['username'].nunique()
+        expected = expected[expected > 0]
+        actual = load_user_count_evolution('localhost', 27017, 'test_remiss', 'test_tweets',
+                                            hashtag=hashtag,
+                                            unit='day', bin_size=1)
+        self.maxDiff = None
+        self.assertEqual(actual.to_dict(), expected.to_dict())
+
     def test_update_graph(self):
-        fig = update_graph('test_tweets', start_date=None, end_date=None, hashtag=None)
+        _, fig = update_graph('test_tweets', start_date=None, end_date=None, hashtag=None)
         fig.show()
 
     def test_update_graph_hashtag(self):
-        fig = update_graph('test_tweets', start_date=None, end_date=None, hashtag=['CataluñaPorEspaña', 1])
+        _, fig = update_graph('test_tweets', start_date=None, end_date=None, hashtag=['CataluñaPorEspaña', 1])
         fig.show()
 
     def test_update_graph_date_range(self):
         start_date = pd.to_datetime('2019-01-01 23:20:00')
         end_date = pd.to_datetime('2020-01-1 23:59:59')
-        fig = update_graph('test_tweets', start_date=start_date, end_date=end_date, hashtag=None)
+        _, fig = update_graph('test_tweets', start_date=start_date, end_date=end_date, hashtag=None)
         fig.show()
 
     def test_update_graph_date_range_hashtag(self):
         start_date = pd.to_datetime('2019-01-01 23:20:00')
         end_date = pd.to_datetime('2020-01-1 23:59:59')
-        fig = update_graph('test_tweets', start_date=start_date, end_date=end_date,
+        _, fig = update_graph('test_tweets', start_date=start_date, end_date=end_date,
                            hashtag=['CataluñaPorEspaña', 1])
         fig.show()
 

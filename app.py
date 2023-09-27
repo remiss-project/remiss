@@ -99,6 +99,7 @@ app.layout = dbc.Container([
 # Add controls to build the interaction
 @callback(
     Output(component_id='tweets-per-day', component_property='figure'),
+    Output(component_id='users-per-day', component_property='figure'),
     Input(component_id='dropdown-dataset', component_property='value'),
     Input(component_id='temporal-evolution-date-picker-range', component_property='start_date'),
     Input(component_id='temporal-evolution-date-picker-range', component_property='end_date'),
@@ -106,13 +107,20 @@ app.layout = dbc.Container([
 )
 def update_graph(chosen_dataset, start_date, end_date, hashtag):
     hashtag = hashtag[0] if hashtag else None
-    data = load_tweet_count_evolution(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE,
+    data_tweet_count = load_tweet_count_evolution(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE,
                                       collection=chosen_dataset,
                                       start_date=start_date,
                                       end_date=end_date,
                                       hashtag=hashtag)
-    fig = px.bar(data, labels={"value": "Count"})
-    return fig
+    fig_tweets_per_day = px.bar(data_tweet_count, labels={"value": "Count"})
+
+    data_user_count = load_tweet_count_evolution(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE,
+                                        collection=chosen_dataset,
+                                        start_date=start_date,
+                                        end_date=end_date,
+                                        hashtag=hashtag)
+    fig_users_per_day = px.bar(data_user_count, labels={"value": "Count"})
+    return fig_tweets_per_day, fig_users_per_day
 
 
 # @callback(
