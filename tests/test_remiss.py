@@ -7,7 +7,8 @@ from unittest import TestCase
 from pymongo import MongoClient
 
 from app import update_graph
-from remiss import preprocess_tweets, load_tweet_count_evolution, load_user_count_evolution, compute_hidden_graph
+from remiss import preprocess_tweets, load_tweet_count_evolution, load_user_count_evolution, compute_hidden_graph, \
+    plot_network
 import pandas as pd
 import plotly.express as px
 import numpy as np
@@ -387,3 +388,15 @@ class TestRemiss(TestCase):
         graph = compute_hidden_graph(collection)
         self.assertEqual(len(graph.nodes), 878)
         self.assertEqual(len(graph.edges), 838)
+
+    def test_network_plot(self):
+        import networkx as nx
+
+        # network = nx.random_geometric_graph(200, 0.125)
+        client = MongoClient("localhost", 27017)
+        database = client.get_database("test_remiss")
+        collection = database.get_collection('test_tweets_original')
+        network = compute_hidden_graph(collection)
+        fig = plot_network(network)
+        fig.show()
+
