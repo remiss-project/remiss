@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import networkx as nx
 import pandas as pd
 from datetime import datetime
 from pymongo import MongoClient
@@ -219,12 +220,17 @@ def compute_hidden_graph(collection):
     return graph
 
 
-def plot_network(network):
+def plot_network(network, layout='fruchterman_reingold'):
+    if layout == 'fruchterman_reingold':
+        layout = nx.fruchterman_reingold_layout(network)
+    else:
+        raise ValueError(f'Unknown layout {layout}')
+
     edge_x = []
     edge_y = []
     for edge in network.edges():
-        x0, y0 = network.nodes[edge[0]]['pos']
-        x1, y1 = network.nodes[edge[1]]['pos']
+        x0, y0 = layout[edge[0]]
+        x1, y1 = layout[edge[1]]
         edge_x.append(x0)
         edge_x.append(x1)
         edge_x.append(None)
@@ -241,7 +247,7 @@ def plot_network(network):
     node_x = []
     node_y = []
     for node in network.nodes():
-        x, y = network.nodes[node]['pos']
+        x, y = layout[node]
         node_x.append(x)
         node_y.append(y)
 
