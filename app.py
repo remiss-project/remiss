@@ -93,6 +93,7 @@ app.layout = dbc.Container([
         dbc.Col([
             dcc.Graph(figure={}, id='egonet'),
             dcc.Dropdown(options=[{"label": x, "value": x} for x in available_users], id='dropdown-user'),
+            dcc.Slider(min=1, max=5, step=1, value=2, id='range-slider'),
         ]),
     ]),
 
@@ -153,15 +154,26 @@ def update_graph(chosen_dataset, start_date, end_date, hashtag):
 
 @callback(
     Output(component_id='egonet', component_property='figure'),
-    Input(component_id='dropdown-user', component_property='value')
+    Output(component_id='dropdown-user', component_property='options'),
+    Input(component_id='dropdown-user', component_property='value'),
+    Input(component_id='dropdown-dataset', component_property='value'),
+    Input(component_id='range-slider', component_property='value')
 )
-def update_egonet(chosen_user):
-    compute_neighbourhood
+def update_egonet(chosen_user, dataset, radius):
+    neighbourhood = compute_neighbourhood(REMISS_MONGODB_HOST,
+                                          REMISS_MONGODB_PORT,
+                                          REMISS_MONGODB_DATABASE,
+                                          dataset=dataset,
+                                          chosen_user=chosen_user,
+                                          radius=radius)
+
+    fig = plot_network(neighbourhood)
     client = MongoClient(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT)
     database = client.get_database(REMISS_MONGODB_DATABASE)
-    dataset = database.get_collection(available_datasets[0])
-    fig = plot_network(neighbourhood)
-    return fig
+    dataset = database.get_collection(dataset)
+    available_users = [str(x) for x in dataset.distinct('author.username')]
+    client.close()
+    return fig, available_users
 
 
 # Run the app
