@@ -192,32 +192,53 @@ def load_user_count_evolution(host, port, database, collection, start_date=None,
     return df
 
 
-def compute_hidden_graph(collection):
+def compute_hidden_network(host, port, database, dataset, reference_types=('replied_to', 'quoted', 'retweeted')):
     """
     Computes the hidden graph, this is, the graph of users that have interacted with each other.
-    :param collection: collection where the tweets are stored
+    :param host: host where the mongodb instance is running
+    :param port: port where the mongodb instance is running
+    :param database: database where the tweets are stored
+    :param collection: collection within the database where the tweets are stored
     :return: a networkx graph with the users as nodes and the edges representing interactions between users
     """
+    client = MongoClient(host, port)
+    database = client.get_database(database)
+    collection = database.get_collection(dataset)
+
     graph = networkx.DiGraph()
     for tweet in tqdm(collection.find()):
         if 'referenced_tweets' in tweet:
+            source = tweet['author']
             for referenced_tweet in tweet['referenced_tweets']:
-                if referenced_tweet['type'] == 'replied_to':
-                    if 'author' in referenced_tweet:
-                        graph.add_edge(tweet['author']['username'], referenced_tweet['author']['username'])
-                    else:
-                        referenced_tweet_id = referenced_tweet['id']
-                        referenced_tweet = collection.find_one({'id': referenced_tweet_id})
-                        if referenced_tweet:
-                            graph.add_edge(tweet['author']['username'], referenced_tweet['author']['username'])
-                        else:
-                            print(f'Could not find tweet {referenced_tweet_id}')
-                elif referenced_tweet['type'] == 'quoted':
-                    graph.add_edge(tweet['author']['username'], referenced_tweet['author']['username'])
-                elif referenced_tweet['type'] == 'retweeted':
-                    graph.add_edge(tweet['author']['username'], referenced_tweet['author']['username'])
+                if referenced_tweet['type'] in reference_types:
+                    target = get_reference_target_user(referenced_tweet, collection)
+                    if source['id'] != target['id']:
+                        if not graph.has_node(source['id']):
+                            graph.add_node(source['id'], **source)
+                        if not graph.has_node(target['id']):
+                            graph.add_node(target['id'], **target)
+                        graph.add_edge(source['id'], target['id'])
+
+                else:
+                    print(f'Tweet {tweet["id"]} has an unknown reference type {referenced_tweet["type"]}')
+
+    client.close()
 
     return graph
+
+
+def get_reference_target_user(referenced_tweet, collection):
+    if 'author' in referenced_tweet:
+        target = referenced_tweet['author']
+    else:
+        referenced_tweet_id = referenced_tweet['id']
+        referenced_tweet = collection.find_one({'id': referenced_tweet_id})
+        if referenced_tweet:
+            target = referenced_tweet['author']
+        else:
+            print(f'Referenced tweet {referenced_tweet_id} not found')
+            target = {'id': referenced_tweet_id}
+    return target
 
 
 def plot_network(network, layout='fruchterman_reingold'):
@@ -276,7 +297,11 @@ def plot_network(network, layout='fruchterman_reingold'):
     node_text = []
     for node, adjacencies in enumerate(network.adjacency()):
         node_adjacencies.append(len(adjacencies[1]))
-        node_text.append('# of connections: ' + str(len(adjacencies[1])))
+        try:
+            username = network.nodes[adjacencies[0]]['username']
+        except KeyError:
+            username = adjacencies[0]
+        node_text.append(f'{username}: {len(adjacencies[1])}')
 
     node_trace.marker.color = node_adjacencies
     node_trace.text = node_text
@@ -290,3 +315,24 @@ def plot_network(network, layout='fruchterman_reingold'):
                         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
                     )
     return fig
+
+
+def compute_neighbourhood(host, port, database, dataset, chosen_user=None, radius=2):
+    neighbourhood = compute_hidden_network(host, port, database, dataset)
+    if chosen_user:
+        user_id = get_user_id(host, port, database, dataset, chosen_user)
+        neighbourhood = nx.ego_graph(neighbourhood, user_id, radius)
+
+    return neighbourhood
+
+
+def get_user_id(host, port, database, dataset, username):
+    client = MongoClient(host, port)
+    database = client.get_database(database)
+    collection = database.get_collection(dataset)
+    tweet = collection.find_one({'author.username': username})
+    if tweet:
+        return tweet['author']['id']
+    else:
+        raise RuntimeError(f'User {username} not found')
+

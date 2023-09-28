@@ -7,8 +7,8 @@ from unittest import TestCase
 from pymongo import MongoClient
 
 from app import update_graph
-from remiss import preprocess_tweets, load_tweet_count_evolution, load_user_count_evolution, compute_hidden_graph, \
-    plot_network
+from remiss import preprocess_tweets, load_tweet_count_evolution, load_user_count_evolution, compute_hidden_network, \
+    plot_network, compute_neighbourhood
 import pandas as pd
 import plotly.express as px
 import numpy as np
@@ -33,7 +33,7 @@ def generate_test_data(start_date, end_date, hashtags, parties,
         for i in range(num_tweets):
             tweet = {'id': i,
                      'created_at': {'$date': dates[i].replace(microsecond=0).isoformat() + 'Z'},
-                     'author': {'username': f'TEST_USER_{i//2}',
+                     'author': {'username': f'TEST_USER_{i // 2}',
                                 'remiss_metadata': {}
                                 }}
             if np.random.rand() < prob_hashtag:
@@ -271,7 +271,7 @@ class TestRemiss(TestCase):
         start_date = pd.to_datetime('2019-01-01 23:20:00')
         end_date = pd.to_datetime('2020-01-1 23:59:59')
         fig, _ = update_graph('test_tweets', start_date=start_date, end_date=end_date,
-                           hashtag=['CataluñaPorEspaña', 1])
+                              hashtag=['CataluñaPorEspaña', 1])
         fig.show()
 
     def test_load_user_count_evolution(self):
@@ -295,8 +295,8 @@ class TestRemiss(TestCase):
         df['username'] = df['author'].apply(lambda x: x['username'])
         expected = df.groupby(pd.Grouper(key='created_at', freq='1D'))['username'].nunique()
         actual = load_user_count_evolution('localhost', 27017, 'test_remiss', 'test_tweets',
-                                            unit='day', bin_size=1,
-                                            start_date=start_date, end_date=end_date)
+                                           unit='day', bin_size=1,
+                                           start_date=start_date, end_date=end_date)
 
         self.assertEqual(actual.to_dict(), expected.to_dict())
 
@@ -311,8 +311,8 @@ class TestRemiss(TestCase):
         df['username'] = df['author'].apply(lambda x: x['username'])
         expected = df.groupby(pd.Grouper(key='created_at', freq='1D'))['username'].nunique()
         actual = load_user_count_evolution('localhost', 27017, 'test_remiss', 'test_tweets',
-                                            unit='day', bin_size=1,
-                                            start_date=start_date, end_date=end_date)
+                                           unit='day', bin_size=1,
+                                           start_date=start_date, end_date=end_date)
 
         self.assertEqual(actual.to_dict(), expected.to_dict())
 
@@ -327,8 +327,8 @@ class TestRemiss(TestCase):
         expected = df.groupby(pd.Grouper(key='created_at', freq='1D'))['username'].nunique()
         expected = expected[expected > 0]
         actual = load_user_count_evolution('localhost', 27017, 'test_remiss', 'test_tweets',
-                                            hashtag=hashtag,
-                                            unit='day', bin_size=1)
+                                           hashtag=hashtag,
+                                           unit='day', bin_size=1)
         self.maxDiff = None
         self.assertEqual(actual.to_dict(), expected.to_dict())
 
@@ -350,7 +350,7 @@ class TestRemiss(TestCase):
         start_date = pd.to_datetime('2019-01-01 23:20:00')
         end_date = pd.to_datetime('2020-01-1 23:59:59')
         _, fig = update_graph('test_tweets', start_date=start_date, end_date=end_date,
-                           hashtag=['CataluñaPorEspaña', 1])
+                              hashtag=['CataluñaPorEspaña', 1])
         fig.show()
 
     def _test_generate_test_data(self):
@@ -382,21 +382,33 @@ class TestRemiss(TestCase):
                            prob_usual_suspects, output_file)
 
     def test_compute_hidden_graph(self):
-        client = MongoClient("localhost", 27017)
-        database = client.get_database("test_remiss")
-        collection = database.get_collection('test_tweets_original')
-        graph = compute_hidden_graph(collection)
-        self.assertEqual(len(graph.nodes), 878)
-        self.assertEqual(len(graph.edges), 838)
+        host = 'localhost'
+        port = 27017
+        database = 'test_remiss'
+        dataset = 'test_tweets_original'
+        graph = compute_hidden_network(host, port, database, dataset)
+
+        self.assertEqual(880, len(graph.nodes))
+        self.assertEqual(835, len(graph.edges))
+
+
 
     def test_network_plot(self):
-        import networkx as nx
-
-        # network = nx.random_geometric_graph(200, 0.125)
-        client = MongoClient("localhost", 27017)
-        database = client.get_database("test_remiss")
-        collection = database.get_collection('test_tweets_original')
-        network = compute_hidden_graph(collection)
+        network = compute_hidden_network('localhost', 27017, 'test_remiss', 'test_tweets_original')
         fig = plot_network(network)
         fig.show()
 
+    def test_compute_neighbourhood(self):
+        neighbourhood = compute_neighbourhood('localhost', 27017, 'test_remiss', 'test_tweets_original')
+        host = 'localhost'
+        port = 27017
+        database = 'test_remiss'
+        dataset = 'test_tweets_original'
+        graph = compute_hidden_network(host, port, database, dataset)
+        self.assertEqual(len(neighbourhood), len(graph.nodes))
+
+    def test_compute_neighbourhood_2(self):
+        neighbourhood = compute_neighbourhood('localhost', 27017, 'test_remiss',
+                                            'test_tweets_original', 'WolfV0X', 2)
+        self.assertEqual(len(neighbourhood), 10)
+        self.assertEqual(len(neighbourhood.edges), 9)
