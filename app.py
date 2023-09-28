@@ -8,10 +8,13 @@ import os
 from dash import dcc, Dash, callback, Output, Input
 from dash import html
 from pymongo import MongoClient
+import networkx as nx
+
 import pymongoarrow.monkey
 from pymongoarrow.api import Schema
 
-from remiss import load_tweet_count_evolution, load_user_count_evolution, compute_hidden_graph
+from remiss import load_tweet_count_evolution, load_user_count_evolution, compute_hidden_network, plot_network, \
+    compute_neighbourhood
 
 REMISS_MONGODB_HOST = os.environ.get('REMISS_MONGODB_HOST', 'localhost')
 REMISS_MONGODB_PORT = int(os.environ.get('REMISS_MONGODB_PORT', 27017))
@@ -120,6 +123,7 @@ def update_data_picker_range(chosen_dataset):
     client.close()
     return min_date_allowed, max_date_allowed, min_date_allowed, max_date_allowed, available_hashtags_freqs
 
+
 # Add controls to build the interaction
 @callback(
     Output(component_id='tweets-per-day', component_property='figure'),
@@ -132,34 +136,32 @@ def update_data_picker_range(chosen_dataset):
 def update_graph(chosen_dataset, start_date, end_date, hashtag):
     hashtag = hashtag[0] if hashtag else None
     data_tweet_count = load_tweet_count_evolution(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE,
-                                      collection=chosen_dataset,
-                                      start_date=start_date,
-                                      end_date=end_date,
-                                      hashtag=hashtag)
+                                                  collection=chosen_dataset,
+                                                  start_date=start_date,
+                                                  end_date=end_date,
+                                                  hashtag=hashtag)
     fig_tweets_per_day = px.bar(data_tweet_count, labels={"value": "Count"})
 
     data_user_count = load_user_count_evolution(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE,
-                                        collection=chosen_dataset,
-                                        start_date=start_date,
-                                        end_date=end_date,
-                                        hashtag=hashtag)
+                                                collection=chosen_dataset,
+                                                start_date=start_date,
+                                                end_date=end_date,
+                                                hashtag=hashtag)
     fig_users_per_day = px.bar(data_user_count, labels={"value": "Count"})
     return fig_tweets_per_day, fig_users_per_day
 
 
-# @callback(
-#     Output(component_id='egonet', component_property='figure'),
-#     Input(component_id='dropdown-user', component_property='value')
-# )
-# def update_egonet(chosen_user):
-#     client = MongoClient(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT)
-#     database = client.get_database(REMISS_MONGODB_DATABASE)
-#     dataset = database.get_collection(available_datasets[0])
-#     graph = compute_hidden_graph(dataset)
-#     client.close()
-#     neighbourhood = graph.neighborhood(chosen_user, 2)
-
-
+@callback(
+    Output(component_id='egonet', component_property='figure'),
+    Input(component_id='dropdown-user', component_property='value')
+)
+def update_egonet(chosen_user):
+    compute_neighbourhood
+    client = MongoClient(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT)
+    database = client.get_database(REMISS_MONGODB_DATABASE)
+    dataset = database.get_collection(available_datasets[0])
+    fig = plot_network(neighbourhood)
+    return fig
 
 
 # Run the app
