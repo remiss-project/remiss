@@ -11,7 +11,7 @@ from pymongo import MongoClient
 import pymongoarrow.monkey
 from pymongoarrow.api import Schema
 
-from remiss import load_tweet_count_evolution, load_user_count_evolution
+from remiss import load_tweet_count_evolution, load_user_count_evolution, compute_hidden_graph
 
 REMISS_MONGODB_HOST = os.environ.get('REMISS_MONGODB_HOST', 'localhost')
 REMISS_MONGODB_PORT = int(os.environ.get('REMISS_MONGODB_PORT', 27017))
@@ -148,11 +148,18 @@ def update_graph(chosen_dataset, start_date, end_date, hashtag):
 
 
 # @callback(
-#     Output(component_id='tweets-per-day', component_property='figure'),
-#     Input(component_id='dropdown-dataset', component_property='value'),
-#     Input(component_id='temporal-evolution-date-picker-range', component_property='start_date'),
-#     Input(component_id='temporal-evolution-date-picker-range', component_property='end_date'),
-#     Input(component_id=)
+#     Output(component_id='egonet', component_property='figure'),
+#     Input(component_id='dropdown-user', component_property='value')
+# )
+# def update_egonet(chosen_user):
+#     client = MongoClient(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT)
+#     database = client.get_database(REMISS_MONGODB_DATABASE)
+#     dataset = database.get_collection(available_datasets[0])
+#     graph = compute_hidden_graph(dataset)
+#     client.close()
+#     neighbourhood = graph.neighborhood(chosen_user, 2)
+
+
 
 
 # Run the app
