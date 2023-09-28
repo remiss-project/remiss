@@ -320,8 +320,11 @@ def plot_network(network, layout='fruchterman_reingold'):
 def compute_neighbourhood(host, port, database, dataset, chosen_user=None, radius=2):
     neighbourhood = compute_hidden_network(host, port, database, dataset)
     if chosen_user:
-        user_id = get_user_id(host, port, database, dataset, chosen_user)
-        neighbourhood = nx.ego_graph(neighbourhood, user_id, radius)
+        try:
+            user_id = get_user_id(host, port, database, dataset, chosen_user)
+            neighbourhood = nx.ego_graph(neighbourhood, user_id, radius, center=True, undirected=True)
+        except RuntimeError as ex:
+            print(f'Computing neighbourhood for user {chosen_user} failed, computing the whole network')
 
     return neighbourhood
 
@@ -331,8 +334,10 @@ def get_user_id(host, port, database, dataset, username):
     database = client.get_database(database)
     collection = database.get_collection(dataset)
     tweet = collection.find_one({'author.username': username})
+    client.close()
     if tweet:
         return tweet['author']['id']
     else:
         raise RuntimeError(f'User {username} not found')
+
 
