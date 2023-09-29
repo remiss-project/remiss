@@ -7,7 +7,7 @@ from unittest import TestCase
 
 from pymongo import MongoClient
 
-from app import update_graph
+from app import update_graph, update_egonet
 from remiss import preprocess_tweets, load_tweet_count_evolution, load_user_count_evolution, compute_hidden_network, \
     plot_network, compute_neighbourhood
 import pandas as pd
@@ -455,3 +455,10 @@ class TestRemiss(TestCase):
                                               'test_tweets', 'TEST_USER_1', 2)
         self.assertEqual(len(neighbourhood), 12)
         self.assertEqual(len(neighbourhood.edges), 11)
+
+    def test_color_encoding(self):
+        neighbourhood = compute_neighbourhood('localhost', 27017, 'test_remiss',
+                                              'test_tweets', 'TEST_USER_1', 2)
+
+        fig = plot_network(neighbourhood)
+        fig.show()

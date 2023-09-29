@@ -272,39 +272,49 @@ def plot_network(network, layout='fruchterman_reingold'):
         node_x.append(x)
         node_y.append(y)
 
+    node_colors = []
+    node_text = []
+    # Color code
+    # 0 - white: not usual suspect nor politician
+    # 1 - red: usual suspect
+    # 2- yellow: politician
+    # 3 - purple: usual suspect and politician
+    for node in network:
+        try:
+            username = network.nodes[node]['username']
+            label = f'{username}'
+            color = 'green'
+            if 'remiss_metadata' in network.nodes[node]:
+                is_usual_suspect = network.nodes[node]['remiss_metadata']['is_usual_suspect']
+                party = network.nodes[node]['remiss_metadata']['party']
+                if is_usual_suspect and party:
+                    label = f'{username}: usual suspect from {party}'
+                    color = 'purple'
+                elif is_usual_suspect:
+                    label = f'{username}: usual suspect'
+                    color = 'red'
+                elif party:
+                    label = f'{username}: {party}'
+                    color = 'yellow'
+
+        except KeyError:
+            label = node
+            color = 'green'
+        node_text.append(label)
+        node_colors.append(color)
+
     node_trace = go.Scatter(
         x=node_x, y=node_y,
         mode='markers',
         hoverinfo='text',
         marker=dict(
             showscale=True,
-            # colorscale options
-            # 'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
-            # 'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
-            # 'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
-            colorscale='YlGnBu',
-            reversescale=True,
-            color=[],
             size=10,
-            colorbar=dict(
-                thickness=15,
-                title='Node Connections',
-                xanchor='left',
-                titleside='right'
-            ),
-            line_width=2))
-    node_adjacencies = []
-    node_text = []
-    for node, adjacencies in enumerate(network.adjacency()):
-        node_adjacencies.append(len(adjacencies[1]))
-        try:
-            username = network.nodes[adjacencies[0]]['username']
-        except KeyError:
-            username = adjacencies[0]
-        node_text.append(f'{username}: {len(adjacencies[1])}')
-
-    node_trace.marker.color = node_adjacencies
-    node_trace.text = node_text
+            line_width=2,
+            color=node_colors,
+        ),
+        text=node_text,
+    )
 
     fig = go.Figure(data=[edge_trace, node_trace],
                     layout=go.Layout(
@@ -341,3 +351,10 @@ def get_user_id(host, port, database, dataset, username):
         raise RuntimeError(f'User {username} not found')
 
 
+def get_available_users(host, port, database, dataset):
+    client = MongoClient(host, port)
+    database = client.get_database(database)
+    dataset = database.get_collection(dataset)
+    available_users = [str(x) for x in dataset.distinct('author.username')]
+    client.close()
+    return available_users
