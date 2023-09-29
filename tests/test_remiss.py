@@ -1,4 +1,5 @@
 import json
+import random
 from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
@@ -26,7 +27,8 @@ def extract_paths(base_path, dd):
 
 
 def generate_test_data(start_date, end_date, hashtags, parties,
-                       num_tweets, prob_hashtag, prob_party, prob_usual_suspects,
+                       num_tweets, prob_hashtag, prob_party, prob_usual_suspects, prob_interaction,
+                       prob_rt, prob_qt, prob_reply,
                        output_file):
     dates = pd.date_range(start_date, end_date, periods=num_tweets)
     with open(output_file, 'w') as outfile:
@@ -34,6 +36,7 @@ def generate_test_data(start_date, end_date, hashtags, parties,
             tweet = {'id': i,
                      'created_at': {'$date': dates[i].replace(microsecond=0).isoformat() + 'Z'},
                      'author': {'username': f'TEST_USER_{i // 2}',
+                                'id': i // 2,
                                 'remiss_metadata': {}
                                 }}
             if np.random.rand() < prob_hashtag:
@@ -50,6 +53,12 @@ def generate_test_data(start_date, end_date, hashtags, parties,
             else:
                 tweet['author']['remiss_metadata']['is_usual_suspect'] = False
 
+            if np.random.rand() < prob_interaction:
+                interaction_type = random.choices(['replied_to', 'retweeted', 'quoted'],
+                                                  [prob_reply, prob_rt, prob_qt], k=1)[0]
+                tweet['referenced_tweets'] = [{'id': np.random.randint(0, num_tweets),
+                                               'type': interaction_type}]
+
             outfile.write(json.dumps(tweet) + '\n')
 
 
@@ -60,6 +69,40 @@ class TestRemiss(TestCase):
     mongoimport --db test_remiss --collection test_tweets --file import_test.mongodbimport.jsonl
     mongoimport --db test_remiss --collection test_tweets_2 --file import_test.mongodbimport.jsonl
     """
+
+    def _test_generate_test_data(self):
+        hashtags = ['EspañaVaciada', 'EspañaViva', '28A', 'PedroSánchez', 'Podemos', 'Ferraz', 'LaHistoriaLaEscribesTú',
+                    'PabloIglesias', 'CataluñaPorEspaña', 'cloacas', 'objetivoiglesias', 'LlibertatPresosPolitics',
+                    'StopRepresion', 'ObjetivoIglesias', 'EspanaViva', 'EspanaVaciada', 'LasPalmas', 'Vox', 'RT',
+                    'barcelona', 'VOX', 'LaEspañaViva', 'Cuenca', 'PP', 'ValorSeguro', 'Ciudadanos',
+                    'LaEspañaQueQuieres', 'elecciones', 'UnidasPodemos', 'AhoraSiVamosBien', 'Madrid', 'VOXSaleAGanar',
+                    'despoblación', 'JoAcuso', '26M', 'YoVotoUnidasPodemos', 'SiguemeYTeSigoVOX', 'EspañaVACIADA',
+                    'Españaviva', 'ESPAÑAVACIADA', 'LaSilenciosaCat', 'LlibertatPresosPolítics', 'VÍDEO', 'AFD',
+                    '100MedidasVOX', 'España', 'clocas', '28Abril', 'EspañaValiente', 'VolerelaLuna', '1O', 'PSOE',
+                    'Barcelona', 'CatalunaPorEspaña', 'Jaén', '20S', 'ContraLaDespoblación', 'MedioRural',
+                    'nacionalpopulismo', 'PorEspaña', 'MentirasMediosVerdadesVOX', 'EspañolesPrimero', 'Casado',
+                    'SonTerroristas', 'JaenLevantateBrava', '31M', 'L6NAlbertRivera', 'VOXEnTodaEspaña',
+                    'JudiciDemocràcia', 'FelizDomingo', 'Españavaciada', 'Europa', 'Sanchismo', 'EspañaDespierta',
+                    'Bannon', 'podemos', 'Llibertatpresospolitics', 'españavaciada', 'Huesca', 'JaénMereceMás',
+                    'CustodiaCompartida', 'Policía', 'espiada', 'Trifachito', 'VoxEnTodaEspaña', 'presupuestos',
+                    'Cataluña', 'vota', 'Revuelta', '31MsíVoy', '8M', 'VoxAvanzaEnValencia', 'VallsBCN2019', 'Aragón',
+                    'VandanaShiva', 'BonaNit', 'judiciprocés', 'GolpistasAPrisión', 'Absolució', 'NoPasarán']
+        parties = ['PSOE', 'PP', 'Cs', 'UP', 'VOX', 'ERC', 'JxCat', 'PNV', 'Bildu', 'CUP', 'CC', 'NA+', 'PRC', 'BNG']
+        start_date = pd.to_datetime('2019-01-01 23:20:00')
+        end_date = pd.to_datetime('2020-12-31 23:59:59')
+        num_tweets = 1000
+        prob_hashtag = 0.5
+        prob_party = 0.2
+        prob_usual_suspects = 0.2
+        prob_interaction = 0.8
+        prob_rt = 0.9
+        prob_qt = 0.05
+        prob_reply = 0.05
+        output_file = 'test_resources/test.jsonl'
+        generate_test_data(start_date, end_date, hashtags, parties, num_tweets, prob_hashtag, prob_party,
+                           prob_interaction,
+                           prob_rt, prob_qt, prob_reply,
+                           prob_usual_suspects, output_file)
 
     def test_preprocess_tweets(self):
         return
@@ -353,34 +396,6 @@ class TestRemiss(TestCase):
                               hashtag=['CataluñaPorEspaña', 1])
         fig.show()
 
-    def _test_generate_test_data(self):
-        hashtags = ['EspañaVaciada', 'EspañaViva', '28A', 'PedroSánchez', 'Podemos', 'Ferraz', 'LaHistoriaLaEscribesTú',
-                    'PabloIglesias', 'CataluñaPorEspaña', 'cloacas', 'objetivoiglesias', 'LlibertatPresosPolitics',
-                    'StopRepresion', 'ObjetivoIglesias', 'EspanaViva', 'EspanaVaciada', 'LasPalmas', 'Vox', 'RT',
-                    'barcelona', 'VOX', 'LaEspañaViva', 'Cuenca', 'PP', 'ValorSeguro', 'Ciudadanos',
-                    'LaEspañaQueQuieres', 'elecciones', 'UnidasPodemos', 'AhoraSiVamosBien', 'Madrid', 'VOXSaleAGanar',
-                    'despoblación', 'JoAcuso', '26M', 'YoVotoUnidasPodemos', 'SiguemeYTeSigoVOX', 'EspañaVACIADA',
-                    'Españaviva', 'ESPAÑAVACIADA', 'LaSilenciosaCat', 'LlibertatPresosPolítics', 'VÍDEO', 'AFD',
-                    '100MedidasVOX', 'España', 'clocas', '28Abril', 'EspañaValiente', 'VolerelaLuna', '1O', 'PSOE',
-                    'Barcelona', 'CatalunaPorEspaña', 'Jaén', '20S', 'ContraLaDespoblación', 'MedioRural',
-                    'nacionalpopulismo', 'PorEspaña', 'MentirasMediosVerdadesVOX', 'EspañolesPrimero', 'Casado',
-                    'SonTerroristas', 'JaenLevantateBrava', '31M', 'L6NAlbertRivera', 'VOXEnTodaEspaña',
-                    'JudiciDemocràcia', 'FelizDomingo', 'Españavaciada', 'Europa', 'Sanchismo', 'EspañaDespierta',
-                    'Bannon', 'podemos', 'Llibertatpresospolitics', 'españavaciada', 'Huesca', 'JaénMereceMás',
-                    'CustodiaCompartida', 'Policía', 'espiada', 'Trifachito', 'VoxEnTodaEspaña', 'presupuestos',
-                    'Cataluña', 'vota', 'Revuelta', '31MsíVoy', '8M', 'VoxAvanzaEnValencia', 'VallsBCN2019', 'Aragón',
-                    'VandanaShiva', 'BonaNit', 'judiciprocés', 'GolpistasAPrisión', 'Absolució', 'NoPasarán']
-        parties = ['PSOE', 'PP', 'Cs', 'UP', 'VOX', 'ERC', 'JxCat', 'PNV', 'Bildu', 'CUP', 'CC', 'NA+', 'PRC', 'BNG']
-        start_date = pd.to_datetime('2019-01-01 23:20:00')
-        end_date = pd.to_datetime('2020-12-31 23:59:59')
-        num_tweets = 10000
-        prob_hashtag = 0.5
-        prob_party = 0.2
-        prob_usual_suspects = 0.2
-        output_file = 'test_resources/test.jsonl'
-        generate_test_data(start_date, end_date, hashtags, parties, num_tweets, prob_hashtag, prob_party,
-                           prob_usual_suspects, output_file)
-
     def test_compute_hidden_graph(self):
         host = 'localhost'
         port = 27017
@@ -390,8 +405,6 @@ class TestRemiss(TestCase):
 
         self.assertEqual(880, len(graph.nodes))
         self.assertEqual(835, len(graph.edges))
-
-
 
     def test_network_plot(self):
         network = compute_hidden_network('localhost', 27017, 'test_remiss', 'test_tweets_original')
@@ -409,6 +422,36 @@ class TestRemiss(TestCase):
 
     def test_compute_neighbourhood_2(self):
         neighbourhood = compute_neighbourhood('localhost', 27017, 'test_remiss',
-                                            'test_tweets_original', 'WolfV0X', 2)
+                                              'test_tweets_original', 'WolfV0X', 2)
         self.assertEqual(len(neighbourhood), 10)
         self.assertEqual(len(neighbourhood.edges), 9)
+
+    def test_compute_hidden_graph_synthetic(self):
+        host = 'localhost'
+        port = 27017
+        database = 'test_remiss'
+        dataset = 'test_tweets'
+        graph = compute_hidden_network(host, port, database, dataset)
+
+        self.assertEqual(500, len(graph.nodes))
+        self.assertEqual(898, len(graph.edges))
+
+    def test_network_plot_synthetic(self):
+        network = compute_hidden_network('localhost', 27017, 'test_remiss', 'test_tweets')
+        fig = plot_network(network)
+        fig.show()
+
+    def test_compute_neighbourhood_synthetic(self):
+        neighbourhood = compute_neighbourhood('localhost', 27017, 'test_remiss', 'test_tweets')
+        host = 'localhost'
+        port = 27017
+        database = 'test_remiss'
+        dataset = 'test_tweets'
+        graph = compute_hidden_network(host, port, database, dataset)
+        self.assertEqual(len(neighbourhood), len(graph.nodes))
+
+    def test_compute_neighbourhood_2_synthetic(self):
+        neighbourhood = compute_neighbourhood('localhost', 27017, 'test_remiss',
+                                              'test_tweets', 'TEST_USER_1', 2)
+        self.assertEqual(len(neighbourhood), 12)
+        self.assertEqual(len(neighbourhood.edges), 11)
