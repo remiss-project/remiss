@@ -14,7 +14,7 @@ import pymongoarrow.monkey
 from pymongoarrow.api import Schema
 
 from remiss import load_tweet_count_evolution, load_user_count_evolution, compute_hidden_network, plot_network, \
-    compute_neighbourhood
+    compute_neighbourhood, get_available_users
 
 REMISS_MONGODB_HOST = os.environ.get('REMISS_MONGODB_HOST', 'localhost')
 REMISS_MONGODB_PORT = int(os.environ.get('REMISS_MONGODB_PORT', 27017))
@@ -168,11 +168,10 @@ def update_egonet(chosen_user, dataset, radius):
                                           radius=radius)
 
     fig = plot_network(neighbourhood)
-    client = MongoClient(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT)
-    database = client.get_database(REMISS_MONGODB_DATABASE)
-    dataset = database.get_collection(dataset)
-    available_users = [str(x) for x in dataset.distinct('author.username')]
-    client.close()
+    available_users = get_available_users(REMISS_MONGODB_HOST,
+                                          REMISS_MONGODB_PORT,
+                                          REMISS_MONGODB_DATABASE,
+                                          dataset=dataset)
     return fig, available_users
 
 
