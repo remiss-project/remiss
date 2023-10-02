@@ -9,7 +9,7 @@ from pymongo import MongoClient
 
 from app import update_graph, update_egonet
 from remiss import preprocess_tweets, load_tweet_count_evolution, load_user_count_evolution, compute_hidden_network, \
-    plot_network, compute_neighbourhood
+    plot_network, compute_neighbourhood, load_hashtag_evolution
 import pandas as pd
 import plotly.express as px
 import numpy as np
@@ -462,3 +462,8 @@ class TestRemiss(TestCase):
 
         fig = plot_network(neighbourhood)
         fig.show()
+
+    def test_load_hashtag_evolution(self):
+        hashtag_evolution = load_hashtag_evolution('localhost', 27017, 'test_remiss',
+                                                  'test_tweets',
+                                                  'CataluñaPorEspaña')
