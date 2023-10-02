@@ -359,3 +359,62 @@ def get_available_users(host, port, database, dataset):
     available_users = [str(x) for x in dataset.distinct('author.username')]
     client.close()
     return available_users
+
+
+def get_available_hashtag_freqs(host, port, database, chosen_dataset):
+    client = MongoClient(host, port)
+    database = client.get_database(database)
+    dataset = database.get_collection(chosen_dataset)
+    min_date_allowed = dataset.find_one(sort=[('created_at', 1)])['created_at'].date()
+    max_date_allowed = dataset.find_one(sort=[('created_at', -1)])['created_at'].date()
+    available_hashtags_freqs = list(dataset.aggregate([
+        {'$unwind': '$entities.hashtags'},
+        {'$group': {'_id': '$entities.hashtags.tag', 'count': {'$sum': 1}}},
+        {'$sort': {'count': -1}}
+    ]))
+    available_hashtags_freqs = [(x['_id'], x['count']) for x in available_hashtags_freqs]
+
+    client.close()
+    return available_hashtags_freqs, min_date_allowed, max_date_allowed
+
+
+def load_hashtag_evolution(host, port, database, chosen_dataset, hashtag, unit='day', bin_size=1):
+    client = MongoClient(host, port)
+    database = client.get_database(database)
+    dataset = database.get_collection(chosen_dataset)
+    # get all tweets with hashtag at time t with its user, tweet id and tweets that reference it
+    pipeline = [
+        {'$match': {'entities.hashtags.tag': hashtag}},
+        {'$project': {'_id': 0, 'created_at': 1, 'author.username': 1, 'id': 1, 'referenced_tweets': 1}},
+        {'$unwind': '$referenced_tweets'},
+        {'$match': {'referenced_tweets.type': 'replied_to'}},
+        {'$lookup': {
+            'from': chosen_dataset,
+            'localField': 'referenced_tweets.id',
+            'foreignField': 'id',
+            'as': 'replied_to_tweet'
+        }},
+        {'$unwind': '$replied_to_tweet'},
+        {'$project': {'_id': 0, 'created_at': 1, 'author.username': 1, 'id': 1, 'replied_to_tweet.author.username': 1,
+                      'replied_to_tweet.id': 1}},
+        {'$group': {
+            '_id': {'slice': {'$dateTrunc': {'date': '$created_at', 'unit': unit, 'binSize': bin_size}},
+                    'username': '$author.username'},
+            'tweets': {'$addToSet': '$id'},
+            'users': {'$addToSet': '$author.username'},
+            'replied_to_tweets': {'$addToSet': '$replied_to_tweet.id'},
+            'replied_to_users': {'$addToSet': '$replied_to_tweet.author.username'}
+        }},
+        {'$sort': {'_id.slice': 1}}  # sort by date
+    ]
+    df = dataset.aggregate_pandas_all(
+        pipeline,
+
+    )
+    index = pd.DataFrame(df['_id'].to_list())
+    index['slice'] = pd.to_datetime(index['slice'])
+    df = pd.concat([index, df.drop('_id', axis=1)], axis=1)
+    df = df.rename(columns={'slice': 'Time'})
+    df = df.set_index(['Time', 'username'])
+    client.close()
+    return df

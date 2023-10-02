@@ -14,7 +14,7 @@ import pymongoarrow.monkey
 from pymongoarrow.api import Schema
 
 from remiss import load_tweet_count_evolution, load_user_count_evolution, compute_hidden_network, plot_network, \
-    compute_neighbourhood, get_available_users
+    compute_neighbourhood, get_available_users, get_available_hashtag_freqs
 
 REMISS_MONGODB_HOST = os.environ.get('REMISS_MONGODB_HOST', 'localhost')
 REMISS_MONGODB_PORT = int(os.environ.get('REMISS_MONGODB_PORT', 27017))
@@ -88,6 +88,7 @@ app.layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             dcc.Graph(figure={}, id='hashtag-evolution'),
+            dcc.Dropdown(options=[{"label": x, "value": x} for x, _ in available_hashtags_freqs], id='dropdown-hashtag'),
 
         ]),
         dbc.Col([
@@ -109,19 +110,10 @@ app.layout = dbc.Container([
     Input(component_id='dropdown-dataset', component_property='value')
 )
 def update_data_picker_range(chosen_dataset):
-    client = MongoClient(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT)
-    database = client.get_database(REMISS_MONGODB_DATABASE)
-    dataset = database.get_collection(chosen_dataset)
-    min_date_allowed = dataset.find_one(sort=[('created_at', 1)])['created_at'].date()
-    max_date_allowed = dataset.find_one(sort=[('created_at', -1)])['created_at'].date()
-    available_hashtags_freqs = list(dataset.aggregate([
-        {'$unwind': '$entities.hashtags'},
-        {'$group': {'_id': '$entities.hashtags.tag', 'count': {'$sum': 1}}},
-        {'$sort': {'count': -1}}
-    ]))
-    available_hashtags_freqs = [(x['_id'], x['count']) for x in available_hashtags_freqs]
-
-    client.close()
+    available_hashtags_freqs = get_available_hashtag_freqs(REMISS_MONGODB_HOST,
+                                                           REMISS_MONGODB_PORT,
+                                                           REMISS_MONGODB_DATABASE,
+                                                           chosen_dataset=chosen_dataset)
     return min_date_allowed, max_date_allowed, min_date_allowed, max_date_allowed, available_hashtags_freqs
 
 
@@ -175,6 +167,19 @@ def update_egonet(chosen_user, dataset, radius):
     return fig, available_users
 
 
+@callback(
+    Output(component_id='hashtag-evolution', component_property='figure'),
+    Input(component_id='dropdown-hashtag', component_property='value'),
+    Input(component_id='dropdown-dataset', component_property='value'),
+    Input(component_id='temporal-evolution-date-picker-range', component_property='start_date'),
+    Input(component_id='temporal-evolution-date-picker-range', component_property='end_date'),
+)
+def update_hashtag_evolution(chosen_hashtag, dataset, start_date, end_date):
+    pass
+
+
 # Run the app
+
+
 if __name__ == '__main__':
     app.run(debug=True)
