@@ -275,7 +275,7 @@ def plot_network(network, layout='fruchterman_reingold'):
     node_colors = []
     node_text = []
     # Color code
-    # 0 - white: not usual suspect nor politician
+    # 0 - green: not usual suspect nor politician
     # 1 - red: usual suspect
     # 2- yellow: politician
     # 3 - purple: usual suspect and politician
@@ -308,12 +308,12 @@ def plot_network(network, layout='fruchterman_reingold'):
         mode='markers',
         hoverinfo='text',
         marker=dict(
-            showscale=True,
             size=10,
             line_width=2,
             color=node_colors,
         ),
         text=node_text,
+        showlegend=True
     )
 
     fig = go.Figure(data=[edge_trace, node_trace],
@@ -324,6 +324,7 @@ def plot_network(network, layout='fruchterman_reingold'):
                         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
                         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
                     )
+
     return fig
 
 
