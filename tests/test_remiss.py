@@ -9,7 +9,7 @@ from pymongo import MongoClient
 
 from app import update_graph, update_egonet
 from remiss import preprocess_tweets, load_tweet_count_evolution, load_user_count_evolution, compute_hidden_network, \
-    plot_network, compute_neighbourhood, load_hashtag_evolution
+    plot_network, compute_neighbourhood, load_hashtag_evolution, load_full_tweet_count_evolution
 import pandas as pd
 import plotly.express as px
 import numpy as np
@@ -252,6 +252,25 @@ class TestRemiss(TestCase):
                                             unit='day', bin_size=1)
         self.assertEqual(actual.to_dict(), expected.to_dict())
 
+    def test_load_tweet_count_evolution_per_user_type(self):
+        client = MongoClient("localhost", 27017)
+        database = client.get_database("test_remiss")
+        collection = database.get_collection('test_tweets')
+        df = pd.DataFrame(list(collection.find()))
+        expected_global = df.groupby(pd.Grouper(key='created_at', freq='1D')).size()
+        sus_df = df[df['author'].apply(lambda x: x['remiss_metadata']['is_usual_suspect'])]
+        expected_sus = sus_df.groupby(pd.Grouper(key='created_at', freq='1D')).size()
+        expected_sus = expected_sus[expected_sus > 0]
+        party_df = df[df['author'].apply(lambda x: x['remiss_metadata']['party'] is not None)]
+        expected_party = party_df.groupby(pd.Grouper(key='created_at', freq='1D')).size()
+        expected_party = expected_party[expected_party > 0]
+        actual_global, actual_sus, actual_party = load_full_tweet_count_evolution('localhost', 27017,
+                                                                                  'test_remiss', 'test_tweets',
+                                                                                  unit='day', bin_size=1)
+        self.assertEqual(actual_global.to_dict(), expected_global.to_dict())
+        self.assertEqual(actual_sus.to_dict(), expected_sus.to_dict())
+        self.assertEqual(actual_party.to_dict(), expected_party.to_dict())
+
     def test_load_tweet_count_evolution_start_end_date(self):
         start_date = pd.to_datetime('2019-01-01 23:20:00')
         end_date = pd.to_datetime('2020-12-31 23:59:59')
@@ -465,5 +484,5 @@ class TestRemiss(TestCase):
 
     def test_load_hashtag_evolution(self):
         hashtag_evolution = load_hashtag_evolution('localhost', 27017, 'test_remiss',
-                                                  'test_tweets',
-                                                  'CataluñaPorEspaña')
+                                                   'test_tweets',
+                                                   'CataluñaPorEspaña')

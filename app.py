@@ -133,6 +133,7 @@ def update_graph(chosen_dataset, start_date, end_date, hashtag):
                                                   start_date=start_date,
                                                   end_date=end_date,
                                                   hashtag=hashtag)
+
     fig_tweets_per_day = px.bar(data_tweet_count, labels={"value": "Count"})
 
     data_user_count = load_user_count_evolution(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE,
