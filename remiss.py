@@ -120,8 +120,18 @@ def fix_timestamps(tweet):
             fix_timestamps(value)
 
 
+def load_full_tweet_count_evolution(host, port, database, collection, start_date=None, end_date=None, hashtag=None,
+                                    unit='day', bin_size=1):
+    global_evolution = load_tweet_count_evolution(host, port, database, collection, start_date, end_date, hashtag, unit,
+                                                  bin_size)
+    usual_suspect_evolution = load_tweet_count_evolution(host, port, database, collection, start_date, end_date,
+                                                         hashtag, unit, bin_size, usual_suspects_only=True)
+    politicians_evolution = load_tweet_count_evolution(host, port, database, collection, start_date, end_date,
+                                                         hashtag, unit, bin_size, politicians_only=True)
+    return global_evolution, usual_suspect_evolution, politicians_evolution
+
 def load_tweet_count_evolution(host, port, database, collection, start_date=None, end_date=None, hashtag=None,
-                               unit='day', bin_size=1, ):
+                               unit='day', bin_size=1, usual_suspects_only=False, politicians_only=False):
     client = MongoClient(host, port)
     database = client.get_database(database)
 
@@ -140,6 +150,10 @@ def load_tweet_count_evolution(host, port, database, collection, start_date=None
             "count": {'$count': {}}}},
         {'$sort': {'_id': 1}}
     ]
+    if usual_suspects_only:
+        pipeline.insert(0, {'$match': {'author.remiss_metadata.is_usual_suspect': True}})
+    if politicians_only:
+        pipeline.insert(0, {'$match': {'author.remiss_metadata.party': {'$ne': None}}})
     if hashtag:
         pipeline.insert(0, {'$match': {'entities.hashtags.tag': hashtag}})
     if end_date:
