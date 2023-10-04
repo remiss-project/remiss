@@ -88,12 +88,6 @@ app.layout = dbc.Container([
     ]),
     dbc.Row([
         dbc.Col([
-            dcc.Graph(figure={}, id='hashtag-evolution'),
-            dcc.Dropdown(options=[{"label": x, "value": x} for x, _ in available_hashtags_freqs],
-                         id='dropdown-hashtag'),
-
-        ]),
-        dbc.Col([
             dcc.Graph(figure={}, id='egonet'),
             dcc.Dropdown(options=[{"label": x, "value": x} for x in available_users], id='dropdown-user'),
             dcc.Slider(min=1, max=5, step=1, value=2, id='range-slider'),
@@ -172,23 +166,7 @@ def update_egonet(chosen_user, dataset, radius):
     return fig, available_users
 
 
-@callback(
-    Output(component_id='hashtag-evolution', component_property='figure'),
-    Input(component_id='dropdown-hashtag', component_property='value'),
-    Input(component_id='dropdown-dataset', component_property='value'),
-    Input(component_id='temporal-evolution-date-picker-range', component_property='start_date'),
-    Input(component_id='temporal-evolution-date-picker-range', component_property='end_date'),
-)
-def update_hashtag_evolution(chosen_hashtag, dataset, start_date, end_date):
-    data = load_tweet_count_evolution_per_type(REMISS_MONGODB_HOST,
-                                               REMISS_MONGODB_PORT,
-                                               REMISS_MONGODB_DATABASE,
-                                               collection=dataset,
-                                               start_date=start_date,
-                                               end_date=end_date,
-                                               hashtag=chosen_hashtag)
-    fig = px.area(data, labels={"value": "Count"})
-    return fig
+
 
 
 # Run the app
