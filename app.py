@@ -138,11 +138,12 @@ def update_graph(chosen_dataset, start_date, end_date, hashtag):
 
     fig_tweets_per_day = px.area(tweet_count, labels={"value": "Count"})
 
-    data_user_count = load_user_count_evolution_by_type(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE,
-                                                collection=chosen_dataset,
-                                                start_date=start_date,
-                                                end_date=end_date,
-                                                hashtag=hashtag)
+    data_user_count = load_user_count_evolution_by_type(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT,
+                                                        REMISS_MONGODB_DATABASE,
+                                                        collection=chosen_dataset,
+                                                        start_date=start_date,
+                                                        end_date=end_date,
+                                                        hashtag=hashtag)
     fig_users_per_day = px.area(data_user_count, labels={"value": "Count"})
     return fig_tweets_per_day, fig_users_per_day
 
@@ -178,7 +179,15 @@ def update_egonet(chosen_user, dataset, radius):
     Input(component_id='temporal-evolution-date-picker-range', component_property='end_date'),
 )
 def update_hashtag_evolution(chosen_hashtag, dataset, start_date, end_date):
-    pass
+    data = load_tweet_count_evolution_per_type(REMISS_MONGODB_HOST,
+                                               REMISS_MONGODB_PORT,
+                                               REMISS_MONGODB_DATABASE,
+                                               collection=dataset,
+                                               start_date=start_date,
+                                               end_date=end_date,
+                                               hashtag=chosen_hashtag)
+    fig = px.area(data, labels={"value": "Count"})
+    return fig
 
 
 # Run the app
