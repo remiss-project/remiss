@@ -215,7 +215,7 @@ def load_tweet_count_evolution(host, port, database, collection, start_date=None
 
 
 def load_user_count_evolution_by_type(host, port, database, collection, start_date=None, end_date=None, hashtag=None,
-                                       unit='day', bin_size=1):
+                                      unit='day', bin_size=1):
     normal_tweet_count = load_user_count_evolution(host, port, database,
                                                    collection=collection,
                                                    start_date=start_date,
@@ -536,3 +536,20 @@ def load_hashtag_evolution(host, port, database, chosen_dataset, hashtag, unit='
     df = df.set_index(['Time', 'username'])
     client.close()
     return df
+
+
+def get_data_range_and_hashtags_for_dataset(host, port, database, dataset):
+    client = MongoClient(host, port)
+    database = client.get_database(database)
+    dataset = database.get_collection(dataset)
+    min_date_allowed = dataset.find_one(sort=[('created_at', 1)])['created_at'].date()
+    max_date_allowed = dataset.find_one(sort=[('created_at', -1)])['created_at'].date()
+    available_hashtags_freqs = list(dataset.aggregate([
+        {'$unwind': '$entities.hashtags'},
+        {'$group': {'_id': '$entities.hashtags.tag', 'count': {'$sum': 1}}},
+        {'$sort': {'count': -1}}
+    ]))
+    available_hashtags_freqs = [(x['_id'], x['count']) for x in available_hashtags_freqs]
+
+    client.close()
+    return min_date_allowed, max_date_allowed, min_date_allowed, max_date_allowed, available_hashtags_freqs
