@@ -14,7 +14,8 @@ import pymongoarrow.monkey
 from pymongoarrow.api import Schema
 
 from remiss import load_tweet_count_evolution, load_user_count_evolution, compute_hidden_network, plot_network, \
-    compute_neighbourhood, get_available_users, get_available_hashtag_freqs
+    compute_neighbourhood, get_available_users, get_available_hashtag_freqs, load_tweet_count_evolution_per_type, \
+    load_user_count_evolution_by_type
 
 REMISS_MONGODB_HOST = os.environ.get('REMISS_MONGODB_HOST', 'localhost')
 REMISS_MONGODB_PORT = int(os.environ.get('REMISS_MONGODB_PORT', 27017))
@@ -88,7 +89,8 @@ app.layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             dcc.Graph(figure={}, id='hashtag-evolution'),
-            dcc.Dropdown(options=[{"label": x, "value": x} for x, _ in available_hashtags_freqs], id='dropdown-hashtag'),
+            dcc.Dropdown(options=[{"label": x, "value": x} for x, _ in available_hashtags_freqs],
+                         id='dropdown-hashtag'),
 
         ]),
         dbc.Col([
@@ -128,20 +130,20 @@ def update_data_picker_range(chosen_dataset):
 )
 def update_graph(chosen_dataset, start_date, end_date, hashtag):
     hashtag = hashtag[0] if hashtag else None
-    data_tweet_count = load_tweet_count_evolution(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE,
-                                                  collection=chosen_dataset,
-                                                  start_date=start_date,
-                                                  end_date=end_date,
-                                                  hashtag=hashtag)
+    tweet_count = load_tweet_count_evolution_per_type(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE,
+                                                      collection=chosen_dataset,
+                                                      start_date=start_date,
+                                                      end_date=end_date,
+                                                      hashtag=hashtag)
 
-    fig_tweets_per_day = px.bar(data_tweet_count, labels={"value": "Count"})
+    fig_tweets_per_day = px.area(tweet_count, labels={"value": "Count"})
 
-    data_user_count = load_user_count_evolution(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE,
+    data_user_count = load_user_count_evolution_by_type(REMISS_MONGODB_HOST, REMISS_MONGODB_PORT, REMISS_MONGODB_DATABASE,
                                                 collection=chosen_dataset,
                                                 start_date=start_date,
                                                 end_date=end_date,
                                                 hashtag=hashtag)
-    fig_users_per_day = px.bar(data_user_count, labels={"value": "Count"})
+    fig_users_per_day = px.area(data_user_count, labels={"value": "Count"})
     return fig_tweets_per_day, fig_users_per_day
 
 
