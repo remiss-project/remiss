@@ -158,16 +158,41 @@ def load_tweet_count_evolution_per_type(host, port, database, collection, start_
                                                                 bin_size=bin_size,
                                                                 politicians_only=True,
                                                                 usual_suspects_only=True)
-    politician_tweet_count -= politician_and_sus_tweet_count
-    sus_tweet_count -= politician_and_sus_tweet_count
 
-    tweet_count = pd.concat([normal_tweet_count,
-                             sus_tweet_count,
-                             politician_tweet_count,
-                             politician_and_sus_tweet_count
-                             ],
-                            axis=1)
-    tweet_count.columns = ['Normal', 'Usual Suspects', 'Politicians', 'Politicians and Usual Suspects']
+    # remove the usual suspects that are also politicians from the usual suspects and politicians count
+    # skip any of the columns if empty
+    data = []
+    columns = []
+    try:
+        if not normal_tweet_count.empty:
+            data.append(normal_tweet_count)
+            columns.append('Normal')
+    except AttributeError:
+        pass
+    try:
+        if not sus_tweet_count.empty:
+            sus_tweet_count -= politician_and_sus_tweet_count
+            data.append(sus_tweet_count)
+            columns.append('Usual Suspects')
+    except AttributeError:
+        pass
+    try:
+        if not politician_tweet_count.empty:
+            politician_tweet_count -= politician_and_sus_tweet_count
+            data.append(politician_tweet_count)
+            columns.append('Politicians')
+    except AttributeError:
+        pass
+    try:
+        if not politician_and_sus_tweet_count.empty:
+            data.append(politician_and_sus_tweet_count)
+            columns.append('Politicians and Usual Suspects')
+    except AttributeError:
+        pass
+    
+
+    tweet_count = pd.concat(data, axis=1)
+    tweet_count.columns = columns
     return tweet_count
 
 
@@ -211,12 +236,13 @@ def load_tweet_count_evolution(host, port, database, collection, start_date=None
         schema=Schema({'_id': datetime, 'count': int})
     )
     df = df.rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time').squeeze()
+
     return df
 
 
 def load_user_count_evolution_by_type(host, port, database, collection, start_date=None, end_date=None, hashtag=None,
                                       unit='day', bin_size=1):
-    normal_tweet_count = load_user_count_evolution(host, port, database,
+    normal_user_count = load_user_count_evolution(host, port, database,
                                                    collection=collection,
                                                    start_date=start_date,
                                                    end_date=end_date,
@@ -224,7 +250,7 @@ def load_user_count_evolution_by_type(host, port, database, collection, start_da
                                                    unit=unit,
                                                    bin_size=bin_size,
                                                    normal_only=True)
-    sus_tweet_count = load_user_count_evolution(host, port, database,
+    sus_user_count = load_user_count_evolution(host, port, database,
                                                 collection=collection,
                                                 start_date=start_date,
                                                 end_date=end_date,
@@ -232,7 +258,7 @@ def load_user_count_evolution_by_type(host, port, database, collection, start_da
                                                 unit=unit,
                                                 bin_size=bin_size,
                                                 usual_suspects_only=True)
-    politician_tweet_count = load_user_count_evolution(host, port,
+    politician_user_count = load_user_count_evolution(host, port,
                                                        database,
                                                        collection=collection,
                                                        start_date=start_date,
@@ -242,7 +268,7 @@ def load_user_count_evolution_by_type(host, port, database, collection, start_da
                                                        bin_size=bin_size,
                                                        politicians_only=True)
 
-    politician_and_sus_tweet_count = load_user_count_evolution(host, port,
+    politician_and_sus_user_count = load_user_count_evolution(host, port,
                                                                database,
                                                                collection=collection,
                                                                start_date=start_date,
@@ -252,17 +278,40 @@ def load_user_count_evolution_by_type(host, port, database, collection, start_da
                                                                bin_size=bin_size,
                                                                politicians_only=True,
                                                                usual_suspects_only=True)
-    politician_tweet_count -= politician_and_sus_tweet_count
-    sus_tweet_count -= politician_and_sus_tweet_count
+    # remove the usual suspects that are also politicians from the usual suspects and politicians count
 
-    tweet_count = pd.concat([normal_tweet_count,
-                             sus_tweet_count,
-                             politician_tweet_count,
-                             politician_and_sus_tweet_count
-                             ],
-                            axis=1)
-    tweet_count.columns = ['Normal', 'Usual Suspects', 'Politicians', 'Politicians and Usual Suspects']
-    return tweet_count
+    data = []
+    columns = []
+    try:
+        if not normal_user_count.empty:
+            data.append(normal_user_count)
+            columns.append('Normal')
+    except AttributeError:
+        pass
+    try:
+        if not sus_user_count.empty:
+            sus_user_count -= politician_and_sus_user_count
+            data.append(sus_user_count)
+            columns.append('Usual Suspects')
+    except AttributeError:
+        pass
+    try:
+        if not politician_user_count.empty:
+            politician_user_count -= politician_and_sus_user_count
+            data.append(politician_user_count)
+            columns.append('Politicians')
+    except AttributeError:
+        pass
+    try:
+        if not politician_and_sus_user_count.empty:
+            data.append(politician_and_sus_user_count)
+            columns.append('Politicians and Usual Suspects')
+    except AttributeError:
+        pass
+
+    user_count = pd.concat(data, axis=1)
+    user_count.columns = columns
+    return user_count
 
 
 def load_user_count_evolution(host, port, database, collection, start_date=None, end_date=None, hashtag=None,
@@ -307,6 +356,7 @@ def load_user_count_evolution(host, port, database, collection, start_date=None,
         schema=Schema({'_id': datetime, 'count': int})
     )
     df = df.rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time').squeeze()
+
     return df
 
 
