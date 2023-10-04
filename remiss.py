@@ -120,18 +120,60 @@ def fix_timestamps(tweet):
             fix_timestamps(value)
 
 
-def load_full_tweet_count_evolution(host, port, database, collection, start_date=None, end_date=None, hashtag=None,
-                                    unit='day', bin_size=1):
-    global_evolution = load_tweet_count_evolution(host, port, database, collection, start_date, end_date, hashtag, unit,
-                                                  bin_size)
-    usual_suspect_evolution = load_tweet_count_evolution(host, port, database, collection, start_date, end_date,
-                                                         hashtag, unit, bin_size, usual_suspects_only=True)
-    politicians_evolution = load_tweet_count_evolution(host, port, database, collection, start_date, end_date,
-                                                         hashtag, unit, bin_size, politicians_only=True)
-    return global_evolution, usual_suspect_evolution, politicians_evolution
+def load_tweet_count_evolution_per_type(host, port, database, collection, start_date=None, end_date=None, hashtag=None,
+                                        unit='day', bin_size=1):
+    normal_tweet_count = load_tweet_count_evolution(host, port, database,
+                                                    collection=collection,
+                                                    start_date=start_date,
+                                                    end_date=end_date,
+                                                    hashtag=hashtag,
+                                                    unit=unit,
+                                                    bin_size=bin_size,
+                                                    normal_only=True)
+    sus_tweet_count = load_tweet_count_evolution(host, port, database,
+                                                 collection=collection,
+                                                 start_date=start_date,
+                                                 end_date=end_date,
+                                                 hashtag=hashtag,
+                                                 unit=unit,
+                                                 bin_size=bin_size,
+                                                 usual_suspects_only=True)
+    politician_tweet_count = load_tweet_count_evolution(host, port,
+                                                        database,
+                                                        collection=collection,
+                                                        start_date=start_date,
+                                                        end_date=end_date,
+                                                        hashtag=hashtag,
+                                                        unit=unit,
+                                                        bin_size=bin_size,
+                                                        politicians_only=True)
+
+    politician_and_sus_tweet_count = load_tweet_count_evolution(host, port,
+                                                                database,
+                                                                collection=collection,
+                                                                start_date=start_date,
+                                                                end_date=end_date,
+                                                                hashtag=hashtag,
+                                                                unit=unit,
+                                                                bin_size=bin_size,
+                                                                politicians_only=True,
+                                                                usual_suspects_only=True)
+    politician_tweet_count -= politician_and_sus_tweet_count
+    sus_tweet_count -= politician_and_sus_tweet_count
+
+    tweet_count = pd.concat([normal_tweet_count,
+                             sus_tweet_count,
+                             politician_tweet_count,
+                             politician_and_sus_tweet_count
+                             ],
+                            axis=1)
+    tweet_count.columns = ['Normal', 'Usual Suspects', 'Politicians', 'Politicians and Usual Suspects']
+    return tweet_count
+
 
 def load_tweet_count_evolution(host, port, database, collection, start_date=None, end_date=None, hashtag=None,
-                               unit='day', bin_size=1, usual_suspects_only=False, politicians_only=False):
+                               unit='day', bin_size=1, usual_suspects_only=False, politicians_only=False,
+                               normal_only=False):
     client = MongoClient(host, port)
     database = client.get_database(database)
 
@@ -154,6 +196,9 @@ def load_tweet_count_evolution(host, port, database, collection, start_date=None
         pipeline.insert(0, {'$match': {'author.remiss_metadata.is_usual_suspect': True}})
     if politicians_only:
         pipeline.insert(0, {'$match': {'author.remiss_metadata.party': {'$ne': None}}})
+    if normal_only:
+        pipeline.insert(0, {
+            '$match': {'author.remiss_metadata.party': None, 'author.remiss_metadata.is_usual_suspect': False}})
     if hashtag:
         pipeline.insert(0, {'$match': {'entities.hashtags.tag': hashtag}})
     if end_date:
@@ -169,8 +214,60 @@ def load_tweet_count_evolution(host, port, database, collection, start_date=None
     return df
 
 
+def load_user_count_evolution_by_type(host, port, database, collection, start_date=None, end_date=None, hashtag=None,
+                                       unit='day', bin_size=1):
+    normal_tweet_count = load_user_count_evolution(host, port, database,
+                                                   collection=collection,
+                                                   start_date=start_date,
+                                                   end_date=end_date,
+                                                   hashtag=hashtag,
+                                                   unit=unit,
+                                                   bin_size=bin_size,
+                                                   normal_only=True)
+    sus_tweet_count = load_user_count_evolution(host, port, database,
+                                                collection=collection,
+                                                start_date=start_date,
+                                                end_date=end_date,
+                                                hashtag=hashtag,
+                                                unit=unit,
+                                                bin_size=bin_size,
+                                                usual_suspects_only=True)
+    politician_tweet_count = load_user_count_evolution(host, port,
+                                                       database,
+                                                       collection=collection,
+                                                       start_date=start_date,
+                                                       end_date=end_date,
+                                                       hashtag=hashtag,
+                                                       unit=unit,
+                                                       bin_size=bin_size,
+                                                       politicians_only=True)
+
+    politician_and_sus_tweet_count = load_user_count_evolution(host, port,
+                                                               database,
+                                                               collection=collection,
+                                                               start_date=start_date,
+                                                               end_date=end_date,
+                                                               hashtag=hashtag,
+                                                               unit=unit,
+                                                               bin_size=bin_size,
+                                                               politicians_only=True,
+                                                               usual_suspects_only=True)
+    politician_tweet_count -= politician_and_sus_tweet_count
+    sus_tweet_count -= politician_and_sus_tweet_count
+
+    tweet_count = pd.concat([normal_tweet_count,
+                             sus_tweet_count,
+                             politician_tweet_count,
+                             politician_and_sus_tweet_count
+                             ],
+                            axis=1)
+    tweet_count.columns = ['Normal', 'Usual Suspects', 'Politicians', 'Politicians and Usual Suspects']
+    return tweet_count
+
+
 def load_user_count_evolution(host, port, database, collection, start_date=None, end_date=None, hashtag=None,
-                              unit='day', bin_size=1, ):
+                              unit='day', bin_size=1, usual_suspects_only=False, politicians_only=False,
+                              normal_only=False):
     client = MongoClient(host, port)
     database = client.get_database(database)
 
@@ -191,6 +288,13 @@ def load_user_count_evolution(host, port, database, collection, start_date=None,
         {'$project': {'count': {'$size': '$users'}}},
         {'$sort': {'_id': 1}}
     ]
+    if usual_suspects_only:
+        pipeline.insert(0, {'$match': {'author.remiss_metadata.is_usual_suspect': True}})
+    if politicians_only:
+        pipeline.insert(0, {'$match': {'author.remiss_metadata.party': {'$ne': None}}})
+    if normal_only:
+        pipeline.insert(0, {
+            '$match': {'author.remiss_metadata.party': None, 'author.remiss_metadata.is_usual_suspect': False}})
     if hashtag:
         pipeline.insert(0, {'$match': {'entities.hashtags.tag': hashtag}})
     if end_date:
