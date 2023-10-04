@@ -15,7 +15,7 @@ from pymongoarrow.api import Schema
 
 from remiss import load_tweet_count_evolution, load_user_count_evolution, compute_hidden_network, plot_network, \
     compute_neighbourhood, get_available_users, get_available_hashtag_freqs, load_tweet_count_evolution_per_type, \
-    load_user_count_evolution_by_type
+    load_user_count_evolution_by_type, get_data_range_and_hashtags_for_dataset
 
 REMISS_MONGODB_HOST = os.environ.get('REMISS_MONGODB_HOST', 'localhost')
 REMISS_MONGODB_PORT = int(os.environ.get('REMISS_MONGODB_PORT', 27017))
@@ -111,11 +111,12 @@ app.layout = dbc.Container([
     Output(component_id='wordcloud', component_property='list'),
     Input(component_id='dropdown-dataset', component_property='value')
 )
-def update_data_picker_range(chosen_dataset):
-    available_hashtags_freqs = get_available_hashtag_freqs(REMISS_MONGODB_HOST,
-                                                           REMISS_MONGODB_PORT,
-                                                           REMISS_MONGODB_DATABASE,
-                                                           chosen_dataset=chosen_dataset)
+def update_dropdown_dataset(chosen_dataset):
+    data = get_data_range_and_hashtags_for_dataset(REMISS_MONGODB_HOST,
+                                                   REMISS_MONGODB_PORT,
+                                                   REMISS_MONGODB_DATABASE,
+                                                   chosen_dataset)
+    min_date_allowed, max_date_allowed, min_date_allowed, max_date_allowed, available_hashtags_freqs = data
     return min_date_allowed, max_date_allowed, min_date_allowed, max_date_allowed, available_hashtags_freqs
 
 
