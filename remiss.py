@@ -91,17 +91,21 @@ def preprocess_tweets(twitter_jsonl_zip, metadata_file=None):
                                     else:
                                         remiss_metadata['party'] = None
                                     tweet['author']['remiss_metadata'] = remiss_metadata
+                                try:
+                                    outfile.write(json.dumps(tweet) + "\n")
 
-                                outfile.write(json.dumps(tweet) + "\n")
+                                    # convert the timestamps to mongodbimport format
+                                    # "starttime": "2019-12-01 00:00:05.5640"
+                                    # to
+                                    # "starttime": {
+                                    #     "$date": "2019-12-01T00:00:05.5640Z"
+                                    # }
+                                    fix_timestamps(tweet)
+                                    mongodbimport_outfile.write(json.dumps(tweet) + '\n')
+                                except TypeError as ex:
+                                    print(f'Error processing tweet {tweet["id"]}: {ex}')
+                                    print(tweet)
 
-                                # convert the timestamps to mongodbimport format
-                                # "starttime": "2019-12-01 00:00:05.5640"
-                                # to
-                                # "starttime": {
-                                #     "$date": "2019-12-01T00:00:05.5640Z"
-                                # }
-                                fix_timestamps(tweet)
-                                mongodbimport_outfile.write(json.dumps(tweet) + '\n')
 
 
 def fix_timestamps(tweet):
