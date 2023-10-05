@@ -92,6 +92,7 @@ def preprocess_tweets(twitter_jsonl_zip, metadata_file=None):
                                         if isinstance(party, str):
                                             party = party.strip()
                                         else:
+                                            print(party)
                                             party = party[0].strip()
                                         remiss_metadata['party'] = party
                                     else:
