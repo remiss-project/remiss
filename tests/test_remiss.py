@@ -7,7 +7,7 @@ from unittest import TestCase
 
 from pymongo import MongoClient
 
-from app import update_graph, update_egonet
+from app_old import update_graph, update_egonet
 from remiss import preprocess_tweets, load_tweet_count_evolution, load_user_count_evolution, compute_hidden_network, \
     plot_network, compute_neighbourhood, load_hashtag_evolution
 import pandas as pd
