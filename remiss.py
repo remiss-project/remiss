@@ -87,7 +87,13 @@ def preprocess_tweets(twitter_jsonl_zip, metadata_file=None):
                                     username = tweet['author']['username']
                                     remiss_metadata = {'is_usual_suspect': username in usual_suspects.index}
                                     if username in parties.index:
-                                        remiss_metadata['party'] = parties.loc[username, 'PARTIT']
+                                        party = parties.loc[username, 'PARTIT']
+                                        # check we have only a party
+                                        if isinstance(party, str):
+                                            party = party.strip()
+                                        else:
+                                            party = party[0].strip()
+                                        remiss_metadata['party'] = party
                                     else:
                                         remiss_metadata['party'] = None
                                     tweet['author']['remiss_metadata'] = remiss_metadata
