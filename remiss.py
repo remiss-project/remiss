@@ -360,7 +360,7 @@ def load_user_count_evolution(host, port, database, collection, start_date=None,
     return df
 
 
-def compute_hidden_network(host, port, database, dataset, reference_types=('replied_to', 'quoted', 'retweeted')):
+def compute_hidden_network_slow(host, port, database, dataset, reference_types=('replied_to', 'quoted', 'retweeted')):
     """
     Computes the hidden graph, this is, the graph of users that have interacted with each other.
     :param host: host where the mongodb instance is running
@@ -386,6 +386,42 @@ def compute_hidden_network(host, port, database, dataset, reference_types=('repl
                         if not graph.has_node(target['id']):
                             graph.add_node(target['id'], **target)
                         graph.add_edge(source['id'], target['id'])
+
+                else:
+                    print(f'Tweet {tweet["id"]} has an unknown reference type {referenced_tweet["type"]}')
+
+    client.close()
+
+    return graph
+
+def compute_hidden_network(host, port, database, dataset, reference_types=('replied_to', 'quoted', 'retweeted')):
+    """
+    Computes the hidden graph, this is, the graph of users that have interacted with each other.
+    :param host: host where the mongodb instance is running
+    :param port: port where the mongodb instance is running
+    :param database: database where the tweets are stored
+    :param collection: collection within the database where the tweets are stored
+    :return: a networkx graph with the users as nodes and the edges representing interactions between users
+    """
+    client = MongoClient(host, port)
+    database = client.get_database(database)
+    collection = database.get_collection(dataset)
+
+    graph = networkx.DiGraph()
+    for tweet in tqdm(collection.find()):
+        if 'referenced_tweets' in tweet:
+            source = tweet['author']
+            for referenced_tweet in tweet['referenced_tweets']:
+                if referenced_tweet['type'] in reference_types:
+                    if 'author' in referenced_tweet:
+                        target = referenced_tweet['author']
+                        if not graph.has_node(source['id']):
+                            graph.add_node(source['id'], **source)
+                        if not graph.has_node(target['id']):
+                            graph.add_node(target['id'], **target)
+                        graph.add_edge(source['id'], target['id'])
+                    else:
+                        print(f'Referenced {tweet["id"]} has no author metadata associated')
 
                 else:
                     print(f'Tweet {tweet["id"]} has an unknown reference type {referenced_tweet["type"]}')

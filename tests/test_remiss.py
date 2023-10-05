@@ -9,7 +9,7 @@ from pymongo import MongoClient
 
 from app import update_graph, update_egonet
 from remiss import preprocess_tweets, load_tweet_count_evolution, load_user_count_evolution, compute_hidden_network, \
-    plot_network, compute_neighbourhood, load_hashtag_evolution, load_full_tweet_count_evolution
+    plot_network, compute_neighbourhood, load_hashtag_evolution
 import pandas as pd
 import plotly.express as px
 import numpy as np
@@ -90,7 +90,7 @@ class TestRemiss(TestCase):
         parties = ['PSOE', 'PP', 'Cs', 'UP', 'VOX', 'ERC', 'JxCat', 'PNV', 'Bildu', 'CUP', 'CC', 'NA+', 'PRC', 'BNG']
         start_date = pd.to_datetime('2019-01-01 23:20:00')
         end_date = pd.to_datetime('2020-12-31 23:59:59')
-        num_tweets = 1000
+        num_tweets = 10000
         prob_hashtag = 0.5
         prob_party = 0.2
         prob_usual_suspects = 0.2
@@ -422,9 +422,18 @@ class TestRemiss(TestCase):
         dataset = 'test_tweets_original'
         graph = compute_hidden_network(host, port, database, dataset)
 
-        self.assertEqual(880, len(graph.nodes))
+        self.assertEqual(878, len(graph.nodes))
         self.assertEqual(835, len(graph.edges))
 
+    def test_compute_hidden_graph_large(self):
+        host = 'localhost'
+        port = 27017
+        database = 'test_remiss'
+        dataset = 'test_tweets_large'
+        graph = compute_hidden_network(host, port, database, dataset)
+
+        self.assertEqual(4995, len(graph.nodes))
+        self.assertEqual(8996, len(graph.edges))
     def test_network_plot(self):
         network = compute_hidden_network('localhost', 27017, 'test_remiss', 'test_tweets_original')
         fig = plot_network(network)
