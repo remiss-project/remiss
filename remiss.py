@@ -95,6 +95,7 @@ def preprocess_tweets(twitter_jsonl_zip, metadata_file=None):
                                             party = party.iloc[0]
                                         else:
                                             print(f'Unexpected type for party {party} for user {username}')
+                                            party = 'Desconocido'
                                         remiss_metadata['party'] = party
                                     else:
                                         remiss_metadata['party'] = None
