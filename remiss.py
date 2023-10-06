@@ -373,7 +373,7 @@ def load_user_count_evolution(host, port, database, collection, start_date=None,
     return df
 
 
-def compute_hidden_network_slow(host, port, database, dataset, reference_types=('replied_to', 'quoted', 'retweeted')):
+def compute_hidden_network(host, port, database, dataset, reference_types=('replied_to', 'quoted', 'retweeted')):
     """
     Computes the hidden graph, this is, the graph of users that have interacted with each other.
     :param host: host where the mongodb instance is running
@@ -407,7 +407,7 @@ def compute_hidden_network_slow(host, port, database, dataset, reference_types=(
 
     return graph
 
-def compute_hidden_network(host, port, database, dataset, reference_types=('replied_to', 'quoted', 'retweeted')):
+def compute_hidden_network_fast(host, port, database, dataset, reference_types=('replied_to', 'quoted', 'retweeted')):
     """
     Computes the hidden graph, this is, the graph of users that have interacted with each other.
     :param host: host where the mongodb instance is running
