@@ -1,5 +1,6 @@
 import json
 import random
+import unittest
 from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
@@ -104,8 +105,9 @@ class TestRemiss(TestCase):
                            prob_rt, prob_qt, prob_reply,
                            prob_usual_suspects, output_file)
 
+    @unittest.skip('Not ready yet')
     def test_preprocess_tweets(self):
-        return
+
         preprocess_tweets('test_resources/test_original.jsonl.zip')
         # check number of lines is correct
         with open('test_resources/test_original.preprocessed.jsonl') as f:
@@ -171,21 +173,55 @@ class TestRemiss(TestCase):
         Path('test_resources/test_original.media.jsonl').unlink()
         Path('test_resources/test_original.mongodbimport.jsonl').unlink()
 
+    def test_preprocess_tweets(self):
+        preprocess_tweets('test_resources/test_original.jsonl.zip',
+                          metadata_file='test_resources/test_metadata.xlsx')
+        with open('test_resources/test_original.preprocessed.jsonl') as f:
+            processed = [json.loads(line) for line in f]
+        with open('test_resources/test_original.jsonl') as f:
+            original = [json.loads(line) for line in f]
+
+        for p, o in zip(processed, original):
+            self.assertEqual(p['id'], o['id'])
+            self.assertEqual(p['created_at'], o['created_at'])
+            self.assertEqual(p['author']['username'], o['author']['username'])
+            self.assertEqual(p['author']['id'], o['author']['id'])
+            self.assertEqual(p['author']['name'], o['author']['name'])
+            self.assertEqual(p['author']['description'], o['author']['description'])
+            self.assertEqual(p['text'], o['text'])
+            self.assertEqual(p['entities']['hashtags'], o['entities']['hashtags'])
+
     def test_preprocess_tweets_with_media(self):
-        preprocess_tweets('test_resources/test_original.jsonl.zip')
+        preprocess_tweets('test_resources/test_original.jsonl.zip',
+                          metadata_file='test_resources/test_metadata.xlsx')
         # check that every tweet with media has a corresponding entry in the media file
         with open('test_resources/test_original.preprocessed.jsonl') as f:
             tweets = [json.loads(line) for line in f]
         with open('test_resources/test_original.media.jsonl') as f:
             media = [json.loads(line) for line in f]
 
-        media_ids = set([m['id'] for m in media])
-        tweets_with_media = [t for t in tweets if 'attachments' in t and 'media' in t['attachments']]
-        tweets_with_media_ids = set([t['id'] for t in tweets_with_media])
-        self.assertEqual(media_ids, tweets_with_media_ids)
-        Path('test_resources/test_original.preprocessed.jsonl').unlink()
-        Path('test_resources/test_original.media.jsonl').unlink()
-        Path('test_resources/test_original.mongodbimport.jsonl').unlink()
+        expected_text = [t['text'] for t in tweets if 'attachments' in t and 'media' in t['attachments']]
+        actual_text = [m['text'] for m in media]
+        self.assertEqual(expected_text, actual_text)
+
+        expected_media = [t['attachments']['media'] for t in tweets
+                          if 'attachments' in t and 'media' in t['attachments']]
+        actual_media = [m['media'] for m in media]
+        self.assertEqual(expected_media, actual_media)
+
+        expected_author_data = [t['author'] for t in tweets if 'attachments' in t and 'media' in t['attachments']]
+        actual_author_data = [m['author'] for m in media]
+        self.assertEqual(expected_author_data, actual_author_data)
+
+        expected_remiss_metadata = [t['author']['remiss_metadata'] for t in tweets
+                                    if 'attachments' in t and 'media' in t['attachments']]
+
+        actual_remiss_metadata = [m['author']['remiss_metadata'] for m in media]
+        self.assertEqual(expected_remiss_metadata, actual_remiss_metadata)
+
+        expected_id = [t['id'] for t in tweets if 'attachments' in t and 'media' in t['attachments']]
+        actual_id = [m['id'] for m in media]
+        self.assertEqual(expected_id, actual_id)
 
     def test_preprocess_tweets_with_metadata(self):
         preprocess_tweets('test_resources/test_original.jsonl.zip', metadata_file='test_resources/test_metadata.xlsx')

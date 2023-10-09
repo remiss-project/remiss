@@ -17,17 +17,66 @@ import plotly.graph_objects as go
 pymongoarrow.monkey.patch_all()
 
 
-def preprocess_tweets(twitter_jsonl_zip, metadata_file=None):
+def load_metadata(metadata_file):
+    raw_metadata = pd.read_excel(metadata_file, sheet_name=None)
+    # usual_suspects = []
+    # for sheet_name, df in raw_metadata.items():
+    #     if 'USUAL SUSPECTS' in sheet_name:
+    #         usual_suspects.append(df)
+    # usual_suspects = pd.concat(usual_suspects)
+    usual_suspects = raw_metadata['NOVA LLISTA USUAL SUSPECTS']
+    usual_suspects = usual_suspects.dropna(axis=1, how='all')
+    usual_suspects = usual_suspects[usual_suspects['XARXA SOCIAL'] == 'Twitter']
+    usernames = usual_suspects['ENLLAÇ'].str.split('/').str[-1].str.split('?').str[0]
+    usual_suspects = usual_suspects.set_index(usernames)
+
+    if not usual_suspects.index.is_unique:
+        print('WARNING: usual suspects usernames are not unique')
+        print(usual_suspects[usual_suspects.index.duplicated(keep=False)].sort_index())
+        usual_suspects = usual_suspects.drop_duplicates(keep='first')
+
+    parties = raw_metadata['LLISTA POLÍTICS']
+    parties = parties.dropna(axis=1, how='all')
+    parties = parties[parties['ENLLAÇ TW'] != 'No en té']
+    usernames = parties['ENLLAÇ TW'].str.split('/').str[-1].str.split('?').str[0]
+    parties = parties.set_index(usernames)
+    if not parties.index.is_unique:
+        print('WARNING: parties usernames are not unique')
+        print(parties[parties.index.duplicated(keep=False)].sort_index())
+        parties = parties.drop_duplicates(keep='first')
+    return usual_suspects, parties
+
+
+def retrieve_remiss_metadata(tweet, usual_suspects, parties):
+    username = tweet['author']['username']
+    remiss_metadata = {'is_usual_suspect': username in usual_suspects.index}
+    if username in parties.index:
+        party = parties.loc[username, 'PARTIT']
+        # check we have only a party
+        if isinstance(party, str):
+            party = party.strip()
+        elif isinstance(party, pd.Series):
+            party = party.iloc[0]
+        else:
+            print(f'Unexpected type for party {party} for user {username}')
+            party = 'Desconocido'
+        remiss_metadata['party'] = party
+    else:
+        remiss_metadata['party'] = None
+    return remiss_metadata
+
+
+def preprocess_tweets(twitter_jsonl_zip, metadata_file):
     """
     Preprocess the tweets gathered by running twarc and store them as a single tweet per line in a jsonl file named
     <twitter_jsonl_zip>.preprocessed.jsonl.
     Also store the media related information in a separate file named <twitter_jsonl_zip>.media.jsonl.
-    Finally, store the tweets in a format in which the dates are correctly imported as such can by mongodbimport
-    in a file named <twitter_jsonl_zip>.mongodbimport.jsonl.
+    Finally, store the tweets in a format in which the dates are correctly imported as such can by mongoimport
+    in a file named <twitter_jsonl_zip>.mongoimport.jsonl.
     Optionally, if metadata_file is provided, add the metadata containing whether a tweet comes from
     a usual suspect or a politician to the tweets.
 
-    $ mongoimport --db test_remiss --collection test_tweets --file test.mongodbimport.jsonl
+    $ mongoimport --db test_remiss --collection test_tweets --file test.mongoimport.jsonl
 
 
     :param twitter_jsonl_zip: Source tweets in jsonl format, compressed in a zip file,as outputted by twarc
@@ -38,83 +87,37 @@ def preprocess_tweets(twitter_jsonl_zip, metadata_file=None):
     with zipfile.ZipFile(twitter_jsonl_zip, 'r') as zip_ref:
         with zip_ref.open(zip_ref.namelist()[0], 'r') as infile:
             num_lines = sum(1 for _ in infile)
-    if metadata_file:
-        raw_metadata = pd.read_excel(metadata_file, sheet_name=None)
-        # usual_suspects = []
-        # for sheet_name, df in raw_metadata.items():
-        #     if 'USUAL SUSPECTS' in sheet_name:
-        #         usual_suspects.append(df)
-        # usual_suspects = pd.concat(usual_suspects)
-        usual_suspects = raw_metadata['NOVA LLISTA USUAL SUSPECTS']
-        usual_suspects = usual_suspects.dropna(axis=1, how='all')
-        usual_suspects = usual_suspects[usual_suspects['XARXA SOCIAL'] == 'Twitter']
-        usernames = usual_suspects['ENLLAÇ'].str.split('/').str[-1].str.split('?').str[0]
-        usual_suspects = usual_suspects.set_index(usernames)
-
-        if not usual_suspects.index.is_unique:
-            print('WARNING: usual suspects usernames are not unique')
-            print(usual_suspects[usual_suspects.index.duplicated(keep=False)].sort_index())
-            usual_suspects = usual_suspects.drop_duplicates(keep='first')
-
-        parties = raw_metadata['LLISTA POLÍTICS']
-        parties = parties.dropna(axis=1, how='all')
-        parties = parties[parties['ENLLAÇ TW'] != 'No en té']
-        usernames = parties['ENLLAÇ TW'].str.split('/').str[-1].str.split('?').str[0]
-        parties = parties.set_index(usernames)
-        if not parties.index.is_unique:
-            print('WARNING: parties usernames are not unique')
-            print(parties[parties.index.duplicated(keep=False)].sort_index())
-            parties = parties.drop_duplicates(keep='first')
+    usual_suspects, parties = load_metadata(metadata_file)
 
     output_jsonl = twitter_jsonl_zip.parent / (twitter_jsonl_zip.stem.split('.')[0] + '.preprocessed.jsonl')
     output_media_urls = twitter_jsonl_zip.parent / (twitter_jsonl_zip.stem.split('.')[0] + '.media.jsonl')
-    output_mongodbimport = twitter_jsonl_zip.parent / (twitter_jsonl_zip.stem.split('.')[0] + '.mongodbimport.jsonl')
+    output_mongoimport = twitter_jsonl_zip.parent / (twitter_jsonl_zip.stem.split('.')[0] + '.mongoimport.jsonl')
     with zipfile.ZipFile(twitter_jsonl_zip, 'r') as zip_ref:
         with zip_ref.open(zip_ref.namelist()[0], 'r') as infile:
             with open(output_jsonl, "w") as outfile:
                 with open(output_media_urls, "w") as media_outfile:
-                    with open(output_mongodbimport, "w") as mongodbimport_outfile:
+                    with open(output_mongoimport, "w") as mongoimport_outfile:
                         for line in tqdm(infile, total=num_lines):
                             line = json.loads(line)
                             tweets = ensure_flattened(line)
                             for tweet in tweets:
+                                remiss_metadata = retrieve_remiss_metadata(tweet, usual_suspects, parties)
+                                tweet['author']['remiss_metadata'] = remiss_metadata
                                 # store separately the media in another file
                                 if 'attachments' in tweet and 'media' in tweet['attachments']:
                                     media = {'id': tweet['id'],
+                                             'text': tweet['text'],
+                                             'author': tweet['author'],
                                              'media': tweet['attachments']['media']}
                                     media_outfile.write(json.dumps(media) + "\n")
-                                if metadata_file:
-                                    username = tweet['author']['username']
-                                    remiss_metadata = {'is_usual_suspect': username in usual_suspects.index}
-                                    if username in parties.index:
-                                        party = parties.loc[username, 'PARTIT']
-                                        # check we have only a party
-                                        if isinstance(party, str):
-                                            party = party.strip()
-                                        elif isinstance(party, pd.Series):
-                                            party = party.iloc[0]
-                                        else:
-                                            print(f'Unexpected type for party {party} for user {username}')
-                                            party = 'Desconocido'
-                                        remiss_metadata['party'] = party
-                                    else:
-                                        remiss_metadata['party'] = None
-                                    tweet['author']['remiss_metadata'] = remiss_metadata
                                 try:
                                     outfile.write(json.dumps(tweet) + "\n")
-
-                                    # convert the timestamps to mongodbimport format
-                                    # "starttime": "2019-12-01 00:00:05.5640"
-                                    # to
-                                    # "starttime": {
-                                    #     "$date": "2019-12-01T00:00:05.5640Z"
-                                    # }
+                                    # fix timestamps for mongoimport
                                     fix_timestamps(tweet)
-                                    mongodbimport_outfile.write(json.dumps(tweet) + '\n')
+                                    mongoimport_outfile.write(json.dumps(tweet) + '\n')
                                 except TypeError as ex:
                                     print(f'Error processing tweet {tweet["id"]}: {ex}')
                                     print(tweet)
-
 
 
 def fix_timestamps(tweet):
@@ -202,7 +205,6 @@ def load_tweet_count_evolution_per_type(host, port, database, collection, start_
             columns.append('Politicians and Usual Suspects')
     except AttributeError:
         pass
-    
 
     tweet_count = pd.concat(data, axis=1)
     tweet_count.columns = columns
@@ -256,41 +258,41 @@ def load_tweet_count_evolution(host, port, database, collection, start_date=None
 def load_user_count_evolution_by_type(host, port, database, collection, start_date=None, end_date=None, hashtag=None,
                                       unit='day', bin_size=1):
     normal_user_count = load_user_count_evolution(host, port, database,
-                                                   collection=collection,
-                                                   start_date=start_date,
-                                                   end_date=end_date,
-                                                   hashtag=hashtag,
-                                                   unit=unit,
-                                                   bin_size=bin_size,
-                                                   normal_only=True)
+                                                  collection=collection,
+                                                  start_date=start_date,
+                                                  end_date=end_date,
+                                                  hashtag=hashtag,
+                                                  unit=unit,
+                                                  bin_size=bin_size,
+                                                  normal_only=True)
     sus_user_count = load_user_count_evolution(host, port, database,
-                                                collection=collection,
-                                                start_date=start_date,
-                                                end_date=end_date,
-                                                hashtag=hashtag,
-                                                unit=unit,
-                                                bin_size=bin_size,
-                                                usual_suspects_only=True)
+                                               collection=collection,
+                                               start_date=start_date,
+                                               end_date=end_date,
+                                               hashtag=hashtag,
+                                               unit=unit,
+                                               bin_size=bin_size,
+                                               usual_suspects_only=True)
     politician_user_count = load_user_count_evolution(host, port,
-                                                       database,
-                                                       collection=collection,
-                                                       start_date=start_date,
-                                                       end_date=end_date,
-                                                       hashtag=hashtag,
-                                                       unit=unit,
-                                                       bin_size=bin_size,
-                                                       politicians_only=True)
+                                                      database,
+                                                      collection=collection,
+                                                      start_date=start_date,
+                                                      end_date=end_date,
+                                                      hashtag=hashtag,
+                                                      unit=unit,
+                                                      bin_size=bin_size,
+                                                      politicians_only=True)
 
     politician_and_sus_user_count = load_user_count_evolution(host, port,
-                                                               database,
-                                                               collection=collection,
-                                                               start_date=start_date,
-                                                               end_date=end_date,
-                                                               hashtag=hashtag,
-                                                               unit=unit,
-                                                               bin_size=bin_size,
-                                                               politicians_only=True,
-                                                               usual_suspects_only=True)
+                                                              database,
+                                                              collection=collection,
+                                                              start_date=start_date,
+                                                              end_date=end_date,
+                                                              hashtag=hashtag,
+                                                              unit=unit,
+                                                              bin_size=bin_size,
+                                                              politicians_only=True,
+                                                              usual_suspects_only=True)
     # remove the usual suspects that are also politicians from the usual suspects and politicians count
 
     data = []
@@ -406,6 +408,7 @@ def compute_hidden_network(host, port, database, dataset, reference_types=('repl
     client.close()
 
     return graph
+
 
 def compute_hidden_network_fast(host, port, database, dataset, reference_types=('replied_to', 'quoted', 'retweeted')):
     """
