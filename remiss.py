@@ -66,6 +66,34 @@ def retrieve_remiss_metadata(tweet, usual_suspects, parties):
     return remiss_metadata
 
 
+def _preprocess_line(line, outfile, media_outfile, mongoimport_outfile, output_usual_suspects_and_politicians,
+                     usual_suspects, parties):
+    line = json.loads(line)
+    tweets = ensure_flattened(line)
+    for tweet in tweets:
+        remiss_metadata = retrieve_remiss_metadata(tweet, usual_suspects, parties)
+        tweet['author']['remiss_metadata'] = remiss_metadata
+        # store separately usual suspects and politicians
+        if remiss_metadata['is_usual_suspect'] or remiss_metadata['party']:
+            output_usual_suspects_and_politicians.write(json.dumps(tweet) + "\n")
+
+        # store separately the media in another file
+        if 'attachments' in tweet and 'media' in tweet['attachments']:
+            media = {'id': tweet['id'],
+                     'text': tweet['text'],
+                     'author': tweet['author'],
+                     'media': tweet['attachments']['media']}
+            media_outfile.write(json.dumps(media) + "\n")
+        try:
+            outfile.write(json.dumps(tweet) + "\n")
+            # fix timestamps for mongoimport
+            fix_timestamps(tweet)
+            mongoimport_outfile.write(json.dumps(tweet) + '\n')
+        except TypeError as ex:
+            print(f'Error processing tweet {tweet["id"]}: {ex}')
+            print(tweet)
+
+
 def preprocess_tweets(twitter_jsonl_zip, metadata_file):
     """
     Preprocess the tweets gathered by running twarc and store them as a single tweet per line in a jsonl file named
@@ -92,32 +120,18 @@ def preprocess_tweets(twitter_jsonl_zip, metadata_file):
     output_jsonl = twitter_jsonl_zip.parent / (twitter_jsonl_zip.stem.split('.')[0] + '.preprocessed.jsonl')
     output_media_urls = twitter_jsonl_zip.parent / (twitter_jsonl_zip.stem.split('.')[0] + '.media.jsonl')
     output_mongoimport = twitter_jsonl_zip.parent / (twitter_jsonl_zip.stem.split('.')[0] + '.mongoimport.jsonl')
+    output_usual_suspects_and_politicians = twitter_jsonl_zip.parent / (
+            twitter_jsonl_zip.stem.split('.')[0] + '.usual_suspects_and_politicians.jsonl')
     with zipfile.ZipFile(twitter_jsonl_zip, 'r') as zip_ref:
         with zip_ref.open(zip_ref.namelist()[0], 'r') as infile:
             with open(output_jsonl, "w") as outfile:
                 with open(output_media_urls, "w") as media_outfile:
                     with open(output_mongoimport, "w") as mongoimport_outfile:
-                        for line in tqdm(infile, total=num_lines):
-                            line = json.loads(line)
-                            tweets = ensure_flattened(line)
-                            for tweet in tweets:
-                                remiss_metadata = retrieve_remiss_metadata(tweet, usual_suspects, parties)
-                                tweet['author']['remiss_metadata'] = remiss_metadata
-                                # store separately the media in another file
-                                if 'attachments' in tweet and 'media' in tweet['attachments']:
-                                    media = {'id': tweet['id'],
-                                             'text': tweet['text'],
-                                             'author': tweet['author'],
-                                             'media': tweet['attachments']['media']}
-                                    media_outfile.write(json.dumps(media) + "\n")
-                                try:
-                                    outfile.write(json.dumps(tweet) + "\n")
-                                    # fix timestamps for mongoimport
-                                    fix_timestamps(tweet)
-                                    mongoimport_outfile.write(json.dumps(tweet) + '\n')
-                                except TypeError as ex:
-                                    print(f'Error processing tweet {tweet["id"]}: {ex}')
-                                    print(tweet)
+                        with open(output_usual_suspects_and_politicians, "w") as usual_suspects_and_politicians_outfile:
+                            for line in tqdm(infile, total=num_lines):
+                                _preprocess_line(line, outfile, media_outfile,
+                                                 mongoimport_outfile, usual_suspects_and_politicians_outfile,
+                                                 usual_suspects, parties)
 
 
 def fix_timestamps(tweet):
