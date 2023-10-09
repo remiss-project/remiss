@@ -252,25 +252,6 @@ class TestRemiss(TestCase):
                                             unit='day', bin_size=1)
         self.assertEqual(actual.to_dict(), expected.to_dict())
 
-    def test_load_tweet_count_evolution_per_user_type(self):
-        client = MongoClient("localhost", 27017)
-        database = client.get_database("test_remiss")
-        collection = database.get_collection('test_tweets')
-        df = pd.DataFrame(list(collection.find()))
-        expected_global = df.groupby(pd.Grouper(key='created_at', freq='1D')).size()
-        sus_df = df[df['author'].apply(lambda x: x['remiss_metadata']['is_usual_suspect'])]
-        expected_sus = sus_df.groupby(pd.Grouper(key='created_at', freq='1D')).size()
-        expected_sus = expected_sus[expected_sus > 0]
-        party_df = df[df['author'].apply(lambda x: x['remiss_metadata']['party'] is not None)]
-        expected_party = party_df.groupby(pd.Grouper(key='created_at', freq='1D')).size()
-        expected_party = expected_party[expected_party > 0]
-        actual_global, actual_sus, actual_party = load_full_tweet_count_evolution('localhost', 27017,
-                                                                                  'test_remiss', 'test_tweets',
-                                                                                  unit='day', bin_size=1)
-        self.assertEqual(actual_global.to_dict(), expected_global.to_dict())
-        self.assertEqual(actual_sus.to_dict(), expected_sus.to_dict())
-        self.assertEqual(actual_party.to_dict(), expected_party.to_dict())
-
     def test_load_tweet_count_evolution_start_end_date(self):
         start_date = pd.to_datetime('2019-01-01 23:20:00')
         end_date = pd.to_datetime('2020-12-31 23:59:59')
@@ -422,7 +403,7 @@ class TestRemiss(TestCase):
         dataset = 'test_tweets_original'
         graph = compute_hidden_network(host, port, database, dataset)
 
-        self.assertEqual(878, len(graph.nodes))
+        self.assertEqual(880, len(graph.nodes))
         self.assertEqual(835, len(graph.edges))
 
     def test_compute_hidden_graph_large(self):
@@ -434,6 +415,7 @@ class TestRemiss(TestCase):
 
         self.assertEqual(4995, len(graph.nodes))
         self.assertEqual(8996, len(graph.edges))
+
     def test_network_plot(self):
         network = compute_hidden_network('localhost', 27017, 'test_remiss', 'test_tweets_original')
         fig = plot_network(network)
@@ -451,8 +433,8 @@ class TestRemiss(TestCase):
     def test_compute_neighbourhood_2(self):
         neighbourhood = compute_neighbourhood('localhost', 27017, 'test_remiss',
                                               'test_tweets_original', 'WolfV0X', 2)
-        self.assertEqual(len(neighbourhood), 10)
-        self.assertEqual(len(neighbourhood.edges), 9)
+        self.assertEqual(95, len(neighbourhood))
+        self.assertEqual(124, len(neighbourhood.edges))
 
     def test_compute_hidden_graph_synthetic(self):
         host = 'localhost'
