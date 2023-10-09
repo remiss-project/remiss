@@ -110,6 +110,7 @@ class TestPreprocess(TestCase):
         Path('test_resources/test_original.preprocessed.jsonl').unlink()
         Path('test_resources/test_original.media.jsonl').unlink()
         Path('test_resources/test_original.mongoimport.jsonl').unlink()
+        Path('test_resources/test_original.usual_suspects_and_politicians.jsonl').unlink()
 
     @unittest.skip('Not ready yet')
     def test_preprocess_tweets(self):
@@ -246,6 +247,19 @@ class TestPreprocess(TestCase):
             [t['author']['username'] for t in tweets if t['author']['username'] in expected_politicians])
         self.assertEqual(expected_usual_suspects, actual_usual_suspects)
         self.assertEqual(expected_politicians, actual_politicians)
+
+    def test_preproces_usual_suspects_and_politicians(self):
+        preprocess_tweets('test_resources/test_original.jsonl.zip', metadata_file='test_resources/test_metadata.xlsx')
+        # check that every tweet from an usual suspect or politician is present at usual_suspects_and_politicians.jsonl
+        with open('test_resources/test_original.preprocessed.jsonl') as f:
+            tweets = [json.loads(line) for line in f]
+        with open('test_resources/test_original.usual_suspects_and_politicians.jsonl') as f:
+            sus = [json.loads(line) for line in f]
+
+        expected_ids = [t['id'] for t in sus]
+        sus_ids = [t['id'] for t in tweets if t['author']['remiss_metadata']['is_usual_suspect']
+                   or t['author']['remiss_metadata']['party']]
+        self.assertEqual(expected_ids, sus_ids)
 
     def test_preprocess_timestamps(self):
         preprocess_tweets('test_resources/test_original.jsonl.zip')
