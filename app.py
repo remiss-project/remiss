@@ -18,6 +18,7 @@ dashboard = RemissDashboard(tweet_user_plot_factory, egonet_plot_factory)
 
 app = dash.Dash(external_stylesheets=[dbc.themes.JOURNAL])
 app.layout = dashboard.layout()
+dashboard.callbacks(app)
 # Run the app
 if __name__ == '__main__':
     app.run(debug=True)

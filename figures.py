@@ -4,6 +4,7 @@ from datetime import datetime
 import networkx
 import networkx as nx
 import plotly.express as px
+import plotly.graph_objects as go
 import pymongoarrow.monkey
 from pymongo import MongoClient
 from pymongo.errors import OperationFailure
@@ -105,7 +106,7 @@ class TweetUserPlotFactory(MongoPlotFactory):
                 "count": {'$count': {}}}},
             {'$sort': {'_id': 1}}
         ]
-        return self._get_counts(pipeline, collection, hashtag, start_time, end_time, unit, bin_size)
+        return self._get_count_area_plot(pipeline, collection, hashtag, start_time, end_time)
 
     def plot_user_series(self, collection, hashtag, start_time, end_time, unit='day', bin_size=1):
         pipeline = [
@@ -116,9 +117,9 @@ class TweetUserPlotFactory(MongoPlotFactory):
             {'$project': {'count': {'$size': '$users'}}},
             {'$sort': {'_id': 1}}
         ]
-        return self._get_counts(pipeline, collection, hashtag, start_time, end_time, unit, bin_size)
+        return self._get_count_area_plot(pipeline, collection, hashtag, start_time, end_time)
 
-    def _get_counts(self, pipeline, collection, hashtag, start_time, end_time):
+    def _get_count_area_plot(self, pipeline, collection, hashtag, start_time, end_time):
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.database)
         self._validate_collection(database, collection)
@@ -147,20 +148,23 @@ class TweetUserPlotFactory(MongoPlotFactory):
 
 class EgonetPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, database="test_remiss",
-                 reference_types=('replied_to', 'quoted', 'retweeted')):
+                 reference_types=('replied_to', 'quoted', 'retweeted'), layout='fruchterman_reingold'):
         super().__init__(host, port, database)
         self.reference_types = reference_types
         self._hidden_networks = {}
+        self.layout = layout
 
     def get_egonet(self, collection, user, depth):
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.database)
         self._validate_collection(database, collection)
         collection = database.get_collection(collection)
-        return self._get_egonet(collection, user, depth)
+        egonet = self._get_egonet(collection, user, depth)
+        client.close()
+        return egonet
 
     def _get_egonet(self, collection, user, depth):
-        egonet = self.compute_hidden_network()
+        egonet = self.compute_hidden_network(collection)
         if user:
             try:
                 user_id = self.get_user_id(collection, user)
@@ -220,3 +224,93 @@ class EgonetPlotFactory(MongoPlotFactory):
                 print(f'Referenced tweet {referenced_tweet_id} not found')
                 target = {'id': referenced_tweet_id}
         return target
+
+    def plot_egonet(self, collection, user, depth):
+        network = self.get_egonet(collection, user, depth)
+        return self.plot_network(network)
+
+    def plot_network(self, network):
+        if self.layout == 'fruchterman_reingold':
+            layout = nx.fruchterman_reingold_layout(network)
+        else:
+            raise ValueError(f'Unknown layout {self.layout}')
+
+        edge_x = []
+        edge_y = []
+        for edge in network.edges():
+            x0, y0 = layout[edge[0]]
+            x1, y1 = layout[edge[1]]
+            edge_x.append(x0)
+            edge_x.append(x1)
+            edge_x.append(None)
+            edge_y.append(y0)
+            edge_y.append(y1)
+            edge_y.append(None)
+
+        edge_trace = go.Scatter(
+            x=edge_x, y=edge_y,
+            line=dict(width=0.5, color='#888'),
+            hoverinfo='none',
+            mode='lines')
+
+        node_x = []
+        node_y = []
+        for node in network.nodes():
+            x, y = layout[node]
+            node_x.append(x)
+            node_y.append(y)
+
+        node_colors = []
+        node_text = []
+        # Color code
+        # 0 - green: not usual suspect nor politician
+        # 1 - red: usual suspect
+        # 2- yellow: politician
+        # 3 - purple: usual suspect and politician
+        for node in network:
+            try:
+                username = network.nodes[node]['username']
+                label = f'{username}'
+                color = 'green'
+                if 'remiss_metadata' in network.nodes[node]:
+                    is_usual_suspect = network.nodes[node]['remiss_metadata']['is_usual_suspect']
+                    party = network.nodes[node]['remiss_metadata']['party']
+                    if is_usual_suspect and party:
+                        label = f'{username}: usual suspect from {party}'
+                        color = 'purple'
+                    elif is_usual_suspect:
+                        label = f'{username}: usual suspect'
+                        color = 'red'
+                    elif party:
+                        label = f'{username}: {party}'
+                        color = 'yellow'
+
+            except KeyError:
+                label = node
+                color = 'green'
+            node_text.append(label)
+            node_colors.append(color)
+
+        node_trace = go.Scatter(
+            x=node_x, y=node_y,
+            mode='markers',
+            hoverinfo='text',
+            marker=dict(
+                size=10,
+                line_width=2,
+                color=node_colors,
+            ),
+            text=node_text,
+            showlegend=True
+        )
+
+        fig = go.Figure(data=[edge_trace, node_trace],
+                        layout=go.Layout(
+                            showlegend=False,
+                            hovermode='closest',
+                            margin=dict(b=20, l=5, r=5, t=40),
+                            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                        )
+
+        return fig
