@@ -7,11 +7,28 @@ from dash import html, Input, Output, State
 from dash_holoniq_wordcloud import DashWordcloud
 
 
+def patch_layout_ids(layout, name):
+    try:
+        layout.id = f'{layout.id}-{name}'
+    except AttributeError:
+        pass
+    try:
+        for child in layout.children:
+            patch_layout_ids(child, name)
+    except AttributeError:
+        pass
+
+
 class DashComponent(ABC):
     def __init__(self, name=None):
         self.name = name if name else str(shortuuid.ShortUUID().random(length=10))
 
     def layout(self, params=None):
+        layout = self._layout(params)
+        patch_layout_ids(layout, self.name)
+        return layout
+
+    def _layout(self, params=None):
         raise NotImplementedError()
 
     def callbacks(self, app):
@@ -21,13 +38,13 @@ class DashComponent(ABC):
         return component_id + '-' + self.name
 
     def Input(self, component_id, component_property):
-        return Input(component_id + '-' + self.name, component_property)
+        return Input(f'{component_id}-{self.name}', component_property)
 
     def Output(self, component_id, component_property):
-        return Output(component_id + '-' + self.name, component_property)
+        return Output(f'{component_id}-{self.name}', component_property)
 
     def State(self, component_id, component_property):
-        return State(component_id + '-' + self.name, component_property)
+        return State(f'{component_id}-{self.name}', component_property)
 
 
 class TweetUserTimeSeriesComponent(DashComponent):
@@ -37,7 +54,7 @@ class TweetUserTimeSeriesComponent(DashComponent):
         self.available_datasets = plot_factory.available_datasets
         self.current_dataset = self.available_datasets[0]
 
-    def layout(self, params=None):
+    def _layout(self, params=None):
         min_date_allowed, max_date_allowed = self.plot_factory.get_date_range(self.current_dataset)
         available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(self.current_dataset)
         return dbc.Container([
@@ -93,12 +110,12 @@ class TweetUserTimeSeriesComponent(DashComponent):
             return min_date_allowed, max_date_allowed, min_date_allowed, max_date_allowed, available_hashtags_freqs
 
         @app.callback(
-            self.Output(component_id='tweet-evolution', component_property='figure'),
-            self.Output(component_id='users-evolution', component_property='figure'),
-            self.Input(component_id='dropdown-dataset', component_property='value'),
-            self.Input(component_id='evolution-date-picker-range', component_property='start_date'),
-            self.Input(component_id='evolution-date-picker-range', component_property='end_date'),
-            self.Input(component_id='wordcloud', component_property='click')
+            self.Output(component_id=f'tweet-evolution', component_property='figure'),
+            self.Output(component_id=f'users-evolution', component_property='figure'),
+            self.Input(component_id=f'dropdown-dataset', component_property='value'),
+            self.Input(component_id=f'evolution-date-picker-range', component_property='start_date'),
+            self.Input(component_id=f'evolution-date-picker-range', component_property='end_date'),
+            self.Input(component_id=f'wordcloud', component_property='click')
 
         )
         def update_plots(dataset, start_date, end_date, click_data):
@@ -117,7 +134,7 @@ class EgonetComponent(DashComponent):
         self.available_datasets = plot_factory.available_datasets
         self.current_dataset = self.available_datasets[0]
 
-    def layout(self, params=None):
+    def _layout(self, params=None):
         available_users = self.plot_factory.get_users(self.current_dataset)
         return dbc.Container([
             dbc.Row([
@@ -138,7 +155,7 @@ class EgonetComponent(DashComponent):
 
     def callbacks(self, app):
         @app.callback(
-            self.Output(component_id='egonet', component_property='figure'),
+            self.Output(component_id=f'egonet', component_property='figure'),
             self.Input(component_id='dropdown-dataset', component_property='value'),
             self.Input(component_id='dropdown-user', component_property='value'),
             self.Input(component_id='range-slider', component_property='value'),
@@ -156,7 +173,7 @@ class RemissDashboard(DashComponent):
                                                                              name='tweet-user-time-series')
         self.egonet_component = EgonetComponent(egonet_plot_factory, name='egonet')
 
-    def layout(self, params=None):
+    def _layout(self, params=None):
         return dbc.Container([
             dbc.Row([
                 html.Div('Remiss', className="text-primary text-center fs-3")
