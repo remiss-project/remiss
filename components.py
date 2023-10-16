@@ -23,7 +23,7 @@ def patch_layout_ids(layout, name):
 class DashComponent(ABC):
     def __init__(self, name=None):
         self.name = name if name else str(shortuuid.ShortUUID().random(length=10))
-        #f'{slugify(self.__class__.__name__)}-{shortuuid.ShortUUID().random(length=10)}'
+        # f'{slugify(self.__class__.__name__)}-{shortuuid.ShortUUID().random(length=10)}'
 
     def layout(self, params=None):
         raise NotImplementedError()
@@ -102,18 +102,18 @@ class TweetUserTimeSeriesComponent(DashComponent):
             Output(component_id=f'date-picker-{self.name}', component_property='max_date_allowed'),
             Output(component_id=f'date-picker-{self.name}', component_property='start_date'),
             Output(component_id=f'date-picker-{self.name}', component_property='end_date'),
-            Input(component_id='dropdown-dataset', component_property='value')
+            Input(component_id='dataset-dropdown', component_property='value')
         )(self.update_date_picker)
 
         app.callback(
             Output(component_id=f'wordcloud-{self.name}', component_property='list'),
-            Input(component_id=f'dropdown-dataset', component_property='value'),
+            Input(component_id=f'dataset-dropdown', component_property='value'),
         )(self.update_wordcloud)
 
         app.callback(
             Output(component_id=f'fig-tweet-{self.name}', component_property='figure'),
             Output(component_id=f'fig-users-{self.name}', component_property='figure'),
-            Input(component_id=f'dropdown-dataset', component_property='value'),
+            Input(component_id=f'dataset-dropdown', component_property='value'),
             Input(component_id=f'date-picker-{self.name}', component_property='start_date'),
             Input(component_id=f'date-picker-{self.name}', component_property='end_date'),
             Input(component_id=f'wordcloud-{self.name}', component_property='click')
@@ -144,15 +144,16 @@ class EgonetComponent(DashComponent):
             ]),
         ])
 
+    def update_egonet(self, dataset, user, depth):
+        return self.plot_factory.plot_egonet(dataset, user, depth)
+
     def callbacks(self, app):
-        @app.callback(
+        app.callback(
             Output(component_id=f'fig-{self.name}', component_property='figure'),
-            Input(component_id='dropdown-dataset', component_property='value'),
+            Input(component_id='dataset-dropdown', component_property='value'),
             Input(component_id=f'user-dropdown-{self.name}', component_property='value'),
             Input(component_id=f'slider-{self.name}', component_property='value'),
-        )
-        def update_plots(dataset, user, depth):
-            return self.plot_factory.plot_egonet(dataset, user, depth)
+        )(self.update_egonet)
 
 
 class RemissDashboard(DashComponent):
@@ -174,7 +175,7 @@ class RemissDashboard(DashComponent):
                     dcc.Dropdown(
                         options=[{"label": x, "value": x} for x in self.tweet_user_plot_factory.available_datasets],
                         value=self.tweet_user_plot_factory.available_datasets[0],
-                        id='dropdown-dataset'),
+                        id='dataset-dropdown'),
                 ]),
             ]),
             dbc.Row([

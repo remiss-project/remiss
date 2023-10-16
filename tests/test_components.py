@@ -4,10 +4,10 @@ from unittest import TestCase
 from unittest.mock import Mock
 
 from dash import Dash
-from dash.dcc import DatePickerRange, Graph
+from dash.dcc import DatePickerRange, Graph, Dropdown, Slider
 from dash_holoniq_wordcloud import DashWordcloud
 
-from components import DashComponent, TweetUserTimeSeriesComponent
+from components import DashComponent, TweetUserTimeSeriesComponent, EgonetComponent, RemissDashboard
 
 
 class TestDashComponent(TestCase):
@@ -138,6 +138,165 @@ class TweetUserTimeSeriesComponentTest(TestCase):
         expected = (self.plot_factory.plot_tweet_series.return_value,
                     self.plot_factory.plot_user_series.return_value)
         self.assertEqual(actual, expected)
+
+
+class EgonetComponentTest(TestCase):
+    def setUp(self):
+        self.plot_factory = Mock()
+        self.plot_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
+        self.plot_factory.get_date_range.return_value = (datetime(2023, 1, 1),
+                                                         datetime(2023, 12, 31))
+        self.plot_factory.get_users.return_value = ['user1', 'user2', 'user3']
+        self.component = EgonetComponent(self.plot_factory)
+
+    def test_layout(self):
+        layout = self.component.layout()
+
+        # check that among the final components of the layout we have:
+        # - a Dropdown
+        # - a Slider
+        # - a graph
+        # find components recursively
+        def find_components(component, found_components):
+            if hasattr(component, 'children'):
+                for child in component.children:
+                    find_components(child, found_components)
+            if isinstance(component, Dropdown):
+                found_components.append(component)
+            if isinstance(component, Slider):
+                found_components.append(component)
+            if isinstance(component, Graph):
+                found_components.append(component)
+
+        found_components = []
+        find_components(layout, found_components)
+        found_components = [type(component) for component in found_components]
+        self.assertIn(Dropdown, found_components)
+        self.assertIn(Slider, found_components)
+        self.assertIn(Graph, found_components)
+
+    def test_layout_ids(self):
+        layout = self.component.layout()
+
+        # check that among the ids are correctly patched
+        # find components recursively
+        def find_components(component, found_components):
+            if hasattr(component, 'children'):
+                for child in component.children:
+                    find_components(child, found_components)
+            if isinstance(component, Dropdown):
+                found_components.append(component)
+            if isinstance(component, Slider):
+                found_components.append(component)
+            if isinstance(component, Graph):
+                found_components.append(component)
+
+        found_components = []
+        find_components(layout, found_components)
+        component_ids = ['-'.join(component.id.split('-')[:-1]) for component in found_components]
+        self.assertIn('user-dropdown', component_ids)
+        self.assertIn('slider', component_ids)
+        self.assertIn('fig', component_ids)
+        found_main_ids = ['-'.join(component.id.split('-')[-1:]) for component in found_components]
+        self.assertIn(self.component.name, found_main_ids)
+        self.assertEqual(len(set(found_main_ids)), 1)
+
+    def test_update_egonet_callback(self):
+        app = Dash()
+        self.component.callbacks(app)
+
+        # Simulate the update function for the plots
+        plots_key = f'fig-{self.component.name}.figure'
+        callback = app.callback_map[plots_key]
+        self.assertEqual(callback['inputs'], [{'id': 'dropdown-dataset', 'property': 'value'},
+                                              {'id': f'user-dropdown-{self.component.name}', 'property': 'value'},
+                                              {'id': f'slider-{self.component.name}', 'property': 'value'}])
+        self.assertEqual(callback['output'].component_id, f'fig-{self.component.name}')
+        self.assertEqual(callback['output'].component_property, 'figure')
+        actual = self.component.update_egonet('dataset2', 'user2', 3)
+        self.assertEqual(self.plot_factory.plot_egonet.call_args[0][0], 'dataset2')
+        self.assertEqual(self.plot_factory.plot_egonet.call_args[0][1], 'user2')
+        self.assertEqual(self.plot_factory.plot_egonet.call_args[0][2], 3)
+        self.assertEqual(actual, self.plot_factory.plot_egonet.return_value)
+
+
+class RemissDashboardTest(TestCase):
+    def setUp(self):
+        self.tweet_user_plot_factory = Mock()
+        self.tweet_user_plot_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
+        self.tweet_user_plot_factory.get_date_range.return_value = (datetime(2023, 1, 1),
+                                                                    datetime(2023, 12, 31))
+        self.tweet_user_plot_factory.get_users.return_value = ['user1', 'user2', 'user3']
+        self.egonet_plot_factory = Mock()
+        self.egonet_plot_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
+        self.egonet_plot_factory.get_date_range.return_value = (datetime(2023, 1, 1),
+                                                                datetime(2023, 12, 31))
+        self.egonet_plot_factory.get_users.return_value = ['user1', 'user2', 'user3']
+        self.component = RemissDashboard(self.tweet_user_plot_factory, self.egonet_plot_factory)
+
+    def test_layout(self):
+        layout = self.component.layout()
+
+        # check that among the final components of the layout we have:
+        # - a Dropdown
+        # - a TweetUserTimeSeriesComponent
+        # - a EgonetComponent
+        # find components recursively
+        def find_components(component, found_components):
+            if hasattr(component, 'children'):
+                for child in component.children:
+                    find_components(child, found_components)
+            if isinstance(component, Dropdown):
+                found_components.append(component)
+            if isinstance(component, Slider):
+                found_components.append(component)
+            if isinstance(component, Graph):
+                found_components.append(component)
+            if isinstance(component, DatePickerRange):
+                found_components.append(component)
+            if isinstance(component, DashWordcloud):
+                found_components.append(component)
+
+        found_components = []
+        find_components(layout, found_components)
+        found_components = [type(component) for component in found_components]
+        self.assertIn(Dropdown, found_components)
+        self.assertIn(Graph, found_components)
+        self.assertIn(DashWordcloud, found_components)
+        self.assertIn(DatePickerRange, found_components)
+        self.assertIn(Slider, found_components)
+
+    def test_layout_ids(self):
+        layout = self.component.layout()
+
+        # check that among the ids are correctly patched
+        # find components recursively
+        def find_components(component, found_components):
+            if hasattr(component, 'children'):
+                for child in component.children:
+                    find_components(child, found_components)
+            if isinstance(component, Dropdown):
+                found_components.append(component)
+            if isinstance(component, Slider):
+                found_components.append(component)
+            if isinstance(component, Graph):
+                found_components.append(component)
+            if isinstance(component, DatePickerRange):
+                found_components.append(component)
+            if isinstance(component, DashWordcloud):
+                found_components.append(component)
+
+        found_components = []
+        find_components(layout, found_components)
+        component_ids = ['-'.join(component.id.split('-')[:-1]) for component in found_components]
+        self.assertIn('dataset', component_ids)
+        self.assertIn('date-picker', component_ids)
+        self.assertIn('wordcloud', component_ids)
+        self.assertIn('fig-tweet', component_ids)
+        self.assertIn('fig-users', component_ids)
+        self.assertIn('user-dropdown', component_ids)
+        self.assertIn('slider', component_ids)
+        self.assertIn('fig', component_ids)
 
 
 if __name__ == '__main__':
