@@ -3,6 +3,7 @@ from datetime import datetime
 
 import networkx
 import networkx as nx
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import pymongoarrow.monkey
@@ -131,17 +132,23 @@ class TweetUserPlotFactory(MongoPlotFactory):
             pipeline,
             schema=Schema({'_id': datetime, 'count': int})
         )
-        df = df.rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time').squeeze()
+        df = df.rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time')
+        if len(df) == 1:
+            plot = px.bar(df, labels={"value": "Count"})
+        else:
+            plot = px.area(df, labels={"value": "Count"})
 
-        return px.area(df, labels={"value": "Count"})
+        return plot
 
     @staticmethod
     def _add_filters(pipeline, hashtag, start_time, end_time):
         if hashtag:
             pipeline.insert(0, {'$match': {'entities.hashtags.tag': hashtag}})
         if start_time:
+            start_time = pd.to_datetime(start_time)
             pipeline.insert(0, {'$match': {'created_at': {'$gte': start_time}}})
         if end_time:
+            end_time = pd.to_datetime(end_time)
             pipeline.insert(0, {'$match': {'created_at': {'$lte': end_time}}})
         return pipeline
 

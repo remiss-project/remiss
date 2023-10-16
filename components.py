@@ -92,8 +92,9 @@ class TweetUserTimeSeriesComponent(DashComponent):
             hashtag = click_data[0]
         else:
             hashtag = None
-        return self.plot_factory.plot_tweet_series(dataset, hashtag, start_date, end_date), \
-            self.plot_factory.plot_user_series(dataset, hashtag, start_date, end_date)
+        fig_tweet = self.plot_factory.plot_tweet_series(dataset, hashtag, start_date, end_date)
+        fig_users = self.plot_factory.plot_user_series(dataset, hashtag, start_date, end_date)
+        return fig_tweet, fig_users
 
     def callbacks(self, app):
         app.callback(

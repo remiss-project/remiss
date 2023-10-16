@@ -26,6 +26,8 @@ class TweetUserTimeSeriesComponentTest(TestCase):
         self.plot_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
         self.plot_factory.get_date_range.return_value = (datetime(2023, 1, 1),
                                                          datetime(2023, 12, 31))
+        self.plot_factory.plot_tweet_series.return_value = 'plot_tweet_series'
+        self.plot_factory.plot_user_series.return_value = 'plot_user_series'
         self.component = TweetUserTimeSeriesComponent(self.plot_factory)
 
     def test_layout(self):
@@ -72,12 +74,12 @@ class TweetUserTimeSeriesComponentTest(TestCase):
 
         found_components = []
         find_components(layout, found_components)
-        component_ids = ['-'.join(component.id.split('-')[:-2]) for component in found_components]
+        component_ids = ['-'.join(component.id.split('-')[:-1]) for component in found_components]
         self.assertIn('date-picker', component_ids)
         self.assertIn('wordcloud', component_ids)
-        self.assertIn('tweet', component_ids)
-        self.assertIn('users', component_ids)
-        found_main_ids = ['-'.join(component.id.split('-')[-2:]) for component in found_components]
+        self.assertIn('fig-tweet', component_ids)
+        self.assertIn('fig-users', component_ids)
+        found_main_ids = ['-'.join(component.id.split('-')[-1:]) for component in found_components]
         self.assertIn(self.component.name, found_main_ids)
         self.assertEqual(len(set(found_main_ids)), 1)
 
@@ -96,8 +98,11 @@ class TweetUserTimeSeriesComponentTest(TestCase):
                             ['min_date_allowed', 'max_date_allowed', 'start_date', 'end_date']]
         actual_outputs = [output.component_id + '.' + output.component_property for output in callback['output']]
         self.assertEqual(actual_outputs, expected_outputs)
-        self.component.update_date_picker('dataset2')
+        actual = self.component.update_date_picker('dataset2')
+
         self.assertEqual(self.plot_factory.get_date_range.call_args[0][0], 'dataset2')
+        expected = (datetime(2023, 1, 1), datetime(2023, 12, 31), datetime(2023, 1, 1), datetime(2023, 12, 31))
+        self.assertEqual(actual, expected)
 
     def test_update_wordcloud_callback(self):
         app = Dash()
@@ -109,28 +114,30 @@ class TweetUserTimeSeriesComponentTest(TestCase):
         self.assertEqual(callback['inputs'], [{'id': 'dropdown-dataset', 'property': 'value'}])
         self.assertEqual(callback['output'].component_id, f'wordcloud-{self.component.name}')
         self.assertEqual(callback['output'].component_property, 'list')
-        self.component.update_wordcloud('dataset2')
+        actual = self.component.update_wordcloud('dataset2')
         self.assertEqual(self.plot_factory.get_hashtag_freqs.call_args[0][0], 'dataset2')
+        self.assertEqual(actual, self.plot_factory.get_hashtag_freqs.return_value)
 
     def test_update_plots_callback(self):
         app = Dash()
         self.component.callbacks(app)
 
         # Simulate the update function for the plots
-        plots_key = (f'..dropdown-dataset.value...'
-                     f'date-picker-{self.component.name}.start_date...'
-                     f'date-picker-{self.component.name}.end_date...'
-                     f'wordcloud-{self.component.name}.click..')
+        plots_key = f'..fig-tweet-{self.component.name}.figure...fig-users-{self.component.name}.figure..'
         callback = app.callback_map[plots_key]
         self.assertEqual(callback['inputs'], [{'id': 'dropdown-dataset', 'property': 'value'},
-                                                  {'id': f'date-picker-{self.component.name}', 'property': 'start_date'},
-                                                  {'id': f'date-picker-{self.component.name}', 'property': 'end_date'},
-                                                  {'id': f'wordcloud-{self.component.name}', 'property': 'click'}])
+                                              {'id': f'date-picker-{self.component.name}', 'property': 'start_date'},
+                                              {'id': f'date-picker-{self.component.name}', 'property': 'end_date'},
+                                              {'id': f'wordcloud-{self.component.name}', 'property': 'click'}])
         expected_outputs = [f'fig-tweet-{self.component.name}.figure',
                             f'fig-users-{self.component.name}.figure']
         actual_outputs = [output.component_id + '.' + output.component_property for output in callback['output']]
         self.assertEqual(actual_outputs, expected_outputs)
-
+        actual = self.component.update_plots('dataset2', datetime(2023, 1, 1),
+                                             datetime(2023, 12, 31), ['hashtag1', 10])
+        expected = (self.plot_factory.plot_tweet_series.return_value,
+                    self.plot_factory.plot_user_series.return_value)
+        self.assertEqual(actual, expected)
 
 
 if __name__ == '__main__':
