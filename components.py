@@ -5,6 +5,7 @@ from dash import dcc
 import shortuuid
 from dash import html, Input, Output, State
 from dash_holoniq_wordcloud import DashWordcloud
+from slugify import slugify
 
 
 def patch_layout_ids(layout, name):
@@ -22,6 +23,7 @@ def patch_layout_ids(layout, name):
 class DashComponent(ABC):
     def __init__(self, name=None):
         self.name = name if name else str(shortuuid.ShortUUID().random(length=10))
+        #f'{slugify(self.__class__.__name__)}-{shortuuid.ShortUUID().random(length=10)}'
 
     def layout(self, params=None):
         raise NotImplementedError()
@@ -44,7 +46,7 @@ class TweetUserTimeSeriesComponent(DashComponent):
             dbc.Row([
                 dbc.Col([
                     dcc.DatePickerRange(
-                        id=f'evolution-date-picker-range-{self.name}',
+                        id=f'date-picker-{self.name}',
                         min_date_allowed=min_date_allowed,
                         max_date_allowed=max_date_allowed,
                         initial_visible_month=min_date_allowed,
@@ -68,51 +70,54 @@ class TweetUserTimeSeriesComponent(DashComponent):
             ]),
             dbc.Row([
                 dbc.Col([
-                    dcc.Graph(figure={}, id=f'tweet-evolution-{self.name}')
+                    dcc.Graph(figure={}, id=f'fig-tweet-{self.name}')
                 ]),
                 dbc.Col([
-                    dcc.Graph(figure={}, id=f'users-evolution-{self.name}')
+                    dcc.Graph(figure={}, id=f'fig-users-{self.name}')
                 ]),
             ]),
 
         ])
 
-    def callbacks(self, app):
-        @app.callback(
-            Output(component_id=f'evolution-date-picker-range-{self.name}', component_property='min_date_allowed'),
-            Output(component_id=f'evolution-date-picker-range-{self.name}', component_property='max_date_allowed'),
-            Output(component_id=f'evolution-date-picker-range-{self.name}', component_property='start_date'),
-            Output(component_id=f'evolution-date-picker-range-{self.name}', component_property='end_date'),
-            Input(component_id='dropdown-dataset', component_property='value')
-        )
-        def update_(dataset):
-            min_date_allowed, max_date_allowed = self.plot_factory.get_date_range(dataset)
-            return min_date_allowed, max_date_allowed, min_date_allowed
+    def update_wordcloud(self, dataset):
+        available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(dataset)
+        return available_hashtags_freqs
 
-        @app.callback(
+    def update_date_picker(self, dataset):
+        min_date_allowed, max_date_allowed = self.plot_factory.get_date_range(dataset)
+        return min_date_allowed, max_date_allowed, min_date_allowed, max_date_allowed
+
+    def update_plots(self, dataset, start_date, end_date, click_data):
+        if click_data:
+            hashtag = click_data[0]
+        else:
+            hashtag = None
+        return self.plot_factory.plot_tweet_series(dataset, hashtag, start_date, end_date), \
+            self.plot_factory.plot_user_series(dataset, hashtag, start_date, end_date)
+
+    def callbacks(self, app):
+        app.callback(
+            Output(component_id=f'date-picker-{self.name}', component_property='min_date_allowed'),
+            Output(component_id=f'date-picker-{self.name}', component_property='max_date_allowed'),
+            Output(component_id=f'date-picker-{self.name}', component_property='start_date'),
+            Output(component_id=f'date-picker-{self.name}', component_property='end_date'),
+            Input(component_id='dropdown-dataset', component_property='value')
+        )(self.update_date_picker)
+
+        app.callback(
             Output(component_id=f'wordcloud-{self.name}', component_property='list'),
             Input(component_id=f'dropdown-dataset', component_property='value'),
-        )
-        def update_wordcloud(dataset):
-            available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(dataset)
-            return available_hashtags_freqs
+        )(self.update_wordcloud)
 
-        @app.callback(
-            Output(component_id=f'tweet-evolution-{self.name}', component_property='figure'),
-            Output(component_id=f'users-evolution-{self.name}', component_property='figure'),
+        app.callback(
+            Output(component_id=f'fig-tweet-{self.name}', component_property='figure'),
+            Output(component_id=f'fig-users-{self.name}', component_property='figure'),
             Input(component_id=f'dropdown-dataset', component_property='value'),
-            Input(component_id=f'evolution-date-picker-range-{self.name}', component_property='start_date'),
-            Input(component_id=f'evolution-date-picker-range-{self.name}', component_property='end_date'),
+            Input(component_id=f'date-picker-{self.name}', component_property='start_date'),
+            Input(component_id=f'date-picker-{self.name}', component_property='end_date'),
             Input(component_id=f'wordcloud-{self.name}', component_property='click')
 
-        )
-        def update_plots(dataset, start_date, end_date, click_data):
-            if click_data:
-                hashtag = click_data['points'][0]['text']
-            else:
-                hashtag = None
-            return self.plot_factory.plot_tweet_series(dataset, hashtag, start_date, end_date), \
-                self.plot_factory.plot_user_series(dataset, hashtag, start_date, end_date)
+        )(self.update_plots)
 
 
 class EgonetComponent(DashComponent):
@@ -130,20 +135,20 @@ class EgonetComponent(DashComponent):
                     dcc.Dropdown(options=[{"label": x, "value": x} for x in available_users],
                                  value=available_users[0],
                                  id=f'user-dropdown-{self.name}'),
-                    dcc.Slider(min=1, max=5, step=1, value=2, id=f'range-slider-{self.name}'),
+                    dcc.Slider(min=1, max=5, step=1, value=2, id=f'slider-{self.name}'),
                 ]),
                 dbc.Col([
-                    dcc.Graph(figure={}, id=f'egonet-{self.name}')
+                    dcc.Graph(figure={}, id=f'fig-{self.name}')
                 ])
             ]),
         ])
 
     def callbacks(self, app):
         @app.callback(
-            Output(component_id=f'egonet-{self.name}', component_property='figure'),
+            Output(component_id=f'fig-{self.name}', component_property='figure'),
             Input(component_id='dropdown-dataset', component_property='value'),
             Input(component_id=f'user-dropdown-{self.name}', component_property='value'),
-            Input(component_id=f'range-slider-{self.name}', component_property='value'),
+            Input(component_id=f'slider-{self.name}', component_property='value'),
         )
         def update_plots(dataset, user, depth):
             return self.plot_factory.plot_egonet(dataset, user, depth)
@@ -155,7 +160,7 @@ class RemissDashboard(DashComponent):
         self.tweet_user_plot_factory = tweet_user_plot_factory
         self.egonet_plot_factory = egonet_plot_factory
         self.tweet_user_time_series_component = TweetUserTimeSeriesComponent(tweet_user_plot_factory,
-                                                                             name='tweet-user-time-series')
+                                                                             name='ts')
         self.egonet_component = EgonetComponent(egonet_plot_factory, name='egonet')
 
     def layout(self, params=None):

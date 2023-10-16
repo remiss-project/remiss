@@ -9,7 +9,6 @@ from unittest import TestCase
 from pymongo import MongoClient
 from twarc import ensure_flattened
 
-from app import update_graph, update_egonet
 from remiss import preprocess_tweets, load_tweet_count_evolution, load_user_count_evolution, compute_hidden_network, \
     plot_network, compute_neighbourhood, load_hashtag_evolution
 import pandas as pd
@@ -106,11 +105,11 @@ class TestPreprocess(TestCase):
                            prob_rt, prob_qt, prob_reply,
                            prob_usual_suspects, output_file)
 
-    def tearDown(self) -> None:
-        Path('test_resources/test_original.preprocessed.jsonl').unlink()
-        Path('test_resources/test_original.media.jsonl').unlink()
-        Path('test_resources/test_original.mongoimport.jsonl').unlink()
-        Path('test_resources/test_original.usual_suspects_and_politicians.jsonl').unlink()
+    # def tearDown(self) -> None:
+    #     Path('test_resources/test_original.preprocessed.jsonl').unlink()
+    #     Path('test_resources/test_original.media.jsonl').unlink()
+    #     Path('test_resources/test_original.mongoimport.jsonl').unlink()
+    #     Path('test_resources/test_original.usual_suspects_and_politicians.jsonl').unlink()
 
     @unittest.skip('Not ready yet')
     def test_preprocess_tweets(self):

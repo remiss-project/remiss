@@ -154,20 +154,11 @@ class EgonetPlotFactory(MongoPlotFactory):
         self._hidden_networks = {}
         self.layout = layout
 
-    def get_egonet(self, collection, user, depth):
-        client = MongoClient(self.host, self.port)
-        database = client.get_database(self.database)
-        self._validate_collection(database, collection)
-        collection = database.get_collection(collection)
-        egonet = self._get_egonet(collection, user, depth)
-        client.close()
-        return egonet
-
-    def _get_egonet(self, collection, user, depth):
-        egonet = self.compute_hidden_network(collection)
+    def get_egonet(self, dataset, user, depth):
+        egonet = self.compute_hidden_network(dataset)
         if user:
             try:
-                user_id = self.get_user_id(collection, user)
+                user_id = self.get_user_id(dataset, user)
                 egonet = nx.ego_graph(egonet, user_id, depth, center=True, undirected=True)
             except RuntimeError as ex:
                 print(f'Computing neighbourhood for user {user} failed, computing the whole network')
