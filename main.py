@@ -1,4 +1,4 @@
-from remiss import preprocess_tweets
+from preprocess import preprocess_tweets
 import fire
 
 if __name__ == '__main__':
