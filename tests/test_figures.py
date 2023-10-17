@@ -353,7 +353,7 @@ class TestTweetUserPlotFactory(unittest.TestCase):
         expected.columns = ['Normal', 'Usual suspect', 'Politician', 'Usual suspect politician']
         pd.testing.assert_frame_equal(actual, expected)
 
-    def test__get_count_data_empty(self):
+    def test__get_count_data_index_unmatched(self):
         hashtag = 'test_hashtag'
         start_time = pd.to_datetime('2023-01-01')
         end_time = pd.to_datetime('2023-01-31')
