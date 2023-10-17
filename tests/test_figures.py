@@ -365,9 +365,9 @@ class TestTweetUserPlotFactory(unittest.TestCase):
                                           ],
                                   'count': [1, 2]})
         bad_data = pd.DataFrame({'_id': [
-                                         datetime(2023, 1, 2),
-                                         datetime(2023, 1, 3)],
-                                 'count': [2, 3]})
+            datetime(2023, 1, 2),
+            datetime(2023, 1, 3)],
+            'count': [2, 3]})
 
         class TestData:
             def __init__(self):
@@ -506,6 +506,64 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.assertEqual(len(actual['data'][0]['x']), 3)
         self.assertEqual(len(actual['data'][0]['y']), 3)
 
+    def test_get_egonet_speed_full(self):
+        # Checks it returns the whole thing if the user is not present
+        data_size = 1000000
+
+        test_data = []
+        for i in range(data_size):
+            tweet = {"id": i, "created_at": datetime.fromisoformat("2019-01-01T23:20:00Z"),
+                     "author": {"username": f"TEST_USER_{i // 2}", "id": i // 2,
+                                "remiss_metadata": {"party": "PSOE", "is_usual_suspect": False}},
+                     "entities": {"hashtags": [{"tag": "test_hashtag"}]},
+                     'referenced_tweets': [{'type': 'replied_to', 'id': i + 1,
+                                            'author': {'id': i + 2, 'username': f'replied_test_user_{i + 2}'}}]}
+            test_data.append(tweet)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database('test_remiss')
+        database = client.get_database('test_remiss')
+        collection = database.get_collection('test_collection')
+        print('storing test data')
+        collection.insert_many(test_data)
+
+        collection = 'test_collection'
+        user = 'test_user'
+        depth = 1
+        print('computing egonet')
+        self.egonet_plot.host = 'localhost'
+        self.egonet_plot.port = 27017
+        self.egonet_plot.database = 'test_remiss'
+        actual = self.egonet_plot.get_egonet(collection, user, depth)
+
+    def test_get_egonet_speed_missing_in_table(self):
+        # Checks it returns the whole thing if the user is not present
+        data_size = 1000000
+
+        test_data = []
+        for i in range(data_size):
+            tweet = {"id": i, "created_at": datetime.fromisoformat("2019-01-01T23:20:00Z"),
+                     "author": {"username": f"TEST_USER_{i // 2}", "id": i // 2,
+                                "remiss_metadata": {"party": "PSOE", "is_usual_suspect": False}},
+                     "entities": {"hashtags": [{"tag": "test_hashtag"}]},
+                     'referenced_tweets': [{'type': 'replied_to', 'id': i + 1}]}
+            test_data.append(tweet)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database('test_remiss')
+        database = client.get_database('test_remiss')
+        collection = database.get_collection('test_collection')
+        print('storing test data')
+        collection.insert_many(test_data)
+
+        collection = 'test_collection'
+        user = 'test_user'
+        depth = 1
+        print('computing egonet')
+        self.egonet_plot.host = 'localhost'
+        self.egonet_plot.port = 27017
+        self.egonet_plot.database = 'test_remiss'
+        actual = self.egonet_plot.get_egonet(collection, user, depth)
 
 if __name__ == '__main__':
     unittest.main()

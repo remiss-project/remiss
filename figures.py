@@ -227,22 +227,23 @@ class EgonetPlotFactory(MongoPlotFactory):
         collection = database.get_collection(dataset)
 
         graph = networkx.DiGraph()
-        with logging_redirect_tqdm():
-            for tweet in tqdm(collection.find()):
-                if 'referenced_tweets' in tweet:
-                    source = tweet['author']
-                    for referenced_tweet in tweet['referenced_tweets']:
-                        if referenced_tweet['type'] in self.reference_types:
-                            target = self.get_reference_target_user(referenced_tweet, collection)
-                            if source['id'] != target['id']:
-                                if not graph.has_node(source['id']):
-                                    graph.add_node(source['id'], **source)
-                                if not graph.has_node(target['id']):
-                                    graph.add_node(target['id'], **target)
-                                graph.add_edge(source['id'], target['id'])
+        pipeline = [
+            {'$match': {'referenced_tweets': {'$exists': True}}},
+            {'$unwind': '$referenced_tweets'},
+            {'$match': {'referenced_tweets.type': {'$in': self.reference_types}, 'referenced_tweets.author': {'$exists': True}}},
+            {'$project': {'author': 1, 'referenced_tweets': 1, 'referenced_by': '$referenced_tweets.author'}},
+        ]
 
-                        else:
-                            print(f'Tweet {tweet["id"]} has an unknown reference type {referenced_tweet["type"]}')
+        data = collection.aggregate(pipeline)
+        with logging_redirect_tqdm():
+            for tweet in tqdm(data):
+                source = tweet['author']
+                target = tweet['referenced_by']
+                if not graph.has_node(source['id']):
+                    graph.add_node(source['id'], **source)
+                if not graph.has_node(target['id']):
+                    graph.add_node(target['id'], **target)
+                graph.add_edge(source['id'], target['id'])
 
         client.close()
 
@@ -253,13 +254,14 @@ class EgonetPlotFactory(MongoPlotFactory):
         if 'author' in referenced_tweet:
             target = referenced_tweet['author']
         else:
-            referenced_tweet_id = referenced_tweet['id']
-            referenced_tweet = collection.find_one({'id': referenced_tweet_id})
-            if referenced_tweet:
-                target = referenced_tweet['author']
-            else:
-                print(f'Referenced tweet {referenced_tweet_id} not found')
-                target = {'id': referenced_tweet_id}
+            # referenced_tweet_id = referenced_tweet['id']
+            # referenced_tweet = collection.find_one({'id': referenced_tweet_id})
+            # if referenced_tweet:
+            #     target = referenced_tweet['author']
+            # else:
+            #     print(f'Referenced tweet {referenced_tweet_id} not found')
+            #     target = {'id': referenced_tweet_id}
+            target = {'id': referenced_tweet['id'], 'username': referenced_tweet['id']}
         return target
 
     def plot_egonet(self, collection, user, depth):
