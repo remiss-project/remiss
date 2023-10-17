@@ -93,7 +93,7 @@ class TweetUserTimeSeriesComponentTest(TestCase):
                           f'date-picker-{self.component.name}.start_date...'
                           f'date-picker-{self.component.name}.end_date..')
         callback = app.callback_map[date_range_key]
-        self.assertEqual(callback['inputs'], [{'id': 'dropdown-dataset', 'property': 'value'}])
+        self.assertEqual(callback['inputs'], [{'id': 'dataset-dropdown', 'property': 'value'}])
         expected_outputs = [f'date-picker-{self.component.name}.' + field for field in
                             ['min_date_allowed', 'max_date_allowed', 'start_date', 'end_date']]
         actual_outputs = [output.component_id + '.' + output.component_property for output in callback['output']]
@@ -111,7 +111,7 @@ class TweetUserTimeSeriesComponentTest(TestCase):
         # Simulate the update function for the wordcloud
         wordcloud_key = f'wordcloud-{self.component.name}.list'
         callback = app.callback_map[wordcloud_key]
-        self.assertEqual(callback['inputs'], [{'id': 'dropdown-dataset', 'property': 'value'}])
+        self.assertEqual(callback['inputs'], [{'id': 'dataset-dropdown', 'property': 'value'}])
         self.assertEqual(callback['output'].component_id, f'wordcloud-{self.component.name}')
         self.assertEqual(callback['output'].component_property, 'list')
         actual = self.component.update_wordcloud('dataset2')
@@ -125,7 +125,7 @@ class TweetUserTimeSeriesComponentTest(TestCase):
         # Simulate the update function for the plots
         plots_key = f'..fig-tweet-{self.component.name}.figure...fig-users-{self.component.name}.figure..'
         callback = app.callback_map[plots_key]
-        self.assertEqual(callback['inputs'], [{'id': 'dropdown-dataset', 'property': 'value'},
+        self.assertEqual(callback['inputs'], [{'id': 'dataset-dropdown', 'property': 'value'},
                                               {'id': f'date-picker-{self.component.name}', 'property': 'start_date'},
                                               {'id': f'date-picker-{self.component.name}', 'property': 'end_date'},
                                               {'id': f'wordcloud-{self.component.name}', 'property': 'click'}])
@@ -208,7 +208,7 @@ class EgonetComponentTest(TestCase):
         # Simulate the update function for the plots
         plots_key = f'fig-{self.component.name}.figure'
         callback = app.callback_map[plots_key]
-        self.assertEqual(callback['inputs'], [{'id': 'dropdown-dataset', 'property': 'value'},
+        self.assertEqual(callback['inputs'], [{'id': 'dataset-dropdown', 'property': 'value'},
                                               {'id': f'user-dropdown-{self.component.name}', 'property': 'value'},
                                               {'id': f'slider-{self.component.name}', 'property': 'value'}])
         self.assertEqual(callback['output'].component_id, f'fig-{self.component.name}')

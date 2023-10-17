@@ -3,13 +3,14 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 
 import networkx as nx
+import numpy as np
 import pandas as pd
 from plotly.graph_objs import Figure
 from pymongo import MongoClient
 
+from figures import EgonetPlotFactory
 from figures import MongoPlotFactory
 from figures import TweetUserPlotFactory
-from figures import EgonetPlotFactory
 
 
 class TestMongoPlotFactory(unittest.TestCase):
@@ -258,20 +259,136 @@ class TestTweetUserPlotFactory(unittest.TestCase):
 
     def test__add_filters(self):
         hashtag = 'test_hashtag'
-        start_time = '2023-01-01'
-        end_time = '2023-01-31'
+        start_time = pd.to_datetime('2023-01-01')
+        end_time = pd.to_datetime('2023-01-31')
+        user_type = 'normal'
         expected_pipeline = [{'$match': {'created_at': {'$lte': end_time}}},
                              {'$match': {'created_at': {'$gte': start_time}}},
-                             {'$match': {'entities.hashtags.tag': hashtag}}]
+                             {'$match': {'entities.hashtags.tag': hashtag}},
+                             {'$match': {'author.remiss_metadata.is_usual_suspect': False,
+                                         'author.remiss_metadata.party': None}}]
 
-        result = self.tweet_user_plot._add_filters([], hashtag, start_time, end_time)
+        result = self.tweet_user_plot._add_filters([], hashtag, start_time, end_time, user_type)
 
         self.assertEqual(result, expected_pipeline)
 
-    def test__add_filters_2(self):
-        expected_pipeline = []
-        result = self.tweet_user_plot._add_filters(expected_pipeline, None, None, None)
+    def test__add_filters_normal(self):
+        expected_pipeline = [{'$match': {'author.remiss_metadata.is_usual_suspect': False,
+                                         'author.remiss_metadata.party': None}}]
+        result = self.tweet_user_plot._add_filters([], hashtag=None, start_time=None, end_time=None,
+                                                   user_type='normal')
         self.assertEqual(result, expected_pipeline)
+
+    def test__add_filters_suspect(self):
+        expected_pipeline = [{'$match': {'author.remiss_metadata.is_usual_suspect': True,
+                                         'author.remiss_metadata.party': None}}]
+        result = self.tweet_user_plot._add_filters([], hashtag=None, start_time=None, end_time=None,
+                                                   user_type='suspect')
+        self.assertEqual(result, expected_pipeline)
+
+    def test__add_filters_politician(self):
+        expected_pipeline = [{'$match': {'author.remiss_metadata.is_usual_suspect': False,
+                                         'author.remiss_metadata.party': {'$ne': None}}}]
+        result = self.tweet_user_plot._add_filters([], hashtag=None, start_time=None, end_time=None,
+                                                   user_type='politician')
+        self.assertEqual(result, expected_pipeline)
+
+    def test__add_filters_suspect_politician(self):
+        expected_pipeline = [{'$match': {'author.remiss_metadata.is_usual_suspect': True,
+                                         'author.remiss_metadata.party': {'$ne': None}}}]
+        result = self.tweet_user_plot._add_filters([], hashtag=None, start_time=None, end_time=None,
+                                                   user_type='suspect_politician')
+        self.assertEqual(result, expected_pipeline)
+
+    def test__get_count_data(self):
+        hashtag = 'test_hashtag'
+        start_time = pd.to_datetime('2023-01-01')
+        end_time = pd.to_datetime('2023-01-31')
+        pipeline = []
+
+        collection = Mock()
+        test_data = pd.DataFrame({'_id': [datetime(2023, 1, 1),
+                                          datetime(2023, 1, 2),
+                                          datetime(2023, 1, 3)],
+                                  'count': [1, 2, 3]})
+        collection.aggregate_pandas_all.return_value = test_data
+        actual = self.tweet_user_plot._get_count_data(pipeline, hashtag, start_time, end_time, collection)
+        test_data = test_data.copy().rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time')
+        expected = pd.concat([test_data] * 4, axis=1)
+        expected.columns = ['Normal', 'Usual suspect', 'Politician', 'Usual suspect politician']
+        self.assertEqual(actual.to_dict(), expected.to_dict())
+
+    def test__get_count_data_empty(self):
+        hashtag = 'test_hashtag'
+        start_time = pd.to_datetime('2023-01-01')
+        end_time = pd.to_datetime('2023-01-31')
+        pipeline = []
+
+        collection = Mock()
+        good_data = pd.DataFrame({'_id': [datetime(2023, 1, 1),
+                                          datetime(2023, 1, 2),
+                                          datetime(2023, 1, 3)],
+                                  'count': [1, 2, 3]})
+        bad_data = pd.DataFrame({'_id': [],
+                                 'count': []})
+
+        class TestData:
+            def __init__(self):
+                self.i = 0
+
+            def get_data(self, pipeline, schema):
+                if self.i < 2:
+                    data = good_data
+                else:
+                    data = bad_data
+                self.i += 1
+                return data
+
+        test_data = TestData()
+        collection.aggregate_pandas_all = test_data.get_data
+        actual = self.tweet_user_plot._get_count_data(pipeline, hashtag, start_time, end_time, collection)
+        good_data = good_data.copy().rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time')
+        bad_data = bad_data.copy().rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time')
+        expected = pd.concat([good_data] * 2 + [bad_data] * 2, axis=1)
+        expected.columns = ['Normal', 'Usual suspect', 'Politician', 'Usual suspect politician']
+        pd.testing.assert_frame_equal(actual, expected)
+
+    def test__get_count_data_empty(self):
+        hashtag = 'test_hashtag'
+        start_time = pd.to_datetime('2023-01-01')
+        end_time = pd.to_datetime('2023-01-31')
+        pipeline = []
+
+        collection = Mock()
+        good_data = pd.DataFrame({'_id': [datetime(2023, 1, 1),
+                                          datetime(2023, 1, 2),
+                                          ],
+                                  'count': [1, 2]})
+        bad_data = pd.DataFrame({'_id': [
+                                         datetime(2023, 1, 2),
+                                         datetime(2023, 1, 3)],
+                                 'count': [2, 3]})
+
+        class TestData:
+            def __init__(self):
+                self.i = 0
+
+            def get_data(self, pipeline, schema):
+                if self.i < 2:
+                    data = good_data
+                else:
+                    data = bad_data
+                self.i += 1
+                return data
+
+        test_data = TestData()
+        collection.aggregate_pandas_all = test_data.get_data
+        actual = self.tweet_user_plot._get_count_data(pipeline, hashtag, start_time, end_time, collection)
+        good_data = good_data.copy().rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time')
+        bad_data = bad_data.copy().rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time')
+        expected = pd.concat([good_data] * 2 + [bad_data] * 2, axis=1)
+        expected.columns = ['Normal', 'Usual suspect', 'Politician', 'Usual suspect politician']
+        pd.testing.assert_frame_equal(actual, expected)
 
 
 class TestEgonetPlotFactory(unittest.TestCase):
