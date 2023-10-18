@@ -1,8 +1,7 @@
 from abc import ABC
 from datetime import datetime
 
-import networkx
-import networkx as nx
+import igraph as ig
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -240,21 +239,34 @@ class EgonetPlotFactory(MongoPlotFactory):
         ]
         edge_data = collection.aggregate(edge_pipeline)
 
-        nodes, edges = [], []
-        graph = networkx.DiGraph()
+        nodes, edges, usernames, is_suspicious, party, = {}, [], [], [], []
         with logging_redirect_tqdm():
-            for author in tqdm(authors):
-                nodes.append((author['_id'], author))
+            for i, author in enumerate(tqdm(authors)):
+                nodes[author['_id']] = i
+                usernames.append(author['username'])
+                party.append(author['remiss_metadata']['party'])
+                is_suspicious.append(author['remiss_metadata']['is_usual_suspect'])
 
             for edge in tqdm(edge_data):
-                edges.append((edge['author'], edge['referenced_by']))
+                if edge['referenced_by'] not in nodes:
+                    nodes[edge['referenced_by']] = len(nodes)
+                    usernames.append(f'Unknown username: {edge["referenced_by"]}')
+                    is_suspicious.append(False)
+                    party.append(None)
+                edges.append((nodes[edge['author']], nodes[edge['referenced_by']]))
+
 
         client.close()
 
-        graph.add_nodes_from(nodes)
-        graph.add_edges_from(edges)
+        g = ig.Graph(directed=True)
+        g.add_vertices(range(len(nodes)))
+        g.vs['id'] = list(nodes.keys())
+        g.vs['username'] = usernames
+        g.vs['is_usual_suspect'] = is_suspicious
+        g.vs['party'] = party
+        g.add_edges(edges)
 
-        return graph
+        return g
 
     def plot_egonet(self, collection, user, depth):
         network = self.get_egonet(collection, user, depth)

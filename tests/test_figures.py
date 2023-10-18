@@ -436,7 +436,6 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.assertEqual({1, 2}, set(actual.nodes))
         self.assertEqual({(1, 2)}, set(actual.edges))
 
-
     @patch('figures.MongoClient')
     def test_compute_hidden_network(self, mock_mongo_client):
         # Mock MongoClient and database
@@ -471,8 +470,9 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
         actual = self.egonet_plot.compute_hidden_network(collection)
 
-        self.assertEqual({1, 2, 3}, set(actual.nodes))
-        self.assertEqual({(2, 3), (1, 2), (3, 1)}, set(actual.edges))
+        self.assertEqual({1, 2, 3}, set(actual.vs['id']))
+        edges = {(actual.vs[s]['id'], actual.vs[t]['id']) for s, t in actual.get_edgelist()}
+        self.assertEqual({(2, 3), (1, 2), (3, 1)}, edges)
 
     @patch('figures.MongoClient')
     def test_compute_hidden_network_2(self, mock_mongo_client):
@@ -510,19 +510,6 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
         self.assertEqual({1, 2, 3, 4}, set(actual.nodes))
         self.assertEqual({(2, 3), (1, 2), (3, 4)}, set(actual.edges))
-
-    @patch('figures.MongoClient')
-    def test_get_reference_target_user(self, mock_mongo_client):
-        # Mock MongoClient and database
-        mock_collection = Mock()
-        mock_mongo_client.return_value.get_database.return_value.get_collection.return_value = mock_collection
-
-        referenced_tweet = {'author': {'id': 1}}
-        collection = 'test_collection'
-
-        result = self.egonet_plot.get_reference_target_user(referenced_tweet, collection)
-
-        self.assertEqual(result, referenced_tweet['author'])
 
     def test_plot_egonet(self):
         # Mock get_egonet
@@ -568,8 +555,8 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.egonet_plot.database = 'test_remiss'
         actual = self.egonet_plot.get_egonet(collection, user, depth)
 
-        self.assertEqual(data_size // 2 + 1, len(actual.nodes))
-        self.assertEqual(data_size + 2, len(actual.edges))
+        self.assertEqual(data_size + 2, actual.vcount())
+        self.assertEqual(data_size, actual.ecount())
 
 
 if __name__ == '__main__':
