@@ -412,11 +412,11 @@ class TestEgonetPlotFactory(unittest.TestCase):
                 # its authors
                 return [
                     {'_id': 1, 'remiss_metadata': {'is_usual_suspect': False, 'party': 'PSOE'},
-                     'username': 'TEST_USER_488680'},
+                     'username': 'TEST_USER_1'},
                     {'_id': 2, 'remiss_metadata': {'is_usual_suspect': False, 'party': None},
-                     'username': 'TEST_USER_488681'},
+                     'username': 'TEST_USER_2'},
                     {'_id': 3, 'remiss_metadata': {'is_usual_suspect': False, 'party': 'VOX'},
-                     'username': 'TEST_USER_488682'}
+                     'username': 'TEST_USER_3'}
                 ]
 
         mock_collection.aggregate = aggregate
@@ -428,13 +428,14 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.egonet_plot.get_user_id = Mock(return_value=1)
 
         collection = 'test_collection'
-        user = 'test_user'
+        user = 'TEST_USER_1'
         depth = 1
 
         actual = self.egonet_plot.get_egonet(collection, user, depth)
 
-        self.assertEqual({1, 2}, set(actual.nodes))
-        self.assertEqual({(1, 2)}, set(actual.edges))
+        self.assertEqual({1, 2}, set(actual.vs['id']))
+        edges = {(actual.vs[s]['id'], actual.vs[t]['id']) for s, t in actual.get_edgelist()}
+        self.assertEqual({(1, 2)}, edges)
 
     @patch('figures.MongoClient')
     def test_compute_hidden_network(self, mock_mongo_client):
@@ -508,8 +509,9 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
         actual = self.egonet_plot.compute_hidden_network(collection)
 
-        self.assertEqual({1, 2, 3, 4}, set(actual.nodes))
-        self.assertEqual({(2, 3), (1, 2), (3, 4)}, set(actual.edges))
+        self.assertEqual({1, 2, 3, 4}, set(actual.vs['id']))
+        edges = {(actual.vs[s]['id'], actual.vs[t]['id']) for s, t in actual.get_edgelist()}
+        self.assertEqual({(2, 3), (1, 2), (3, 4)}, edges)
 
     def test_plot_egonet(self):
         # Mock get_egonet

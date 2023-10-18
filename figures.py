@@ -203,9 +203,9 @@ class EgonetPlotFactory(MongoPlotFactory):
         egonet = self.compute_hidden_network(dataset)
         if user:
             try:
-                user_id = self.get_user_id(dataset, user)
-                egonet = nx.ego_graph(egonet, user_id, depth, center=True, undirected=True)
-            except RuntimeError as ex:
+                node = egonet.vs.find(username=user)
+                egonet = egonet.induced_subgraph(egonet.neighborhood(node, order=depth))
+            except (RuntimeError, ValueError) as ex:
                 print(f'Computing neighbourhood for user {user} failed, computing the whole network')
 
         return egonet
@@ -240,20 +240,19 @@ class EgonetPlotFactory(MongoPlotFactory):
         edge_data = collection.aggregate(edge_pipeline)
 
         nodes, edges, usernames, is_suspicious, party, = {}, [], [], [], []
-        with logging_redirect_tqdm():
-            for i, author in enumerate(tqdm(authors)):
-                nodes[author['_id']] = i
-                usernames.append(author['username'])
-                party.append(author['remiss_metadata']['party'])
-                is_suspicious.append(author['remiss_metadata']['is_usual_suspect'])
+        for i, author in enumerate(authors):
+            nodes[author['_id']] = i
+            usernames.append(author['username'])
+            party.append(author['remiss_metadata']['party'])
+            is_suspicious.append(author['remiss_metadata']['is_usual_suspect'])
 
-            for edge in tqdm(edge_data):
-                if edge['referenced_by'] not in nodes:
-                    nodes[edge['referenced_by']] = len(nodes)
-                    usernames.append(f'Unknown username: {edge["referenced_by"]}')
-                    is_suspicious.append(False)
-                    party.append(None)
-                edges.append((nodes[edge['author']], nodes[edge['referenced_by']]))
+        for edge in edge_data:
+            if edge['referenced_by'] not in nodes:
+                nodes[edge['referenced_by']] = len(nodes)
+                usernames.append(f'Unknown username: {edge["referenced_by"]}')
+                is_suspicious.append(False)
+                party.append(None)
+            edges.append((nodes[edge['author']], nodes[edge['referenced_by']]))
 
 
         client.close()
@@ -273,10 +272,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         return self.plot_network(network)
 
     def plot_network(self, network):
-        if self.layout == 'fruchterman_reingold':
-            layout = nx.fruchterman_reingold_layout(network)
-        else:
-            raise ValueError(f'Unknown layout {self.layout}')
+        layout = network.layout(self.layout)
 
         edge_x = []
         edge_y = []
