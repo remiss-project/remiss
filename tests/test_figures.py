@@ -542,11 +542,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
         test_data = []
         for i in range(data_size):
+            referenced_tweets = [{'type': 'replied_to', 'id': i + 1} for i in range(10)]
             tweet = {"id": i, "created_at": datetime.fromisoformat("2019-01-01T23:20:00Z"),
                      "author": {"username": f"TEST_USER_{i // 2}", "id": i // 2,
                                 "remiss_metadata": {"party": "PSOE", "is_usual_suspect": False}},
                      "entities": {"hashtags": [{"tag": "test_hashtag"}]},
-                     'referenced_tweets': [{'type': 'replied_to', 'id': i + 1}]}
+                     'referenced_tweets': referenced_tweets}
             test_data.append(tweet)
 
         client = MongoClient('localhost', 27017)

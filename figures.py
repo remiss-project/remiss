@@ -226,43 +226,35 @@ class EgonetPlotFactory(MongoPlotFactory):
         database = client.get_database(self.database)
         collection = database.get_collection(dataset)
 
-        graph = networkx.DiGraph()
-        pipeline = [
-            {'$match': {'referenced_tweets': {'$exists': True}}},
-            {'$unwind': '$referenced_tweets'},
-            {'$match': {'referenced_tweets.type': {'$in': self.reference_types}, 'referenced_tweets.author': {'$exists': True}}},
-            {'$project': {'author': 1, 'referenced_tweets': 1, 'referenced_by': '$referenced_tweets.author'}},
+        node_pipeline = [
+            {'$group': {'_id': '$author.id', 'username': {'$first': '$author.username'},
+                        'remiss_metadata': {'$first': '$author.remiss_metadata'}}},
         ]
+        authors = collection.aggregate(node_pipeline)
 
-        data = collection.aggregate(pipeline)
+        edge_pipeline = [
+            {'$unwind': '$referenced_tweets'},
+            {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
+                        'referenced_tweets.author': {'$exists': True}}},
+            {'$project': {'author': '$author.id', 'referenced_by': '$referenced_tweets.author.id'}},
+        ]
+        edge_data = collection.aggregate(edge_pipeline)
+
+        nodes, edges = [], []
+        graph = networkx.DiGraph()
         with logging_redirect_tqdm():
-            for tweet in tqdm(data):
-                source = tweet['author']
-                target = tweet['referenced_by']
-                if not graph.has_node(source['id']):
-                    graph.add_node(source['id'], **source)
-                if not graph.has_node(target['id']):
-                    graph.add_node(target['id'], **target)
-                graph.add_edge(source['id'], target['id'])
+            for author in tqdm(authors):
+                nodes.append((author['_id'], author))
+
+            for edge in tqdm(edge_data):
+                edges.append((edge['author'], edge['referenced_by']))
 
         client.close()
 
-        return graph
+        graph.add_nodes_from(nodes)
+        graph.add_edges_from(edges)
 
-    @staticmethod
-    def get_reference_target_user(referenced_tweet, collection):
-        if 'author' in referenced_tweet:
-            target = referenced_tweet['author']
-        else:
-            # referenced_tweet_id = referenced_tweet['id']
-            # referenced_tweet = collection.find_one({'id': referenced_tweet_id})
-            # if referenced_tweet:
-            #     target = referenced_tweet['author']
-            # else:
-            #     print(f'Referenced tweet {referenced_tweet_id} not found')
-            #     target = {'id': referenced_tweet_id}
-            target = {'id': referenced_tweet['id'], 'username': referenced_tweet['id']}
-        return target
+        return graph
 
     def plot_egonet(self, collection, user, depth):
         network = self.get_egonet(collection, user, depth)
