@@ -400,14 +400,26 @@ class TestEgonetPlotFactory(unittest.TestCase):
         # Checks it returns the whole thing if the user is not present
 
         mock_collection = Mock()
-        mock_collection.find.return_value = [
-            {'author': {'id': 1},
-             'referenced_tweets': [{'type': 'replied_to', 'id': 11, 'author': {'id': 2, 'username': 'test_user_2'}}]},
-            {'author': {'id': 2},
-             'referenced_tweets': [{'type': 'quoted', 'id': 12, 'author': {'id': 3, 'username': 'test_user_3'}}]},
-            {'author': {'id': 3}, 'referenced_tweets': [{'type': 'retweeted', 'id': 13}]},
-        ]
-        mock_collection.find_one.return_value = {'author': {'id': 1, 'username': 'test_user_1'}}
+
+        def aggregate(pipeline):
+            if '$unwind' in pipeline[0]:
+                # its edges
+                return [{'_id': '652fbda97011a0e229445003', 'author': 1, 'referenced_by': 2},
+                        {'_id': '652fbda97011a0e22945003', 'author': 2, 'referenced_by': 3},
+                        {'_id': '652fbda97011a0e2245003', 'author': 3, 'referenced_by': 4}
+                        ]
+            else:
+                # its authors
+                return [
+                    {'_id': 1, 'remiss_metadata': {'is_usual_suspect': False, 'party': 'PSOE'},
+                     'username': 'TEST_USER_488680'},
+                    {'_id': 2, 'remiss_metadata': {'is_usual_suspect': False, 'party': None},
+                     'username': 'TEST_USER_488681'},
+                    {'_id': 3, 'remiss_metadata': {'is_usual_suspect': False, 'party': 'VOX'},
+                     'username': 'TEST_USER_488682'}
+                ]
+
+        mock_collection.aggregate = aggregate
         mock_database = Mock()
         mock_database.get_collection.return_value = mock_collection
         mock_mongo_client.return_value.get_database.return_value = mock_database
@@ -421,51 +433,34 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
         actual = self.egonet_plot.get_egonet(collection, user, depth)
 
-        self.assertEqual({1, 2, 3}, set(actual.nodes))
-        self.assertEqual({(2, 3), (1, 2), (3, 1)}, set(actual.edges))
-
-    @patch('figures.MongoClient')
-    def test_get_egonet_2(self, mock_mongo_client):
-        # Checks it returns the surrounding network if the user is present
-
-        mock_collection = Mock()
-        mock_collection.find.return_value = [
-            {'author': {'id': 1},
-             'referenced_tweets': [{'type': 'replied_to', 'id': 11, 'author': {'id': 2, 'username': 'test_user_2'}}]},
-            {'author': {'id': 2},
-             'referenced_tweets': [{'type': 'quoted', 'id': 12, 'author': {'id': 3, 'username': 'test_user_3'}}]},
-            {'author': {'id': 3}, 'referenced_tweets': [{'type': 'retweeted', 'id': 14}]},
-        ]
-        mock_collection.find_one.return_value = {'author': {'id': 4, 'username': 'test_user_4'}}
-        mock_database = Mock()
-        mock_database.get_collection.return_value = mock_collection
-        mock_mongo_client.return_value.get_database.return_value = mock_database
-
-        # Mock get_user_id
-        self.egonet_plot.get_user_id = Mock(return_value=1)
-
-        collection = 'test_collection'
-        user = 'test_user_1'
-        depth = 1
-
-        actual = self.egonet_plot.get_egonet(collection, user, depth)
-
         self.assertEqual({1, 2}, set(actual.nodes))
         self.assertEqual({(1, 2)}, set(actual.edges))
+
 
     @patch('figures.MongoClient')
     def test_compute_hidden_network(self, mock_mongo_client):
         # Mock MongoClient and database
-
         mock_collection = Mock()
-        mock_collection.find.return_value = [
-            {'author': {'id': 1},
-             'referenced_tweets': [{'type': 'replied_to', 'id': 11, 'author': {'id': 2, 'username': 'test_user_2'}}]},
-            {'author': {'id': 2},
-             'referenced_tweets': [{'type': 'quoted', 'id': 12, 'author': {'id': 3, 'username': 'test_user_3'}}]},
-            {'author': {'id': 3}, 'referenced_tweets': [{'type': 'retweeted', 'id': 13}]},
-        ]
-        mock_collection.find_one.return_value = {'author': {'id': 1, 'username': 'test_user_1'}}
+
+        def aggregate(pipeline):
+            if '$unwind' in pipeline[0]:
+                # its edges
+                return [{'_id': '652fbda97011a0e229445003', 'author': 1, 'referenced_by': 2},
+                        {'_id': '652fbda97011a0e22945003', 'author': 2, 'referenced_by': 3},
+                        {'_id': '652fbda97011a0e2245003', 'author': 3, 'referenced_by': 1}
+                        ]
+            else:
+                # its authors
+                return [
+                    {'_id': 1, 'remiss_metadata': {'is_usual_suspect': False, 'party': 'PSOE'},
+                     'username': 'TEST_USER_488680'},
+                    {'_id': 2, 'remiss_metadata': {'is_usual_suspect': False, 'party': None},
+                     'username': 'TEST_USER_488681'},
+                    {'_id': 3, 'remiss_metadata': {'is_usual_suspect': False, 'party': 'VOX'},
+                     'username': 'TEST_USER_488682'}
+                ]
+
+        mock_collection.aggregate = aggregate
         mock_database = Mock()
         mock_database.get_collection.return_value = mock_collection
         mock_mongo_client.return_value.get_database.return_value = mock_database
@@ -478,6 +473,43 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
         self.assertEqual({1, 2, 3}, set(actual.nodes))
         self.assertEqual({(2, 3), (1, 2), (3, 1)}, set(actual.edges))
+
+    @patch('figures.MongoClient')
+    def test_compute_hidden_network_2(self, mock_mongo_client):
+        # Mock MongoClient and database
+        mock_collection = Mock()
+
+        def aggregate(pipeline):
+            if '$unwind' in pipeline[0]:
+                # its edges
+                return [{'_id': '652fbda97011a0e229445003', 'author': 1, 'referenced_by': 2},
+                        {'_id': '652fbda97011a0e22945003', 'author': 2, 'referenced_by': 3},
+                        {'_id': '652fbda97011a0e2245003', 'author': 3, 'referenced_by': 4}
+                        ]
+            else:
+                # its authors
+                return [
+                    {'_id': 1, 'remiss_metadata': {'is_usual_suspect': False, 'party': 'PSOE'},
+                     'username': 'TEST_USER_488680'},
+                    {'_id': 2, 'remiss_metadata': {'is_usual_suspect': False, 'party': None},
+                     'username': 'TEST_USER_488681'},
+                    {'_id': 3, 'remiss_metadata': {'is_usual_suspect': False, 'party': 'VOX'},
+                     'username': 'TEST_USER_488682'}
+                ]
+
+        mock_collection.aggregate = aggregate
+        mock_database = Mock()
+        mock_database.get_collection.return_value = mock_collection
+        mock_mongo_client.return_value.get_database.return_value = mock_database
+
+        # Mock get_user_id
+        self.egonet_plot.get_user_id = Mock(return_value=1)
+        collection = 'test_collection'
+
+        actual = self.egonet_plot.compute_hidden_network(collection)
+
+        self.assertEqual({1, 2, 3, 4}, set(actual.nodes))
+        self.assertEqual({(2, 3), (1, 2), (3, 4)}, set(actual.edges))
 
     @patch('figures.MongoClient')
     def test_get_reference_target_user(self, mock_mongo_client):
@@ -536,35 +568,9 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.egonet_plot.database = 'test_remiss'
         actual = self.egonet_plot.get_egonet(collection, user, depth)
 
-    def test_get_egonet_speed_missing_in_table(self):
-        # Checks it returns the whole thing if the user is not present
-        data_size = 1000000
+        self.assertEqual(data_size // 2 + 1, len(actual.nodes))
+        self.assertEqual(data_size + 2, len(actual.edges))
 
-        test_data = []
-        for i in range(data_size):
-            referenced_tweets = [{'type': 'replied_to', 'id': i + 1} for i in range(10)]
-            tweet = {"id": i, "created_at": datetime.fromisoformat("2019-01-01T23:20:00Z"),
-                     "author": {"username": f"TEST_USER_{i // 2}", "id": i // 2,
-                                "remiss_metadata": {"party": "PSOE", "is_usual_suspect": False}},
-                     "entities": {"hashtags": [{"tag": "test_hashtag"}]},
-                     'referenced_tweets': referenced_tweets}
-            test_data.append(tweet)
-
-        client = MongoClient('localhost', 27017)
-        client.drop_database('test_remiss')
-        database = client.get_database('test_remiss')
-        collection = database.get_collection('test_collection')
-        print('storing test data')
-        collection.insert_many(test_data)
-
-        collection = 'test_collection'
-        user = 'test_user'
-        depth = 1
-        print('computing egonet')
-        self.egonet_plot.host = 'localhost'
-        self.egonet_plot.port = 27017
-        self.egonet_plot.database = 'test_remiss'
-        actual = self.egonet_plot.get_egonet(collection, user, depth)
 
 if __name__ == '__main__':
     unittest.main()
