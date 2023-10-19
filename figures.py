@@ -254,11 +254,10 @@ class EgonetPlotFactory(MongoPlotFactory):
                 party.append(None)
             edges.append((nodes[edge['author']], nodes[edge['referenced_by']]))
 
-
         client.close()
 
-        g = ig.Graph(directed=True)
-        g.add_vertices(range(len(nodes)))
+        g = ig.Graph(directed=False)
+        g.add_vertices(len(nodes))
         g.vs['id'] = list(nodes.keys())
         g.vs['username'] = usernames
         g.vs['is_usual_suspect'] = is_suspicious
@@ -272,84 +271,68 @@ class EgonetPlotFactory(MongoPlotFactory):
         return self.plot_network(network)
 
     def plot_network(self, network):
-        layout = network.layout(self.layout)
+        layout = network.layout(self.layout, dim=3)
+        node_positions = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
+        edges = pd.DataFrame(network.get_edgelist(), columns=['source', 'target'])
+        edge_positions = node_positions.iloc[edges.values.flatten()].reset_index(drop=True)
+        nones = edge_positions[1::2].assign(x=None, y=None, z=None)
+        edge_positions = pd.concat([edge_positions, nones]).sort_index().reset_index(drop=True)
 
-        edge_x = []
-        edge_y = []
-        for edge in network.edges():
-            x0, y0 = layout[edge[0]]
-            x1, y1 = layout[edge[1]]
-            edge_x.append(x0)
-            edge_x.append(x1)
-            edge_x.append(None)
-            edge_y.append(y0)
-            edge_y.append(y1)
-            edge_y.append(None)
+        metadata = pd.DataFrame({'is_usual_suspect': network.vs['is_usual_suspect'], 'party': network.vs['party']})
 
-        edge_trace = go.Scatter(
-            x=edge_x, y=edge_y,
-            line=dict(width=0.5, color='#888'),
-            hoverinfo='none',
-            mode='lines')
+        color_map = {(False, False): 'blue',
+                     (False, True): 'yellow',
+                     (True, False): 'red',
+                     (True, True): 'purple'}
 
-        node_x = []
-        node_y = []
-        for node in network.nodes():
-            x, y = layout[node]
-            node_x.append(x)
-            node_y.append(y)
+        color = metadata.apply(lambda x: color_map[(x['is_usual_suspect'], x['party'] is not None)], axis=1)
 
-        node_colors = []
-        node_text = []
-        # Color code
-        # 0 - green: not usual suspect nor politician
-        # 1 - red: usual suspect
-        # 2- yellow: politician
-        # 3 - purple: usual suspect and politician
-        for node in network:
-            try:
-                username = network.nodes[node]['username']
-                label = f'{username}'
-                color = 'green'
-                if 'remiss_metadata' in network.nodes[node]:
-                    is_usual_suspect = network.nodes[node]['remiss_metadata']['is_usual_suspect']
-                    party = network.nodes[node]['remiss_metadata']['party']
-                    if is_usual_suspect and party:
-                        label = f'{username}: usual suspect from {party}'
-                        color = 'purple'
-                    elif is_usual_suspect:
-                        label = f'{username}: usual suspect'
-                        color = 'red'
-                    elif party:
-                        label = f'{username}: {party}'
-                        color = 'yellow'
+        edge_trace = go.Scatter3d(x=edge_positions['x'],
+                                  y=edge_positions['y'],
+                                  z=edge_positions['z'],
+                                  mode='lines',
+                                  line=dict(color='rgb(125,125,125)', width=1),
+                                  hoverinfo='none'
+                                  )
 
-            except KeyError:
-                label = node
-                color = 'green'
-            node_text.append(label)
-            node_colors.append(color)
+        node_trace = go.Scatter3d(x=node_positions['x'],
+                                  y=node_positions['y'],
+                                  z=node_positions['z'],
+                                  mode='markers',
+                                  name='users',
+                                  marker=dict(symbol='circle',
+                                              size=6,
+                                              color=color,
+                                              colorscale='Viridis',
+                                              line=dict(color='rgb(50,50,50)', width=0.5)
+                                              ),
+                                  text=network.vs['username'],
+                                  hoverinfo='text'
+                                  )
 
-        node_trace = go.Scatter(
-            x=node_x, y=node_y,
-            mode='markers',
-            hoverinfo='text',
-            marker=dict(
-                size=10,
-                line_width=2,
-                color=node_colors,
+        axis = dict(showbackground=False,
+                    showline=False,
+                    zeroline=False,
+                    showgrid=False,
+                    showticklabels=False,
+                    title=''
+                    )
+
+        layout = go.Layout(
+            # title="Network of coappearances of characters in Victor Hugo's novel<br> Les Miserables (3D visualization)",
+            showlegend=False,
+            scene=dict(
+                xaxis=dict(axis),
+                yaxis=dict(axis),
+                zaxis=dict(axis),
             ),
-            text=node_text,
-            showlegend=True
+            margin=dict(
+                t=100
+            ),
+            hovermode='closest',
+
         )
 
-        fig = go.Figure(data=[edge_trace, node_trace],
-                        layout=go.Layout(
-                            showlegend=False,
-                            hovermode='closest',
-                            margin=dict(b=20, l=5, r=5, t=40),
-                            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
-                        )
-
-        return fig
+        data = [edge_trace, node_trace]
+        fig = go.Figure(data=data, layout=layout)
+        fig.show()
