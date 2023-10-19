@@ -516,7 +516,6 @@ class TestEgonetPlotFactory(unittest.TestCase):
         # Mock get_egonet
         network = ig.Graph.GRG(8, 0.2)
         network.vs['id'] = [0, 1, 2, 3, 4, 5, 6, 7]
-        network.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5)])
         network.vs['username'] = ['TEST_USER_0', 'TEST_USER_1', 'TEST_USER_2', 'TEST_USER_3', 'TEST_USER_4',
                                   'TEST_USER_5', 'TEST_USER_6', 'TEST_USER_7']
         network.vs['party'] = ['PSOE', None, 'VOX', None, 'PSOE', None, 'VOX', None]
@@ -526,8 +525,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
         collection = 'test_collection'
 
         actual = self.egonet_plot.plot_egonet(collection, 'test_user', 1)
-        # self.assertEqual(len(actual['data'][0]['x']), 3)
-        # self.assertEqual(len(actual['data'][0]['y']), 3)
+        self.assertEqual(len(actual['data'][0]['x']), network.ecount() * 3)
+        self.assertEqual(len(actual['data'][0]['y']), network.ecount() * 3)
+        self.assertEqual(len(actual['data'][0]['z']), network.ecount() * 3)
+        self.assertEqual(len(actual['data'][1]['x']), network.vcount())
+        self.assertEqual(len(actual['data'][1]['y']), network.vcount())
+        self.assertEqual(len(actual['data'][1]['z']), network.vcount())
 
     def test_get_egonet_speed_full(self):
         # Checks it returns the whole thing if the user is not present

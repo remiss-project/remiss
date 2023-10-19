@@ -335,4 +335,4 @@ class EgonetPlotFactory(MongoPlotFactory):
 
         data = [edge_trace, node_trace]
         fig = go.Figure(data=data, layout=layout)
-        fig.show()
+        return fig
