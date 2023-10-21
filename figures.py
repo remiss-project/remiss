@@ -2,6 +2,7 @@ from abc import ABC
 from datetime import datetime
 
 import igraph as ig
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -9,8 +10,6 @@ import pymongoarrow.monkey
 from pymongo import MongoClient
 from pymongo.errors import OperationFailure
 from pymongoarrow.schema import Schema
-from tqdm import tqdm
-from tqdm.contrib.logging import logging_redirect_tqdm
 
 pymongoarrow.monkey.patch_all()
 
@@ -215,54 +214,68 @@ class EgonetPlotFactory(MongoPlotFactory):
             self._hidden_networks[dataset] = self._compute_hidden_network(dataset)
         return self._hidden_networks[dataset]
 
+    def _get_authors_and_references(self, dataset):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(self.database)
+        collection = database.get_collection(dataset)
+
+        node_pipeline = [
+            {'$unwind': '$referenced_tweets'},
+            {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
+                        'referenced_tweets.author': {'$exists': True}}},
+            {'$project': {'_id': 0, 'id': '$referenced_tweets.author.id',
+                          'username': '$referenced_tweets.author.username',
+                          'is_usual_suspect': '$referenced_tweets.author.remiss_metadata.is_usual_suspect',
+                          'party': '$referenced_tweets.author.remiss_metadata.party'}},
+            {'$unionWith': {'coll': dataset, 'pipeline': [
+                {'$project': {'id': '$author.id',
+                              'username': '$author.username',
+                              'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
+                              'party': '$author.remiss_metadata.party'}}]}},
+            {'$group': {'_id': '$id',
+                        'username': {'$first': '$username'},
+                        'is_usual_suspect': {'$addToSet': '$is_usual_suspect'},
+                        'party': {'$addToSet': '$party'}}},
+            {'$project': {'_id': 0,
+                          'id': '$_id',
+                          'username': 1,
+                          'is_usual_suspect': {'$anyElementTrue': '$is_usual_suspect'},
+                          'party': {'$arrayElemAt': ['$party', 0]}}}
+        ]
+        authors = collection.aggregate_pandas_all(node_pipeline)
+
+        references_pipeline = [
+            {'$unwind': '$referenced_tweets'},
+            {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
+                        'referenced_tweets.author': {'$exists': True}}},
+            {'$project': {'_id': 0, 'source': '$author.id', 'target': '$referenced_tweets.author.id'}},
+
+        ]
+        references = collection.aggregate_pandas_all(references_pipeline)
+        client.close()
+        return authors, references
+
     def _compute_hidden_network(self, dataset):
         """
         Computes the hidden graph, this is, the graph of users that have interacted with each other.
         :param dataset: collection name within the database where the tweets are stored
         :return: a networkx graph with the users as nodes and the edges representing interactions between users
         """
-        client = MongoClient(self.host, self.port)
-        database = client.get_database(self.database)
-        collection = database.get_collection(dataset)
+        authors, references = self._get_authors_and_references(dataset)
 
-        node_pipeline = [
-            {'$group': {'_id': '$author.id', 'username': {'$first': '$author.username'},
-                        'remiss_metadata': {'$first': '$author.remiss_metadata'}}},
-        ]
-        authors = collection.aggregate(node_pipeline)
-
-        edge_pipeline = [
-            {'$unwind': '$referenced_tweets'},
-            {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
-                        'referenced_tweets.author': {'$exists': True}}},
-            {'$project': {'author': '$author.id', 'referenced_by': '$referenced_tweets.author.id'}},
-        ]
-        edge_data = collection.aggregate(edge_pipeline)
-
-        nodes, edges, usernames, is_suspicious, party, = {}, [], [], [], []
-        for i, author in enumerate(authors):
-            nodes[author['_id']] = i
-            usernames.append(author['username'])
-            party.append(author['remiss_metadata']['party'])
-            is_suspicious.append(author['remiss_metadata']['is_usual_suspect'])
-
-        for edge in edge_data:
-            if edge['referenced_by'] not in nodes:
-                nodes[edge['referenced_by']] = len(nodes)
-                usernames.append(f'Unknown username: {edge["referenced_by"]}')
-                is_suspicious.append(False)
-                party.append(None)
-            edges.append((nodes[edge['author']], nodes[edge['referenced_by']]))
-
-        client.close()
+        # switch id by position (which will be the node id in the graph) and set it as index
+        author_to_id = authors['id'].reset_index().set_index('id')
+        # convert references which are author id based to graph id based
+        references['source'] = author_to_id.loc[references['source']].reset_index(drop=True)
+        references['target'] = author_to_id.loc[references['target']].reset_index(drop=True)
 
         g = ig.Graph(directed=False)
-        g.add_vertices(len(nodes))
-        g.vs['id'] = list(nodes.keys())
-        g.vs['username'] = usernames
-        g.vs['is_usual_suspect'] = is_suspicious
-        g.vs['party'] = party
-        g.add_edges(edges)
+        g.add_vertices(len(authors))
+        g.vs['id'] = authors['id']
+        g.vs['username'] = authors['username']
+        g.vs['is_usual_suspect'] = authors['is_usual_suspect']
+        g.vs['party'] = authors['party']
+        g.add_edges(references.to_records(index=False).tolist())
 
         return g
 
@@ -319,7 +332,6 @@ class EgonetPlotFactory(MongoPlotFactory):
                     )
 
         layout = go.Layout(
-            # title="Network of coappearances of characters in Victor Hugo's novel<br> Les Miserables (3D visualization)",
             showlegend=False,
             scene=dict(
                 xaxis=dict(axis),
