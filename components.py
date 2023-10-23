@@ -134,10 +134,12 @@ class EgonetComponent(DashComponent):
             dbc.Row([
                 dbc.Col([
                     dcc.Dropdown(options=[{"label": x, "value": x} for x in available_users],
-                                 value=available_users[0],
+                                 #value=available_users[0],
                                  id=f'user-dropdown-{self.name}'),
                     dcc.Slider(min=1, max=5, step=1, value=2, id=f'slider-{self.name}'),
                 ]),
+            ]),
+            dbc.Row([
                 dbc.Col([
                     dcc.Graph(figure={}, id=f'fig-{self.name}')
                 ])

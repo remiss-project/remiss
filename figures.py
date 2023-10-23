@@ -348,9 +348,9 @@ class EgonetPlotFactory(MongoPlotFactory):
                 yaxis=dict(axis),
                 zaxis=dict(axis),
             ),
-            margin=dict(
-                t=100
-            ),
+            # margin=dict(
+            #     t=100
+            # ),
             hovermode='closest',
 
         )
