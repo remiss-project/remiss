@@ -13,7 +13,6 @@ from pymongoarrow.schema import Schema
 
 pymongoarrow.monkey.patch_all()
 
-
 class MongoPlotFactory(ABC):
     def __init__(self, host="localhost", port=27017, database="test_remiss"):
         super().__init__()
@@ -191,12 +190,13 @@ class TweetUserPlotFactory(MongoPlotFactory):
 
 
 class EgonetPlotFactory(MongoPlotFactory):
-    def __init__(self, host="localhost", port=27017, database="test_remiss",
-                 reference_types=('replied_to', 'quoted', 'retweeted'), layout='fruchterman_reingold'):
+    def __init__(self, host="localhost", port=27017, database="test_remiss", cache_dir=None,
+                 reference_types=('replied_to', 'quoted', 'retweeted'), layout='kamada_kawai', ):
         super().__init__(host, port, database)
         self.reference_types = reference_types
         self._hidden_networks = {}
         self.layout = layout
+        self.cache_dir = cache_dir
 
     def get_egonet(self, dataset, user, depth):
         egonet = self.compute_hidden_network(dataset)
@@ -211,7 +211,17 @@ class EgonetPlotFactory(MongoPlotFactory):
 
     def compute_hidden_network(self, dataset):
         if dataset not in self._hidden_networks:
-            self._hidden_networks[dataset] = self._compute_hidden_network(dataset)
+            if self.cache_dir:
+                if not self.cache_dir.exists():
+                    self.cache_dir.mkdir(parents=True, exist_ok=True)
+                cache_file = self.cache_dir / f'{dataset}.graphmlz'
+                if cache_file.exists():
+                    self._hidden_networks[dataset] = ig.Graph.Read_GraphMLz(str(cache_file))
+                else:
+                    self._hidden_networks[dataset] = self._compute_hidden_network(dataset)
+                    self._hidden_networks[dataset].write_graphmlz(str(cache_file))
+            else:
+                self._hidden_networks[dataset] = self._compute_hidden_network(dataset)
         return self._hidden_networks[dataset]
 
     def _get_authors_and_references(self, dataset):
