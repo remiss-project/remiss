@@ -407,14 +407,14 @@ class TestEgonetPlotFactory(unittest.TestCase):
             if len(pipeline) == 3:
                 # its edges
                 edges = pd.DataFrame({'source': [1, 2, 3],
-                                      'target': [2, 3, 1]})
+                                      'target': [2, 3, 4]})
                 return edges
             else:
                 # its authors
-                authors = pd.DataFrame({'id': [1, 2, 3],
-                                        'is_usual_suspect': [False, False, False],
-                                        'party': ['PSOE', None, 'VOX'],
-                                        'username': ['TEST_USER_1', 'TEST_USER_2', 'TEST_USER_3']})
+                authors = pd.DataFrame({'id': [1, 2, 3, 4],
+                                        'is_usual_suspect': [False, False, False, True],
+                                        'party': ['PSOE', None, 'VOX', None],
+                                        'username': ['TEST_USER_1', 'TEST_USER_2', 'TEST_USER_3', 'TEST_USER_4']})
                 return authors
 
         mock_collection.aggregate_pandas_all = aggregate_pandas_all
@@ -587,6 +587,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
     def test_get_egonet_2(self):
         # Checks it returns the whole thing if the user is not present
         data_size = 1000
+        max_num_references = 1000
 
         test_data = []
         total_referenced_tweets = 0
@@ -600,7 +601,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
             if i // 2 not in parties:
                 parties[i // 2] = random.choice(['PSOE', 'PP', 'VOX', 'UP', None])
 
-            num_referenced_tweets = random.randint(0, 100)
+            num_referenced_tweets = random.randint(0, max_num_references)
             total_referenced_tweets += num_referenced_tweets
             referenced_tweets = []
             for j in range(num_referenced_tweets):
