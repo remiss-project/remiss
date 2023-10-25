@@ -1,4 +1,5 @@
 import os
+import time
 
 import dash
 import dash_bootstrap_components as dbc
@@ -20,15 +21,19 @@ def main():
         print('Not using cache...')
 
     print('Creating plot factories...')
+    start_time = time.time()
     tweet_user_plot_factory = TweetUserPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
                                                    database=REMISS_MONGODB_DATABASE)
     egonet_plot_factory = EgonetPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
                                             database=REMISS_MONGODB_DATABASE, cache_dir=REMISS_CACHE_DIR)
     dashboard = RemissDashboard(tweet_user_plot_factory, egonet_plot_factory)
+    print(f'Plot factories created in {time.time() - start_time} seconds.')
     print('Creating app...')
+    start_time = time.time()
     app = dash.Dash(external_stylesheets=[dbc.themes.JOURNAL])
     app.layout = dashboard.layout()
     dashboard.callbacks(app)
+    print(f'App created in {time.time() - start_time} seconds.')
     print('Running app...')
     app.run(debug=True)
 
