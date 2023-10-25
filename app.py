@@ -12,6 +12,7 @@ REMISS_MONGODB_PORT = int(os.environ.get('REMISS_MONGODB_PORT', 27017))
 REMISS_MONGODB_DATABASE = os.environ.get('REMISS_MONGODB_DATABASE', 'remiss')
 REMISS_CACHE_DIR = os.environ.get('REMISS_CACHE_DIR', None)
 
+
 def main():
     print(f'Connecting to MongoDB at {REMISS_MONGODB_HOST}:{REMISS_MONGODB_PORT}...')
     print(f'Using database {REMISS_MONGODB_DATABASE}...')
