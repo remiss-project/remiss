@@ -317,7 +317,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         return self.plot_network(network)
 
     def plot_network(self, network):
-        print('Computing layout')
+        print(f'Computing {self.layout} layout')
         start_time = time.time()
         layout = network.layout(self.layout, dim=3)
         print(f'Layout computed in {time.time() - start_time} seconds')
