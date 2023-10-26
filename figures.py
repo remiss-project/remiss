@@ -1,6 +1,7 @@
 import time
 from abc import ABC
 from datetime import datetime
+from pathlib import Path
 
 import igraph as ig
 import numpy as np
@@ -197,7 +198,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         self.reference_types = reference_types
         self._hidden_networks = {}
         self.layout = layout
-        self.cache_dir = cache_dir
+        self.cache_dir = Path(cache_dir)
 
     def get_egonet(self, dataset, user, depth):
         egonet = self.compute_hidden_network(dataset)
