@@ -228,6 +228,8 @@ class EgonetPlotFactory(MongoPlotFactory):
                 cache_file = self.cache_dir / f'{dataset}.graphmlz'
                 if cache_file.exists():
                     self._hidden_networks[dataset] = ig.Graph.Read_GraphMLz(str(cache_file))
+                    print(f'Loaded hidden network from {cache_file}')
+                    print(self._hidden_networks[dataset].summary())
                 else:
                     self._hidden_networks[dataset] = self._compute_hidden_network(dataset)
                     self._hidden_networks[dataset].write_graphmlz(str(cache_file))

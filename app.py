@@ -11,6 +11,7 @@ REMISS_MONGODB_HOST = os.environ.get('REMISS_MONGODB_HOST', 'localhost')
 REMISS_MONGODB_PORT = int(os.environ.get('REMISS_MONGODB_PORT', 27017))
 REMISS_MONGODB_DATABASE = os.environ.get('REMISS_MONGODB_DATABASE', 'remiss')
 REMISS_CACHE_DIR = os.environ.get('REMISS_CACHE_DIR', None)
+REMISS_GRAPH_LAYOUT = os.environ.get('REMISS_GRAPH_LAYOUT', 'auto')
 
 
 def main():
@@ -26,7 +27,8 @@ def main():
     tweet_user_plot_factory = TweetUserPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
                                                    database=REMISS_MONGODB_DATABASE)
     egonet_plot_factory = EgonetPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
-                                            database=REMISS_MONGODB_DATABASE, cache_dir=REMISS_CACHE_DIR)
+                                            database=REMISS_MONGODB_DATABASE, cache_dir=REMISS_CACHE_DIR,
+                                            layout=REMISS_GRAPH_LAYOUT)
     dashboard = RemissDashboard(tweet_user_plot_factory, egonet_plot_factory)
     print(f'Plot factories created in {time.time() - start_time} seconds.')
     print('Creating app...')
