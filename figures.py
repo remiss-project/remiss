@@ -300,7 +300,7 @@ class EgonetPlotFactory(MongoPlotFactory):
 
         g = ig.Graph(directed=False)
         g.add_vertices(len(authors))
-        g.vs['id'] = authors['id']
+        g.vs['id_'] = authors['id']
         g.vs['username'] = authors['username']
         g.vs['is_usual_suspect'] = authors['is_usual_suspect']
         g.vs['party'] = authors['party']
