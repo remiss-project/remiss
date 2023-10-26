@@ -106,7 +106,12 @@ class TweetUserPlotFactory(MongoPlotFactory):
                 "count": {'$count': {}}}},
             {'$sort': {'_id': 1}}
         ]
-        return self._get_count_area_plot(pipeline, collection, hashtag, start_time, end_time)
+        print('Computing tweet series')
+        start_time = time.time()
+        plot = self._get_count_area_plot(pipeline, collection, hashtag, start_time, end_time)
+        print(f'Tweet series computed in {time.time() - start_time} seconds')
+        return plot
+
 
     def plot_user_series(self, collection, hashtag, start_time, end_time, unit='day', bin_size=1):
         pipeline = [
@@ -117,7 +122,11 @@ class TweetUserPlotFactory(MongoPlotFactory):
             {'$project': {'count': {'$size': '$users'}}},
             {'$sort': {'_id': 1}}
         ]
-        return self._get_count_area_plot(pipeline, collection, hashtag, start_time, end_time)
+        print('Computing user series')
+        start_time = time.time()
+        plot = self._get_count_area_plot(pipeline, collection, hashtag, start_time, end_time)
+        print(f'User series computed in {time.time() - start_time} seconds')
+        return plot
 
     def _perform_count_aggregation(self, pipeline, collection):
         df = collection.aggregate_pandas_all(
@@ -305,7 +314,12 @@ class EgonetPlotFactory(MongoPlotFactory):
         return self.plot_network(network)
 
     def plot_network(self, network):
+        print('Computing layout')
+        start_time = time.time()
         layout = network.layout(self.layout, dim=3)
+        print(f'Layout computed in {time.time() - start_time} seconds')
+        print('Computing plot')
+        start_time = time.time()
         node_positions = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
         edges = pd.DataFrame(network.get_edgelist(), columns=['source', 'target'])
         edge_positions = node_positions.iloc[edges.values.flatten()].reset_index(drop=True)
@@ -368,4 +382,5 @@ class EgonetPlotFactory(MongoPlotFactory):
 
         data = [edge_trace, node_trace]
         fig = go.Figure(data=data, layout=layout)
+        print(f'Plot computed in {time.time() - start_time} seconds')
         return fig
