@@ -1,3 +1,4 @@
+import time
 from abc import ABC
 from datetime import datetime
 
@@ -252,7 +253,10 @@ class EgonetPlotFactory(MongoPlotFactory):
                           'is_usual_suspect': {'$anyElementTrue': '$is_usual_suspect'},
                           'party': {'$arrayElemAt': ['$party', 0]}}}
         ]
+        print('Computing authors')
+        start_time = time.time()
         authors = collection.aggregate_pandas_all(node_pipeline)
+        print(f'Authors computed in {time.time() - start_time} seconds')
 
         references_pipeline = [
             {'$unwind': '$referenced_tweets'},
@@ -261,7 +265,10 @@ class EgonetPlotFactory(MongoPlotFactory):
             {'$project': {'_id': 0, 'source': '$author.id', 'target': '$referenced_tweets.author.id'}},
 
         ]
+        print('Computing references')
+        start_time = time.time()
         references = collection.aggregate_pandas_all(references_pipeline)
+        print(f'References computed in {time.time() - start_time} seconds')
         client.close()
         return authors, references
 
@@ -273,6 +280,8 @@ class EgonetPlotFactory(MongoPlotFactory):
         """
         authors, references = self._get_authors_and_references(dataset)
 
+        print('Computing graph')
+        start_time = time.time()
         # switch id by position (which will be the node id in the graph) and set it as index
         author_to_id = authors['id'].reset_index().set_index('id')
         # convert references which are author id based to graph id based
@@ -286,6 +295,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         g.vs['is_usual_suspect'] = authors['is_usual_suspect']
         g.vs['party'] = authors['party']
         g.add_edges(references.to_records(index=False).tolist())
+        print(f'Graph computed in {time.time() - start_time} seconds')
 
         return g
 
