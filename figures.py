@@ -198,7 +198,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         self.reference_types = reference_types
         self._hidden_networks = {}
         self.layout = layout
-        self.cache_dir = Path(cache_dir)
+        self.cache_dir = Path(cache_dir) if cache_dir else None
 
     def get_egonet(self, dataset, user, depth):
         egonet = self.compute_hidden_network(dataset)
