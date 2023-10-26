@@ -202,7 +202,7 @@ class TweetUserPlotFactory(MongoPlotFactory):
 
 class EgonetPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, database="test_remiss", cache_dir=None,
-                 reference_types=('replied_to', 'quoted', 'retweeted'), layout='kamada_kawai', ):
+                 reference_types=('replied_to', 'quoted', 'retweeted'), layout='auto', ):
         super().__init__(host, port, database)
         self.reference_types = reference_types
         self._hidden_networks = {}
