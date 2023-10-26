@@ -398,6 +398,11 @@ class TestEgonetPlotFactory(unittest.TestCase):
     def setUp(self):
         self.egonet_plot = EgonetPlotFactory()
 
+    def tearDown(self) -> None:
+        if self.egonet_plot.cache_dir:
+            (self.egonet_plot.cache_dir / 'test_collection.graphmlz').unlink(missing_ok=True)
+            (self.egonet_plot.cache_dir / 'test_collection.feather').unlink(missing_ok=True)
+
     @patch('figures.MongoClient')
     def test_get_egonet(self, mock_mongo_client):
         # Checks it returns the whole thing if the user is not present
@@ -427,10 +432,10 @@ class TestEgonetPlotFactory(unittest.TestCase):
         user = 'TEST_USER_1'
         depth = 1
 
-        actual = self.egonet_plot.get_egonet(collection, user, depth)
+        actual, layout = self.egonet_plot.get_egonet(collection, user, depth)
 
-        self.assertEqual({1, 2}, set(actual.vs['id']))
-        edges = {(actual.vs[s]['id'], actual.vs[t]['id']) for s, t in actual.get_edgelist()}
+        self.assertEqual({1, 2}, set(actual.vs['id_']))
+        edges = {(actual.vs[s]['id_'], actual.vs[t]['id_']) for s, t in actual.get_edgelist()}
         self.assertEqual({(1, 2)}, edges)
 
     @patch('figures.MongoClient')
@@ -461,10 +466,10 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.egonet_plot.get_user_id = Mock(return_value=1)
         collection = 'test_collection'
 
-        actual = self.egonet_plot.compute_hidden_network(collection)
+        actual, layout = self.egonet_plot.compute_hidden_network(collection)
 
-        self.assertEqual({1, 2, 3}, set(actual.vs['id']))
-        edges = {(actual.vs[s]['id'], actual.vs[t]['id']) for s, t in actual.get_edgelist()}
+        self.assertEqual({1, 2, 3}, set(actual.vs['id_']))
+        edges = {(actual.vs[s]['id_'], actual.vs[t]['id_']) for s, t in actual.get_edgelist()}
         self.assertEqual({(2, 3), (1, 2), (1, 3)}, edges)
 
     @patch('figures.MongoClient')
@@ -496,21 +501,22 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.egonet_plot.get_user_id = Mock(return_value=1)
         collection = 'test_collection'
 
-        actual = self.egonet_plot.compute_hidden_network(collection)
+        actual, layout = self.egonet_plot.compute_hidden_network(collection)
 
-        self.assertEqual({1, 2, 3, 4}, set(actual.vs['id']))
-        edges = {(actual.vs[s]['id'], actual.vs[t]['id']) for s, t in actual.get_edgelist()}
+        self.assertEqual({1, 2, 3, 4}, set(actual.vs['id_']))
+        edges = {(actual.vs[s]['id_'], actual.vs[t]['id_']) for s, t in actual.get_edgelist()}
         self.assertEqual({(2, 3), (1, 2), (3, 4)}, edges)
 
     def test_plot_egonet(self):
         # Mock get_egonet
         network = ig.Graph.GRG(8, 0.2)
-        network.vs['id'] = [0, 1, 2, 3, 4, 5, 6, 7]
+        network.vs['id_'] = [0, 1, 2, 3, 4, 5, 6, 7]
         network.vs['username'] = ['TEST_USER_0', 'TEST_USER_1', 'TEST_USER_2', 'TEST_USER_3', 'TEST_USER_4',
                                   'TEST_USER_5', 'TEST_USER_6', 'TEST_USER_7']
         network.vs['party'] = ['PSOE', None, 'VOX', None, 'PSOE', None, 'VOX', None]
         network.vs['is_usual_suspect'] = [False, False, False, False, True, True, True, True]
-        self.egonet_plot.get_egonet = Mock(return_value=network)
+        self.egonet_plot.get_egonet = Mock(return_value=(network, None))
+
 
         collection = 'test_collection'
 
@@ -643,10 +649,10 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.egonet_plot.host = 'localhost'
         self.egonet_plot.port = 27017
         self.egonet_plot.database = 'test_remiss'
-        actual = self.egonet_plot.get_egonet(collection, user, depth)
+        actual, layout = self.egonet_plot.get_egonet(collection, user, depth)
         self.assertEqual(data_size // 2, actual.vcount())
         self.assertEqual(total_referenced_tweets, actual.ecount())
-        actual_authors = pd.DataFrame({'id': actual.vs['id'],
+        actual_authors = pd.DataFrame({'id': actual.vs['id_'],
                                        'username': actual.vs['username'],
                                        'party': actual.vs['party'],
                                        'is_usual_suspect': actual.vs['is_usual_suspect']})
@@ -654,13 +660,13 @@ class TestEgonetPlotFactory(unittest.TestCase):
         expected_authors = expected_authors.sort_values('id').reset_index(drop=True)
         pd.testing.assert_frame_equal(expected_authors, actual_authors,
                                       check_dtype=False, check_like=True)
-        actual_references = {frozenset([actual.vs[s]['id'], actual.vs[t]['id']]) for s, t in actual.get_edgelist()}
+        actual_references = {frozenset([actual.vs[s]['id_'], actual.vs[t]['id_']]) for s, t in actual.get_edgelist()}
         expected_references = {frozenset([x['source'], x['target']]) for _, x in expected_references.iterrows()}
         self.assertEqual(expected_references, actual_references)
 
     def test_get_egonet_speed(self):
         # Checks it returns the whole thing if the user is not present
-        data_size = 10000
+        data_size = 1000
         max_num_references = 1000
 
         test_data = []
@@ -717,7 +723,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         end_time = time.time()
         total_time = end_time - start_time
         print(f'took {total_time}')
-        self.assertLessEqual(total_time, 60)
+        self.assertLessEqual(total_time, 4)
 
     def test_cache(self):
         # Checks it returns the whole thing if the user is not present
@@ -774,20 +780,23 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.egonet_plot.database = 'test_remiss'
         self.egonet_plot.cache_dir = Path('/tmp/remiss_cache')
         start_time = time.time()
-        actual = self.egonet_plot.get_egonet(collection, user, depth)
+        actual, layout = self.egonet_plot.get_egonet(collection, user, depth)
         end_time = time.time()
         total_time_no_cache = end_time - start_time
         print(f'took {total_time_no_cache} no cache')
         self.assertLessEqual(total_time_no_cache, 60)
         self.assertTrue(Path('/tmp/remiss_cache/test_collection.graphmlz').exists())
+        self.assertTrue(Path('/tmp/remiss_cache/test_collection.feather').exists())
         start_time = time.time()
-        actual = self.egonet_plot.get_egonet(collection, user, depth)
+        actual, layout = self.egonet_plot.get_egonet(collection, user, depth)
         end_time = time.time()
         total_time = end_time - start_time
         print(f'took {total_time}')
         self.assertLess(total_time, total_time_no_cache)
         self.assertTrue(actual.get_edgelist(),
                         ig.Graph.Read_GraphMLz('/tmp/remiss_cache/test_collection.graphmlz').get_edgelist())
+        self.assertEqual(actual.vcount(),
+                         pd.read_feather('/tmp/remiss_cache/test_collection.feather').shape[0])
 
 
 if __name__ == '__main__':

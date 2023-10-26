@@ -15,6 +15,7 @@ from pymongoarrow.schema import Schema
 
 pymongoarrow.monkey.patch_all()
 
+
 class MongoPlotFactory(ABC):
     def __init__(self, host="localhost", port=27017, database="test_remiss"):
         super().__init__()
@@ -112,7 +113,6 @@ class TweetUserPlotFactory(MongoPlotFactory):
         print(f'Tweet series computed in {time.time() - start_time} seconds')
         return plot
 
-
     def plot_user_series(self, collection, hashtag, start_time, end_time, unit='day', bin_size=1):
         pipeline = [
             {'$group': {
@@ -202,40 +202,49 @@ class TweetUserPlotFactory(MongoPlotFactory):
 
 class EgonetPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, database="test_remiss", cache_dir=None,
-                 reference_types=('replied_to', 'quoted', 'retweeted'), layout='auto', ):
+                 reference_types=('replied_to', 'quoted', 'retweeted'), layout='fruchterman_reingold', ):
         super().__init__(host, port, database)
         self.reference_types = reference_types
         self._hidden_networks = {}
+        self._hidden_network_layouts = {}
         self.layout = layout
         self.cache_dir = Path(cache_dir) if cache_dir else None
 
     def get_egonet(self, dataset, user, depth):
-        egonet = self.compute_hidden_network(dataset)
+        hidden_network, hidden_network_layout = self.compute_hidden_network(dataset)
         if user:
             try:
-                node = egonet.vs.find(username=user)
-                egonet = egonet.induced_subgraph(egonet.neighborhood(node, order=depth))
+                node = hidden_network.vs.find(username=user)
+                egonet = hidden_network.induced_subgraph(hidden_network.neighborhood(node, order=depth))
+                return egonet, None
+                # return egonet, self._hidden_network_layouts[dataset].iloc[egonet.vs['id_']].reset_index(drop=True)
             except (RuntimeError, ValueError) as ex:
                 print(f'Computing neighbourhood for user {user} failed, computing the whole network')
 
-        return egonet
+        return hidden_network, hidden_network_layout
 
     def compute_hidden_network(self, dataset):
         if dataset not in self._hidden_networks:
             if self.cache_dir:
                 if not self.cache_dir.exists():
                     self.cache_dir.mkdir(parents=True, exist_ok=True)
-                cache_file = self.cache_dir / f'{dataset}.graphmlz'
-                if cache_file.exists():
-                    self._hidden_networks[dataset] = ig.Graph.Read_GraphMLz(str(cache_file))
-                    print(f'Loaded hidden network from {cache_file}')
+                graph_cache_file = self.cache_dir / f'{dataset}.graphmlz'
+                layout_cache_file = self.cache_dir / f'{dataset}.feather'
+                if graph_cache_file.exists():
+                    self._hidden_networks[dataset] = ig.Graph.Read_GraphMLz(str(graph_cache_file))
+                    self._hidden_network_layouts[dataset] = pd.read_feather(str(layout_cache_file))
+                    print(f'Loaded hidden network from {graph_cache_file}')
                     print(self._hidden_networks[dataset].summary())
                 else:
                     self._hidden_networks[dataset] = self._compute_hidden_network(dataset)
-                    self._hidden_networks[dataset].write_graphmlz(str(cache_file))
+                    self._hidden_networks[dataset].write_graphmlz(str(graph_cache_file))
+                    self._hidden_network_layouts[dataset] = self.compute_layout(self._hidden_networks[dataset])
+                    self._hidden_network_layouts[dataset].to_feather(str(layout_cache_file))
+                    print(f'Saved hidden network to {graph_cache_file}')
             else:
                 self._hidden_networks[dataset] = self._compute_hidden_network(dataset)
-        return self._hidden_networks[dataset]
+                self._hidden_network_layouts[dataset] = self.compute_layout(self._hidden_networks[dataset])
+        return self._hidden_networks[dataset], self._hidden_network_layouts[dataset]
 
     def _get_authors_and_references(self, dataset):
         client = MongoClient(self.host, self.port)
@@ -313,19 +322,28 @@ class EgonetPlotFactory(MongoPlotFactory):
         return g
 
     def plot_egonet(self, collection, user, depth):
-        network = self.get_egonet(collection, user, depth)
+        network, layout = self.get_egonet(collection, user, depth)
+        return self.plot_network(network, layout)
+
+    def plot_hidden_network(self, collection):
+        network = self.compute_hidden_network(collection)
         return self.plot_network(network)
 
-    def plot_network(self, network):
+    def compute_layout(self, network):
         print(f'Computing {self.layout} layout')
         start_time = time.time()
         layout = network.layout(self.layout, dim=3)
         print(f'Layout computed in {time.time() - start_time} seconds')
+        layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
+        return layout
+
+    def plot_network(self, network, layout=None):
+        if layout is None:
+            layout = self.compute_layout(network)
         print('Computing plot')
         start_time = time.time()
-        node_positions = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
         edges = pd.DataFrame(network.get_edgelist(), columns=['source', 'target'])
-        edge_positions = node_positions.iloc[edges.values.flatten()].reset_index(drop=True)
+        edge_positions = layout.iloc[edges.values.flatten()].reset_index(drop=True)
         nones = edge_positions[1::2].assign(x=None, y=None, z=None)
         edge_positions = pd.concat([edge_positions, nones]).sort_index().reset_index(drop=True)
 
@@ -346,9 +364,9 @@ class EgonetPlotFactory(MongoPlotFactory):
                                   hoverinfo='none'
                                   )
 
-        node_trace = go.Scatter3d(x=node_positions['x'],
-                                  y=node_positions['y'],
-                                  z=node_positions['z'],
+        node_trace = go.Scatter3d(x=layout['x'],
+                                  y=layout['y'],
+                                  z=layout['z'],
                                   mode='markers',
                                   name='users',
                                   marker=dict(symbol='circle',
