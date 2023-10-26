@@ -305,6 +305,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         g.vs['is_usual_suspect'] = authors['is_usual_suspect']
         g.vs['party'] = authors['party']
         g.add_edges(references.to_records(index=False).tolist())
+        print(g.summary())
         print(f'Graph computed in {time.time() - start_time} seconds')
 
         return g
