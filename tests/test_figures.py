@@ -545,7 +545,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.assertEqual({(2, 3), (1, 2), (3, 4)}, edges)
 
     @patch('figures.MongoClient')
-    def test_compute_hidden_network_count(self, mock_mongo_client):
+    def test_compute_hidden_network_weight(self, mock_mongo_client):
         # Mock MongoClient and database
         mock_collection = Mock()
 
@@ -575,14 +575,18 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
         graph, layout = self.egonet_plot.compute_hidden_network(collection)
 
-        actual = graph.vs['count']
+        actual = graph.vs['weight'].to_list()
+        expected = [1, 1, 1, 1]
+        self.assertEqual(expected, actual)
+
+        actual = graph.vs['weight_inv'].to_list()
         expected = [1, 1, 1, 1]
         self.assertEqual(expected, actual)
 
     def test__get_references(self):
         test_data = []
-        expected_edges = pd.DataFrame({'source': [1, 2, 3],
-                                       'target': [2, 3, 4]})
+        expected_edges = pd.DataFrame({'source': [1, 2, 3, 2],
+                                       'target': [2, 3, 4, 3]})
         for source, target in expected_edges.itertuples(index=False):
             party = random.choice(['PSOE', 'PP', 'VOX', 'UP', None])
             is_usual_suspect = random.choice([True, False])
@@ -607,11 +611,11 @@ class TestEgonetPlotFactory(unittest.TestCase):
         collection = 'test_collection'
 
         actual = self.egonet_plot._get_references(collection)
-        self.assertEqual(actual['weight'].to_list(), [1, 1, 1])
+        self.assertEqual(actual['weight'].to_list(), [1, 2, 1])
         # self.assertEqual(actual['weight_norm'].sum(), 1)
-        self.assertEqual(actual['weight_inv'].to_list(), [1, 1, 1])
-        self.assertEqual(actual['source'], [1, 2, 3])
-        self.assertEqual(actual['target'], [2, 3, 4])
+        self.assertEqual(actual['weight_inv'].to_list(), [1, 0.5, 1])
+        self.assertEqual(actual['source'].to_list(), [3, 2, 1])
+        self.assertEqual(actual['target'].to_list(), [4, 3, 2])
 
     def test_plot_egonet(self):
         # Mock get_egonet
