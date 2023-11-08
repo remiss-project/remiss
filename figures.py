@@ -202,13 +202,16 @@ class TweetUserPlotFactory(MongoPlotFactory):
 
 class EgonetPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, database="test_remiss", cache_dir=None,
-                 reference_types=('replied_to', 'quoted', 'retweeted'), layout='fruchterman_reingold', ):
+                 reference_types=('replied_to', 'quoted', 'retweeted'), layout='fruchterman_reingold',
+                 approximation=None, k_cores=4):
         super().__init__(host, port, database)
         self.reference_types = reference_types
         self._hidden_networks = {}
         self._hidden_network_layouts = {}
         self.layout = layout
         self.cache_dir = Path(cache_dir) if cache_dir else None
+        self.approximation = approximation
+        self.k_cores = k_cores
 
     def get_egonet(self, dataset, user, depth):
         hidden_network, hidden_network_layout = self.compute_hidden_network(dataset)
@@ -347,7 +350,22 @@ class EgonetPlotFactory(MongoPlotFactory):
         layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
         return layout
 
+    def _approximate_graph(self, network):
+        if self.approximation == 'maximum_spanning_tree':
+            network = network.spanning_tree(weights=network.es['weight_inv'])
+        elif self.approximation == 'k_core':
+            network = network.k_core(self.k_cores)
+        elif self.approximation == 'backbone':
+            network = network.backbone(weights=network.es['weight_inv'])
+        else:
+            raise ValueError(f'Unknown approximation {self.approximation}')
+        return network
+
     def plot_network(self, network, layout=None):
+        if self.approximation:
+            print(f'Approximating graph using {self.approximation}')
+            self._approximate_graph(network)
+
         if layout is None:
             layout = self.compute_layout(network)
         print('Computing plot')
