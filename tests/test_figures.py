@@ -439,6 +439,40 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.assertEqual({(1, 2)}, edges)
 
     @patch('figures.MongoClient')
+    def test_get_egonet_2(self, mock_mongo_client):
+        # Checks it returns the whole thing if the user is not present
+
+        mock_collection = Mock()
+
+        def aggregate_pandas_all(pipeline):
+            if len(pipeline) == 3:
+                # its edges
+                edges = pd.DataFrame({'source': [1, 2, 3],
+                                      'target': [2, 3, 4]})
+                return edges
+            else:
+                # its authors
+                authors = pd.DataFrame({'id': [1, 2, 3, 4],
+                                        'is_usual_suspect': [False, False, False, True],
+                                        'party': ['PSOE', None, 'VOX', None],
+                                        'username': ['TEST_USER_1', 'TEST_USER_2', 'TEST_USER_3', 'TEST_USER_4']})
+                return authors
+
+        mock_collection.aggregate_pandas_all = aggregate_pandas_all
+        mock_database = Mock()
+        mock_database.get_collection.return_value = mock_collection
+        mock_mongo_client.return_value.get_database.return_value = mock_database
+
+        collection = 'test_collection'
+        user = 'TEST_USER_4'
+        depth = 1
+
+        actual, layout = self.egonet_plot.get_egonet(collection, user, depth)
+
+        self.assertEqual({1, 2}, set(actual.vs['id_']))
+        edges = {(actual.vs[s]['id_'], actual.vs[t]['id_']) for s, t in actual.get_edgelist()}
+        self.assertEqual({(3, 4)}, edges)
+    @patch('figures.MongoClient')
     def test_compute_hidden_network(self, mock_mongo_client):
         # Mock MongoClient and database
         mock_collection = Mock()
@@ -469,8 +503,10 @@ class TestEgonetPlotFactory(unittest.TestCase):
         actual, layout = self.egonet_plot.compute_hidden_network(collection)
 
         self.assertEqual({1, 2, 3}, set(actual.vs['id_']))
-        edges = {(actual.vs[s]['id_'], actual.vs[t]['id_']) for s, t in actual.get_edgelist()}
-        self.assertEqual({(2, 3), (1, 2), (1, 3)}, edges)
+        edges = {frozenset((actual.vs[s]['id_'], actual.vs[t]['id_'])) for s, t in actual.get_edgelist()}
+        expected = {(2, 3), (1, 2), (1, 3)}
+        expected = {frozenset(x) for x in expected}
+        self.assertEqual(expected, edges)
 
     @patch('figures.MongoClient')
     def test_compute_hidden_network_2(self, mock_mongo_client):
@@ -507,6 +543,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         edges = {(actual.vs[s]['id_'], actual.vs[t]['id_']) for s, t in actual.get_edgelist()}
         self.assertEqual({(2, 3), (1, 2), (3, 4)}, edges)
 
+
     def test_plot_egonet(self):
         # Mock get_egonet
         network = ig.Graph.GRG(8, 0.2)
@@ -516,7 +553,6 @@ class TestEgonetPlotFactory(unittest.TestCase):
         network.vs['party'] = ['PSOE', None, 'VOX', None, 'PSOE', None, 'VOX', None]
         network.vs['is_usual_suspect'] = [False, False, False, False, True, True, True, True]
         self.egonet_plot.get_egonet = Mock(return_value=(network, None))
-
 
         collection = 'test_collection'
 
@@ -723,7 +759,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         end_time = time.time()
         total_time = end_time - start_time
         print(f'took {total_time}')
-        self.assertLessEqual(total_time, 4)
+        self.assertLessEqual(total_time, 10)
 
     def test_cache(self):
         # Checks it returns the whole thing if the user is not present

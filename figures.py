@@ -309,7 +309,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         references['source'] = author_to_id.loc[references['source']].reset_index(drop=True)
         references['target'] = author_to_id.loc[references['target']].reset_index(drop=True)
 
-        g = ig.Graph(directed=False)
+        g = ig.Graph(directed=True)
         g.add_vertices(len(authors))
         g.vs['id_'] = authors['id']
         g.vs['username'] = authors['username']
