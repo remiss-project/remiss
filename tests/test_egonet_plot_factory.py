@@ -244,9 +244,8 @@ class TestEgonetPlotFactory(unittest.TestCase):
         actual = self.egonet_plot._get_references(collection)
         actual = actual.sort_values(['source', 'target']).reset_index(drop=True)
         self.assertEqual(actual['weight'].to_list(), [1, 1, 2, 1])
-        # self.assertEqual(actual['weight_norm'].sum(), 1)
         self.assertEqual(actual['weight_inv'].to_list(), [1, 1, 0.5, 1])
-        self.assertEqual(actual['weight_norm'].to_list(), [0.5, 0.5, 0.5, 1])
+        self.assertEqual(actual['weight_norm'].to_list(), [0.5, 0.5, 1, 1])
         self.assertEqual(actual['source'].to_list(), [1, 1, 2, 3])
         self.assertEqual(actual['target'].to_list(), [2, 4, 3, 4])
 

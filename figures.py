@@ -297,13 +297,14 @@ class EgonetPlotFactory(MongoPlotFactory):
                         'weight': {'$count': {}}}},
             {'$project': {'_id': 0, 'source': '$_id.source', 'target': '$_id.target', 'weight': 1}},
             {'$group': {'_id': '$source',
-                        'count': {'$count': {}},
+                        'node_weight': {'$sum': '$weight'},
                         'references': {'$push': {'target': '$target', 'weight': '$weight'}}}},
             {'$unwind': '$references'},
             {'$project': {'_id': 0, 'source': '$_id', 'target': '$references.target',
                           'weight': '$references.weight',
                           'weight_inv': {'$divide': [1, '$references.weight']},
-                          'weight_norm': {'$divide': ['$references.weight', '$count']}}},
+                          'weight_norm': {'$divide': ['$references.weight', '$node_weight']},
+                          }},
         ]
         print('Computing references')
         start_time = time.time()
