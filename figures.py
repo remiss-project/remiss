@@ -295,8 +295,15 @@ class EgonetPlotFactory(MongoPlotFactory):
             {'$project': {'_id': 0, 'source': '$author.id', 'target': '$referenced_tweets.author.id'}},
             {'$group': {'_id': {'source': '$source', 'target': '$target'},
                         'weight': {'$count': {}}}},
-            {'$project': {'_id': 0, 'source': '$_id.source', 'target': '$_id.target', 'weight': 1,
-                          'weight_inv': {'$divide': [1, '$weight']},}}
+            {'$project': {'_id': 0, 'source': '$_id.source', 'target': '$_id.target', 'weight': 1}},
+            {'$group': {'_id': '$source',
+                        'count': {'$count': {}},
+                        'references': {'$push': {'target': '$target', 'weight': '$weight'}}}},
+            {'$unwind': '$references'},
+            {'$project': {'_id': 0, 'source': '$_id', 'target': '$references.target',
+                          'weight': '$references.weight',
+                          'weight_inv': {'$divide': [1, '$references.weight']},
+                          'weight_norm': {'$divide': ['$references.weight', '$count']}}},
         ]
         print('Computing references')
         start_time = time.time()

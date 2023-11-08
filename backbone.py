@@ -1,21 +1,9 @@
 from igraph import Graph
 import numpy as np
 
-def backbone(graph, weights=None, alpha=0.05):
+def compute_backbone(graph, alpha=0.05):
+    return graph.es[np.where(graph.es["weight"] < alpha)]
 
-    if weights is None:
-        weights = graph.es["weight"]
-
-    directed = graph.is_directed()
-    if not directed:
-        b = disparity_filter(graph, weights, "all", alpha)
-    else:
-        in_filter = disparity_filter(graph, weights, "in", alpha)
-        out_filter = disparity_filter(graph, weights, "out", alpha)
-        b = in_filter + out_filter
-
-    unique_edges = sorted(set(b), key=lambda e: (e.source, e.target))
-    return unique_edges
 
 def disparity_filter(G, weights, mode="all", alpha=0.05):
     d = G.degree(mode=mode)
@@ -52,8 +40,3 @@ def disparity_filter(G, weights, mode="all", alpha=0.05):
     e_alpha = e[np.isfinite(e[:, 3]), :]
     e_alpha = e_alpha[e_alpha[:, 3] < alpha]
     return e_alpha[:, :4]
-
-# Example usage
-g = Graph.Erdos_Renyi(250, 0.02, directed=False)
-g.es["weight"] = [np.random.randint(1, 25) for _ in range(g.ecount())]
-backbone_edges = backbone(g)

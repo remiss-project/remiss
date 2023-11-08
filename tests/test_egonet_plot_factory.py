@@ -7,9 +7,11 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import igraph as ig
+import numpy as np
 import pandas as pd
 from pymongo import MongoClient
 
+from backbone import compute_backbone
 from figures import EgonetPlotFactory
 
 
@@ -214,8 +216,8 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
     def test__get_references(self):
         test_data = []
-        expected_edges = pd.DataFrame({'source': [1, 2, 3, 2],
-                                       'target': [2, 3, 4, 3]})
+        expected_edges = pd.DataFrame({'source': [1, 2, 3, 2, 1],
+                                       'target': [2, 3, 4, 3, 4]})
         for source, target in expected_edges.itertuples(index=False):
             party = random.choice(['PSOE', 'PP', 'VOX', 'UP', None])
             is_usual_suspect = random.choice([True, False])
@@ -241,11 +243,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
         actual = self.egonet_plot._get_references(collection)
         actual = actual.sort_values(['source', 'target']).reset_index(drop=True)
-        self.assertEqual(actual['weight'].to_list(), [1, 2, 1])
+        self.assertEqual(actual['weight'].to_list(), [1, 1, 2, 1])
         # self.assertEqual(actual['weight_norm'].sum(), 1)
-        self.assertEqual(actual['weight_inv'].to_list(), [1, 0.5, 1])
-        self.assertEqual(actual['source'].to_list(), [1, 2, 3])
-        self.assertEqual(actual['target'].to_list(), [2, 3, 4])
+        self.assertEqual(actual['weight_inv'].to_list(), [1, 1, 0.5, 1])
+        self.assertEqual(actual['weight_norm'].to_list(), [0.5, 0.5, 0.5, 1])
+        self.assertEqual(actual['source'].to_list(), [1, 1, 2, 3])
+        self.assertEqual(actual['target'].to_list(), [2, 4, 3, 4])
 
     def test_plot_egonet(self):
         # Mock get_egonet
@@ -310,7 +313,8 @@ class TestEgonetPlotFactory(unittest.TestCase):
         expected_authors['is_usual_suspect'] = expected_authors['is_usual_suspect'].astype(bool)
 
         expected_references = pd.DataFrame(expected_references, columns=['source', 'target'])
-        expected_references = expected_references[['source', 'target']].value_counts().reset_index().rename(columns={'count': 'weight'})
+        expected_references = expected_references[['source', 'target']].value_counts().reset_index().rename(
+            columns={'count': 'weight'})
         expected_references['weight_inv'] = 1 / expected_references['weight']
 
         client = MongoClient('localhost', 27017)
@@ -546,3 +550,16 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.assertEqual(actual.vcount(),
                          pd.read_feather('/tmp/remiss_cache/test_collection.feather').shape[0])
 
+    def test_backbone_filter(self):
+        # Create a test graph
+        alpha = 0.05
+
+        network = ig.Graph.Erdos_Renyi(250, 0.02, directed=False)
+        network.es["weight"] = np.random.randint(1, 25, size=network.ecount())
+
+        # Test the backbone filter
+        backbone = compute_backbone(network, alpha=alpha)
+
+        # Ensure that all edge weights are below alpha
+        for edge in backbone.get_edgelist():
+            self.assertLess(network.es[network.get_eid(edge[0], edge[1])]["weight_norm"], alpha)
