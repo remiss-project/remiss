@@ -210,7 +210,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         self._hidden_network_layouts = {}
         self.layout = layout
         self.cache_dir = Path(cache_dir) if cache_dir else None
-        self.approximation = approximation
+        self.simplification = approximation
         self.k_cores = k_cores
 
     def get_egonet(self, dataset, user, depth):
@@ -328,7 +328,9 @@ class EgonetPlotFactory(MongoPlotFactory):
         g.vs['username'] = authors['username']
         g.vs['is_usual_suspect'] = authors['is_usual_suspect']
         g.vs['party'] = authors['party']
-        g.add_edges(references.to_records(index=False).tolist())
+        g.add_edges(references[['source', 'target']].to_records(index=False).tolist())
+        g.es['weight'] = references['weight']
+        g.es['weight_inv'] = references['weight_inv']
         print(g.summary())
         print(f'Graph computed in {time.time() - start_time} seconds')
 
@@ -350,21 +352,23 @@ class EgonetPlotFactory(MongoPlotFactory):
         layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
         return layout
 
-    def _approximate_graph(self, network):
-        if self.approximation == 'maximum_spanning_tree':
+    def _simplify_graph(self, network):
+        if self.simplification == 'maximum_spanning_tree':
             network = network.spanning_tree(weights=network.es['weight_inv'])
-        elif self.approximation == 'k_core':
+        elif self.simplification == 'k_core':
             network = network.k_core(self.k_cores)
-        elif self.approximation == 'backbone':
+        elif self.simplification == 'backbone':
             network = network.backbone(weights=network.es['weight_inv'])
         else:
-            raise ValueError(f'Unknown approximation {self.approximation}')
+            raise ValueError(f'Unknown simplification {self.simplification}')
         return network
 
     def plot_network(self, network, layout=None):
-        if self.approximation:
-            print(f'Approximating graph using {self.approximation}')
-            self._approximate_graph(network)
+        # make network undirected for visualization purposes
+        network = network.as_undirected(mode='collapse')
+        if self.simplification:
+            print(f'Simplifying graph using {self.simplification}')
+            self._simplify_graph(network)
 
         if layout is None:
             layout = self.compute_layout(network)

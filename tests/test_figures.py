@@ -410,10 +410,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
         mock_collection = Mock()
 
         def aggregate_pandas_all(pipeline):
-            if len(pipeline) == 3:
+            if 'source' in pipeline[-1]['$project']:
                 # its edges
                 edges = pd.DataFrame({'source': [1, 2, 3],
-                                      'target': [2, 3, 4]})
+                                      'target': [2, 3, 4],
+                                      'weight': [1, 2, 3],
+                                      'weight_inv': [1, 0.5, 0.33]})
                 return edges
             else:
                 # its authors
@@ -445,10 +447,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
         mock_collection = Mock()
 
         def aggregate_pandas_all(pipeline):
-            if len(pipeline) == 3:
+            if 'source' in pipeline[-1]['$project']:
                 # its edges
                 edges = pd.DataFrame({'source': [1, 2, 3],
-                                      'target': [2, 3, 4]})
+                                      'target': [2, 3, 4],
+                                      'weight': [1, 2, 3],
+                                      'weight_inv': [1, 0.5, 0.33]})
                 return edges
             else:
                 # its authors
@@ -479,10 +483,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
         mock_collection = Mock()
 
         def aggregate_pandas_all(pipeline):
-            if len(pipeline) == 3:
+            if 'source' in pipeline[-1]['$project']:
                 # its edges
                 edges = pd.DataFrame({'source': [1, 2, 3],
-                                      'target': [2, 3, 1]})
+                                      'target': [2, 3, 1],
+                                      'weight': [1, 2, 3],
+                                      'weight_inv': [1, 0.5, 0.33]})
                 return edges
             else:
                 # its authors
@@ -515,10 +521,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
         mock_collection = Mock()
 
         def aggregate_pandas_all(pipeline):
-            if len(pipeline) == 3:
+            if 'source' in pipeline[-1]['$project']:
                 # its edges
                 edges = pd.DataFrame({'source': [1, 2, 3],
-                                      'target': [2, 3, 4]})
+                                      'target': [2, 3, 4],
+                                      'weight': [1, 2, 3],
+                                      'weight_inv': [1, 0.5, 0.33]})
                 return edges
             else:
                 # its authors
@@ -550,10 +558,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
         mock_collection = Mock()
 
         def aggregate_pandas_all(pipeline):
-            if len(pipeline) == 3:
+            if 'source' in pipeline[-1]['$project']:
                 # its edges
                 edges = pd.DataFrame({'source': [1, 2, 3],
-                                      'target': [2, 3, 4]})
+                                      'target': [2, 3, 4],
+                                      'weight': [1, 2, 3],
+                                      'weight_inv': [1, 0.5, 0.33]})
                 return edges
             else:
                 # its authors
@@ -575,12 +585,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
         graph, layout = self.egonet_plot.compute_hidden_network(collection)
 
-        actual = graph.vs['weight'].to_list()
-        expected = [1, 1, 1, 1]
+        actual = graph.es['weight']
+        expected = [1, 2, 3]
         self.assertEqual(expected, actual)
 
-        actual = graph.vs['weight_inv'].to_list()
-        expected = [1, 1, 1, 1]
+        actual = graph.es['weight_inv']
+        expected = [1, 0.5, 0.33]
         self.assertEqual(expected, actual)
 
     def test__get_references(self):
@@ -611,11 +621,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
         collection = 'test_collection'
 
         actual = self.egonet_plot._get_references(collection)
+        actual = actual.sort_values(['source', 'target']).reset_index(drop=True)
         self.assertEqual(actual['weight'].to_list(), [1, 2, 1])
         # self.assertEqual(actual['weight_norm'].sum(), 1)
         self.assertEqual(actual['weight_inv'].to_list(), [1, 0.5, 1])
-        self.assertEqual(actual['source'].to_list(), [3, 2, 1])
-        self.assertEqual(actual['target'].to_list(), [4, 3, 2])
+        self.assertEqual(actual['source'].to_list(), [1, 2, 3])
+        self.assertEqual(actual['target'].to_list(), [2, 3, 4])
 
     def test_plot_egonet(self):
         # Mock get_egonet
@@ -678,7 +689,10 @@ class TestEgonetPlotFactory(unittest.TestCase):
         expected_authors = pd.DataFrame(expected_authors).T
         expected_authors['id'] = expected_authors['id'].astype(int)
         expected_authors['is_usual_suspect'] = expected_authors['is_usual_suspect'].astype(bool)
+
         expected_references = pd.DataFrame(expected_references, columns=['source', 'target'])
+        expected_references = expected_references[['source', 'target']].value_counts().reset_index().rename(columns={'count': 'weight'})
+        expected_references['weight_inv'] = 1 / expected_references['weight']
 
         client = MongoClient('localhost', 27017)
         client.drop_database('test_remiss')
@@ -688,9 +702,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
         collection.insert_many(test_data)
 
         collection = 'test_collection'
-        authors, references = self.egonet_plot._get_authors_and_references(collection)
+        authors = self.egonet_plot._get_authors(collection)
+        references = self.egonet_plot._get_references(collection)
         self.assertEqual(data_size // 2, len(authors))
-        self.assertEqual(total_referenced_tweets, len(references))
+        expected_referenced_tweets = expected_references.shape[0] - expected_references[
+            ['source', 'target']].duplicated().sum()
+        self.assertEqual(len(references), expected_referenced_tweets)
         authors = authors.sort_values('id').reset_index(drop=True)
         expected_authors = expected_authors.sort_values('id').reset_index(drop=True)
         pd.testing.assert_frame_equal(expected_authors, authors,
@@ -743,6 +760,9 @@ class TestEgonetPlotFactory(unittest.TestCase):
         expected_authors['id'] = expected_authors['id'].astype(int)
         expected_authors['is_usual_suspect'] = expected_authors['is_usual_suspect'].astype(bool)
         expected_references = pd.DataFrame(expected_references, columns=['source', 'target'])
+        expected_references = expected_references[['source', 'target']].value_counts().reset_index().rename(
+            columns={'count': 'weight'})
+        expected_references['weight_inv'] = 1 / expected_references['weight']
 
         client = MongoClient('localhost', 27017)
         client.drop_database('test_remiss')
@@ -760,7 +780,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.egonet_plot.database = 'test_remiss'
         actual, layout = self.egonet_plot.get_egonet(collection, user, depth)
         self.assertEqual(data_size // 2, actual.vcount())
-        self.assertEqual(total_referenced_tweets, actual.ecount())
+        self.assertEqual(len(expected_references), actual.ecount())
         actual_authors = pd.DataFrame({'id': actual.vs['id_'],
                                        'username': actual.vs['username'],
                                        'party': actual.vs['party'],
