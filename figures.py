@@ -246,7 +246,7 @@ class EgonetPlotFactory(MongoPlotFactory):
                 self._hidden_network_layouts[dataset] = self.compute_layout(self._hidden_networks[dataset])
         return self._hidden_networks[dataset], self._hidden_network_layouts[dataset]
 
-    def _get_authors_and_references(self, dataset):
+    def _get_authors(self, dataset):
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.database)
         collection = database.get_collection(dataset)
@@ -278,20 +278,29 @@ class EgonetPlotFactory(MongoPlotFactory):
         start_time = time.time()
         authors = collection.aggregate_pandas_all(node_pipeline)
         print(f'Authors computed in {time.time() - start_time} seconds')
+        return authors
+
+    def _get_references(self, dataset):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(self.database)
+        collection = database.get_collection(dataset)
 
         references_pipeline = [
             {'$unwind': '$referenced_tweets'},
             {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
                         'referenced_tweets.author': {'$exists': True}}},
             {'$project': {'_id': 0, 'source': '$author.id', 'target': '$referenced_tweets.author.id'}},
-
+            {'$group': {'_id': {'source': '$source', 'target': '$target'},
+                        'weight': {'$count': {}}}},
+            {'$project': {'_id': 0, 'source': '$_id.source', 'target': '$_id.target', 'weight': 1,
+                          'weight_inv': {'$divide': [1, '$weight']},}}
         ]
         print('Computing references')
         start_time = time.time()
         references = collection.aggregate_pandas_all(references_pipeline)
         print(f'References computed in {time.time() - start_time} seconds')
         client.close()
-        return authors, references
+        return references
 
     def _compute_hidden_network(self, dataset):
         """
@@ -299,7 +308,8 @@ class EgonetPlotFactory(MongoPlotFactory):
         :param dataset: collection name within the database where the tweets are stored
         :return: a networkx graph with the users as nodes and the edges representing interactions between users
         """
-        authors, references = self._get_authors_and_references(dataset)
+        authors = self._get_authors(dataset)
+        references = self._get_references(dataset)
 
         print('Computing graph')
         start_time = time.time()

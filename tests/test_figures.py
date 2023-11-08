@@ -472,6 +472,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.assertEqual({1, 2}, set(actual.vs['id_']))
         edges = {(actual.vs[s]['id_'], actual.vs[t]['id_']) for s, t in actual.get_edgelist()}
         self.assertEqual({(3, 4)}, edges)
+
     @patch('figures.MongoClient')
     def test_compute_hidden_network(self, mock_mongo_client):
         # Mock MongoClient and database
@@ -543,6 +544,74 @@ class TestEgonetPlotFactory(unittest.TestCase):
         edges = {(actual.vs[s]['id_'], actual.vs[t]['id_']) for s, t in actual.get_edgelist()}
         self.assertEqual({(2, 3), (1, 2), (3, 4)}, edges)
 
+    @patch('figures.MongoClient')
+    def test_compute_hidden_network_count(self, mock_mongo_client):
+        # Mock MongoClient and database
+        mock_collection = Mock()
+
+        def aggregate_pandas_all(pipeline):
+            if len(pipeline) == 3:
+                # its edges
+                edges = pd.DataFrame({'source': [1, 2, 3],
+                                      'target': [2, 3, 4]})
+                return edges
+            else:
+                # its authors
+                authors = pd.DataFrame({'id': [1, 2, 3, 4],
+                                        'is_usual_suspect': [False, False, False, False],
+                                        'party': ['PSOE', None, 'VOX', None],
+                                        'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682',
+                                                     'TEST_USER_488683']})
+                return authors
+
+        mock_collection.aggregate_pandas_all = aggregate_pandas_all
+        mock_database = Mock()
+        mock_database.get_collection.return_value = mock_collection
+        mock_mongo_client.return_value.get_database.return_value = mock_database
+
+        # Mock get_user_id
+        self.egonet_plot.get_user_id = Mock(return_value=1)
+        collection = 'test_collection'
+
+        graph, layout = self.egonet_plot.compute_hidden_network(collection)
+
+        actual = graph.vs['count']
+        expected = [1, 1, 1, 1]
+        self.assertEqual(expected, actual)
+
+    def test__get_references(self):
+        test_data = []
+        expected_edges = pd.DataFrame({'source': [1, 2, 3],
+                                       'target': [2, 3, 4]})
+        for source, target in expected_edges.itertuples(index=False):
+            party = random.choice(['PSOE', 'PP', 'VOX', 'UP', None])
+            is_usual_suspect = random.choice([True, False])
+            referenced_tweets = [
+                {"id": f'{source}->{target}', "author": {"id": target, "username": f"TEST_USER_{target}"},
+                 "type": "retweeted"}]
+            tweet = {"id": f'{source}->{target}', "created_at": datetime.fromisoformat("2019-01-01T23:20:00Z"),
+                     "author": {"username": f"TEST_USER_{source}", "id": source,
+                                "remiss_metadata": {"party": party, "is_usual_suspect": is_usual_suspect}},
+                     "entities": {"hashtags": [{"tag": "test_hashtag"}]},
+                     'referenced_tweets': referenced_tweets}
+            test_data.append(tweet)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database('test_remiss')
+        database = client.get_database('test_remiss')
+        collection = database.get_collection('test_collection')
+        collection.insert_many(test_data)
+
+        # Mock get_user_id
+        self.egonet_plot.get_user_id = Mock(return_value=1)
+        collection = 'test_collection'
+
+        actual = self.egonet_plot._get_references(collection)
+        self.assertEqual(actual['weight'].to_list(), [1, 1, 1])
+        # self.assertEqual(actual['weight_norm'].sum(), 1)
+        self.assertEqual(actual['weight_inv'].to_list(), [1, 1, 1])
+        self.assertEqual(actual['source'], [1, 2, 3])
+        self.assertEqual(actual['target'], [2, 3, 4])
 
     def test_plot_egonet(self):
         # Mock get_egonet
