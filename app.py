@@ -11,8 +11,12 @@ REMISS_MONGODB_HOST = os.environ.get('REMISS_MONGODB_HOST', 'localhost')
 REMISS_MONGODB_PORT = int(os.environ.get('REMISS_MONGODB_PORT', 27017))
 REMISS_MONGODB_DATABASE = os.environ.get('REMISS_MONGODB_DATABASE', 'remiss')
 REMISS_CACHE_DIR = os.environ.get('REMISS_CACHE_DIR', None)
-REMISS_GRAPH_LAYOUT = os.environ.get('REMISS_GRAPH_LAYOUT', 'drl_3d')
+REMISS_GRAPH_LAYOUT = os.environ.get('REMISS_GRAPH_LAYOUT', 'auto')
+REMISS_GRAPH_SIMPLIFICATION = os.environ.get('REMISS_GRAPH_SIMPLIFICATION', None)
+REMISS_GRAPH_SIMPLIFICATION_THRESHOLD = float(os.environ.get('REMISS_GRAPH_SIMPLIFICATION_THRESHOLD', 0.0))
 
+# REMISS_GRAPH_SIMPLIFICATION = 'backbone'
+# REMISS_GRAPH_SIMPLIFICATION_THRESHOLD = 0.6
 
 def main():
     print(f'Connecting to MongoDB at {REMISS_MONGODB_HOST}:{REMISS_MONGODB_PORT}...')
@@ -28,7 +32,8 @@ def main():
                                                    database=REMISS_MONGODB_DATABASE)
     egonet_plot_factory = EgonetPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
                                             database=REMISS_MONGODB_DATABASE, cache_dir=REMISS_CACHE_DIR,
-                                            layout=REMISS_GRAPH_LAYOUT)
+                                            layout=REMISS_GRAPH_LAYOUT, simplification=REMISS_GRAPH_SIMPLIFICATION,
+                                            threshold=REMISS_GRAPH_SIMPLIFICATION_THRESHOLD)
     dashboard = RemissDashboard(tweet_user_plot_factory, egonet_plot_factory)
     print(f'Plot factories created in {time.time() - start_time} seconds.')
     print('Creating app...')

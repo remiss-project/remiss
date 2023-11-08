@@ -13,6 +13,8 @@ from pymongo import MongoClient
 from pymongo.errors import OperationFailure
 from pymongoarrow.schema import Schema
 
+from backbone import compute_backbone
+
 pymongoarrow.monkey.patch_all()
 
 
@@ -203,14 +205,16 @@ class TweetUserPlotFactory(MongoPlotFactory):
 class EgonetPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, database="test_remiss", cache_dir=None,
                  reference_types=('replied_to', 'quoted', 'retweeted'), layout='fruchterman_reingold',
-                 approximation=None, k_cores=4):
+                 simplification=None, threshold=0.2, delete_vertices=True, k_cores=4):
         super().__init__(host, port, database)
+        self.delete_vertices = delete_vertices
+        self.threshold = threshold
         self.reference_types = reference_types
         self._hidden_networks = {}
         self._hidden_network_layouts = {}
         self.layout = layout
         self.cache_dir = Path(cache_dir) if cache_dir else None
-        self.simplification = approximation
+        self.simplification = simplification
         self.k_cores = k_cores
 
     def get_egonet(self, dataset, user, depth):
@@ -341,6 +345,10 @@ class EgonetPlotFactory(MongoPlotFactory):
         g.es['weight_inv'] = references['weight_inv']
         g.es['weight_norm'] = references['weight_norm']
         print(g.summary())
+        if self.simplification:
+            print(f'Simplifying graph using {self.simplification}')
+            g = self._simplify_graph(g)
+            print(g.summary())
         print(f'Graph computed in {time.time() - start_time} seconds')
 
         return g
@@ -367,7 +375,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         elif self.simplification == 'k_core':
             network = network.k_core(self.k_cores)
         elif self.simplification == 'backbone':
-            network = network.backbone(weights=network.es['weight_inv'])
+            network = compute_backbone(network, self.threshold, self.delete_vertices)
         else:
             raise ValueError(f'Unknown simplification {self.simplification}')
         return network
@@ -375,9 +383,6 @@ class EgonetPlotFactory(MongoPlotFactory):
     def plot_network(self, network, layout=None):
         # make network undirected for visualization purposes
         network = network.as_undirected(mode='collapse')
-        if self.simplification:
-            print(f'Simplifying graph using {self.simplification}')
-            self._simplify_graph(network)
 
         if layout is None:
             layout = self.compute_layout(network)
