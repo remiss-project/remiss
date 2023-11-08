@@ -184,7 +184,8 @@ class TestEgonetPlotFactory(unittest.TestCase):
                 edges = pd.DataFrame({'source': [1, 2, 3],
                                       'target': [2, 3, 4],
                                       'weight': [1, 2, 3],
-                                      'weight_inv': [1, 0.5, 0.33]})
+                                      'weight_inv': [1, 0.5, 0.33],
+                                      'weight_norm': [1, 0.5, 0.5]})
                 return edges
             else:
                 # its authors
@@ -212,6 +213,10 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
         actual = graph.es['weight_inv']
         expected = [1, 0.5, 0.33]
+        self.assertEqual(expected, actual)
+
+        actual = graph.es['weight_norm']
+        expected = [1, 0.5, 0.5]
         self.assertEqual(expected, actual)
 
     def test__get_references(self):
@@ -315,6 +320,9 @@ class TestEgonetPlotFactory(unittest.TestCase):
         expected_references = expected_references[['source', 'target']].value_counts().reset_index().rename(
             columns={'count': 'weight'})
         expected_references['weight_inv'] = 1 / expected_references['weight']
+        expected_references['weight_norm'] = expected_references['weight'].groupby(
+            expected_references['source']).transform(
+            lambda x: x / x.sum())
 
         client = MongoClient('localhost', 27017)
         client.drop_database('test_remiss')
@@ -549,12 +557,40 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.assertEqual(actual.vcount(),
                          pd.read_feather('/tmp/remiss_cache/test_collection.feather').shape[0])
 
-    def test_backbone_filter(self):
+    def test_backbone(self):
+        test_data = []
+        expected_edges = pd.DataFrame({'source': [1, 2, 3, 2, 1],
+                                       'target': [2, 3, 4, 3, 4]})
+        for source, target in expected_edges.itertuples(index=False):
+            party = random.choice(['PSOE', 'PP', 'VOX', 'UP', None])
+            is_usual_suspect = random.choice([True, False])
+            referenced_tweets = [
+                {"id": f'{source}->{target}', "author": {"id": target, "username": f"TEST_USER_{target}"},
+                 "type": "retweeted"}]
+            tweet = {"id": f'{source}->{target}', "created_at": datetime.fromisoformat("2019-01-01T23:20:00Z"),
+                     "author": {"username": f"TEST_USER_{source}", "id": source,
+                                "remiss_metadata": {"party": party, "is_usual_suspect": is_usual_suspect}},
+                     "entities": {"hashtags": [{"tag": "test_hashtag"}]},
+                     'referenced_tweets': referenced_tweets}
+            test_data.append(tweet)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database('test_remiss')
+        database = client.get_database('test_remiss')
+        collection = database.get_collection('test_collection')
+        collection.insert_many(test_data)
+
+        collection = 'test_collection'
+        network = self.egonet_plot._compute_hidden_network(collection)
+        backbone = compute_backbone(network, alpha=0.2)
+        self.assertEqual(backbone.get_edgelist(), [(2, 0), (2, 1)])
+
+    def test_backbone_2(self):
         # Create a test graph
         alpha = 0.05
 
         network = ig.Graph.Erdos_Renyi(250, 0.02, directed=False)
-        network.es["weight"] = np.random.randint(1, 25, size=network.ecount())
+        network.es["weight_norm"] = np.random.randint(1, 25, size=network.ecount())
 
         # Test the backbone filter
         backbone = compute_backbone(network, alpha=alpha)

@@ -339,6 +339,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         g.add_edges(references[['source', 'target']].to_records(index=False).tolist())
         g.es['weight'] = references['weight']
         g.es['weight_inv'] = references['weight_inv']
+        g.es['weight_norm'] = references['weight_norm']
         print(g.summary())
         print(f'Graph computed in {time.time() - start_time} seconds')
 
