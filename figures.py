@@ -13,7 +13,6 @@ from pymongo import MongoClient
 from pymongo.errors import OperationFailure
 from pymongoarrow.schema import Schema
 
-from backbone import compute_backbone
 
 pymongoarrow.monkey.patch_all()
 
@@ -211,47 +210,80 @@ class EgonetPlotFactory(MongoPlotFactory):
         self.threshold = threshold
         self.reference_types = reference_types
         self._hidden_networks = {}
-        self._hidden_network_layouts = {}
+        self._simplified_hidden_networks = {}
         self.layout = layout
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.simplification = simplification
         self.k_cores = k_cores
 
     def get_egonet(self, dataset, user, depth):
-        hidden_network, hidden_network_layout = self.compute_hidden_network(dataset)
+        hidden_network = self.get_hidden_network(dataset)
         if user:
             try:
                 node = hidden_network.vs.find(username=user)
                 egonet = hidden_network.induced_subgraph(hidden_network.neighborhood(node, order=depth))
-                return egonet, None
-                # return egonet, self._hidden_network_layouts[dataset].iloc[egonet.vs['id_']].reset_index(drop=True)
+                return egonet
             except (RuntimeError, ValueError) as ex:
                 print(f'Computing neighbourhood for user {user} failed, computing the whole network')
 
-        return hidden_network, hidden_network_layout
+        return self._simplified_hidden_networks[dataset] if self.simplification else hidden_network
 
-    def compute_hidden_network(self, dataset):
+    def load_from_cache(self, dataset):
+        cache_dir = self.cache_dir / dataset
+        graph_file = cache_dir / 'hidden_network_graph.graphmlz'
+        layout_file = cache_dir / 'hidden_network_layout.feather'
+        if self.simplification:
+            simplified_graph_file = cache_dir / f'hidden_network_graph-{self.simplification}-{self.threshold}.graphmlz'
+            simplified_layout_file = cache_dir / f'hidden_network_layout-{self.simplification}-{self.threshold}.feather'
+            simplified_graph = ig.Graph.Read_GraphMLz(str(simplified_graph_file))
+            simplified_layout = pd.read_feather(str(simplified_layout_file))
+            simplified_graph['layout'] = simplified_layout
+            self._simplified_hidden_networks[dataset] = simplified_graph
+            print(f'Loaded simplified hidden network from {simplified_graph_file}')
+            print(self._simplified_hidden_networks[dataset].summary())
+        graph = ig.Graph.Read_GraphMLz(str(graph_file))
+        layout = pd.read_feather(str(layout_file))
+        graph['layout'] = layout
+        self._hidden_networks[dataset] = graph
+        print(f'Loaded hidden network from {graph_file}')
+        print(self._hidden_networks[dataset].summary())
+
+    def compute_and_store(self, dataset):
+        (self.cache_dir / dataset).mkdir(parents=True, exist_ok=True)
+        graph_file = self.cache_dir / dataset / 'hidden_network_graph.graphmlz'
+        layout_file = self.cache_dir / dataset / 'hidden_network_layout.feather'
+        graph = self._compute_hidden_network(dataset)
+        graph.write_graphmlz(str(graph_file))
+        layout = self.compute_layout(self._hidden_networks[dataset])
+        layout.to_feather(str(layout_file))
+        graph['layout'] = layout
+        self._hidden_networks[dataset] = graph
+        if self.simplification:
+            simplified_graph_file = self.cache_dir / dataset / f'hidden_network_graph-{self.simplification}-{self.threshold}.graphmlz'
+            simplified_layout_file = self.cache_dir / dataset / f'hidden_network_layout-{self.simplification}-{self.threshold}.feather'
+            simplified_graph = self._simplify_graph(self._hidden_networks[dataset])
+            simplified_layout = self.compute_layout(simplified_graph)
+            simplified_graph.write_graphmlz(str(simplified_graph_file))
+            simplified_layout.to_feather(str(simplified_layout_file))
+            simplified_graph['layout'] = simplified_layout
+            self._simplified_hidden_networks[dataset] = simplified_graph
+            print(f'Simplified hidden network saved to {simplified_graph_file}')
+
+    def is_cached(self, dataset):
+        return (self.cache_dir / dataset / 'hidden_network_graph.graphmlz').exists()
+
+    def get_hidden_network(self, dataset):
         if dataset not in self._hidden_networks:
             if self.cache_dir:
-                if not self.cache_dir.exists():
-                    self.cache_dir.mkdir(parents=True, exist_ok=True)
-                graph_cache_file = self.cache_dir / f'{dataset}.graphmlz'
-                layout_cache_file = self.cache_dir / f'{dataset}.feather'
-                if graph_cache_file.exists():
-                    self._hidden_networks[dataset] = ig.Graph.Read_GraphMLz(str(graph_cache_file))
-                    self._hidden_network_layouts[dataset] = pd.read_feather(str(layout_cache_file))
-                    print(f'Loaded hidden network from {graph_cache_file}')
-                    print(self._hidden_networks[dataset].summary())
+                if self.is_cached(dataset):
+                    self.load_from_cache(dataset)
                 else:
-                    self._hidden_networks[dataset] = self._compute_hidden_network(dataset)
-                    self._hidden_networks[dataset].write_graphmlz(str(graph_cache_file))
-                    self._hidden_network_layouts[dataset] = self.compute_layout(self._hidden_networks[dataset])
-                    self._hidden_network_layouts[dataset].to_feather(str(layout_cache_file))
-                    print(f'Saved hidden network to {graph_cache_file}')
+                    self.compute_and_store(dataset)
             else:
                 self._hidden_networks[dataset] = self._compute_hidden_network(dataset)
-                self._hidden_network_layouts[dataset] = self.compute_layout(self._hidden_networks[dataset])
-        return self._hidden_networks[dataset], self._hidden_network_layouts[dataset]
+                if self.simplification:
+                    self._simplified_hidden_networks[dataset] = self._simplify_graph(self._hidden_networks[dataset])
+        return self._hidden_networks[dataset]
 
     def _get_authors(self, dataset):
         client = MongoClient(self.host, self.port)
@@ -345,20 +377,18 @@ class EgonetPlotFactory(MongoPlotFactory):
         g.es['weight_inv'] = references['weight_inv']
         g.es['weight_norm'] = references['weight_norm']
         print(g.summary())
-        if self.simplification:
-            print(f'Simplifying graph using {self.simplification}')
-            g = self._simplify_graph(g)
-            print(g.summary())
         print(f'Graph computed in {time.time() - start_time} seconds')
 
         return g
 
     def plot_egonet(self, collection, user, depth):
-        network, layout = self.get_egonet(collection, user, depth)
-        return self.plot_network(network, layout)
+        network = self.get_egonet(collection, user, depth)
+        network = network.as_undirected(mode='collapse')
+
+        return self.plot_network(network)
 
     def plot_hidden_network(self, collection):
-        network = self.compute_hidden_network(collection)
+        network = self.get_hidden_network(collection)
         return self.plot_network(network)
 
     def compute_layout(self, network):
@@ -381,10 +411,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         return network
 
     def plot_network(self, network, layout=None):
-        # make network undirected for visualization purposes
-        network = network.as_undirected(mode='collapse')
-
-        if layout is None:
+        if 'layout' not in network.attributes():
             layout = self.compute_layout(network)
         print('Computing plot')
         start_time = time.time()
@@ -451,3 +478,13 @@ class EgonetPlotFactory(MongoPlotFactory):
         fig = go.Figure(data=data, layout=layout)
         print(f'Plot computed in {time.time() - start_time} seconds')
         return fig
+
+def compute_backbone(graph, alpha=0.05, delete_vertices=True):
+    # Compute alpha for all edges (1 - weight_norm)^(degree_of_source_node - 1)
+    weights = np.array(graph.es['weight_norm'])
+    degrees = np.array([graph.degree(e[0]) for e in graph.get_edgelist()])
+    alphas = (1 - weights) ** (degrees - 1)
+    good = np.nonzero(alphas > alpha)[0]
+    backbone = graph.subgraph_edges(graph.es.select(good), delete_vertices=delete_vertices)
+
+    return backbone
