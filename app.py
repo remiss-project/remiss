@@ -31,18 +31,20 @@ def main():
 
     if REMISS_AVAILABLE_DATASETS:
         print(f'Using available datasets {REMISS_AVAILABLE_DATASETS}...')
-        # REMISS_AVAILABLE_DATASETS = REMISS_AVAILABLE_DATASETS.split(',')
+        available_datasets = REMISS_AVAILABLE_DATASETS.split(',')
+    else:
+        available_datasets = None
 
     print('Creating plot factories...')
     start_time = time.time()
     tweet_user_plot_factory = TweetUserPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
                                                    database=REMISS_MONGODB_DATABASE,
-                                                   available_datasets=REMISS_AVAILABLE_DATASETS)
+                                                   available_datasets=available_datasets)
     egonet_plot_factory = EgonetPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
                                             database=REMISS_MONGODB_DATABASE, cache_dir=REMISS_CACHE_DIR,
                                             layout=REMISS_GRAPH_LAYOUT, simplification=REMISS_GRAPH_SIMPLIFICATION,
                                             threshold=REMISS_GRAPH_SIMPLIFICATION_THRESHOLD,
-                                            available_datasets=REMISS_AVAILABLE_DATASETS)
+                                            available_datasets=available_datasets)
     dashboard = RemissDashboard(tweet_user_plot_factory, egonet_plot_factory)
     print(f'Plot factories created in {time.time() - start_time} seconds.')
     print('Creating app...')
