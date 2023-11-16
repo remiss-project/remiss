@@ -24,6 +24,10 @@ def main():
     else:
         print('Not using cache...')
 
+    if REMISS_GRAPH_SIMPLIFICATION:
+        print(f'Using graph simplification method {REMISS_GRAPH_SIMPLIFICATION} with threshold '
+              f'{REMISS_GRAPH_SIMPLIFICATION_THRESHOLD}...')
+
     print('Creating plot factories...')
     start_time = time.time()
     tweet_user_plot_factory = TweetUserPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
