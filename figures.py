@@ -13,17 +13,16 @@ from pymongo import MongoClient
 from pymongo.errors import OperationFailure
 from pymongoarrow.schema import Schema
 
-
 pymongoarrow.monkey.patch_all()
 
 
 class MongoPlotFactory(ABC):
-    def __init__(self, host="localhost", port=27017, database="test_remiss"):
+    def __init__(self, host="localhost", port=27017, database="test_remiss", available_datasets=None):
         super().__init__()
         self.host = host
         self.port = port
         self.database = database
-        self._available_datasets = None
+        self._available_datasets = available_datasets
         self._min_max_dates = {}
         self._available_hashtags = {}
 
@@ -109,9 +108,9 @@ class TweetUserPlotFactory(MongoPlotFactory):
             {'$sort': {'_id': 1}}
         ]
         print('Computing tweet series')
-        start_time = time.time()
+        start_computing_time = time.time()
         plot = self._get_count_area_plot(pipeline, collection, hashtag, start_time, end_time)
-        print(f'Tweet series computed in {time.time() - start_time} seconds')
+        print(f'Tweet series computed in {time.time() - start_computing_time} seconds')
         return plot
 
     def plot_user_series(self, collection, hashtag, start_time, end_time, unit='day', bin_size=1):
@@ -204,8 +203,8 @@ class TweetUserPlotFactory(MongoPlotFactory):
 class EgonetPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, database="test_remiss", cache_dir=None,
                  reference_types=('replied_to', 'quoted', 'retweeted'), layout='fruchterman_reingold',
-                 simplification=None, threshold=0.2, delete_vertices=True, k_cores=4):
-        super().__init__(host, port, database)
+                 simplification=None, threshold=0.2, delete_vertices=True, k_cores=4, available_datasets=None):
+        super().__init__(host, port, database, available_datasets)
         self.delete_vertices = delete_vertices
         self.threshold = threshold
         self.reference_types = reference_types
@@ -478,6 +477,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         fig = go.Figure(data=data, layout=layout)
         print(f'Plot computed in {time.time() - start_time} seconds')
         return fig
+
 
 def compute_backbone(graph, alpha=0.05, delete_vertices=True):
     # Compute alpha for all edges (1 - weight_norm)^(degree_of_source_node - 1)

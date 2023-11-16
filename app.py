@@ -14,6 +14,7 @@ REMISS_CACHE_DIR = os.environ.get('REMISS_CACHE_DIR', None)
 REMISS_GRAPH_LAYOUT = os.environ.get('REMISS_GRAPH_LAYOUT', 'auto')
 REMISS_GRAPH_SIMPLIFICATION = os.environ.get('REMISS_GRAPH_SIMPLIFICATION', 'backbone')
 REMISS_GRAPH_SIMPLIFICATION_THRESHOLD = float(os.environ.get('REMISS_GRAPH_SIMPLIFICATION_THRESHOLD', 0.4))
+REMISS_AVAILABLE_DATASETS = os.environ.get('REMISS_AVAILABLE_DATASETS', None)
 
 
 def main():
@@ -28,14 +29,20 @@ def main():
         print(f'Using graph simplification method {REMISS_GRAPH_SIMPLIFICATION} with threshold '
               f'{REMISS_GRAPH_SIMPLIFICATION_THRESHOLD}...')
 
+    if REMISS_AVAILABLE_DATASETS:
+        print(f'Using available datasets {REMISS_AVAILABLE_DATASETS}...')
+        REMISS_AVAILABLE_DATASETS = REMISS_AVAILABLE_DATASETS.split(',')
+
     print('Creating plot factories...')
     start_time = time.time()
     tweet_user_plot_factory = TweetUserPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
-                                                   database=REMISS_MONGODB_DATABASE)
+                                                   database=REMISS_MONGODB_DATABASE,
+                                                   available_datasets=REMISS_AVAILABLE_DATASETS)
     egonet_plot_factory = EgonetPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
                                             database=REMISS_MONGODB_DATABASE, cache_dir=REMISS_CACHE_DIR,
                                             layout=REMISS_GRAPH_LAYOUT, simplification=REMISS_GRAPH_SIMPLIFICATION,
-                                            threshold=REMISS_GRAPH_SIMPLIFICATION_THRESHOLD)
+                                            threshold=REMISS_GRAPH_SIMPLIFICATION_THRESHOLD,
+                                            available_datasets=REMISS_AVAILABLE_DATASETS)
     dashboard = RemissDashboard(tweet_user_plot_factory, egonet_plot_factory)
     print(f'Plot factories created in {time.time() - start_time} seconds.')
     print('Creating app...')
