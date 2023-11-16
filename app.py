@@ -31,7 +31,7 @@ def main():
 
     if REMISS_AVAILABLE_DATASETS:
         print(f'Using available datasets {REMISS_AVAILABLE_DATASETS}...')
-        REMISS_AVAILABLE_DATASETS = REMISS_AVAILABLE_DATASETS.split(',')
+        # REMISS_AVAILABLE_DATASETS = REMISS_AVAILABLE_DATASETS.split(',')
 
     print('Creating plot factories...')
     start_time = time.time()
