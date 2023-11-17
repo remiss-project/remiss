@@ -269,7 +269,13 @@ class EgonetPlotFactory(MongoPlotFactory):
             print(f'Simplified hidden network saved to {simplified_graph_file}')
 
     def is_cached(self, dataset):
-        return (self.cache_dir / dataset / 'hidden_network_graph.graphmlz').exists()
+        dataset_dir = self.cache_dir / dataset
+        hn_file = dataset_dir / 'hidden_network_graph.graphmlz'
+        is_cached = hn_file.exists()
+        if self.simplification:
+            simplified_hn_file = dataset_dir / f'hidden_network_graph-{self.simplification}-{self.threshold}.graphmlz'
+            is_cached = is_cached and simplified_hn_file.exists()
+        return is_cached
 
     def get_hidden_network(self, dataset):
         if dataset not in self._hidden_networks:
