@@ -123,9 +123,9 @@ class TweetUserPlotFactory(MongoPlotFactory):
             {'$sort': {'_id': 1}}
         ]
         print('Computing user series')
-        start_time = time.time()
+        start_computing_time = time.time()
         plot = self._get_count_area_plot(pipeline, collection, hashtag, start_time, end_time)
-        print(f'User series computed in {time.time() - start_time} seconds')
+        print(f'User series computed in {time.time() - start_computing_time} seconds')
         return plot
 
     def _perform_count_aggregation(self, pipeline, collection):
@@ -253,7 +253,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         layout_file = self.cache_dir / dataset / 'hidden_network_layout.feather'
         graph = self._compute_hidden_network(dataset)
         graph.write_graphmlz(str(graph_file))
-        layout = self.compute_layout(self._hidden_networks[dataset])
+        layout = self.compute_layout(graph)
         layout.to_feather(str(layout_file))
         graph['layout'] = layout
         self._hidden_networks[dataset] = graph

@@ -666,8 +666,8 @@ class TestEgonetPlotFactory(unittest.TestCase):
         total_time_no_cache = end_time - start_time
         print(f'took {total_time_no_cache} no cache')
         self.assertLessEqual(total_time_no_cache, 60)
-        self.assertTrue(Path('/tmp/remiss_cache/test_collection-backbone-0.4.graphmlz').exists())
-        self.assertTrue(Path('/tmp/remiss_cache/test_collection-backbone-0.4.feather').exists())
+        self.assertTrue(Path('/tmp/remiss_cache/test_collection/hidden_network_layout-backbone-0.4.feather').exists())
+        self.assertTrue(Path('/tmp/remiss_cache/test_collection/hidden_network_graph-backbone-0.4.graphmlz').exists())
         start_time = time.time()
         actual = self.egonet_plot.get_egonet(collection, user, depth)
         end_time = time.time()
@@ -675,6 +675,6 @@ class TestEgonetPlotFactory(unittest.TestCase):
         print(f'took {total_time}')
         self.assertLess(total_time, total_time_no_cache)
         self.assertTrue(actual.get_edgelist(),
-                        ig.Graph.Read_GraphMLz('/tmp/remiss_cache/test_collection-backbone-0.4.graphmlz').get_edgelist())
+                        ig.Graph.Read_GraphMLz('/tmp/remiss_cache/test_collection/hidden_network_graph-backbone-0.4.graphmlz').get_edgelist())
         self.assertEqual(actual.vcount(),
-                         pd.read_feather('/tmp/remiss_cache/test_collection-backbone-0.4.feather').shape[0])
+                         pd.read_feather('/tmp/remiss_cache/test_collection/hidden_network_layout-backbone-0.4.feather').shape[0])
