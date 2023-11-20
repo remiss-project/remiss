@@ -224,7 +224,8 @@ class EgonetPlotFactory(MongoPlotFactory):
                 return egonet
             except (RuntimeError, ValueError) as ex:
                 print(f'Computing neighbourhood for user {user} failed, computing the whole network')
-
+        if self.simplification:
+            print(f'Returning {self.simplification} simplified hidden network')
         return self._simplified_hidden_networks[dataset] if self.simplification else hidden_network
 
     def load_from_cache(self, dataset):
@@ -236,13 +237,13 @@ class EgonetPlotFactory(MongoPlotFactory):
             simplified_layout_file = cache_dir / f'hidden_network_layout-{self.simplification}-{self.threshold}.feather'
             simplified_graph = ig.Graph.Read_GraphMLz(str(simplified_graph_file))
             simplified_layout = pd.read_feather(str(simplified_layout_file))
-            simplified_graph['layout'] = simplified_layout
+            simplified_graph['layout_df'] = simplified_layout
             self._simplified_hidden_networks[dataset] = simplified_graph
             print(f'Loaded simplified hidden network from {simplified_graph_file}')
             print(self._simplified_hidden_networks[dataset].summary())
         graph = ig.Graph.Read_GraphMLz(str(graph_file))
         layout = pd.read_feather(str(layout_file))
-        graph['layout'] = layout
+        graph['layout_df'] = layout
         self._hidden_networks[dataset] = graph
         print(f'Loaded hidden network from {graph_file}')
         print(self._hidden_networks[dataset].summary())
@@ -255,7 +256,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         graph.write_graphmlz(str(graph_file))
         layout = self.compute_layout(graph)
         layout.to_feather(str(layout_file))
-        graph['layout'] = layout
+        graph['layout_df'] = layout
         self._hidden_networks[dataset] = graph
         if self.simplification:
             simplified_graph_file = self.cache_dir / dataset / f'hidden_network_graph-{self.simplification}-{self.threshold}.graphmlz'
@@ -264,17 +265,19 @@ class EgonetPlotFactory(MongoPlotFactory):
             simplified_layout = self.compute_layout(simplified_graph)
             simplified_graph.write_graphmlz(str(simplified_graph_file))
             simplified_layout.to_feather(str(simplified_layout_file))
-            simplified_graph['layout'] = simplified_layout
+            simplified_graph['layout_df'] = simplified_layout
             self._simplified_hidden_networks[dataset] = simplified_graph
             print(f'Simplified hidden network saved to {simplified_graph_file}')
 
     def is_cached(self, dataset):
         dataset_dir = self.cache_dir / dataset
-        hn_file = dataset_dir / 'hidden_network_graph.graphmlz'
-        is_cached = hn_file.exists()
+        hn_graph_file = dataset_dir / 'hidden_network_graph.graphmlz'
+        hn_layout_file = dataset_dir / 'hidden_network_layout.feather'
+        is_cached = hn_graph_file.exists() and hn_layout_file.exists()
         if self.simplification:
-            simplified_hn_file = dataset_dir / f'hidden_network_graph-{self.simplification}-{self.threshold}.graphmlz'
-            is_cached = is_cached and simplified_hn_file.exists()
+            simplified_hn_graph_file = dataset_dir / f'hidden_network_graph-{self.simplification}-{self.threshold}.graphmlz'
+            simplified_hn_layout_file = dataset_dir / f'hidden_network_layout-{self.simplification}-{self.threshold}.feather'
+            is_cached = is_cached and simplified_hn_graph_file.exists() and simplified_hn_layout_file
         return is_cached
 
     def get_hidden_network(self, dataset):
@@ -415,9 +418,11 @@ class EgonetPlotFactory(MongoPlotFactory):
             raise ValueError(f'Unknown simplification {self.simplification}')
         return network
 
-    def plot_network(self, network, layout=None):
-        if 'layout' not in network.attributes():
+    def plot_network(self, network):
+        if 'layout_df' not in network.attributes():
             layout = self.compute_layout(network)
+        else:
+            layout = network['layout_df']
         print('Computing plot')
         start_time = time.time()
         edges = pd.DataFrame(network.get_edgelist(), columns=['source', 'target'])
