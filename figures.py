@@ -423,7 +423,8 @@ class EgonetPlotFactory(MongoPlotFactory):
             layout = self.compute_layout(network)
         else:
             layout = network['layout_df']
-        print('Computing plot')
+        print('Computing plot for network')
+        print(network.summary())
         start_time = time.time()
         edges = pd.DataFrame(network.get_edgelist(), columns=['source', 'target'])
         edge_positions = layout.iloc[edges.values.flatten()].reset_index(drop=True)
