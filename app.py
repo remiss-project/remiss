@@ -13,7 +13,7 @@ REMISS_MONGODB_DATABASE = os.environ.get('REMISS_MONGODB_DATABASE', 'remiss')
 REMISS_CACHE_DIR = os.environ.get('REMISS_CACHE_DIR', None)
 REMISS_GRAPH_LAYOUT = os.environ.get('REMISS_GRAPH_LAYOUT', 'auto')
 REMISS_GRAPH_SIMPLIFICATION = os.environ.get('REMISS_GRAPH_SIMPLIFICATION', 'backbone')
-REMISS_GRAPH_SIMPLIFICATION_THRESHOLD = float(os.environ.get('REMISS_GRAPH_SIMPLIFICATION_THRESHOLD', 0.4))
+REMISS_GRAPH_SIMPLIFICATION_THRESHOLD = float(os.environ.get('REMISS_GRAPH_SIMPLIFICATION_THRESHOLD', 0.95))
 REMISS_AVAILABLE_DATASETS = os.environ.get('REMISS_AVAILABLE_DATASETS', None)
 
 
@@ -54,7 +54,7 @@ def main():
     dashboard.callbacks(app)
     print(f'App created in {time.time() - start_time} seconds.')
     print('Running app...')
-    app.run(debug=True)
+    app.run(debug=False)
 
 
 # Run the app
