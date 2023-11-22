@@ -454,7 +454,7 @@ class EgonetPlotFactory(MongoPlotFactory):
                                   mode='markers',
                                   name='users',
                                   marker=dict(symbol='circle',
-                                              size=6,
+                                              size=6 if len(network.vs) < 100 else 2,
                                               color=color,
                                               colorscale='Viridis',
                                               line=dict(color='rgb(50,50,50)', width=0.5)
