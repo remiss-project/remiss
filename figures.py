@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from dash.dash_table import DataTable
 import pymongoarrow.monkey
 from pymongo import MongoClient
 from pymongo.errors import OperationFailure
@@ -511,3 +512,39 @@ def compute_backbone(graph, alpha=0.05, delete_vertices=True):
     backbone = graph.subgraph_edges(graph.es.select(good), delete_vertices=delete_vertices)
 
     return backbone
+
+
+class TopTableFactory(MongoPlotFactory):
+    def __init__(self, host="localhost", port=27017, database="test_remiss", available_datasets=None, limit=50):
+        super().__init__(host, port, database, available_datasets)
+        self.limit = limit
+
+    def get_top_tweets(self, collection):
+        pipeline = [
+            {'$group': {'_id': '$id', 'text': {'$first': '$text'}, 'count': {'$count': {}}}},
+            {'$sort': {'count': -1}},
+            {'$limit': self.limit},
+            {'$project': {'_id': 0, 'id': '$_id', 'text': 1, 'count': 1}}
+        ]
+        df = self._perform_top_aggregation(pipeline, collection)[['id', 'text', 'count']]
+        table = DataTable(df.to_dict('records'), [{"name": i, "id": i} for i in df.columns])
+        return table
+
+    def get_top_users(self, collection):
+        pipeline = [
+            {'$group': {'_id': '$author.username', 'count': {'$count': {}}}},
+            {'$sort': {'count': -1}},
+            {'$limit': self.limit},
+            {'$project': {'_id': 0, 'username': '$_id', 'count': 1}}
+        ]
+        df = self._perform_top_aggregation(pipeline, collection)[['username', 'count']]
+        table = DataTable(df.to_dict('records'), [{"name": i, "id": i} for i in df.columns])
+        return table
+
+    def _perform_top_aggregation(self, pipeline, collection):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(self.database)
+        dataset = database.get_collection(collection)
+        top_prolific = dataset.aggregate_pandas_all(pipeline)
+        client.close()
+        return top_prolific
