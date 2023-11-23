@@ -52,7 +52,6 @@ class TweetUserTimeSeriesComponentTest(TestCase):
         found_components = []
         find_components(layout, found_components)
         found_components = [type(component) for component in found_components]
-        self.assertIn(DatePickerRange, found_components)
         self.assertIn(DashWordcloud, found_components)
         self.assertIn(Graph, found_components)
 
@@ -75,7 +74,6 @@ class TweetUserTimeSeriesComponentTest(TestCase):
         found_components = []
         find_components(layout, found_components)
         component_ids = ['-'.join(component.id.split('-')[:-1]) for component in found_components]
-        self.assertIn('date-picker', component_ids)
         self.assertIn('wordcloud', component_ids)
         self.assertIn('fig-tweet', component_ids)
         self.assertIn('fig-users', component_ids)
@@ -93,7 +91,7 @@ class TweetUserTimeSeriesComponentTest(TestCase):
                           f'date-picker-{self.component.name}.start_date...'
                           f'date-picker-{self.component.name}.end_date..')
         callback = app.callback_map[date_range_key]
-        self.assertEqual(callback['inputs'], [{'id': 'dataset-dropdown', 'property': 'value'}])
+        self.assertEqual(callback['inputs'], [{'id': f'dataset-dropdown-{self.component.name}', 'property': 'value'}])
         expected_outputs = [f'date-picker-{self.component.name}.' + field for field in
                             ['min_date_allowed', 'max_date_allowed', 'start_date', 'end_date']]
         actual_outputs = [output.component_id + '.' + output.component_property for output in callback['output']]
@@ -111,7 +109,7 @@ class TweetUserTimeSeriesComponentTest(TestCase):
         # Simulate the update function for the wordcloud
         wordcloud_key = f'wordcloud-{self.component.name}.list'
         callback = app.callback_map[wordcloud_key]
-        self.assertEqual(callback['inputs'], [{'id': 'dataset-dropdown', 'property': 'value'}])
+        self.assertEqual(callback['inputs'], [{'id': f'dataset-dropdown-{self.component.name}', 'property': 'value'}])
         self.assertEqual(callback['output'].component_id, f'wordcloud-{self.component.name}')
         self.assertEqual(callback['output'].component_property, 'list')
         actual = self.component.update_wordcloud('dataset2')
@@ -125,7 +123,7 @@ class TweetUserTimeSeriesComponentTest(TestCase):
         # Simulate the update function for the plots
         plots_key = f'..fig-tweet-{self.component.name}.figure...fig-users-{self.component.name}.figure..'
         callback = app.callback_map[plots_key]
-        self.assertEqual(callback['inputs'], [{'id': 'dataset-dropdown', 'property': 'value'},
+        self.assertEqual(callback['inputs'], [{'id': f'dataset-dropdown-{self.component.name}', 'property': 'value'},
                                               {'id': f'date-picker-{self.component.name}', 'property': 'start_date'},
                                               {'id': f'date-picker-{self.component.name}', 'property': 'end_date'},
                                               {'id': f'wordcloud-{self.component.name}', 'property': 'click'}])
@@ -208,7 +206,7 @@ class EgonetComponentTest(TestCase):
         # Simulate the update function for the plots
         plots_key = f'fig-{self.component.name}.figure'
         callback = app.callback_map[plots_key]
-        self.assertEqual(callback['inputs'], [{'id': 'dataset-dropdown', 'property': 'value'},
+        self.assertEqual(callback['inputs'], [{'id': f'dataset-dropdown-{self.component.name}', 'property': 'value'},
                                               {'id': f'user-dropdown-{self.component.name}', 'property': 'value'},
                                               {'id': f'slider-{self.component.name}', 'property': 'value'}])
         self.assertEqual(callback['output'].component_id, f'fig-{self.component.name}')
@@ -232,7 +230,15 @@ class RemissDashboardTest(TestCase):
         self.egonet_plot_factory.get_date_range.return_value = (datetime(2023, 1, 1),
                                                                 datetime(2023, 12, 31))
         self.egonet_plot_factory.get_users.return_value = ['user1', 'user2', 'user3']
-        self.component = RemissDashboard(self.tweet_user_plot_factory, self.egonet_plot_factory)
+        self.top_table_factory = Mock()
+        self.top_table_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
+        self.top_table_factory.get_date_range.return_value = (datetime(2023, 1, 1),
+                                                                datetime(2023, 12, 31))
+        self.top_table_factory.get_users.return_value = ['user1', 'user2', 'user3']
+        self.top_table_factory.tweet_table_columns = ['id', 'text', 'user']
+        self.top_table_factory.user_table_columns = ['id', 'name', 'screen_name']
+
+        self.component = RemissDashboard(self.tweet_user_plot_factory, self.top_table_factory, self.egonet_plot_factory)
 
     def test_layout(self):
         layout = self.component.layout()
@@ -289,7 +295,7 @@ class RemissDashboardTest(TestCase):
         found_components = []
         find_components(layout, found_components)
         component_ids = ['-'.join(component.id.split('-')[:-1]) for component in found_components]
-        self.assertIn('dataset', component_ids)
+        self.assertIn(f'dataset-dropdown', component_ids)
         self.assertIn('date-picker', component_ids)
         self.assertIn('wordcloud', component_ids)
         self.assertIn('fig-tweet', component_ids)

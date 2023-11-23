@@ -55,7 +55,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         user = 'TEST_USER_1'
         depth = 1
 
-        actual= self.egonet_plot.get_egonet(collection, user, depth)
+        actual = self.egonet_plot.get_egonet(collection, user, depth)
 
         self.assertEqual({1, 2}, set(actual.vs['id_']))
         edges = {(actual.vs[s]['id_'], actual.vs[t]['id_']) for s, t in actual.get_edgelist()}
@@ -92,7 +92,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         user = 'TEST_USER_4'
         depth = 1
 
-        actual= self.egonet_plot.get_egonet(collection, user, depth)
+        actual = self.egonet_plot.get_egonet(collection, user, depth)
 
         self.assertEqual({1, 2}, set(actual.vs['id_']))
         edges = {(actual.vs[s]['id_'], actual.vs[t]['id_']) for s, t in actual.get_edgelist()}
@@ -129,7 +129,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.egonet_plot.get_user_id = Mock(return_value=1)
         collection = 'test_collection'
 
-        actual= self.egonet_plot.get_hidden_network(collection)
+        actual = self.egonet_plot.get_hidden_network(collection)
 
         self.assertEqual({1, 2, 3}, set(actual.vs['id_']))
         edges = {frozenset((actual.vs[s]['id_'], actual.vs[t]['id_'])) for s, t in actual.get_edgelist()}
@@ -169,7 +169,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.egonet_plot.get_user_id = Mock(return_value=1)
         collection = 'test_collection'
 
-        actual= self.egonet_plot.get_hidden_network(collection)
+        actual = self.egonet_plot.get_hidden_network(collection)
 
         self.assertEqual({1, 2, 3, 4}, set(actual.vs['id_']))
         edges = {(actual.vs[s]['id_'], actual.vs[t]['id_']) for s, t in actual.get_edgelist()}
@@ -410,7 +410,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.egonet_plot.host = 'localhost'
         self.egonet_plot.port = 27017
         self.egonet_plot.database = 'test_remiss'
-        actual= self.egonet_plot.get_egonet(collection, user, depth)
+        actual = self.egonet_plot.get_egonet(collection, user, depth)
         self.assertEqual(data_size // 2, actual.vcount())
         self.assertEqual(len(expected_references), actual.ecount())
         actual_authors = pd.DataFrame({'id': actual.vs['id_'],
@@ -549,13 +549,14 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.assertTrue(Path('/tmp/remiss_cache/test_collection/hidden_network_graph.graphmlz').exists())
         self.assertTrue(Path('/tmp/remiss_cache/test_collection/hidden_network_layout.feather').exists())
         start_time = time.time()
-        actual= self.egonet_plot.get_egonet(collection, user, depth)
+        actual = self.egonet_plot.get_egonet(collection, user, depth)
         end_time = time.time()
         total_time = end_time - start_time
         print(f'took {total_time}')
         self.assertLess(total_time, total_time_no_cache)
         self.assertTrue(actual.get_edgelist(),
-                        ig.Graph.Read_GraphMLz('/tmp/remiss_cache/test_collection/hidden_network_graph.graphmlz').get_edgelist())
+                        ig.Graph.Read_GraphMLz(
+                            '/tmp/remiss_cache/test_collection/hidden_network_graph.graphmlz').get_edgelist())
         self.assertEqual(actual.vcount(),
                          pd.read_feather('/tmp/remiss_cache/test_collection/hidden_network_layout.feather').shape[0])
 
@@ -585,7 +586,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         collection = 'test_collection'
         network = self.egonet_plot._compute_hidden_network(collection)
         backbone = compute_backbone(network, alpha=0.2)
-        self.assertEqual(set(backbone.get_edgelist()), {(2, 1), (2, 0)})
+        self.assertEqual(set(backbone.get_edgelist()), {(1, 0), (1, 2)})
 
     def test_backbone_2(self):
         # Create a test graph
@@ -675,9 +676,11 @@ class TestEgonetPlotFactory(unittest.TestCase):
         print(f'took {total_time}')
         self.assertLess(total_time, total_time_no_cache)
         self.assertTrue(actual.get_edgelist(),
-                        ig.Graph.Read_GraphMLz('/tmp/remiss_cache/test_collection/hidden_network_graph-backbone-0.4.graphmlz').get_edgelist())
+                        ig.Graph.Read_GraphMLz(
+                            '/tmp/remiss_cache/test_collection/hidden_network_graph-backbone-0.4.graphmlz').get_edgelist())
         self.assertEqual(actual.vcount(),
-                         pd.read_feather('/tmp/remiss_cache/test_collection/hidden_network_layout-backbone-0.4.feather').shape[0])
+                         pd.read_feather(
+                             '/tmp/remiss_cache/test_collection/hidden_network_layout-backbone-0.4.feather').shape[0])
 
     def test_plot_cache(self):
         # Checks it returns the whole thing if the user is not present

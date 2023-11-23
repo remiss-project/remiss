@@ -66,7 +66,13 @@ class TestMongoPlotFactory(unittest.TestCase):
             self.assertEqual(hashtag_freqs, [(x['_id'], x['count']) for x in mock_collection.aggregate.return_value])
 
     def test_get_hashtag_freqs_2(self):
-        expected = [('test_hashtag', 1)]
+        expected = [('test_hashtag', 3), ('test_hashtag2', 2)]
+        actual = self.mongo_plot.get_hashtag_freqs("test_collection")
+        self.assertEqual(expected, actual)
+
+    def test_get_hashtag_freqs_3(self):
+        expected = [('test_hashtag', 3)]
+        self.mongo_plot.max_hashtags = 1
         actual = self.mongo_plot.get_hashtag_freqs("test_collection")
         self.assertEqual(expected, actual)
 

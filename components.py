@@ -121,11 +121,11 @@ class TopTableComponent(DashComponent):
             dbc.Row([
                 dbc.Col([
                     DataTable(data=[], id=f'table-top-tweets-{self.name}',
-                              columns=[{"name": i, "id": i} for i in self.plot_factory.tweets_columns])
+                              columns=[{"name": i, "id": i} for i in self.plot_factory.tweet_table_columns])
                 ]),
                 dbc.Col([
                     DataTable(data=[], id=f'table-top-users-{self.name}',
-                              columns=[{"name": i, "id": i} for i in self.plot_factory.users_columns])
+                              columns=[{"name": i, "id": i} for i in self.plot_factory.user_table_columns])
                 ]),
             ]),
 
