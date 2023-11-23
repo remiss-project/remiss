@@ -17,8 +17,9 @@ pymongoarrow.monkey.patch_all()
 
 
 class MongoPlotFactory(ABC):
-    def __init__(self, host="localhost", port=27017, database="test_remiss", available_datasets=None):
+    def __init__(self, host="localhost", port=27017, database="test_remiss", available_datasets=None, max_hashtags=500):
         super().__init__()
+        self.max_hashtags = max_hashtags
         self.host = host
         self.port = port
         self.database = database
@@ -87,13 +88,15 @@ class MongoPlotFactory(ABC):
         max_date_allowed = collection.find_one(sort=[('created_at', -1)])['created_at'].date()
         return min_date_allowed, max_date_allowed
 
-    @staticmethod
-    def _get_hashtag_freqs(collection):
-        available_hashtags_freqs = list(collection.aggregate([
+    def _get_hashtag_freqs(self, collection):
+        pipeline = [
             {'$unwind': '$entities.hashtags'},
-            {'$group': {'_id': '$entities.hashtags.tag', 'count': {'$sum': 1}}},
+            {'$group': {'_id': '$entities.hashtags.tag', 'count': {'$count': {}}}},
             {'$sort': {'count': -1}}
-        ]))
+        ]
+        if self.max_hashtags:
+            pipeline.append({'$limit': self.max_hashtags})
+        available_hashtags_freqs = list(collection.aggregate(pipeline))
         available_hashtags_freqs = [(x['_id'], x['count']) for x in available_hashtags_freqs]
         return available_hashtags_freqs
 
@@ -448,6 +451,14 @@ class EgonetPlotFactory(MongoPlotFactory):
                                   hoverinfo='none'
                                   )
 
+        text = []
+        for node in network.vs:
+            is_usual_suspect = 'Yes' if node['is_usual_suspect'] else 'No'
+            party = f'Party: {node["party"]}' if node['party'] else '-'
+            text.append(f'{node["username"]}<br>'
+                        f'Usual suspect: {is_usual_suspect}<br>'
+                        f'Party: {party}')
+
         node_trace = go.Scatter3d(x=layout['x'],
                                   y=layout['y'],
                                   z=layout['z'],
@@ -459,8 +470,8 @@ class EgonetPlotFactory(MongoPlotFactory):
                                               colorscale='Viridis',
                                               line=dict(color='rgb(50,50,50)', width=0.5)
                                               ),
-                                  text=network.vs['username'],
-                                  hoverinfo='text'
+                                  text=text,
+                                  hovertemplate='%{text}',
                                   )
 
         axis = dict(showbackground=False,
