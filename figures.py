@@ -516,13 +516,13 @@ def compute_backbone(graph, alpha=0.05, delete_vertices=True):
 
 class TopTableFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, database="test_remiss", available_datasets=None, limit=50,
-                 tweet_table_columns=None, user_table_columns=None):
+                 retweet_table_columns=None, user_table_columns=None):
         super().__init__(host, port, database, available_datasets)
         self.limit = limit
-        self.tweet_table_columns = ['id', 'text', 'count'] if tweet_table_columns is None else tweet_table_columns
+        self.retweeted_table_columns = ['id', 'text', 'count'] if retweet_table_columns is None else retweet_table_columns
         self.user_table_columns = ['username', 'count'] if user_table_columns is None else user_table_columns
 
-    def get_top_tweets(self, collection, start_time=None, end_time=None):
+    def get_top_retweeted(self, collection, start_time=None, end_time=None):
         pipeline = [
             {'$group': {'_id': '$id', 'text': {'$first': '$text'}, 'count': {'$count': {}}}},
             {'$sort': {'count': -1}},
@@ -530,7 +530,7 @@ class TopTableFactory(MongoPlotFactory):
             {'$project': {'_id': 0, 'id': '$_id', 'text': 1, 'count': 1}}
         ]
         pipeline = self._add_filters(pipeline, start_time, end_time)
-        df = self._perform_top_aggregation(pipeline, collection)[self.tweet_table_columns]
+        df = self._perform_top_aggregation(pipeline, collection)[self.retweeted_table_columns]
         return df
 
     def get_top_users(self, collection, start_time=None, end_time=None):

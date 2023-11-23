@@ -235,7 +235,7 @@ class RemissDashboardTest(TestCase):
         self.top_table_factory.get_date_range.return_value = (datetime(2023, 1, 1),
                                                                 datetime(2023, 12, 31))
         self.top_table_factory.get_users.return_value = ['user1', 'user2', 'user3']
-        self.top_table_factory.tweet_table_columns = ['id', 'text', 'user']
+        self.top_table_factory.retweeted_table_columns = ['id', 'text', 'user']
         self.top_table_factory.user_table_columns = ['id', 'name', 'screen_name']
 
         self.component = RemissDashboard(self.tweet_user_plot_factory, self.top_table_factory, self.egonet_plot_factory)

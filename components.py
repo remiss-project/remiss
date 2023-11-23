@@ -121,7 +121,7 @@ class TopTableComponent(DashComponent):
             dbc.Row([
                 dbc.Col([
                     DataTable(data=[], id=f'table-top-tweets-{self.name}',
-                              columns=[{"name": i, "id": i} for i in self.plot_factory.tweet_table_columns])
+                              columns=[{"name": i, "id": i} for i in self.plot_factory.retweeted_table_columns])
                 ]),
                 dbc.Col([
                     DataTable(data=[], id=f'table-top-users-{self.name}',
@@ -132,7 +132,7 @@ class TopTableComponent(DashComponent):
         ])
 
     def update_table(self, dataset, start_date, end_date):
-        df_top_tweets = self.plot_factory.get_top_tweets(dataset, start_date, end_date)
+        df_top_tweets = self.plot_factory.get_top_retweeted(dataset, start_date, end_date)
         df_top_users = self.plot_factory.get_top_users(dataset, start_date, end_date)
 
         return df_top_tweets.to_dict('records'), df_top_users.to_dict('records')

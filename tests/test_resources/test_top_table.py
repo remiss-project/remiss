@@ -35,7 +35,7 @@ class TopTableTestCase(unittest.TestCase):
         self.collection.insert_many(test_data)
 
     def test_top_tweets_table(self):
-        table = self.top_table.get_top_tweets('test_collection')
+        table = self.top_table.get_top_retweeted('test_collection')
         self.assertEqual(table.data,
                          [{'count': 1, 'id': 0, 'text': 'test_text1'},
                           {'count': 1, 'id': 1, 'text': 'test_text2'},

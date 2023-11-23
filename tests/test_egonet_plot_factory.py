@@ -562,8 +562,8 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
     def test_backbone(self):
         test_data = []
-        expected_edges = pd.DataFrame({'source': [1, 2, 3, 2, 1],
-                                       'target': [2, 3, 4, 3, 4]})
+        expected_edges = pd.DataFrame({'source': [1, 2, 2, 1, 1, 1, 1, 1],
+                                       'target': [2, 3, 3, 2, 2, 2, 2, 4]})
         for source, target in expected_edges.itertuples(index=False):
             party = random.choice(['PSOE', 'PP', 'VOX', 'UP', None])
             is_usual_suspect = random.choice([True, False])
@@ -586,7 +586,9 @@ class TestEgonetPlotFactory(unittest.TestCase):
         collection = 'test_collection'
         network = self.egonet_plot._compute_hidden_network(collection)
         backbone = compute_backbone(network, alpha=0.2)
-        self.assertEqual(set(backbone.get_edgelist()), {(1, 0), (1, 2)})
+        actual = {frozenset(x) for x in backbone.get_edgelist()}
+        expected = {frozenset((0, 1))}
+        self.assertEqual(expected, actual)
 
     def test_backbone_2(self):
         # Create a test graph
