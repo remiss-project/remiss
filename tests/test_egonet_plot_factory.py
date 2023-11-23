@@ -749,3 +749,147 @@ class TestEgonetPlotFactory(unittest.TestCase):
         total_time = end_time - start_time
         print(f'took {total_time}')
         self.assertLess(total_time, total_time_no_cache)
+
+    @patch('figures.MongoClient')
+    def test_check_color_coding(self, mock_mongo_client):
+
+        # Mock MongoClient and database
+        mock_collection = Mock()
+
+        def aggregate_pandas_all(pipeline):
+            if 'source' in pipeline[-1]['$project']:
+                # its edges
+                edges = pd.DataFrame({'source': [1, 2, 3],
+                                      'target': [2, 3, 4],
+                                      'weight': [1, 2, 3],
+                                      'weight_inv': [1, 0.5, 0.33],
+                                      'weight_norm': [1, 0.5, 0.5]})
+                return edges
+            else:
+                # its authors
+                authors = pd.DataFrame({'id': [1, 2, 3, 4],
+                                        'is_usual_suspect': [False, False, True, True],
+                                        'party': [None, 'PSOE', None, 'VOX'],
+                                        'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682',
+                                                     'TEST_USER_488683']})
+                return authors
+
+        mock_collection.aggregate_pandas_all = aggregate_pandas_all
+        mock_database = Mock()
+        mock_database.get_collection.return_value = mock_collection
+        mock_mongo_client.return_value.get_database.return_value = mock_database
+
+        collection = 'test_collection'
+
+        expected_colors = ['blue', 'yellow', 'red', 'purple']
+
+        plot = self.egonet_plot.plot_egonet(collection, None, 1)
+        self.assertEqual(list(plot['data'][1]['marker']['color']), expected_colors)
+
+    @patch('figures.MongoClient')
+    def test_check_color_coding_2(self, mock_mongo_client):
+
+        # Mock MongoClient and database
+        mock_collection = Mock()
+
+        def aggregate_pandas_all(pipeline):
+            if 'source' in pipeline[-1]['$project']:
+                # its edges
+                edges = pd.DataFrame({'source': [1, 2, 3],
+                                      'target': [2, 3, 4],
+                                      'weight': [1, 2, 3],
+                                      'weight_inv': [1, 0.5, 0.33],
+                                      'weight_norm': [1, 0.5, 0.5]})
+                return edges
+            else:
+                # its authors
+                authors = pd.DataFrame({'id': [1, 2, 3, 4],
+                                        'is_usual_suspect': [False, False, True, True],
+                                        'party': [None, None, None, 'VOX'],
+                                        'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682',
+                                                     'TEST_USER_488683']})
+                return authors
+
+        mock_collection.aggregate_pandas_all = aggregate_pandas_all
+        mock_database = Mock()
+        mock_database.get_collection.return_value = mock_collection
+        mock_mongo_client.return_value.get_database.return_value = mock_database
+
+        collection = 'test_collection'
+
+        expected_colors = ['blue', 'blue', 'red', 'purple']
+
+        plot = self.egonet_plot.plot_egonet(collection, None, 1)
+        self.assertEqual(list(plot['data'][1]['marker']['color']), expected_colors)
+
+    @patch('figures.MongoClient')
+    def test_check_color_coding_2(self, mock_mongo_client):
+
+        # Mock MongoClient and database
+        mock_collection = Mock()
+
+        def aggregate_pandas_all(pipeline):
+            if 'source' in pipeline[-1]['$project']:
+                # its edges
+                edges = pd.DataFrame({'source': [1, 2, 3],
+                                      'target': [2, 3, 4],
+                                      'weight': [1, 2, 3],
+                                      'weight_inv': [1, 0.5, 0.33],
+                                      'weight_norm': [1, 0.5, 0.5]})
+                return edges
+            else:
+                # its authors
+                authors = pd.DataFrame({'id': [1, 2, 3, 4],
+                                        'is_usual_suspect': [False, False, True, True],
+                                        'party': ['PSOE', 'PSOE', None, 'VOX'],
+                                        'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682',
+                                                     'TEST_USER_488683']})
+                return authors
+
+        mock_collection.aggregate_pandas_all = aggregate_pandas_all
+        mock_database = Mock()
+        mock_database.get_collection.return_value = mock_collection
+        mock_mongo_client.return_value.get_database.return_value = mock_database
+
+        collection = 'test_collection'
+
+        expected_colors = ['yellow', 'yellow', 'red', 'purple']
+
+        plot = self.egonet_plot.plot_egonet(collection, None, 1)
+        self.assertEqual(list(plot['data'][1]['marker']['color']), expected_colors)
+
+    @patch('figures.MongoClient')
+    def test_check_color_coding_3(self, mock_mongo_client):
+
+        # Mock MongoClient and database
+        mock_collection = Mock()
+
+        def aggregate_pandas_all(pipeline):
+            if 'source' in pipeline[-1]['$project']:
+                # its edges
+                edges = pd.DataFrame({'source': [1, 2, 3],
+                                      'target': [2, 3, 4],
+                                      'weight': [1, 2, 3],
+                                      'weight_inv': [1, 0.5, 0.33],
+                                      'weight_norm': [1, 0.5, 0.5]})
+                return edges
+            else:
+                # its authors
+                authors = pd.DataFrame({'id': [1, 2, 3, 4],
+                                        'is_usual_suspect': [True, True, True, True],
+                                        'party': ['VOX', 'VOX', 'VOX', 'VOX'],
+                                        'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682',
+                                                     'TEST_USER_488683']})
+                return authors
+
+        mock_collection.aggregate_pandas_all = aggregate_pandas_all
+        mock_database = Mock()
+        mock_database.get_collection.return_value = mock_collection
+        mock_mongo_client.return_value.get_database.return_value = mock_database
+
+        collection = 'test_collection'
+
+        expected_colors = ['purple', 'purple', 'purple', 'purple']
+
+        plot = self.egonet_plot.plot_egonet(collection, None, 1)
+        self.assertEqual(list(plot['data'][1]['marker']['color']), expected_colors)
