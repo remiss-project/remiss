@@ -17,7 +17,7 @@ REMISS_GRAPH_SIMPLIFICATION_THRESHOLD = float(os.environ.get('REMISS_GRAPH_SIMPL
 REMISS_AVAILABLE_DATASETS = os.environ.get('REMISS_AVAILABLE_DATASETS', None)
 
 
-def main():
+def create_app():
     print(f'Connecting to MongoDB at {REMISS_MONGODB_HOST}:{REMISS_MONGODB_PORT}...')
     print(f'Using database {REMISS_MONGODB_DATABASE}...')
     if REMISS_CACHE_DIR:
@@ -57,10 +57,11 @@ def main():
     app.layout = dashboard.layout()
     dashboard.callbacks(app)
     print(f'App created in {time.time() - start_time} seconds.')
-    print('Running app...')
-    app.run(debug=True)
+    return app
 
 
 # Run the app
 if __name__ == '__main__':
-    main()
+    app = create_app()
+    print('Running app...')
+    app.run(debug=True)
