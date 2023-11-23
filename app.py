@@ -5,7 +5,7 @@ import dash
 import dash_bootstrap_components as dbc
 
 from components import RemissDashboard
-from figures import TweetUserPlotFactory, EgonetPlotFactory
+from figures import TweetUserPlotFactory, EgonetPlotFactory, TopTableFactory
 
 REMISS_MONGODB_HOST = os.environ.get('REMISS_MONGODB_HOST', 'localhost')
 REMISS_MONGODB_PORT = int(os.environ.get('REMISS_MONGODB_PORT', 27017))
@@ -40,12 +40,16 @@ def main():
     tweet_user_plot_factory = TweetUserPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
                                                    database=REMISS_MONGODB_DATABASE,
                                                    available_datasets=available_datasets)
+    top_table_factory = TopTableFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
+                                        database=REMISS_MONGODB_DATABASE,
+                                        available_datasets=available_datasets)
+
     egonet_plot_factory = EgonetPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
                                             database=REMISS_MONGODB_DATABASE, cache_dir=REMISS_CACHE_DIR,
                                             layout=REMISS_GRAPH_LAYOUT, simplification=REMISS_GRAPH_SIMPLIFICATION,
                                             threshold=REMISS_GRAPH_SIMPLIFICATION_THRESHOLD,
                                             available_datasets=available_datasets)
-    dashboard = RemissDashboard(tweet_user_plot_factory, egonet_plot_factory)
+    dashboard = RemissDashboard(tweet_user_plot_factory, top_table_factory, egonet_plot_factory)
     print(f'Plot factories created in {time.time() - start_time} seconds.')
     print('Creating app...')
     start_time = time.time()
@@ -54,7 +58,7 @@ def main():
     dashboard.callbacks(app)
     print(f'App created in {time.time() - start_time} seconds.')
     print('Running app...')
-    app.run(debug=False)
+    app.run(debug=True)
 
 
 # Run the app

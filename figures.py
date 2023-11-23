@@ -515,31 +515,44 @@ def compute_backbone(graph, alpha=0.05, delete_vertices=True):
 
 
 class TopTableFactory(MongoPlotFactory):
-    def __init__(self, host="localhost", port=27017, database="test_remiss", available_datasets=None, limit=50):
+    def __init__(self, host="localhost", port=27017, database="test_remiss", available_datasets=None, limit=50,
+                 tweet_columns=None, users_columns=None):
         super().__init__(host, port, database, available_datasets)
         self.limit = limit
+        self.tweets_columns = ['id', 'text', 'count'] if tweet_columns is None else tweet_columns
+        self.users_columns = ['username', 'count'] if users_columns is None else users_columns
 
-    def get_top_tweets(self, collection):
+    def get_top_tweets(self, collection, start_time=None, end_time=None):
         pipeline = [
             {'$group': {'_id': '$id', 'text': {'$first': '$text'}, 'count': {'$count': {}}}},
             {'$sort': {'count': -1}},
             {'$limit': self.limit},
             {'$project': {'_id': 0, 'id': '$_id', 'text': 1, 'count': 1}}
         ]
-        df = self._perform_top_aggregation(pipeline, collection)[['id', 'text', 'count']]
-        table = DataTable(df.to_dict('records'), [{"name": i, "id": i} for i in df.columns])
-        return table
+        pipeline = self._add_filters(pipeline, start_time, end_time)
+        df = self._perform_top_aggregation(pipeline, collection)[self.tweets_columns]
+        return df
 
-    def get_top_users(self, collection):
+    def get_top_users(self, collection, start_time=None, end_time=None):
         pipeline = [
             {'$group': {'_id': '$author.username', 'count': {'$count': {}}}},
             {'$sort': {'count': -1}},
             {'$limit': self.limit},
             {'$project': {'_id': 0, 'username': '$_id', 'count': 1}}
         ]
-        df = self._perform_top_aggregation(pipeline, collection)[['username', 'count']]
-        table = DataTable(df.to_dict('records'), [{"name": i, "id": i} for i in df.columns])
-        return table
+        pipeline = self._add_filters(pipeline, start_time, end_time)
+        df = self._perform_top_aggregation(pipeline, collection)[self.users_columns]
+        return df
+
+    def _add_filters(self, pipeline, start_time=None, end_time=None):
+        pipeline = pipeline.copy()
+        if start_time:
+            start_time = pd.to_datetime(start_time)
+            pipeline.insert(0, {'$match': {'created_at': {'$gte': start_time}}})
+        if end_time:
+            end_time = pd.to_datetime(end_time)
+            pipeline.insert(0, {'$match': {'created_at': {'$lte': end_time}}})
+        return pipeline
 
     def _perform_top_aggregation(self, pipeline, collection):
         client = MongoClient(self.host, self.port)
