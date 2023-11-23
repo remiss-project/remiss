@@ -16,17 +16,17 @@ class TestMongoPlotFactory(unittest.TestCase):
         test_data = [{"id": 0, "created_at": {"$date": "2019-01-01T23:20:00Z"},
                       "author": {"username": "TEST_USER_0", "id": 0,
                                  "remiss_metadata": {"party": "PSOE", "is_usual_suspect": False}},
-                      "entities": {"hashtags": [{"tag": "test_hashtag"}]},
+                      "entities": {"hashtags": [{"tag": "test_hashtag"}, {"tag": "test_hashtag2"}]},
                       "referenced_tweets": []},
                      {"id": 1, "created_at": {"$date": "2019-01-02T23:20:00Z"},
                       "author": {"username": "TEST_USER_1", "id": 1,
                                  "remiss_metadata": {"party": None, "is_usual_suspect": False}},
-                      "entities": {"hashtags": []},
+                      "entities": {"hashtags": [{"tag": "test_hashtag"}, {"tag": "test_hashtag2"}]},
                       "referenced_tweets": [{"id": 1, "type": "quoted"}]},
                      {"id": 2, "created_at": {"$date": "2019-01-03T23:20:00Z"},
                       "author": {"username": "TEST_USER_2", "id": 2,
                                  "remiss_metadata": {"party": "VOX", "is_usual_suspect": True}},
-                      "entities": {"hashtags": []},
+                      "entities": {"hashtags": [{"tag": "test_hashtag"}]},
                       "referenced_tweets": [{"id": 1, "type": "retweeted"}]}]
         self.collection.insert_many(test_data)
 
@@ -122,8 +122,17 @@ class TestMongoPlotFactory(unittest.TestCase):
         actual = self.mongo_plot.available_datasets
         self.assertEqual(expected, actual)
 
+    def test__get_hashtag_freqs(self):
+        expected = [('test_hashtag', 3), ('test_hashtag2', 2)]
+        self.mongo_plot.max_hashtags = None
+        actual = self.mongo_plot._get_hashtag_freqs(self.collection)
+        self.assertEqual(expected, actual)
 
-
+    def test__get_hashtag_freqs_max_hashtags(self):
+        expected = [('test_hashtag', 3)]
+        self.mongo_plot.max_hashtags = 1
+        actual = self.mongo_plot._get_hashtag_freqs(self.collection)
+        self.assertEqual(expected, actual)
 
 
 if __name__ == '__main__':
