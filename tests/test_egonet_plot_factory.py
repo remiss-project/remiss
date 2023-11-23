@@ -823,7 +823,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.assertEqual(list(plot['data'][1]['marker']['color']), expected_colors)
 
     @patch('figures.MongoClient')
-    def test_check_color_coding_2(self, mock_mongo_client):
+    def test_check_color_coding_3(self, mock_mongo_client):
 
         # Mock MongoClient and database
         mock_collection = Mock()
