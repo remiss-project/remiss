@@ -99,6 +99,7 @@ class MongoPlotFactory(ABC):
             pipeline.append({'$limit': self.max_hashtags})
         available_hashtags_freqs = list(collection.aggregate(pipeline))
         available_hashtags_freqs = [(x['_id'], x['count']) for x in available_hashtags_freqs]
+        print(f'Found {len(available_hashtags_freqs)} hashtags')
         return available_hashtags_freqs
 
 
