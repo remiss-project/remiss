@@ -28,6 +28,7 @@ class TweetUserTimeSeriesComponentTest(TestCase):
                                                          datetime(2023, 12, 31))
         self.plot_factory.plot_tweet_series.return_value = 'plot_tweet_series'
         self.plot_factory.plot_user_series.return_value = 'plot_user_series'
+        self.plot_factory.get_hashtag_freqs.return_value = [('hashtag1', 10), ('hashtag2', 5)]
         self.component = TweetUserTimeSeriesComponent(self.plot_factory)
 
     def test_layout(self):
@@ -137,6 +138,23 @@ class TweetUserTimeSeriesComponentTest(TestCase):
                     self.plot_factory.plot_user_series.return_value)
         self.assertEqual(actual, expected)
 
+    # def test_wordcloud_lots_of_hashtags(self):
+    #     wordcloud = DashWordcloud(width=1200, height=400,
+    #                               rotateRatio=0.5,
+    #                               shrinkToFit=True,
+    #                               shape='circle',
+    #                               hover=True,
+    #                               id=f'wordcloud',
+    #                               list=[[f'hashtag{i}', i] for i in range(1500)])
+    #     app = Dash()
+    #     app.layout = wordcloud
+    #     app.run_server(debug=True, use_reloader=False)
+
+    def test_wordclould_max_hashtags(self):
+        layout = self.component.layout()
+        wordcloud = layout.children[0].children[0].children[0]
+        self.assertEqual(len(wordcloud.list), 2)
+
 
 class EgonetComponentTest(TestCase):
     def setUp(self):
@@ -233,7 +251,7 @@ class RemissDashboardTest(TestCase):
         self.top_table_factory = Mock()
         self.top_table_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
         self.top_table_factory.get_date_range.return_value = (datetime(2023, 1, 1),
-                                                                datetime(2023, 12, 31))
+                                                              datetime(2023, 12, 31))
         self.top_table_factory.get_users.return_value = ['user1', 'user2', 'user3']
         self.top_table_factory.retweeted_table_columns = ['id', 'text', 'user']
         self.top_table_factory.user_table_columns = ['id', 'name', 'screen_name']
