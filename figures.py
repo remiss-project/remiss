@@ -18,9 +18,8 @@ pymongoarrow.monkey.patch_all()
 
 
 class MongoPlotFactory(ABC):
-    def __init__(self, host="localhost", port=27017, database="test_remiss", available_datasets=None, max_hashtags=500):
+    def __init__(self, host="localhost", port=27017, database="test_remiss", available_datasets=None):
         super().__init__()
-        self.max_hashtags = max_hashtags
         self.host = host
         self.port = port
         self.database = database
@@ -95,11 +94,8 @@ class MongoPlotFactory(ABC):
             {'$group': {'_id': '$entities.hashtags.tag', 'count': {'$count': {}}}},
             {'$sort': {'count': -1}}
         ]
-        if self.max_hashtags:
-            pipeline.append({'$limit': self.max_hashtags})
         available_hashtags_freqs = list(collection.aggregate(pipeline))
         available_hashtags_freqs = [(x['_id'], x['count']) for x in available_hashtags_freqs]
-        print(f'Found {len(available_hashtags_freqs)} hashtags')
         return available_hashtags_freqs
 
 

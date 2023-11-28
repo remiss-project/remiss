@@ -28,7 +28,9 @@ class TweetUserTimeSeriesComponentTest(TestCase):
                                                          datetime(2023, 12, 31))
         self.plot_factory.plot_tweet_series.return_value = 'plot_tweet_series'
         self.plot_factory.plot_user_series.return_value = 'plot_user_series'
-        self.plot_factory.get_hashtag_freqs.return_value = [('hashtag1', 10), ('hashtag2', 5)]
+        self.plot_factory.get_hashtag_freqs.return_value = [('hashtag1', 10), ('hashtag2', 5),
+                                                            ('hashtag3', 3), ('hashtag4', 2),
+                                                            ('hashtag5', 1), ('hashtag6', 1),]
         self.component = TweetUserTimeSeriesComponent(self.plot_factory)
 
     def test_layout(self):
@@ -151,6 +153,7 @@ class TweetUserTimeSeriesComponentTest(TestCase):
     #     app.run_server(debug=True, use_reloader=False)
 
     def test_wordclould_max_hashtags(self):
+        self.component.max_wordcloud_words = 2
         layout = self.component.layout()
         wordcloud = layout.children[0].children[0].children[0]
         self.assertEqual(len(wordcloud.list), 2)

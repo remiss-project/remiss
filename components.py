@@ -33,8 +33,9 @@ class DashComponent(ABC):
 
 
 class TweetUserTimeSeriesComponent(DashComponent):
-    def __init__(self, plot_factory, name=None, dataset_dropdown_id=None, date_picker_id=None):
+    def __init__(self, plot_factory, name=None, dataset_dropdown_id=None, date_picker_id=None, max_wordcloud_words=100):
         super().__init__(name=name)
+        self.max_wordcloud_words = max_wordcloud_words
         self.dataset_dropdown_id = dataset_dropdown_id if dataset_dropdown_id else f'dataset-dropdown-{self.name}'
         self.date_picker_id = date_picker_id if date_picker_id else f'date-picker-{self.name}'
         self.plot_factory = plot_factory
@@ -43,6 +44,9 @@ class TweetUserTimeSeriesComponent(DashComponent):
 
     def layout(self, params=None):
         available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(self.current_dataset)
+        if self.max_wordcloud_words:
+            print(f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
+            available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
         return dbc.Container([
             dbc.Row([
                 dbc.Col([
