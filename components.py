@@ -126,27 +126,21 @@ class TopTableComponent(DashComponent):
         return dbc.Container([
             dbc.Row([
                 dbc.Col([
-                    DataTable(data=[], id=f'table-top-tweets-{self.name}',
-                              columns=[{"name": i, "id": i} for i in self.plot_factory.retweeted_table_columns])
-                ]),
-                dbc.Col([
-                    DataTable(data=[], id=f'table-top-users-{self.name}',
-                              columns=[{"name": i, "id": i} for i in self.plot_factory.user_table_columns])
+                    DataTable(data=[], id=f'top-table-{self.name}',
+                              columns=[{"name": i, "id": i} for i in self.plot_factory.top_table_columns])
                 ]),
             ]),
 
         ])
 
     def update_table(self, dataset, start_date, end_date):
-        df_top_tweets = self.plot_factory.get_top_retweeted(dataset, start_date, end_date)
-        df_top_users = self.plot_factory.get_top_users(dataset, start_date, end_date)
+        df_top_table = self.plot_factory.get_top_table(dataset, start_date, end_date)
 
-        return df_top_tweets.to_dict('records'), df_top_users.to_dict('records')
+        return df_top_table.to_dict('records')
 
     def callbacks(self, app):
         app.callback(
-            Output(component_id=f'table-top-tweets-{self.name}', component_property='data'),
-            Output(component_id=f'table-top-users-{self.name}', component_property='data'),
+            Output(component_id=f'top-table-{self.name}', component_property='data'),
             Input(component_id=self.dataset_dropdown_id, component_property='value'),
             Input(component_id=self.date_picker_id, component_property='start_date'),
             Input(component_id=self.date_picker_id, component_property='end_date'),

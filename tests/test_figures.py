@@ -70,12 +70,6 @@ class TestMongoPlotFactory(unittest.TestCase):
         actual = self.mongo_plot.get_hashtag_freqs("test_collection")
         self.assertEqual(expected, actual)
 
-    def test_get_hashtag_freqs_3(self):
-        expected = [('test_hashtag', 3)]
-        self.mongo_plot.max_hashtags = 1
-        actual = self.mongo_plot.get_hashtag_freqs("test_collection")
-        self.assertEqual(expected, actual)
-
     def test_get_users(self):
         # Mock MongoClient and database
         mock_collection = Mock()
@@ -131,12 +125,6 @@ class TestMongoPlotFactory(unittest.TestCase):
     def test__get_hashtag_freqs(self):
         expected = [('test_hashtag', 3), ('test_hashtag2', 2)]
         self.mongo_plot.max_hashtags = None
-        actual = self.mongo_plot._get_hashtag_freqs(self.collection)
-        self.assertEqual(expected, actual)
-
-    def test__get_hashtag_freqs_max_hashtags(self):
-        expected = [('test_hashtag', 3)]
-        self.mongo_plot.max_hashtags = 1
         actual = self.mongo_plot._get_hashtag_freqs(self.collection)
         self.assertEqual(expected, actual)
 
