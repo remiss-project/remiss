@@ -48,6 +48,8 @@ class TweetUserTimeSeriesComponent(DashComponent):
             print(f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
             available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
             print(''.join([f'{x[0]}: {x[1]}\n' for x in available_hashtags_freqs]))
+            with open('hashtags.txt', 'w') as f:
+                f.writelines(str(available_hashtags_freqs))
         return dbc.Container([
             dbc.Row([
                 dbc.Col([
