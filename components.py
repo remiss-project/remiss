@@ -44,12 +44,11 @@ class TweetUserTimeSeriesComponent(DashComponent):
 
     def layout(self, params=None):
         available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(self.current_dataset)
+        min_freq = min([x[1] for x in available_hashtags_freqs])
         if self.max_wordcloud_words:
             print(f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
             available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
-            print(''.join([f'{x[0]}: {x[1]}\n' for x in available_hashtags_freqs]))
-            with open('hashtags.txt', 'w') as f:
-                f.writelines(str(available_hashtags_freqs))
+
         return dbc.Container([
             dbc.Row([
                 dbc.Col([
@@ -58,6 +57,7 @@ class TweetUserTimeSeriesComponent(DashComponent):
                         width=1200, height=400,
                         rotateRatio=0.5,
                         shrinkToFit=True,
+                        weightFactor=10 / min_freq,
                         shape='circle',
                         hover=True,
                         id=f'wordcloud-{self.name}'),
