@@ -77,10 +77,6 @@ class TweetUserTimeSeriesComponent(DashComponent):
         available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(dataset)
         return available_hashtags_freqs
 
-    def update_date_picker(self, dataset):
-        min_date_allowed, max_date_allowed = self.plot_factory.get_date_range(dataset)
-        return min_date_allowed, max_date_allowed, min_date_allowed, max_date_allowed
-
     def update_plots(self, dataset, start_date, end_date, click_data):
         if click_data:
             hashtag = click_data[0]
@@ -91,14 +87,6 @@ class TweetUserTimeSeriesComponent(DashComponent):
         return fig_tweet, fig_users
 
     def callbacks(self, app):
-        app.callback(
-            Output(component_id=self.date_picker_id, component_property='min_date_allowed'),
-            Output(component_id=self.date_picker_id, component_property='max_date_allowed'),
-            Output(component_id=self.date_picker_id, component_property='start_date'),
-            Output(component_id=self.date_picker_id, component_property='end_date'),
-            Input(component_id=self.dataset_dropdown_id, component_property='value')
-        )(self.update_date_picker)
-
         app.callback(
             Output(component_id=f'wordcloud-{self.name}', component_property='list'),
             Input(component_id=self.dataset_dropdown_id, component_property='value'),
@@ -127,7 +115,20 @@ class TopTableComponent(DashComponent):
             dbc.Row([
                 dbc.Col([
                     DataTable(data=[], id=f'top-table-{self.name}',
-                              columns=[{"name": i, "id": i} for i in self.plot_factory.top_table_columns])
+                              columns=[{"name": i, "id": i} for i in self.plot_factory.top_table_columns],
+                              editable=False,
+                              filter_action="native",
+                              sort_action="native",
+                              sort_mode="multi",
+                              column_selectable="single",
+                              row_selectable="multi",
+                              row_deletable=False,
+                              selected_columns=[],
+                              selected_rows=[],
+                              page_action="native",
+                              page_current=0,
+                              page_size=10,
+                              )
                 ]),
             ]),
 
@@ -252,7 +253,17 @@ class RemissDashboard(DashComponent):
             ]),
         ])
 
+    def update_date_picker(self, dataset):
+        min_date_allowed, max_date_allowed = self.tweet_user_plot_factory.get_date_range(dataset)
+        return min_date_allowed, max_date_allowed, min_date_allowed, max_date_allowed
+
     def callbacks(self, app):
+        app.callback(
+            Output(component_id=self.date_picker_id, component_property='start_date'),
+            Output(component_id=self.date_picker_id, component_property='end_date'),
+            Input(component_id=self.dataset_dropdown_id, component_property='value')
+        )(self.update_date_picker)
+
         self.tweet_user_ts_component.callbacks(app)
         self.top_table_component.callbacks(app)
         self.egonet_component.callbacks(app)
