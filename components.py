@@ -134,12 +134,13 @@ class TopTableComponent(DashComponent):
 
 
 class EgonetComponent(DashComponent):
-    def __init__(self, plot_factory, name=None, dataset_dropdown=None):
+    def __init__(self, plot_factory, dataset_dropdown, top_table, name=None):
         super().__init__(name=name)
         self.plot_factory = plot_factory
         self.available_datasets = plot_factory.available_datasets
         self.current_dataset = self.available_datasets[0]
-        self.dataset_dropdown = dataset_dropdown if dataset_dropdown else f'dataset-dropdown-{self.name}'
+        self.dataset_dropdown = dataset_dropdown
+        self.top_table = top_table
 
     def layout(self, params=None):
         available_users = self.plot_factory.get_users(self.current_dataset)
@@ -159,8 +160,19 @@ class EgonetComponent(DashComponent):
             ]),
         ])
 
-    def update_egonet(self, dataset, user, depth):
+    def update_egonet(self, dataset, user, active_cell, depth):
+        if callback_context.triggered_id == self.top_table.id and active_cell:
+            user = self.top_table.data['User'].iloc[active_cell['row']]
         return self.plot_factory.plot_egonet(dataset, user, depth)
+
+    def callbacks(self, app):
+        app.callback(
+            Output(f'fig-{self.name}', 'figure'),
+            Input(self.dataset_dropdown.id, 'value'),
+            Input(f'user-dropdown-{self.name}', 'value'),
+            Input(self.top_table.id, 'active_cell'),
+            Input(f'slider-{self.name}', 'value'),
+        )(self.update_egonet)
 
 
 class RemissDashboard(DashComponent):
@@ -186,7 +198,9 @@ class RemissDashboard(DashComponent):
                                                                     top_table=self.top_table_component,
                                                                     name='ts')
 
-        self.egonet_component = EgonetComponent(egonet_plot_factory, name='egonet')
+        self.egonet_component = EgonetComponent(egonet_plot_factory, dataset_dropdown=self.dataset_dropdown,
+                                                top_table=self.top_table_component,
+                                                name='egonet')
 
     @property
     def dataset_dropdown_id(self):
@@ -297,3 +311,4 @@ class RemissDashboard(DashComponent):
         )(self.update_date_range)
         self.tweet_user_ts_component.callbacks(app)
         self.top_table_component.callbacks(app)
+        self.egonet_component.callbacks(app)
