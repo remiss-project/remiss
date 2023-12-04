@@ -3,7 +3,12 @@ from datetime import datetime
 from unittest import TestCase
 from unittest.mock import Mock
 
-from dash import Dash
+from contextvars import copy_context
+from dash._callback_context import context_value
+from dash._utils import AttributeDict
+
+import dash
+from dash import Dash, dcc
 from dash.dcc import DatePickerRange, Graph, Dropdown, Slider
 from dash_holoniq_wordcloud import DashWordcloud
 
@@ -31,7 +36,11 @@ class TweetUserTimeSeriesComponentTest(TestCase):
         self.plot_factory.get_hashtag_freqs.return_value = [('hashtag1', 10), ('hashtag2', 5),
                                                             ('hashtag3', 3), ('hashtag4', 2),
                                                             ('hashtag5', 1), ('hashtag6', 1), ]
-        self.component = TweetUserTimeSeriesComponent(self.plot_factory)
+        self.component = TweetUserTimeSeriesComponent(self.plot_factory,
+                                                      dataset_dropdown=Mock(id='dataset-dropdown'),
+                                                      date_picker=Mock(id='date-picker'),
+                                                      wordcloud=Mock(id='wordcloud'),
+                                                      top_table=Mock(id='top-table'))
 
     def test_layout(self):
         layout = self.component.layout()
@@ -45,17 +54,12 @@ class TweetUserTimeSeriesComponentTest(TestCase):
             if hasattr(component, 'children'):
                 for child in component.children:
                     find_components(child, found_components)
-            if isinstance(component, DatePickerRange):
-                found_components.append(component)
-            if isinstance(component, DashWordcloud):
-                found_components.append(component)
             if isinstance(component, Graph):
                 found_components.append(component)
 
         found_components = []
         find_components(layout, found_components)
         found_components = [type(component) for component in found_components]
-        self.assertIn(DashWordcloud, found_components)
         self.assertIn(Graph, found_components)
 
     def test_layout_ids(self):
@@ -77,7 +81,6 @@ class TweetUserTimeSeriesComponentTest(TestCase):
         found_components = []
         find_components(layout, found_components)
         component_ids = ['-'.join(component.id.split('-')[:-1]) for component in found_components]
-        self.assertIn('wordcloud', component_ids)
         self.assertIn('fig-tweet', component_ids)
         self.assertIn('fig-users', component_ids)
         found_main_ids = ['-'.join(component.id.split('-')[-1:]) for component in found_components]
@@ -193,7 +196,9 @@ class EgonetComponentTest(TestCase):
         self.plot_factory.get_date_range.return_value = (datetime(2023, 1, 1),
                                                          datetime(2023, 12, 31))
         self.plot_factory.get_users.return_value = ['user1', 'user2', 'user3']
-        self.component = EgonetComponent(self.plot_factory)
+        self.component = EgonetComponent(self.plot_factory,
+                                         dataset_dropdown=Mock(id='dataset-dropdown'),
+                                         top_table=Mock(id='top-table'))
 
     def test_layout(self):
         layout = self.component.layout()
@@ -254,12 +259,22 @@ class EgonetComponentTest(TestCase):
         # Simulate the update function for the plots
         plots_key = f'fig-{self.component.name}.figure'
         callback = app.callback_map[plots_key]
-        self.assertEqual(callback['inputs'], [{'id': f'dataset-dropdown-{self.component.name}', 'property': 'value'},
-                                              {'id': f'user-dropdown-{self.component.name}', 'property': 'value'},
-                                              {'id': f'slider-{self.component.name}', 'property': 'value'}])
+        self.assertEqual(callback['inputs'],
+                         [{'id': 'dataset-dropdown', 'property': 'value'},
+                          {'id': f'user-dropdown-{self.component.name}', 'property': 'value'},
+                          {'id': 'top-table', 'property': 'active_cell'},
+                          {'id': f'slider-{self.component.name}', 'property': 'value'}])
         self.assertEqual(callback['output'].component_id, f'fig-{self.component.name}')
         self.assertEqual(callback['output'].component_property, 'figure')
-        actual = self.component.update_egonet('dataset2', 'user2', 3)
+
+        def run_callback():
+            context_value.set(AttributeDict(**{"triggered_id": "top-table"}))
+            actual = self.component.update_egonet('dataset2', 'user2', None, 3)
+            return actual
+
+        ctx = copy_context()
+        actual = ctx.run(run_callback)
+
         self.assertEqual(self.plot_factory.plot_egonet.call_args[0][0], 'dataset2')
         self.assertEqual(self.plot_factory.plot_egonet.call_args[0][1], 'user2')
         self.assertEqual(self.plot_factory.plot_egonet.call_args[0][2], 3)
