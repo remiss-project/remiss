@@ -101,7 +101,7 @@ class MongoPlotFactory(ABC):
 
 class TweetUserPlotFactory(MongoPlotFactory):
 
-    def plot_tweet_series(self, collection, hashtag, start_time, end_time, unit='day', bin_size=1):
+    def plot_tweet_series(self, collection, hashtags, start_time, end_time, unit='day', bin_size=1):
         pipeline = [
             {'$group': {
                 "_id": {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}},
@@ -110,11 +110,11 @@ class TweetUserPlotFactory(MongoPlotFactory):
         ]
         print('Computing tweet series')
         start_computing_time = time.time()
-        plot = self._get_count_area_plot(pipeline, collection, hashtag, start_time, end_time)
+        plot = self._get_count_area_plot(pipeline, collection, hashtags, start_time, end_time)
         print(f'Tweet series computed in {time.time() - start_computing_time} seconds')
         return plot
 
-    def plot_user_series(self, collection, hashtag, start_time, end_time, unit='day', bin_size=1):
+    def plot_user_series(self, collection, hashtags, start_time, end_time, unit='day', bin_size=1):
         pipeline = [
             {'$group': {
                 "_id": {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}},
@@ -125,7 +125,7 @@ class TweetUserPlotFactory(MongoPlotFactory):
         ]
         print('Computing user series')
         start_computing_time = time.time()
-        plot = self._get_count_area_plot(pipeline, collection, hashtag, start_time, end_time)
+        plot = self._get_count_area_plot(pipeline, collection, hashtags, start_time, end_time)
         print(f'User series computed in {time.time() - start_computing_time} seconds')
         return plot
 
@@ -138,17 +138,17 @@ class TweetUserPlotFactory(MongoPlotFactory):
 
         return df
 
-    def _get_count_data(self, pipeline, hashtag, start_time, end_time, collection):
-        normal_pipeline = self._add_filters(pipeline, hashtag, start_time, end_time, user_type='normal')
+    def _get_count_data(self, pipeline, hashtags, start_time, end_time, collection):
+        normal_pipeline = self._add_filters(pipeline, hashtags, start_time, end_time, user_type='normal')
         normal_df = self._perform_count_aggregation(normal_pipeline, collection)
 
-        suspect_pipeline = self._add_filters(pipeline, hashtag, start_time, end_time, user_type='suspect')
+        suspect_pipeline = self._add_filters(pipeline, hashtags, start_time, end_time, user_type='suspect')
         suspect_df = self._perform_count_aggregation(suspect_pipeline, collection)
 
-        politician_pipeline = self._add_filters(pipeline, hashtag, start_time, end_time, user_type='politician')
+        politician_pipeline = self._add_filters(pipeline, hashtags, start_time, end_time, user_type='politician')
         politician_df = self._perform_count_aggregation(politician_pipeline, collection)
 
-        suspect_politician_pipeline = self._add_filters(pipeline, hashtag, start_time, end_time,
+        suspect_politician_pipeline = self._add_filters(pipeline, hashtags, start_time, end_time,
                                                         user_type='suspect_politician')
         suspect_politician_df = self._perform_count_aggregation(suspect_politician_pipeline, collection)
 
@@ -157,13 +157,13 @@ class TweetUserPlotFactory(MongoPlotFactory):
 
         return df
 
-    def _get_count_area_plot(self, pipeline, collection, hashtag, start_time, end_time):
+    def _get_count_area_plot(self, pipeline, collection, hashtags, start_time, end_time):
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.database)
         self._validate_collection(database, collection)
         collection = database.get_collection(collection)
 
-        df = self._get_count_data(pipeline, hashtag, start_time, end_time, collection)
+        df = self._get_count_data(pipeline, hashtags, start_time, end_time, collection)
 
         if len(df) == 1:
             plot = px.bar(df, labels={"value": "Count"})
@@ -173,7 +173,7 @@ class TweetUserPlotFactory(MongoPlotFactory):
         return plot
 
     @staticmethod
-    def _add_filters(pipeline, hashtag, start_time, end_time, user_type):
+    def _add_filters(pipeline, hashtags, start_time, end_time, user_type):
         pipeline = pipeline.copy()
         if user_type == 'normal':
             pipeline.insert(0, {'$match': {'author.remiss_metadata.is_usual_suspect': False,
@@ -190,8 +190,9 @@ class TweetUserPlotFactory(MongoPlotFactory):
         else:
             raise ValueError(f'Unknown user type {user_type}')
 
-        if hashtag:
-            pipeline.insert(0, {'$match': {'entities.hashtags.tag': hashtag}})
+        if hashtags:
+            for hashtag in hashtags:
+                pipeline.insert(0, {'$match': {'entities.hashtags.tag': hashtag}})
         if start_time:
             start_time = pd.to_datetime(start_time)
             pipeline.insert(0, {'$match': {'created_at': {'$gte': start_time}}})
