@@ -3,6 +3,7 @@ import time
 
 import dash
 import dash_bootstrap_components as dbc
+from dash_bootstrap_templates import load_figure_template
 
 from components import RemissDashboard
 from figures import TweetUserPlotFactory, EgonetPlotFactory, TopTableFactory
@@ -18,6 +19,7 @@ REMISS_AVAILABLE_DATASETS = os.environ.get('REMISS_AVAILABLE_DATASETS', None)
 
 
 def create_app():
+    load_figure_template('LUX')
     print(f'Connecting to MongoDB at {REMISS_MONGODB_HOST}:{REMISS_MONGODB_PORT}...')
     print(f'Using database {REMISS_MONGODB_DATABASE}...')
     if REMISS_CACHE_DIR:
@@ -53,7 +55,7 @@ def create_app():
     print(f'Plot factories created in {time.time() - start_time} seconds.')
     print('Creating app...')
     start_time = time.time()
-    app = dash.Dash(external_stylesheets=[dbc.themes.JOURNAL])
+    app = dash.Dash(external_stylesheets=[dbc.themes.LUX])
     app.layout = dashboard.layout()
     dashboard.callbacks(app)
     print(f'App created in {time.time() - start_time} seconds.')

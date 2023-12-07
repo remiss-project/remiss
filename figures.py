@@ -497,6 +497,14 @@ class EgonetPlotFactory(MongoPlotFactory):
 
         data = [edge_trace, node_trace]
         fig = go.Figure(data=data, layout=layout)
+
+        camera = dict(
+            up=dict(x=0, y=0, z=1),
+            center=dict(x=0, y=0, z=0),
+            eye=dict(x=0.7, y=0.7, z=0.7)
+        )
+
+        fig.update_layout(scene_camera=camera)
         print(f'Plot computed in {time.time() - start_time} seconds')
         return fig
 

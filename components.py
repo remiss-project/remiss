@@ -103,6 +103,16 @@ class TopTableComponent(DashComponent):
                                page_action="native",
                                page_current=0,
                                page_size=10,
+                               style_cell={
+                                   'overflow': 'hidden',
+                                   'textOverflow': 'ellipsis',
+                                   'maxWidth': 0,
+                               },
+                               style_cell_conditional=[
+                                   {'if': {'column_id': 'Text'},
+                                    'width': '60%'},
+                               ]
+
                                )
 
     @property
@@ -117,7 +127,7 @@ class TopTableComponent(DashComponent):
                 ]),
             ]),
 
-        ])
+        ], fluid=True)
 
     def update_table(self, dataset, start_date, end_date):
         df_top_table = self.plot_factory.get_top_table(dataset, start_date, end_date)
@@ -148,7 +158,7 @@ class EgonetComponent(DashComponent):
             dbc.Row([
                 dbc.Row([
                     dbc.Col([
-                        dcc.Graph(figure={}, id=f'fig-{self.name}')
+                        dcc.Graph(figure={}, id=f'fig-{self.name}', style={'height': '70vh'})
                     ])
                 ]),
                 dbc.Col([
@@ -223,18 +233,21 @@ class RemissDashboard(DashComponent):
 
         return DashWordcloud(
             list=available_hashtags_freqs,
-            width=1200, height=400,
+            width=1112, height=543,
             rotateRatio=0.5,
             shrinkToFit=True,
             weightFactor=10 / min_freq,
-            shape='circle',
             hover=True,
-            id=self.wordcloud_id, )
+            id=self.wordcloud_id,
+            style={'margin-top': '10%'},
+        )
 
     def get_dataset_dropdown_component(self):
         return dcc.Dropdown(options=[{"label": x, "value": x} for x in self.available_datasets],
                             value=self.available_datasets[0],
-                            id=self.dataset_dropdown_id)
+                            id=self.dataset_dropdown_id,
+
+                            )
 
     def get_date_picker_component(self):
         min_date_allowed, max_date_allowed, start_date, end_date = self.update_date_range(self.available_datasets[0])
@@ -251,36 +264,43 @@ class RemissDashboard(DashComponent):
 
         return dbc.Container([
             dbc.Row([
-                html.Div('Remiss', className="text-primary text-center fs-3")
+                html.Div(
+                    'REMISS – Towards a methodology to reduce misinformation spread about vulnerable and stigmatised groups',
+                    className="text-primary text-center fs-3")
             ]),
             dbc.Row([
                 dbc.Col([
+
                     self.dataset_dropdown,
                 ]),
                 dbc.Col([
                     self.date_picker,
 
                 ]),
-                dbc.Col([
-                    self.wordcloud,
-                ]),
+
             ]),
             dbc.Row([
                 dbc.Col([
                     self.egonet_component.layout(),
-                ]),
+                ],
+                    className='col-6 vertical-align-center horizontal-align-center'),
+                dbc.Col([
+                    self.wordcloud,
+                ],
+                ),
             ]),
             dbc.Row([
                 dbc.Col([
                     self.top_table_component.layout(),
-                ]),
+                ], className='col-12 vertical-align-center horizontal-align-center'),
             ]),
             dbc.Row([
                 dbc.Col([
                     self.tweet_user_ts_component.layout(),
                 ]),
             ]),
-        ])
+        ],
+            fluid=True, )
 
     def update_wordcloud(self, dataset):
         available_hashtags_freqs = self.tweet_user_plot_factory.get_hashtag_freqs(dataset)
