@@ -268,17 +268,23 @@ class RemissDashboard(DashComponent):
                     'REMISS – Towards a methodology to reduce misinformation spread about vulnerable and stigmatised groups',
                     className="text-primary text-center fs-3")
             ]),
-            dbc.Row([
+            dbc.Card([
                 dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.Div('Select dataset:', className="fs-5"),
+                            self.dataset_dropdown,
+                        ])
+                    ], className='col-4 vertical-align-center horizontal-align-center', body=True),
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.Div('Select date range:', className="fs-5"),
+                            self.date_picker,
+                        ])
 
-                    self.dataset_dropdown,
-                ]),
-                dbc.Col([
-                    self.date_picker,
-
-                ]),
-
-            ]),
+                    ], className='col-4 vertical-align-center horizontal-align-center', body=True),
+                ], className='col-12 vertical-align-center horizontal-align-center'),
+            ], body=True, className='mb-3'),
             dbc.Row([
                 dbc.Col([
                     self.egonet_component.layout(),
@@ -300,7 +306,7 @@ class RemissDashboard(DashComponent):
                 ]),
             ]),
         ],
-            fluid=True, )
+        )
 
     def update_wordcloud(self, dataset):
         available_hashtags_freqs = self.tweet_user_plot_factory.get_hashtag_freqs(dataset)
