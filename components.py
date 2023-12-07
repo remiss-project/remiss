@@ -41,16 +41,19 @@ class TweetUserTimeSeriesComponent(DashComponent):
         self.plot_factory = plot_factory
 
     def layout(self, params=None):
-        return dbc.Container([
-            dbc.Row([
-                dbc.Col([
+        return dbc.CardGroup([
+            dbc.Card([
+                dbc.CardHeader('Tweet frequency'),
+                dbc.CardBody([
                     dcc.Graph(figure={}, id=f'fig-tweet-{self.name}')
-                ]),
-                dbc.Col([
-                    dcc.Graph(figure={}, id=f'fig-users-{self.name}')
-                ]),
+                ])
             ]),
-
+            dbc.Card([
+                dbc.CardHeader('User frequency'),
+                dbc.CardBody([
+                    dcc.Graph(figure={}, id=f'fig-users-{self.name}')
+                ])
+            ]),
         ])
 
     def update_plots(self, dataset, start_date, end_date, click_data, active_cell):
@@ -233,13 +236,12 @@ class RemissDashboard(DashComponent):
 
         return DashWordcloud(
             list=available_hashtags_freqs,
-            width=1112, height=543,
+            width=800, height=400,
             rotateRatio=0.5,
             shrinkToFit=True,
             weightFactor=10 / min_freq,
             hover=True,
             id=self.wordcloud_id,
-            style={'margin-top': '10%'},
         )
 
     def get_dataset_dropdown_component(self):
@@ -263,50 +265,54 @@ class RemissDashboard(DashComponent):
     def layout(self, params=None):
 
         return dbc.Container([
-            dbc.Row([
-                html.Div(
-                    'REMISS – Towards a methodology to reduce misinformation spread about vulnerable and stigmatised groups',
-                    className="text-primary text-center fs-3")
-            ]),
-            dbc.Card([
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardBody([
-                            html.Div('Select dataset:', className="fs-5"),
-                            self.dataset_dropdown,
-                        ])
-                    ], className='col-4 vertical-align-center horizontal-align-center', body=True),
-                    dbc.Card([
-                        dbc.CardBody([
-                            html.Div('Select date range:', className="fs-5"),
-                            self.date_picker,
-                        ])
+            dbc.NavbarSimple(
+                brand="REMISS – Towards a methodology to reduce misinformation spread about vulnerable and stigmatised groups",
+                brand_href="#",
+                sticky="top",
+                style={'font-size': '1.5rem', 'font-weight': 'bold', 'margin-bottom': '1rem'},
+                fluid=True,
 
-                    ], className='col-4 vertical-align-center horizontal-align-center', body=True),
-                ], className='col-12 vertical-align-center horizontal-align-center'),
-            ], body=True, className='mb-3'),
+            ),
+            dbc.Row([
+                dbc.Col([
+                    dbc.ListGroup([
+                        dbc.ListGroupItem([
+                            dbc.ListGroup([
+                                dbc.ListGroupItem([
+                                    html.Div('Dataset', className='col-3'),
+                                    html.Div(self.dataset_dropdown, className='col-6'),
+                                ]),
+                                dbc.ListGroupItem([
+                                    html.Div('Date range', className='col-6'),
+                                    html.Div(self.date_picker),
+                                ]),
+                            ], flush=True),
+                        ]),
+                        dbc.ListGroupItem([
+                            html.Div('Hashtags', className='col-3'),
+                            html.Div(self.wordcloud, className='col-6'),
+                        ]),
+                    ], horizontal=True),
+                ], width=6),
+            ], justify='center', style={'margin-bottom': '1rem'}),
+
             dbc.Row([
                 dbc.Col([
                     self.egonet_component.layout(),
-                ],
-                    className='col-6 vertical-align-center horizontal-align-center'),
-                dbc.Col([
-                    self.wordcloud,
-                ],
-                ),
-            ]),
+                ], width=6),
+            ], justify='center', style={'margin-bottom': '1rem'}),
             dbc.Row([
                 dbc.Col([
                     self.top_table_component.layout(),
-                ], className='col-12 vertical-align-center horizontal-align-center'),
-            ]),
+                ], width=6),
+            ], justify='center', style={'margin-bottom': '1rem'}),
             dbc.Row([
                 dbc.Col([
                     self.tweet_user_ts_component.layout(),
-                ]),
-            ]),
-        ],
-        )
+                ], width=6),
+            ], justify='center', style={'margin-bottom': '1rem'}),
+
+        ], fluid=True)
 
     def update_wordcloud(self, dataset):
         available_hashtags_freqs = self.tweet_user_plot_factory.get_hashtag_freqs(dataset)
