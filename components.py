@@ -161,7 +161,7 @@ class EgonetComponent(DashComponent):
             dbc.Row([
                 dbc.Row([
                     dbc.Col([
-                        dcc.Graph(figure={}, id=f'fig-{self.name}', style={'height': '70vh'})
+                        dcc.Graph(figure={}, id=f'fig-{self.name}', style={'height': '50vh'})
                     ])
                 ]),
                 dbc.Col([
