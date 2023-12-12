@@ -552,7 +552,7 @@ class TopTableFactory(MongoPlotFactory):
         df = self._perform_top_aggregation(pipeline, collection)[self.user_table_columns]
         return df
 
-    def get_top_table(self, collection, start_time=None, end_time=None):
+    def get_top_table_data(self, collection, start_time=None, end_time=None):
         pipeline = [
             {'$group': {'_id': '$text', 'User': {'$first': '$author.username'},
                         'tweet_id': {'$first': '$id'},

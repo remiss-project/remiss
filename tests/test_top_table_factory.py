@@ -38,7 +38,7 @@ class TestTopTableFactory(TestCase):
 
     def test_get_top_table(self):
         test_collection = 'test_collection'
-        actual = self.top_table_factory.get_top_table(test_collection)
+        actual = self.top_table_factory.get_top_table_data(test_collection)
         self.assertEqual(actual.to_dict(), {'Is usual suspect': {0: False, 1: False, 2: True},
                                             'Party': {0: 'PSOE', 1: None, 2: 'VOX'},
                                             'Retweets': {0: 1, 1: 2, 2: 3},

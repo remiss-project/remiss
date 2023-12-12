@@ -28,71 +28,63 @@ class DashComponent(ABC):
         raise NotImplementedError()
 
     def callbacks(self, app):
-        raise NotImplementedError()
+        pass
 
 
 class TweetUserTimeSeriesComponent(DashComponent):
-    def __init__(self, plot_factory, dataset_dropdown, date_picker, wordcloud, top_table, name=None):
+    def __init__(self, plot_factory, current_dataset, current_hashtags, current_start_date, current_end_date,
+                 name=None):
         super().__init__(name=name)
-        self.top_table = top_table
-        self.wordcloud = wordcloud
-        self.date_picker = date_picker
-        self.dataset_dropdown = dataset_dropdown
         self.plot_factory = plot_factory
+        self.graph_tweet = dcc.Graph(figure={}, id=f'fig-tweet-{self.name}')
+        self.graph_users = dcc.Graph(figure={}, id=f'fig-users-{self.name}')
+        self.current_dataset = current_dataset
+        self.current_hashtags = current_hashtags
+        self.current_start_date = current_start_date
+        self.current_end_date = current_end_date
 
     def layout(self, params=None):
         return dbc.CardGroup([
             dbc.Card([
                 dbc.CardHeader('Tweet frequency'),
                 dbc.CardBody([
-                    dcc.Graph(figure={}, id=f'fig-tweet-{self.name}')
+                    self.graph_tweet
                 ])
             ]),
             dbc.Card([
                 dbc.CardHeader('User frequency'),
                 dbc.CardBody([
-                    dcc.Graph(figure={}, id=f'fig-users-{self.name}')
+                    self.graph_users
                 ])
             ]),
         ])
 
-    def update_plots(self, dataset, start_date, end_date, click_data, active_cell):
-        if callback_context.triggered_id == self.wordcloud and click_data and len(click_data) == 1:
-            hashtag = click_data[0][0]
-        elif callback_context.triggered_id == self.top_table.id and active_cell:
-            hashtag = self.extract_hashtag_from_top_table(active_cell)
-        else:
-            hashtag = None
-
-        fig_tweet = self.plot_factory.plot_tweet_series(dataset, hashtag, start_date, end_date)
-        fig_users = self.plot_factory.plot_user_series(dataset, hashtag, start_date, end_date)
-        return fig_tweet, fig_users
+    def update(self, dataset, hashtags, start_date, end_date):
+        return self.plot_factory.plot_tweet_series(dataset, hashtags, start_date, end_date), \
+            self.plot_factory.plot_user_series(dataset, hashtags, start_date, end_date)
 
     def callbacks(self, app):
         app.callback(
-            Output(f'fig-tweet-{self.name}', 'figure'),
-            Output(f'fig-users-{self.name}', 'figure'),
-            Input(self.dataset_dropdown.id, 'value'),
-            Input(self.date_picker.id, 'start_date'),
-            Input(self.date_picker.id, 'end_date'),
-            Input(self.wordcloud.id, 'list'),
-            Input(self.top_table.id, 'active_cell'),
-        )(self.update_plots)
-
-    def extract_hashtag_from_top_table(self, active_cell):
-        text = self.top_table.data['Text'].iloc[active_cell['row']]
-        hashtags = [x[1:] for x in text.split() if x.startswith('#')]
-        return hashtags if hashtags else None
+            Output(self.graph_tweet, 'figure'),
+            Output(self.graph_users, 'figure'),
+            [Input(self.current_dataset, 'data'),
+             Input(self.current_hashtags, 'data'),
+             Input(self.current_start_date, 'data'),
+             Input(self.current_end_date, 'data')],
+        )(self.update)
 
 
 class TopTableComponent(DashComponent):
-    def __init__(self, plot_factory, dataset_dropdown, date_picker, name=None):
+    def __init__(self, plot_factory, current_dataset, current_hashtags, current_start_date, current_end_date,
+                 name=None):
         super().__init__(name=name)
-        self.dataset_dropdown = dataset_dropdown
-        self.date_picker = date_picker
         self.plot_factory = plot_factory
         self.data = None
-        self.table = DataTable(data=[], id=self.id,
+        self.current_dataset = current_dataset
+        self.current_hashtags = current_hashtags
+        self.current_start_date = current_start_date
+        self.current_end_date = current_end_date
+        self.table = DataTable(data=[], id=f'table-{self.name}',
                                columns=[{"name": i, "id": i} for i in self.plot_factory.top_table_columns],
                                editable=False,
                                filter_action="native",
@@ -118,10 +110,6 @@ class TopTableComponent(DashComponent):
 
                                )
 
-    @property
-    def id(self):
-        return f'table-{self.name}'
-
     def layout(self, params=None):
         return dbc.Container([
             dbc.Row([
@@ -132,60 +120,58 @@ class TopTableComponent(DashComponent):
 
         ], fluid=True)
 
-    def update_table(self, dataset, start_date, end_date):
-        df_top_table = self.plot_factory.get_top_table(dataset, start_date, end_date)
-        self.data = df_top_table
-        return df_top_table.to_dict('records')
+    def update(self, dataset, start_date, end_date):
+        self.data = self.plot_factory.get_top_table_data(dataset, start_date, end_date)
+        return self.data.to_dict('records')
 
     def callbacks(self, app):
         app.callback(
-            Output(self.id, 'data'),
-            Input(self.dataset_dropdown, 'value'),
-            Input(self.date_picker, 'start_date'),
-            Input(self.date_picker, 'end_date'),
-        )(self.update_table)
+            Output(self.table, 'data'),
+            [Input(self.current_dataset, 'data'),
+             Input(self.current_start_date, 'data'),
+             Input(self.current_end_date, 'data')],
+        )(self.update)
 
 
 class EgonetComponent(DashComponent):
-    def __init__(self, plot_factory, dataset_dropdown, top_table, name=None):
+    def __init__(self, plot_factory, current_dataset, current_user, name=None):
         super().__init__(name=name)
         self.plot_factory = plot_factory
+        self.current_dataset = current_dataset
+        self.current_user = current_user
         self.available_datasets = plot_factory.available_datasets
-        self.current_dataset = self.available_datasets[0]
-        self.dataset_dropdown = dataset_dropdown
-        self.top_table = top_table
+        self.graph_egonet = dcc.Graph(figure={}, id=f'fig-{self.name}', style={'height': '50vh'})
+        available_users = self.plot_factory.get_users(self.available_datasets[0])
+        self.user_dropdown = dcc.Dropdown(options=[{"label": x, "value": x} for x in available_users],
+                                          # value=available_users[0],
+                                          id=f'user-dropdown-{self.name}')
+        self.depth_slider = dcc.Slider(min=1, max=5, step=1, value=2, id=f'slider-{self.name}')
 
     def layout(self, params=None):
-        available_users = self.plot_factory.get_users(self.current_dataset)
         return dbc.Container([
             dbc.Row([
                 dbc.Row([
                     dbc.Col([
-                        dcc.Graph(figure={}, id=f'fig-{self.name}', style={'height': '50vh'})
+                        self.graph_egonet
                     ])
                 ]),
                 dbc.Col([
-                    dcc.Dropdown(options=[{"label": x, "value": x} for x in available_users],
-                                 # value=available_users[0],
-                                 id=f'user-dropdown-{self.name}'),
-                    dcc.Slider(min=1, max=5, step=1, value=2, id=f'slider-{self.name}'),
+                    self.user_dropdown,
+                    self.depth_slider
                 ]),
             ]),
         ])
 
-    def update_egonet(self, dataset, user, active_cell, depth):
-        if callback_context.triggered_id == self.top_table.id and active_cell:
-            user = self.top_table.data['User'].iloc[active_cell['row']]
+    def update(self, dataset, user, depth):
         return self.plot_factory.plot_egonet(dataset, user, depth)
 
     def callbacks(self, app):
         app.callback(
-            Output(f'fig-{self.name}', 'figure'),
-            Input(self.dataset_dropdown.id, 'value'),
-            Input(f'user-dropdown-{self.name}', 'value'),
-            Input(self.top_table.id, 'active_cell'),
-            Input(f'slider-{self.name}', 'value'),
-        )(self.update_egonet)
+            Output(self.graph_egonet, 'figure'),
+            [Input(self.current_dataset, 'data'),
+             Input(self.current_user, 'data'),
+             Input(self.depth_slider, 'value')],
+        )(self.update)
 
 
 class RemissDashboard(DashComponent):
@@ -201,31 +187,29 @@ class RemissDashboard(DashComponent):
         self.date_picker = self.get_date_picker_component()
         self.wordcloud = self.get_wordcloud_component()
         self.dataset_dropdown = self.get_dataset_dropdown_component()
+        self.current_dataset = dcc.Store(id=f'current-dataset-{self.name}')
+        self.current_hashtags = dcc.Store(id=f'current-hashtags-{self.name}')
+        self.current_start_date = dcc.Store(id=f'current-start-date-{self.name}')
+        self.current_end_date = dcc.Store(id=f'current-end-date-{self.name}')
+        self.current_user = dcc.Store(id=f'current-user-{self.name}')
 
-        self.top_table_component = TopTableComponent(top_table_factory, dataset_dropdown=self.dataset_dropdown,
-                                                     date_picker=self.date_picker, name='top')
+        self.top_table_component = TopTableComponent(top_table_factory,
+                                                     current_dataset=self.current_dataset,
+                                                     current_hashtags=self.current_hashtags,
+                                                     current_start_date=self.current_start_date,
+                                                     current_end_date=self.current_end_date,
+                                                     name='top')
         self.tweet_user_ts_component = TweetUserTimeSeriesComponent(tweet_user_plot_factory,
-                                                                    dataset_dropdown=self.dataset_dropdown,
-                                                                    date_picker=self.date_picker,
-                                                                    wordcloud=self.wordcloud,
-                                                                    top_table=self.top_table_component,
+                                                                    current_dataset=self.current_dataset,
+                                                                    current_hashtags=self.current_hashtags,
+                                                                    current_start_date=self.current_start_date,
+                                                                    current_end_date=self.current_end_date,
                                                                     name='ts')
 
-        self.egonet_component = EgonetComponent(egonet_plot_factory, dataset_dropdown=self.dataset_dropdown,
-                                                top_table=self.top_table_component,
+        self.egonet_component = EgonetComponent(egonet_plot_factory,
+                                                current_dataset=self.current_dataset,
+                                                current_user=self.current_user,
                                                 name='egonet')
-
-    @property
-    def dataset_dropdown_id(self):
-        return f'dataset-dropdown-{self.name}'
-
-    @property
-    def date_picker_id(self):
-        return f'date-picker-{self.name}'
-
-    @property
-    def wordcloud_id(self):
-        return f'wordcloud-{self.name}'
 
     def get_wordcloud_component(self):
         available_hashtags_freqs = self.tweet_user_plot_factory.get_hashtag_freqs(self.available_datasets[0])
@@ -241,20 +225,21 @@ class RemissDashboard(DashComponent):
             shrinkToFit=True,
             weightFactor=10 / min_freq,
             hover=True,
-            id=self.wordcloud_id,
+            id=f'wordcloud-{self.name}'
+            ,
         )
 
     def get_dataset_dropdown_component(self):
         return dcc.Dropdown(options=[{"label": x, "value": x} for x in self.available_datasets],
                             value=self.available_datasets[0],
-                            id=self.dataset_dropdown_id,
+                            id=f'dataset-dropdown-{self.name}',
 
                             )
 
     def get_date_picker_component(self):
         min_date_allowed, max_date_allowed, start_date, end_date = self.update_date_range(self.available_datasets[0])
         return dcc.DatePickerRange(
-            id=self.date_picker_id,
+            id=f'date-picker-{self.name}',
             min_date_allowed=min_date_allowed,
             max_date_allowed=max_date_allowed,
             initial_visible_month=min_date_allowed,
@@ -265,6 +250,11 @@ class RemissDashboard(DashComponent):
     def layout(self, params=None):
 
         return dbc.Container([
+            self.current_dataset,
+            self.current_hashtags,
+            self.current_start_date,
+            self.current_end_date,
+            self.current_user,
             dbc.NavbarSimple(
                 brand="REMISS – Towards a methodology to reduce misinformation spread about vulnerable and stigmatised groups",
                 brand_href="#",
@@ -273,6 +263,7 @@ class RemissDashboard(DashComponent):
                 fluid=True,
 
             ),
+            html.Div([], style={'margin-bottom': '1rem'}, id=f'placeholder-{self.name}'),
             dbc.Row([
                 dbc.Col([
                     dbc.ListGroup([
@@ -327,19 +318,75 @@ class RemissDashboard(DashComponent):
         min_date_allowed, max_date_allowed = self.tweet_user_plot_factory.get_date_range(dataset)
         return min_date_allowed, max_date_allowed, min_date_allowed, max_date_allowed
 
+    def update_dataset_storage(self, dropdown_dataset):
+        return dropdown_dataset
+
+    def update_hashtag_storage(self, click_data, active_cell):
+        if callback_context.triggered_id == self.wordcloud and click_data and len(click_data) == 1:
+            hashtags = [click_data[0][0]]
+        elif callback_context.triggered_id == self.top_table_component.table.id and active_cell:
+            hashtags = self.extract_hashtag_from_top_table(active_cell)
+        else:
+            hashtags = None
+        return hashtags
+
+    def extract_hashtag_from_top_table(self, active_cell):
+        text = self.top_table_component.table.data['Text'].iloc[active_cell['row']]
+        hashtags = [x[1:] for x in text.split() if x.startswith('#')]
+        return hashtags if hashtags else None
+
+    def update_start_date_storage(self, start_date):
+        return start_date
+
+    def update_end_date_storage(self, end_date):
+        return end_date
+
+    def update_placeholder(self, dataset, hashtags, start_date, end_date):
+
+        return html.H1(f'Hashtag: {hashtags}, Dataset: {dataset}, Start date: {start_date}, End date: {end_date}')
+
     def callbacks(self, app):
         app.callback(
-            Output(self.wordcloud.id, 'list'),
-            Output(self.wordcloud.id, 'weightFactor'),
-            Input(self.dataset_dropdown.id, 'value'),
-        )(self.update_wordcloud)
-        app.callback(
-            Output(self.date_picker.id, 'min_date_allowed'),
-            Output(self.date_picker.id, 'max_date_allowed'),
-            Output(self.date_picker.id, 'start_date'),
-            Output(self.date_picker.id, 'end_date'),
-            Input(self.dataset_dropdown.id, 'value'),
+            Output(self.current_dataset, 'data'),
+            [Input(self.dataset_dropdown, 'value')],
+        )(self.update_dataset_storage)
 
+        app.callback(
+            Output(self.current_hashtags, 'data'),
+            [Input(self.wordcloud, 'click'),
+             Input(self.top_table_component.table, 'active_cell')],
+        )(self.update_hashtag_storage)
+
+        app.callback(
+            Output(self.current_start_date, 'data'),
+            [Input(self.date_picker, 'start_date')],
+        )(self.update_start_date_storage)
+
+        app.callback(
+            Output(self.current_end_date, 'data'),
+            [Input(self.date_picker, 'end_date')],
+        )(self.update_end_date_storage)
+
+        app.callback(
+            Output(f'placeholder-{self.name}', 'children'),
+            [Input(self.current_dataset, 'data'),
+             Input(self.current_hashtags, 'data'),
+             Input(self.current_start_date, 'data'),
+             Input(self.current_end_date, 'data')],
+        )(self.update_placeholder)
+
+        app.callback(
+            [Output(self.wordcloud, 'list'),
+            Output(self.wordcloud, 'weightFactor')],
+            [Input(self.current_dataset, 'data')],
+        )(self.update_wordcloud)
+
+        app.callback(
+            Output(self.date_picker, 'min_date_allowed'),
+            Output(self.date_picker, 'max_date_allowed'),
+            Output(self.date_picker, 'start_date'),
+            Output(self.date_picker, 'end_date'),
+            [Input(self.current_dataset, 'data')],
         )(self.update_date_range)
         self.tweet_user_ts_component.callbacks(app)
         self.top_table_component.callbacks(app)

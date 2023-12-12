@@ -269,7 +269,7 @@ class EgonetComponentTest(TestCase):
 
         def run_callback():
             context_value.set(AttributeDict(**{"triggered_id": "top-table"}))
-            actual = self.component.update_egonet('dataset2', 'user2', None, 3)
+            actual = self.component.update_user_dropdown('dataset2', 'user2', None, 3)
             return actual
 
         ctx = copy_context()
@@ -370,6 +370,21 @@ class RemissDashboardTest(TestCase):
         self.assertIn('user-dropdown', component_ids)
         self.assertIn('slider', component_ids)
         self.assertIn('fig', component_ids)
+
+    def test_dataset_storage(self):
+        def run_callback():
+            context_value.set(AttributeDict(**{"triggered_id": "dataset-dropdown"}))
+            actual = self.component.update_dataset_storage('dataset2')
+            return actual
+
+        ctx = copy_context()
+        actual = ctx.run(run_callback)
+        self.assertEqual(self.component.current_dataset['dataset'], 'dataset2')
+    def test_on_dataset_change_top_table(self):
+        pass
+
+    def test_on_dataset_change_egonet_plot(self):
+        pass
 
 
 if __name__ == '__main__':
