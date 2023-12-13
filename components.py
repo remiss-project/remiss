@@ -269,25 +269,36 @@ class ControlPanelComponent(DashComponent):
     def layout(self, params=None):
         return dbc.Row([
             dbc.Col([
-                dbc.ListGroup([
-                    dbc.ListGroupItem([
-                        dbc.ListGroup([
-                            dbc.ListGroupItem([
-                                html.Div('Dataset'),
-                                self.dataset_dropdown,
-                            ]),
-                            dbc.ListGroupItem([
-                                html.Div('Date range'),
-                                self.date_picker,
-                            ]),
-                        ], flush=True),
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Card([
+                            dbc.CardHeader('Dataset'),
+                            dbc.CardBody([
+                                self.dataset_dropdown
+                            ])
+                        ], style={'margin-bottom': '1rem'}),
                     ]),
-                    dbc.ListGroupItem([
-                        html.Div('Hashtags'),
-                        self.wordcloud,
+                ]),
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Card([
+                            dbc.CardHeader('Date range'),
+                            dbc.CardBody([
+                                self.date_picker
+                            ])
+                        ]),
                     ]),
-                ], horizontal=True),
+                ]),
+            ], width=4),
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader('Hashtag frequency'),
+                    dbc.CardBody([
+                        self.wordcloud
+                    ], style={'width': f'{self.wordcloud_width + 20}px !important'})
+                ]),
             ], width=8),
+
         ], justify='center')
 
     def callbacks(self, app):
