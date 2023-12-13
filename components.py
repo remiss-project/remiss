@@ -44,20 +44,24 @@ class TweetUserTimeSeriesComponent(DashComponent):
         self.current_end_date = current_end_date
 
     def layout(self, params=None):
-        return dbc.CardGroup([
-            dbc.Card([
-                dbc.CardHeader('Tweet frequency'),
-                dbc.CardBody([
-                    self.graph_tweet
+        return dbc.Row([
+            dbc.Col([
+                dbc.CardGroup([
+                    dbc.Card([
+                        dbc.CardHeader('Tweet frequency'),
+                        dbc.CardBody([
+                            self.graph_tweet
+                        ])
+                    ]),
+                    dbc.Card([
+                        dbc.CardHeader('User frequency'),
+                        dbc.CardBody([
+                            self.graph_users
+                        ])
+                    ]),
                 ])
-            ]),
-            dbc.Card([
-                dbc.CardHeader('User frequency'),
-                dbc.CardBody([
-                    self.graph_users
-                ])
-            ]),
-        ])
+            ], width=12),
+        ], justify='center', style={'margin-bottom': '1rem'})
 
     def update(self, dataset, hashtags, start_date, end_date):
         return self.plot_factory.plot_tweet_series(dataset, hashtags, start_date, end_date), \
@@ -111,18 +115,27 @@ class TopTableComponent(DashComponent):
                                )
 
     def layout(self, params=None):
-        return dbc.Container([
-            dbc.Row([
-                dbc.Col([
-                    self.table
-                ]),
-            ]),
-
-        ], fluid=True)
+        return dbc.Row([
+            dbc.Col([
+                self.table
+            ], width=12),
+        ], justify='center', style={'margin-bottom': '1rem'})
 
     def update(self, dataset, start_date, end_date):
         self.data = self.plot_factory.get_top_table_data(dataset, start_date, end_date)
         return self.data.to_dict('records')
+
+    def update_hashtags(self, active_cell):
+        if active_cell:
+            hashtags = self.extract_hashtag_from_top_table(active_cell)
+            if hashtags:
+                return hashtags
+        return None
+
+    def extract_hashtag_from_top_table(self, active_cell):
+        text = self.data['Text'].iloc[active_cell['row']]
+        hashtags = [x[1:] for x in text.split() if x.startswith('#')]
+        return hashtags if hashtags else None
 
     def callbacks(self, app):
         app.callback(
@@ -131,6 +144,10 @@ class TopTableComponent(DashComponent):
              Input(self.current_start_date, 'data'),
              Input(self.current_end_date, 'data')],
         )(self.update)
+        app.callback(
+            Output(self.current_hashtags, 'data', allow_duplicate=True),
+            [Input(self.table, 'active_cell')],
+        )(self.update_hashtags)
 
 
 class EgonetComponent(DashComponent):
@@ -140,7 +157,7 @@ class EgonetComponent(DashComponent):
         self.current_dataset = current_dataset
         self.current_user = current_user
         self.available_datasets = plot_factory.available_datasets
-        self.graph_egonet = dcc.Graph(figure={}, id=f'fig-{self.name}', style={'height': '50vh'})
+        self.graph_egonet = dcc.Graph(figure={}, id=f'fig-{self.name}', style={'height': '70vh'})
         available_users = self.plot_factory.get_users(self.available_datasets[0])
         self.user_dropdown = dcc.Dropdown(options=[{"label": x, "value": x} for x in available_users],
                                           # value=available_users[0],
@@ -148,19 +165,19 @@ class EgonetComponent(DashComponent):
         self.depth_slider = dcc.Slider(min=1, max=5, step=1, value=2, id=f'slider-{self.name}')
 
     def layout(self, params=None):
-        return dbc.Container([
+        return dbc.Row([dbc.Col([
             dbc.Row([
-                dbc.Row([
-                    dbc.Col([
-                        self.graph_egonet
-                    ])
-                ]),
+                dbc.Col([
+                    self.graph_egonet
+                ])
+            ]),
+            dbc.Row([
                 dbc.Col([
                     self.user_dropdown,
                     self.depth_slider
                 ]),
-            ]),
-        ])
+            ])],
+            width=10)], justify='center', style={'margin-bottom': '1rem'})
 
     def update(self, dataset, user, depth):
         return self.plot_factory.plot_egonet(dataset, user, depth)
@@ -174,6 +191,136 @@ class EgonetComponent(DashComponent):
         )(self.update)
 
 
+class ControlPanelComponent(DashComponent):
+    def __init__(self, plot_factory, current_dataset, current_hashtags, current_start_date, current_end_date, name=None,
+                 max_wordcloud_words=100, wordcloud_width=800, wordcloud_height=400):
+        super().__init__(name)
+        self.wordcloud_height = wordcloud_height
+        self.wordcloud_width = wordcloud_width
+        self.plot_factory = plot_factory
+        self.available_datasets = plot_factory.available_datasets
+        self.max_wordcloud_words = max_wordcloud_words
+        self.current_dataset = current_dataset
+        self.current_hashtags = current_hashtags
+        self.current_start_date = current_start_date
+        self.current_end_date = current_end_date
+        self.date_picker = self.get_date_picker_component()
+        self.wordcloud = self.get_wordcloud_component()
+        self.dataset_dropdown = self.get_dataset_dropdown_component()
+
+    def get_wordcloud_component(self):
+        available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(self.available_datasets[0])
+        if self.max_wordcloud_words:
+            print(f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
+            available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
+        min_freq = min([x[1] for x in available_hashtags_freqs])
+
+        return DashWordcloud(
+            list=available_hashtags_freqs,
+            width=self.wordcloud_width, height=self.wordcloud_height,
+            rotateRatio=0.5,
+            shrinkToFit=True,
+            weightFactor=10 / min_freq,
+            hover=True,
+            id=f'wordcloud-{self.name}'
+            ,
+        )
+
+    def get_dataset_dropdown_component(self):
+        return dcc.Dropdown(options=[{"label": x, "value": x} for x in self.available_datasets],
+                            value=self.available_datasets[0],
+                            id=f'dataset-dropdown-{self.name}')
+
+    def get_date_picker_component(self):
+        min_date_allowed, max_date_allowed, start_date, end_date = self.update_date_range(self.available_datasets[0])
+        return dcc.DatePickerRange(
+            id=f'date-picker-{self.name}',
+            min_date_allowed=min_date_allowed,
+            max_date_allowed=max_date_allowed,
+            initial_visible_month=min_date_allowed,
+            start_date=min_date_allowed,
+            end_date=max_date_allowed)
+
+    def update_wordcloud(self, dataset):
+        available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(dataset)
+        if self.max_wordcloud_words:
+            print(f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
+            available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
+        min_freq = min([x[1] for x in available_hashtags_freqs])
+
+        return available_hashtags_freqs, 10 / min_freq
+
+    def update_date_range(self, dataset):
+        min_date_allowed, max_date_allowed = self.plot_factory.get_date_range(dataset)
+        return min_date_allowed, max_date_allowed, min_date_allowed, max_date_allowed
+
+    def update_dataset_storage(self, dropdown_dataset):
+        return dropdown_dataset
+
+    def update_hashtag_storage(self, click_data):
+        return [click_data[0][0]] if click_data and len(click_data) == 1 else None
+
+    def update_start_date_storage(self, start_date):
+        return start_date
+
+    def update_end_date_storage(self, end_date):
+        return end_date
+
+    def layout(self, params=None):
+        return dbc.Row([
+            dbc.Col([
+                dbc.ListGroup([
+                    dbc.ListGroupItem([
+                        dbc.ListGroup([
+                            dbc.ListGroupItem([
+                                html.Div('Dataset'),
+                                self.dataset_dropdown,
+                            ]),
+                            dbc.ListGroupItem([
+                                html.Div('Date range'),
+                                self.date_picker,
+                            ]),
+                        ], flush=True),
+                    ]),
+                    dbc.ListGroupItem([
+                        html.Div('Hashtags'),
+                        self.wordcloud,
+                    ]),
+                ], horizontal=True),
+            ], width=8),
+        ], justify='center')
+
+    def callbacks(self, app):
+
+        app.callback(
+            Output(self.date_picker, 'min_date_allowed'),
+            Output(self.date_picker, 'max_date_allowed'),
+            Output(self.date_picker, 'start_date'),
+            Output(self.date_picker, 'end_date'),
+            [Input(self.current_dataset, 'data')],
+        )(self.update_date_range)
+
+        app.callback(
+            Output(self.current_dataset, 'data'),
+            [Input(self.dataset_dropdown, 'value')],
+        )(self.update_dataset_storage)
+
+        app.callback(
+            Output(self.current_hashtags, 'data'),
+            Input(self.wordcloud, 'click'),
+        )(self.update_hashtag_storage)
+
+        app.callback(
+            Output(self.current_start_date, 'data'),
+            [Input(self.date_picker, 'start_date')],
+        )(self.update_start_date_storage)
+
+        app.callback(
+            Output(self.current_end_date, 'data'),
+            [Input(self.date_picker, 'end_date')],
+        )(self.update_end_date_storage)
+
+
 class RemissDashboard(DashComponent):
     def __init__(self, tweet_user_plot_factory, top_table_factory, egonet_plot_factory, name=None,
                  max_wordcloud_words=100):
@@ -184,9 +331,7 @@ class RemissDashboard(DashComponent):
         self.egonet_plot_factory = egonet_plot_factory
         self.top_table_factory = top_table_factory
         self.available_datasets = tweet_user_plot_factory.available_datasets
-        self.date_picker = self.get_date_picker_component()
-        self.wordcloud = self.get_wordcloud_component()
-        self.dataset_dropdown = self.get_dataset_dropdown_component()
+
         self.current_dataset = dcc.Store(id=f'current-dataset-{self.name}')
         self.current_hashtags = dcc.Store(id=f'current-hashtags-{self.name}')
         self.current_start_date = dcc.Store(id=f'current-start-date-{self.name}')
@@ -211,44 +356,15 @@ class RemissDashboard(DashComponent):
                                                 current_user=self.current_user,
                                                 name='egonet')
 
-    def get_wordcloud_component(self):
-        available_hashtags_freqs = self.tweet_user_plot_factory.get_hashtag_freqs(self.available_datasets[0])
-        if self.max_wordcloud_words:
-            print(f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
-            available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
-        min_freq = min([x[1] for x in available_hashtags_freqs])
-
-        return DashWordcloud(
-            list=available_hashtags_freqs,
-            width=800, height=400,
-            rotateRatio=0.5,
-            shrinkToFit=True,
-            weightFactor=10 / min_freq,
-            hover=True,
-            id=f'wordcloud-{self.name}'
-            ,
-        )
-
-    def get_dataset_dropdown_component(self):
-        return dcc.Dropdown(options=[{"label": x, "value": x} for x in self.available_datasets],
-                            value=self.available_datasets[0],
-                            id=f'dataset-dropdown-{self.name}',
-
-                            )
-
-    def get_date_picker_component(self):
-        min_date_allowed, max_date_allowed, start_date, end_date = self.update_date_range(self.available_datasets[0])
-        return dcc.DatePickerRange(
-            id=f'date-picker-{self.name}',
-            min_date_allowed=min_date_allowed,
-            max_date_allowed=max_date_allowed,
-            initial_visible_month=min_date_allowed,
-            start_date=min_date_allowed,
-            end_date=max_date_allowed,
-        )
+        self.control_panel_component = ControlPanelComponent(tweet_user_plot_factory,
+                                                             current_dataset=self.current_dataset,
+                                                             current_hashtags=self.current_hashtags,
+                                                             current_start_date=self.current_start_date,
+                                                             current_end_date=self.current_end_date,
+                                                             name='control',
+                                                             max_wordcloud_words=self.max_wordcloud_words)
 
     def layout(self, params=None):
-
         return dbc.Container([
             self.current_dataset,
             self.current_hashtags,
@@ -264,109 +380,16 @@ class RemissDashboard(DashComponent):
 
             ),
             html.Div([], style={'margin-bottom': '1rem'}, id=f'placeholder-{self.name}'),
-            dbc.Row([
-                dbc.Col([
-                    dbc.ListGroup([
-                        dbc.ListGroupItem([
-                            dbc.ListGroup([
-                                dbc.ListGroupItem([
-                                    html.Div('Dataset', className='col-3'),
-                                    html.Div(self.dataset_dropdown, className='col-6'),
-                                ]),
-                                dbc.ListGroupItem([
-                                    html.Div('Date range', className='col-6'),
-                                    html.Div(self.date_picker),
-                                ]),
-                            ], flush=True),
-                        ]),
-                        dbc.ListGroupItem([
-                            html.Div('Hashtags', className='col-3'),
-                            html.Div(self.wordcloud, className='col-6'),
-                        ]),
-                    ], horizontal=True),
-                ], width=6),
-            ], justify='center', style={'margin-bottom': '1rem'}),
-
-            dbc.Row([
-                dbc.Col([
-                    self.egonet_component.layout(),
-                ], width=6),
-            ], justify='center', style={'margin-bottom': '1rem'}),
-            dbc.Row([
-                dbc.Col([
-                    self.top_table_component.layout(),
-                ], width=6),
-            ], justify='center', style={'margin-bottom': '1rem'}),
-            dbc.Row([
-                dbc.Col([
-                    self.tweet_user_ts_component.layout(),
-                ], width=6),
-            ], justify='center', style={'margin-bottom': '1rem'}),
-
+            self.control_panel_component.layout(),
+            self.egonet_component.layout(),
+            self.top_table_component.layout(),
+            self.tweet_user_ts_component.layout(),
         ], fluid=True)
 
-    def update_wordcloud(self, dataset):
-        available_hashtags_freqs = self.tweet_user_plot_factory.get_hashtag_freqs(dataset)
-        if self.max_wordcloud_words:
-            print(f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
-            available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
-        min_freq = min([x[1] for x in available_hashtags_freqs])
-
-        return available_hashtags_freqs, 10 / min_freq
-
-    def update_date_range(self, dataset):
-        min_date_allowed, max_date_allowed = self.tweet_user_plot_factory.get_date_range(dataset)
-        return min_date_allowed, max_date_allowed, min_date_allowed, max_date_allowed
-
-    def update_dataset_storage(self, dropdown_dataset):
-        return dropdown_dataset
-
-    def update_hashtag_storage(self, click_data, active_cell):
-        if callback_context.triggered_id == self.wordcloud and click_data and len(click_data) == 1:
-            hashtags = [click_data[0][0]]
-        elif callback_context.triggered_id == self.top_table_component.table.id and active_cell:
-            hashtags = self.extract_hashtag_from_top_table(active_cell)
-        else:
-            hashtags = None
-        return hashtags
-
-    def extract_hashtag_from_top_table(self, active_cell):
-        text = self.top_table_component.table.data['Text'].iloc[active_cell['row']]
-        hashtags = [x[1:] for x in text.split() if x.startswith('#')]
-        return hashtags if hashtags else None
-
-    def update_start_date_storage(self, start_date):
-        return start_date
-
-    def update_end_date_storage(self, end_date):
-        return end_date
-
     def update_placeholder(self, dataset, hashtags, start_date, end_date):
-
         return html.H1(f'Hashtag: {hashtags}, Dataset: {dataset}, Start date: {start_date}, End date: {end_date}')
 
     def callbacks(self, app):
-        app.callback(
-            Output(self.current_dataset, 'data'),
-            [Input(self.dataset_dropdown, 'value')],
-        )(self.update_dataset_storage)
-
-        app.callback(
-            Output(self.current_hashtags, 'data'),
-            [Input(self.wordcloud, 'click'),
-             Input(self.top_table_component.table, 'active_cell')],
-        )(self.update_hashtag_storage)
-
-        app.callback(
-            Output(self.current_start_date, 'data'),
-            [Input(self.date_picker, 'start_date')],
-        )(self.update_start_date_storage)
-
-        app.callback(
-            Output(self.current_end_date, 'data'),
-            [Input(self.date_picker, 'end_date')],
-        )(self.update_end_date_storage)
-
         app.callback(
             Output(f'placeholder-{self.name}', 'children'),
             [Input(self.current_dataset, 'data'),
@@ -374,20 +397,7 @@ class RemissDashboard(DashComponent):
              Input(self.current_start_date, 'data'),
              Input(self.current_end_date, 'data')],
         )(self.update_placeholder)
-
-        app.callback(
-            [Output(self.wordcloud, 'list'),
-            Output(self.wordcloud, 'weightFactor')],
-            [Input(self.current_dataset, 'data')],
-        )(self.update_wordcloud)
-
-        app.callback(
-            Output(self.date_picker, 'min_date_allowed'),
-            Output(self.date_picker, 'max_date_allowed'),
-            Output(self.date_picker, 'start_date'),
-            Output(self.date_picker, 'end_date'),
-            [Input(self.current_dataset, 'data')],
-        )(self.update_date_range)
+        self.control_panel_component.callbacks(app)
         self.tweet_user_ts_component.callbacks(app)
         self.top_table_component.callbacks(app)
         self.egonet_component.callbacks(app)

@@ -55,7 +55,15 @@ def create_app():
     print(f'Plot factories created in {time.time() - start_time} seconds.')
     print('Creating app...')
     start_time = time.time()
-    app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
+    app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP],
+                    prevent_initial_callbacks="initial_duplicate",
+                    meta_tags=[
+                        {
+                            "name": "viewport",
+                            "content": "width=device-width, initial-scale=1, maximum-scale=1",
+                        }
+                    ],
+                    )
     app.layout = dashboard.layout()
     dashboard.callbacks(app)
     print(f'App created in {time.time() - start_time} seconds.')
