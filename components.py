@@ -46,21 +46,21 @@ class TweetUserTimeSeriesComponent(DashComponent):
     def layout(self, params=None):
         return dbc.Row([
             dbc.Col([
-                dbc.CardGroup([
-                    dbc.Card([
-                        dbc.CardHeader('Tweet frequency'),
-                        dbc.CardBody([
-                            self.graph_tweet
-                        ])
-                    ]),
-                    dbc.Card([
-                        dbc.CardHeader('User frequency'),
-                        dbc.CardBody([
-                            self.graph_users
-                        ])
-                    ]),
-                ])
-            ], width=12),
+                dbc.Card([
+                    dbc.CardHeader('Tweet frequency'),
+                    dbc.CardBody([
+                        self.graph_tweet
+                    ])
+                ]),
+            ]),
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader('User frequency'),
+                    dbc.CardBody([
+                        self.graph_users
+                    ])
+                ]),
+            ]),
         ], justify='center', style={'margin-bottom': '1rem'})
 
     def update(self, dataset, hashtags, start_date, end_date):
@@ -157,7 +157,11 @@ class EgonetComponent(DashComponent):
         self.current_dataset = current_dataset
         self.current_user = current_user
         self.available_datasets = plot_factory.available_datasets
-        self.graph_egonet = dcc.Graph(figure={}, id=f'fig-{self.name}', style={'height': '70vh'})
+        self.graph_egonet = dcc.Graph(figure={}, id=f'fig-{self.name}',
+                                      config={'displayModeBar': False},
+                                      responsive=True,
+                                      style={'height': '100%', 'width': '100%'},
+                                      )
         available_users = self.plot_factory.get_users(self.available_datasets[0])
         self.user_dropdown = dcc.Dropdown(options=[{"label": x, "value": x} for x in available_users],
                                           # value=available_users[0],
@@ -165,22 +169,35 @@ class EgonetComponent(DashComponent):
         self.depth_slider = dcc.Slider(min=1, max=5, step=1, value=2, id=f'slider-{self.name}')
 
     def layout(self, params=None):
-        return dbc.Row([dbc.Col([
-            dbc.Row([
-                dbc.Col([
-                    self.graph_egonet
-                ])
-            ]),
-            dbc.Row([
-                dbc.Col([
-                    self.user_dropdown,
-                    self.depth_slider
-                ]),
-            ])],
-            width=10)], justify='center', style={'margin-bottom': '1rem'})
+        return dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader('Egonet'),
+                    dbc.CardBody([
+                        self.graph_egonet
+                    ]),
+                    dbc.CardFooter([
+                        dbc.Row([
+                            dbc.Col([
+                                html.Label('User'),
+                                self.user_dropdown
+                            ], width=6),
+                            dbc.Col([
+                                html.Label('Depth'),
+                                self.depth_slider
+                            ], width=6),
+                        ], justify='center')
+                    ])
+
+                ], class_name='h-100')
+            ], width=12, class_name='h-100'),
+        ], justify='center', class_name='h-100', style={'margin-bottom': '1rem'})
 
     def update(self, dataset, user, depth):
-        return self.plot_factory.plot_egonet(dataset, user, depth)
+        fig = self.plot_factory.plot_egonet(dataset, user, depth)
+        # remove margin
+        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
+        return fig
 
     def callbacks(self, app):
         app.callback(
@@ -267,39 +284,28 @@ class ControlPanelComponent(DashComponent):
         return end_date
 
     def layout(self, params=None):
-        return dbc.Row([
-            dbc.Col([
-                dbc.Row([
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardHeader('Dataset'),
-                            dbc.CardBody([
-                                self.dataset_dropdown
-                            ])
-                        ], style={'margin-bottom': '1rem'}),
-                    ]),
-                ]),
-                dbc.Row([
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardHeader('Date range'),
-                            dbc.CardBody([
-                                self.date_picker
-                            ])
-                        ]),
-                    ]),
-                ]),
-            ], width=4),
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardHeader('Hashtag frequency'),
-                    dbc.CardBody([
-                        self.wordcloud
-                    ], style={'width': f'{self.wordcloud_width + 20}px !important'})
-                ]),
-            ], width=8),
+        return dbc.Stack([
+            dbc.Card([
+                dbc.CardHeader('Dataset'),
+                dbc.CardBody([
+                    self.dataset_dropdown
+                ])
+            ]),
 
-        ], justify='center')
+            dbc.Card([
+                dbc.CardHeader('Date range'),
+                dbc.CardBody([
+                    self.date_picker
+                ])
+            ]),
+
+            dbc.Card([
+                dbc.CardHeader('Hashtags'),
+                dbc.CardBody([
+                    self.wordcloud
+                ])
+            ]),
+        ], gap=2)
 
     def callbacks(self, app):
 
@@ -373,7 +379,12 @@ class RemissDashboard(DashComponent):
                                                              current_start_date=self.current_start_date,
                                                              current_end_date=self.current_end_date,
                                                              name='control',
-                                                             max_wordcloud_words=self.max_wordcloud_words)
+                                                             max_wordcloud_words=self.max_wordcloud_words,
+                                                             wordcloud_width=400,
+                                                             wordcloud_height=400)
+
+    # def update_placeholder(self, dataset, hashtags, start_date, end_date):
+    #     return html.H1(f'Hashtag: {hashtags}, Dataset: {dataset}, Start date: {start_date}, End date: {end_date}')
 
     def layout(self, params=None):
         return dbc.Container([
@@ -390,24 +401,27 @@ class RemissDashboard(DashComponent):
                 fluid=True,
 
             ),
-            html.Div([], style={'margin-bottom': '1rem'}, id=f'placeholder-{self.name}'),
-            self.control_panel_component.layout(),
-            self.egonet_component.layout(),
+            # html.Div([], style={'margin-bottom': '1rem'}, id=f'placeholder-{self.name}'),
+            dbc.Row([
+                dbc.Col([
+                    self.control_panel_component.layout(),
+                ], width=4, class_name='h-100'),
+                dbc.Col([
+                    self.egonet_component.layout(),
+                ], width=8),
+            ], style={'margin-bottom': '1rem'}, justify='center'),
             self.top_table_component.layout(),
             self.tweet_user_ts_component.layout(),
         ], fluid=True)
 
-    def update_placeholder(self, dataset, hashtags, start_date, end_date):
-        return html.H1(f'Hashtag: {hashtags}, Dataset: {dataset}, Start date: {start_date}, End date: {end_date}')
-
     def callbacks(self, app):
-        app.callback(
-            Output(f'placeholder-{self.name}', 'children'),
-            [Input(self.current_dataset, 'data'),
-             Input(self.current_hashtags, 'data'),
-             Input(self.current_start_date, 'data'),
-             Input(self.current_end_date, 'data')],
-        )(self.update_placeholder)
+        # app.callback(
+        #     Output(f'placeholder-{self.name}', 'children'),
+        #     [Input(self.current_dataset, 'data'),
+        #      Input(self.current_hashtags, 'data'),
+        #      Input(self.current_start_date, 'data'),
+        #      Input(self.current_end_date, 'data')],
+        # )(self.update_placeholder)
         self.control_panel_component.callbacks(app)
         self.tweet_user_ts_component.callbacks(app)
         self.top_table_component.callbacks(app)
