@@ -1,0 +1,8 @@
+/* mimic dash dropdown component */
+.DateInput_input, .DateInput_input_1 {
+    font-size: inherit ! important;
+    font-family: inherit ! important;
+    font-weight: inherit ! important;
+    Height: 25px !important;
+    Width: 100% !important;
+}

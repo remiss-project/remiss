@@ -16,10 +16,38 @@ REMISS_GRAPH_LAYOUT = os.environ.get('REMISS_GRAPH_LAYOUT', 'auto')
 REMISS_GRAPH_SIMPLIFICATION = os.environ.get('REMISS_GRAPH_SIMPLIFICATION', 'backbone')
 REMISS_GRAPH_SIMPLIFICATION_THRESHOLD = float(os.environ.get('REMISS_GRAPH_SIMPLIFICATION_THRESHOLD', 0.95))
 REMISS_AVAILABLE_DATASETS = os.environ.get('REMISS_AVAILABLE_DATASETS', None)
+REMISS_THEME = os.environ.get('REMISS_THEME', 'pulse').upper()
+available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
+                       'CERULEAN': dbc.themes.CERULEAN,
+                       'COSMO': dbc.themes.COSMO,
+                       'CYBORG': dbc.themes.CYBORG,
+                       'DARKLY': dbc.themes.DARKLY,
+                       'FLATLY': dbc.themes.FLATLY,
+                       'JOURNAL': dbc.themes.JOURNAL,
+                       'LITERA': dbc.themes.LITERA,
+                       'LUMEN': dbc.themes.LUMEN,
+                       'LUX': dbc.themes.LUX,
+                       'MATERIA': dbc.themes.MATERIA,
+                       'MINTY': dbc.themes.MINTY,
+                       'MORPH': dbc.themes.MORPH,
+                       'PULSE': dbc.themes.PULSE,
+                       'QUARTZ': dbc.themes.QUARTZ,
+                       'SANDSTONE': dbc.themes.SANDSTONE,
+                       'SIMPLEX': dbc.themes.SIMPLEX,
+                       'SKETCHY': dbc.themes.SKETCHY,
+                       'SLATE': dbc.themes.SLATE,
+                       'SOLAR': dbc.themes.SOLAR,
+                       'SPACELAB': dbc.themes.SPACELAB,
+                       'SUPERHERO': dbc.themes.SUPERHERO,
+                       'UNITED': dbc.themes.UNITED,
+                       'VAPOR': dbc.themes.VAPOR,
+                       'YETI': dbc.themes.YETI,
+                       'ZEPHYR': dbc.themes.ZEPHYR
+                       }
 
 
 def create_app():
-    load_figure_template('bootstrap')
+    load_figure_template(REMISS_THEME)
     print(f'Connecting to MongoDB at {REMISS_MONGODB_HOST}:{REMISS_MONGODB_PORT}...')
     print(f'Using database {REMISS_MONGODB_DATABASE}...')
     if REMISS_CACHE_DIR:
@@ -55,7 +83,9 @@ def create_app():
     print(f'Plot factories created in {time.time() - start_time} seconds.')
     print('Creating app...')
     start_time = time.time()
-    app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP],
+    dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
+    app = dash.Dash(__name__,
+                    external_stylesheets=[available_theme_css[REMISS_THEME],  dbc.icons.FONT_AWESOME, dbc_css],
                     prevent_initial_callbacks="initial_duplicate",
                     meta_tags=[
                         {
