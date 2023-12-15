@@ -190,8 +190,8 @@ class EgonetComponent(DashComponent):
                     ])
 
                 ], class_name='h-100')
-            ], width=12, class_name='h-100'),
-        ], justify='center', class_name='h-100', style={'margin-bottom': '1rem'})
+            ], class_name='h-100'),
+        ], justify='center', class_name='h-100 w-100', style={'margin-bottom': '1rem'})
 
     def update(self, dataset, user, depth):
         fig = self.plot_factory.plot_egonet(dataset, user, depth)
@@ -210,10 +210,11 @@ class EgonetComponent(DashComponent):
 
 class ControlPanelComponent(DashComponent):
     def __init__(self, plot_factory, current_dataset, current_hashtags, current_start_date, current_end_date, name=None,
-                 max_wordcloud_words=100, wordcloud_width=800, wordcloud_height=400):
+                 max_wordcloud_words=100, wordcloud_width=800, wordcloud_height=400, match_wordcloud_width=False):
         super().__init__(name)
         self.wordcloud_height = wordcloud_height
         self.wordcloud_width = wordcloud_width
+        self.match_wordcloud_width = match_wordcloud_width
         self.plot_factory = plot_factory
         self.available_datasets = plot_factory.available_datasets
         self.max_wordcloud_words = max_wordcloud_words
@@ -305,7 +306,7 @@ class ControlPanelComponent(DashComponent):
                     self.wordcloud
                 ])
             ]),
-        ], gap=2)
+        ], gap=2, style={'width': f'{self.wordcloud_width + 40}px'} if self.match_wordcloud_width else None)
 
     def callbacks(self, app):
 
@@ -340,8 +341,11 @@ class ControlPanelComponent(DashComponent):
 
 class RemissDashboard(DashComponent):
     def __init__(self, tweet_user_plot_factory, top_table_factory, egonet_plot_factory, name=None,
-                 max_wordcloud_words=100):
+                 max_wordcloud_words=100, wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=True):
         super().__init__(name=name)
+        self.match_wordcloud_width = match_wordcloud_width
+        self.wordcloud_height = wordcloud_height
+        self.wordcloud_width = wordcloud_width
         self.max_wordcloud_words = max_wordcloud_words
 
         self.tweet_user_plot_factory = tweet_user_plot_factory
@@ -380,8 +384,9 @@ class RemissDashboard(DashComponent):
                                                              current_end_date=self.current_end_date,
                                                              name='control',
                                                              max_wordcloud_words=self.max_wordcloud_words,
-                                                             wordcloud_width=400,
-                                                             wordcloud_height=400)
+                                                             wordcloud_width=self.wordcloud_width,
+                                                             wordcloud_height=self.wordcloud_height,
+                                                             match_wordcloud_width=self.match_wordcloud_width)
 
     # def update_placeholder(self, dataset, hashtags, start_date, end_date):
     #     return html.H1(f'Hashtag: {hashtags}, Dataset: {dataset}, Start date: {start_date}, End date: {end_date}')
@@ -405,10 +410,16 @@ class RemissDashboard(DashComponent):
             dbc.Row([
                 dbc.Col([
                     self.control_panel_component.layout(),
-                ], width=4, class_name='h-100'),
+                ],
+                    width='auto' if self.match_wordcloud_width else 4,
+                    class_name='h-100',
+                    # style={f'width': f'{self.wordcloud_width + 40}px'} if self.match_wordcloud_width else None
+                ),
                 dbc.Col([
                     self.egonet_component.layout(),
-                ], width=8),
+                ],
+                    # width='auto' if self.match_wordcloud_width else 4,
+                ),
             ], style={'margin-bottom': '1rem'}, justify='center'),
             self.top_table_component.layout(),
             self.tweet_user_ts_component.layout(),
