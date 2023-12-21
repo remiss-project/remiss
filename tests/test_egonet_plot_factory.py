@@ -965,3 +965,66 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
         self.assertEqual(edges, vertices)
 
+    def test_legitimacy(self):
+        # compute legitimacy as the amount of referenced tweets attained by each user
+        # divided by the amount of referenced tweets attained by the most referenced user
+        # in the network
+        data_size = 100
+        max_num_references = 20
+
+        test_data = []
+        total_referenced_tweets = 0
+        usual_suspects = {}
+        parties = {}
+        expected_authors = {}
+        expected_references = []
+        expected_legitimacy = {}
+        for i in range(data_size):
+            if i // 2 not in usual_suspects:
+                usual_suspects[i // 2] = random.choice([True, False])
+            if i // 2 not in parties:
+                parties[i // 2] = random.choice(['PSOE', 'PP', 'VOX', 'UP', None])
+
+            num_referenced_tweets = random.randint(0, max_num_references)
+            total_referenced_tweets += num_referenced_tweets
+            referenced_tweets = []
+            for j in range(num_referenced_tweets):
+                author_id = random.randint(0, data_size // 2 - 1)
+                referenced_tweets.append(
+                    {'id': i + 1, 'author': {'id': author_id, 'username': f'TEST_USER_{author_id}'},
+                     'type': 'retweeted'})
+
+            is_usual_suspect = usual_suspects[i // 2]
+            party = parties[i // 2]
+            tweet = {"id": i, "created_at": datetime.fromisoformat("2019-01-01T23:20:00Z"),
+                     "author": {"username": f"TEST_USER_{i // 2}", "id": i // 2,
+                                "remiss_metadata": {"party": party, "is_usual_suspect": is_usual_suspect}},
+                     "entities": {"hashtags": [{"tag": "test_hashtag"}]},
+                     'referenced_tweets': referenced_tweets}
+            expected_authors[i // 2] = {'id': i // 2, 'username': f'TEST_USER_{i // 2}', 'party': party,
+                                        'is_usual_suspect': is_usual_suspect}
+            expected_legitimacy[f"TEST_USER_{i // 2}"] = expected_legitimacy.get(f"TEST_USER_{i // 2}", 0) + num_referenced_tweets
+
+            expected_references.extend([(i // 2, x['author']['id']) for x in referenced_tweets])
+            test_data.append(tweet)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database('test_remiss')
+        database = client.get_database('test_remiss')
+        collection = database.get_collection('test_collection')
+        print(f'storing test data {total_referenced_tweets}')
+        collection.insert_many(test_data)
+
+        collection = 'test_collection'
+
+        self.egonet_plot.host = 'localhost'
+        self.egonet_plot.port = 27017
+        self.egonet_plot.database = 'test_remiss'
+        actual = self.egonet_plot.get_legitimacy(collection)
+        expected_legitimacy = pd.DataFrame({'username': list(expected_legitimacy.keys()),
+                                                'legitimacy': list(expected_legitimacy.values())})
+        expected_legitimacy['id'] = expected_legitimacy['username'].str.replace('TEST_USER_', '').astype(np.int32)
+        expected_legitimacy = expected_legitimacy.set_index('id')
+        # expected_legitimacy = expected_legitimacy / expected_legitimacy.max()
+        expected_legitimacy = expected_legitimacy.sort_values('legitimacy', ascending=False)
+        pd.testing.assert_frame_equal(expected_legitimacy, actual, check_dtype=False, check_like=True)
