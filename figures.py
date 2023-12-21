@@ -329,7 +329,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         print(f'Authors computed in {time.time() - start_time} seconds')
         return authors
 
-    def _get_legitimacy(self, dataset):
+    def get_legitimacy(self, dataset):
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.database)
         collection = database.get_collection(dataset)
@@ -339,8 +339,8 @@ class EgonetPlotFactory(MongoPlotFactory):
             {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
                         'referenced_tweets.author': {'$exists': True}}},
             {'$group': {'_id': '$author.id',
-                       'username': {'$first': '$author.username'},
-                       'legitimacy': {'$count': {}}}},
+                        'username': {'$first': '$author.username'},
+                        'legitimacy': {'$count': {}}}},
             {'$project': {'_id': 0,
                           'id': '$_id',
                           'username': 1,
@@ -354,7 +354,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         print(f'Legitimacy computed in {time.time() - start_time} seconds')
         return legitimacy
 
-    def _get_reputation(self, dataset):
+    def get_reputation(self, dataset, unit='day', bin_size=1):
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.database)
         collection = database.get_collection(dataset)
@@ -363,35 +363,23 @@ class EgonetPlotFactory(MongoPlotFactory):
             {'$unwind': '$referenced_tweets'},
             {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
                         'referenced_tweets.author': {'$exists': True}}},
-            {'$project': {'_id': 0, 'id': '$referenced_tweets.author.id',
-                          'username': '$referenced_tweets.author.username',
-                          'is_usual_suspect': '$referenced_tweets.author.remiss_metadata.is_usual_suspect',
-                          'party': '$referenced_tweets.author.remiss_metadata.party',
-                          'created_at': {'$dateTrunc': {'date': '$created_at', 'unit': 'day'}}}},
-            {'$unionWith': {'coll': dataset, 'pipeline': [
-                {'$project': {'id': '$author.id',
-                              'username': '$author.username',
-                              'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
-                              'party': '$author.remiss_metadata.party',
-                              'created_at': {'$dateTrunc': {'date': '$created_at', 'unit': 'day'}}}}]}},
-            {'$group': {'_id': '$id',
-                        'username': {'$first': '$username'},
-                        'is_usual_suspect': {'$addToSet': '$is_usual_suspect'},
-                        'party': {'$addToSet': '$party'},
-                        'created_at': {'$addToSet': '$created_at'}}},
+            {'$group': {'_id': {'author': '$author.id',
+                                'date': {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}}},
+                        'username': {'$first': '$author.username'},
+                        'reputation': {'$count': {}}}},
             {'$project': {'_id': 0,
-                          'id': '$_id',
+                          'id': '$_id.author',
+                          'date': '$_id.date',
                           'username': 1,
-                          'is_usual_suspect': {'$anyElementTrue': '$is_usual_suspect'},
-                          'party': {'$arrayElemAt': ['$party', 0]},
-                          'created_at': {'$arrayElemAt': ['$created_at', 0]}}},
-            {'$group': {'_id': {'id': '$id', 'created_at': '$created_at'},}}
+                          'reputation': 1}},
         ]
         print('Computing reputation')
         start_time = time.time()
-        authors = collection.aggregate_pandas_all(node_pipeline)
-        print(f'Legitimacy computed in {time.time() - start_time} seconds')
-        return authors
+        reputation = collection.aggregate_pandas_all(node_pipeline)
+        reputation = reputation.pivot(columns='date', index=['id', 'username'], values='reputation')
+        reputation = reputation.cumsum(axis=1)
+        print(f'Reputation computed in {time.time() - start_time} seconds')
+        return reputation
 
     def _get_references(self, dataset):
         client = MongoClient(self.host, self.port)
@@ -571,15 +559,6 @@ class EgonetPlotFactory(MongoPlotFactory):
         fig.update_layout(scene_camera=camera)
         print(f'Plot computed in {time.time() - start_time} seconds')
         return fig
-
-    def get_legitimacy(self, dataset):
-        legitimacy = self._get_legitimacy(dataset)
-        return legitimacy
-
-    def get_reputation(self, dataset):
-        reputation = self._get_reputation(dataset)
-        return reputation
-
 
 
 def compute_backbone(graph, alpha=0.05, delete_vertices=True):
