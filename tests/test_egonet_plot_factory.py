@@ -1084,10 +1084,217 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.egonet_plot.port = 27017
         self.egonet_plot.database = 'test_remiss'
         actual = self.egonet_plot.get_reputation(collection)
-        expected_reputation = pd.DataFrame({'username': [x[0] for x in expected_reputation.keys()],
-                                            'day': [x[1] for x in expected_reputation.keys()],
-                                            'reputation': list(expected_reputation.values())})
-        expected_reputation['id'] = expected_reputation['username'].str.replace('TEST_USER_', '').astype(np.int32)
-        expected_reputation = expected_reputation.pivot(index=['id','username'], columns='day', values='reputation')
-        expected_reputation = expected_reputation.cumsum(axis=1)
-        pd.testing.assert_frame_equal(expected_reputation, actual, check_dtype=False, check_like=True)
+        expected = pd.DataFrame({'username': [t['author']['username'] for t in test_data],
+                                 'id': [t['author']['id'] for t in test_data],
+                                 'date': [t['created_at'].date() for t in test_data],
+                                 'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
+
+        expected = expected.groupby(['id', 'username', 'date'])['legitimacy'].sum().to_frame()
+        expected = expected.reset_index().pivot(index=['id', 'username'], columns='date', values='legitimacy')
+        expected.columns = pd.DatetimeIndex(expected.columns)
+        expected = expected.cumsum(axis=1)
+        pd.testing.assert_frame_equal(expected, actual, check_dtype=False, check_like=True,
+                                      check_index_type=False, check_column_type=False)
+
+    def test__get_legitimacy_per_time_1(self):
+        # compute legitimacy per time as the amount of referenced tweets attained by each user by unit of time
+        data_size = 100
+        day_range = 10
+        max_num_references = 20
+
+        test_data = []
+        total_referenced_tweets = 0
+        usual_suspects = {}
+        parties = {}
+        expected_authors = {}
+        expected_references = []
+        for i in range(data_size):
+            for day in range(day_range):
+                if i // 2 not in usual_suspects:
+                    usual_suspects[i // 2] = random.choice([True, False])
+                if i // 2 not in parties:
+                    parties[i // 2] = random.choice(['PSOE', 'PP', 'VOX', 'UP', None])
+
+                num_referenced_tweets = random.randint(0, max_num_references)
+                total_referenced_tweets += num_referenced_tweets
+                referenced_tweets = []
+                for j in range(num_referenced_tweets):
+                    author_id = random.randint(0, data_size // 2 - 1)
+                    referenced_tweets.append(
+                        {'id': i + 1, 'author': {'id': author_id, 'username': f'TEST_USER_{author_id}'},
+                         'type': 'retweeted'})
+
+                is_usual_suspect = usual_suspects[i // 2]
+                party = parties[i // 2]
+                created_at = datetime.fromisoformat("2019-01-01T00:01:00Z") + timedelta(days=day)
+                tweet = {"id": i, "created_at": datetime.fromisoformat("2019-01-01T23:20:00Z"),
+                         "author": {"username": f"TEST_USER_{i // 2}", "id": i // 2,
+                                    "remiss_metadata": {"party": party, "is_usual_suspect": is_usual_suspect}},
+                         "entities": {"hashtags": [{"tag": "test_hashtag"}]},
+                         'referenced_tweets': referenced_tweets,
+                         'created_at': created_at}
+                expected_authors[i // 2] = {'id': i // 2, 'username': f'TEST_USER_{i // 2}', 'party': party,
+                                            'is_usual_suspect': is_usual_suspect}
+
+                expected_references.extend([(i // 2, x['author']['id']) for x in referenced_tweets])
+                test_data.append(tweet)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database('test_remiss')
+        database = client.get_database('test_remiss')
+        collection = database.get_collection('test_collection')
+        print(f'storing test data {total_referenced_tweets}')
+        collection.insert_many(test_data)
+
+        collection = 'test_collection'
+
+        self.egonet_plot.host = 'localhost'
+        self.egonet_plot.port = 27017
+        self.egonet_plot.database = 'test_remiss'
+        actual = self.egonet_plot._get_legitimacy_per_time(collection, unit='day', bin_size=20 + day_range)
+        expected = pd.DataFrame({'username': [t['author']['username'] for t in test_data],
+                                 'id': [t['author']['id'] for t in test_data],
+                                 'date': [t['created_at'].date() for t in test_data],
+                                 'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
+
+        expected = expected.groupby(['id', 'username'])['legitimacy'].sum()
+
+        expected = expected.to_frame()
+        expected.columns = actual.columns
+        pd.testing.assert_frame_equal(expected, actual, check_dtype=False, check_like=True, check_index_type=False)
+
+    def test__get_legitimacy_per_time_2(self):
+        # compute legitimacy per time as the amount of referenced tweets attained by each user by unit of time
+        data_size = 100
+        day_range = 10
+        max_num_references = 20
+
+        test_data = []
+        total_referenced_tweets = 0
+        usual_suspects = {}
+        parties = {}
+        expected_authors = {}
+        expected_references = []
+        for i in range(data_size):
+            for day in range(day_range):
+                if i // 2 not in usual_suspects:
+                    usual_suspects[i // 2] = random.choice([True, False])
+                if i // 2 not in parties:
+                    parties[i // 2] = random.choice(['PSOE', 'PP', 'VOX', 'UP', None])
+
+                num_referenced_tweets = random.randint(0, max_num_references)
+                total_referenced_tweets += num_referenced_tweets
+                referenced_tweets = []
+                for j in range(num_referenced_tweets):
+                    author_id = random.randint(0, data_size // 2 - 1)
+                    referenced_tweets.append(
+                        {'id': i + 1, 'author': {'id': author_id, 'username': f'TEST_USER_{author_id}'},
+                         'type': 'retweeted'})
+
+                is_usual_suspect = usual_suspects[i // 2]
+                party = parties[i // 2]
+                created_at = datetime.fromisoformat("2019-01-01T00:01:00Z") + timedelta(days=day)
+                tweet = {"id": i, "created_at": datetime.fromisoformat("2019-01-01T23:20:00Z"),
+                         "author": {"username": f"TEST_USER_{i // 2}", "id": i // 2,
+                                    "remiss_metadata": {"party": party, "is_usual_suspect": is_usual_suspect}},
+                         "entities": {"hashtags": [{"tag": "test_hashtag"}]},
+                         'referenced_tweets': referenced_tweets,
+                         'created_at': created_at}
+                expected_authors[i // 2] = {'id': i // 2, 'username': f'TEST_USER_{i // 2}', 'party': party,
+                                            'is_usual_suspect': is_usual_suspect}
+
+                expected_references.extend([(i // 2, x['author']['id']) for x in referenced_tweets])
+                test_data.append(tweet)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database('test_remiss')
+        database = client.get_database('test_remiss')
+        collection = database.get_collection('test_collection')
+        print(f'storing test data {total_referenced_tweets}')
+        collection.insert_many(test_data)
+
+        collection = 'test_collection'
+
+        self.egonet_plot.host = 'localhost'
+        self.egonet_plot.port = 27017
+        self.egonet_plot.database = 'test_remiss'
+        actual = self.egonet_plot._get_legitimacy_per_time(collection)
+        expected = pd.DataFrame({'username': [t['author']['username'] for t in test_data],
+                                 'id': [t['author']['id'] for t in test_data],
+                                 'date': [t['created_at'].date() for t in test_data],
+                                 'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
+
+        expected = expected.groupby(['id', 'username', 'date'])['legitimacy'].sum().to_frame()
+        expected = expected.reset_index().pivot(index=['id', 'username'], columns='date', values='legitimacy')
+        expected.columns = pd.DatetimeIndex(expected.columns)
+        pd.testing.assert_frame_equal(expected, actual, check_dtype=False, check_like=True,
+                                      check_index_type=False, check_column_type=False)
+
+    def test_status(self):
+        # compute status as the amount of referenced tweets attained by each user
+        data_size = 100
+        day_range = 10
+        max_num_references = 20
+
+        test_data = []
+        total_referenced_tweets = 0
+        usual_suspects = {}
+        parties = {}
+        expected_authors = {}
+        expected_references = []
+        expected_status = {}
+        for i in range(data_size):
+            for day in range(day_range):
+                if i // 2 not in usual_suspects:
+                    usual_suspects[i // 2] = random.choice([True, False])
+                if i // 2 not in parties:
+                    parties[i // 2] = random.choice(['PSOE', 'PP', 'VOX', 'UP', None])
+
+                num_referenced_tweets = random.randint(0, max_num_references)
+                total_referenced_tweets += num_referenced_tweets
+                referenced_tweets = []
+                for j in range(num_referenced_tweets):
+                    author_id = random.randint(0, data_size // 2 - 1)
+                    referenced_tweets.append(
+                        {'id': i + 1, 'author': {'id': author_id, 'username': f'TEST_USER_{author_id}'},
+                         'type': 'retweeted'})
+
+                is_usual_suspect = usual_suspects[i // 2]
+                party = parties[i // 2]
+                tweet = {"id": i, "created_at": datetime.fromisoformat("2019-01-01T23:20:00Z"),
+                         "author": {"username": f"TEST_USER_{i // 2}", "id": i // 2,
+                                    "remiss_metadata": {"party": party, "is_usual_suspect": is_usual_suspect}},
+                         "entities": {"hashtags": [{"tag": "test_hashtag"}]},
+                         'referenced_tweets': referenced_tweets,
+                         'created_at': datetime.fromisoformat("2019-01-01T00:00:00Z") + timedelta(days=day)}
+                expected_authors[i // 2] = {'id': i // 2, 'username': f'TEST_USER_{i // 2}', 'party': party,
+                                            'is_usual_suspect': is_usual_suspect}
+                expected_status[f"TEST_USER_{i // 2}", day] = expected_status.get(f"TEST_USER_{i // 2}",
+                                                                                  0) + num_referenced_tweets
+                expected_references.extend([(i // 2, x['author']['id']) for x in referenced_tweets])
+                test_data.append(tweet)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database('test_remiss')
+        database = client.get_database('test_remiss')
+        collection = database.get_collection('test_collection')
+        print(f'storing test data {total_referenced_tweets}')
+        collection.insert_many(test_data)
+
+        collection = 'test_collection'
+
+        self.egonet_plot.host = 'localhost'
+        self.egonet_plot.port = 27017
+        self.egonet_plot.database = 'test_remiss'
+        actual = self.egonet_plot.get_status(collection)
+        expected = pd.DataFrame({'username': [t['author']['username'] for t in test_data],
+                                 'id': [t['author']['id'] for t in test_data],
+                                 'date': [t['created_at'].date() for t in test_data],
+                                 'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
+
+        expected = expected.groupby(['id', 'username', 'date'])['legitimacy'].sum().to_frame()
+        expected = expected.reset_index().pivot(index=['id', 'username'], columns='date', values='legitimacy')
+        expected.columns = pd.DatetimeIndex(expected.columns)
+        expected = expected.cumsum(axis=1)
+        expected = expected.apply(lambda x: x.argsort())
+        pd.testing.assert_frame_equal(expected, actual, check_dtype=False, check_like=True, check_index_type=False)

@@ -354,7 +354,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         print(f'Legitimacy computed in {time.time() - start_time} seconds')
         return legitimacy
 
-    def get_reputation(self, dataset, unit='day', bin_size=1):
+    def _get_legitimacy_per_time(self, dataset, unit='day', bin_size=1):
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.database)
         collection = database.get_collection(dataset)
@@ -364,22 +364,39 @@ class EgonetPlotFactory(MongoPlotFactory):
             {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
                         'referenced_tweets.author': {'$exists': True}}},
             {'$group': {'_id': {'author': '$author.id',
-                                'date': {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}}},
+                                'date': {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}}
+                                },
                         'username': {'$first': '$author.username'},
-                        'reputation': {'$count': {}}}},
+                        'legitimacy': {'$count': {}}}},
             {'$project': {'_id': 0,
                           'id': '$_id.author',
                           'date': '$_id.date',
                           'username': 1,
-                          'reputation': 1}},
+                          'legitimacy': 1}},
         ]
         print('Computing reputation')
+
+        legitimacy = collection.aggregate_pandas_all(node_pipeline)
+        legitimacy = legitimacy.pivot(columns='date', index=['id', 'username'], values='legitimacy')
+        legitimacy = legitimacy.fillna(0)
+        return legitimacy
+
+    def get_reputation(self, dataset, unit='day', bin_size=1):
         start_time = time.time()
-        reputation = collection.aggregate_pandas_all(node_pipeline)
-        reputation = reputation.pivot(columns='date', index=['id', 'username'], values='reputation')
-        reputation = reputation.cumsum(axis=1)
+        legitimacy = self._get_legitimacy_per_time(dataset, unit, bin_size)
+        reputation = legitimacy.cumsum(axis=1)
+        
         print(f'Reputation computed in {time.time() - start_time} seconds')
         return reputation
+
+    def get_status(self, dataset, unit='day', bin_size=1):
+        start_time = time.time()
+        legitimacy = self._get_legitimacy_per_time(dataset, unit, bin_size)
+        reputation = legitimacy.cumsum(axis=1)
+        status = reputation.apply(lambda x: x.argsort())
+        print(f'Status computed in {time.time() - start_time} seconds')
+        return status
+
 
     def _get_references(self, dataset):
         client = MongoClient(self.host, self.port)
