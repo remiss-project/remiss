@@ -17,6 +17,7 @@ REMISS_GRAPH_SIMPLIFICATION = os.environ.get('REMISS_GRAPH_SIMPLIFICATION', 'bac
 REMISS_GRAPH_SIMPLIFICATION_THRESHOLD = float(os.environ.get('REMISS_GRAPH_SIMPLIFICATION_THRESHOLD', 0.95))
 REMISS_AVAILABLE_DATASETS = os.environ.get('REMISS_AVAILABLE_DATASETS', None)
 REMISS_THEME = os.environ.get('REMISS_THEME', 'pulse').upper()
+REMISS_DEBUG = os.environ.get('REMISS_DEBUG', True)
 available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
                        'CERULEAN': dbc.themes.CERULEAN,
                        'COSMO': dbc.themes.COSMO,
@@ -79,7 +80,7 @@ def create_app():
                                             layout=REMISS_GRAPH_LAYOUT, simplification=REMISS_GRAPH_SIMPLIFICATION,
                                             threshold=REMISS_GRAPH_SIMPLIFICATION_THRESHOLD,
                                             available_datasets=available_datasets)
-    dashboard = RemissDashboard(tweet_user_plot_factory, top_table_factory, egonet_plot_factory)
+    dashboard = RemissDashboard(tweet_user_plot_factory, top_table_factory, egonet_plot_factory, debug=REMISS_DEBUG)
     print(f'Plot factories created in {time.time() - start_time} seconds.')
     print('Creating app...')
     start_time = time.time()

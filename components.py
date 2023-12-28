@@ -2,7 +2,7 @@ from abc import ABC
 
 import dash_bootstrap_components as dbc
 import shortuuid
-from dash import dcc, html, Input, Output, callback_context
+from dash import dcc, html, Input, Output
 from dash.dash_table import DataTable
 from dash_holoniq_wordcloud import DashWordcloud
 
@@ -80,7 +80,7 @@ class TweetUserTimeSeriesComponent(DashComponent):
 
 class TopTableComponent(DashComponent):
     def __init__(self, plot_factory, current_dataset, current_hashtags, current_start_date, current_end_date,
-                 name=None):
+                 current_user, name=None):
         super().__init__(name=name)
         self.plot_factory = plot_factory
         self.data = None
@@ -88,14 +88,15 @@ class TopTableComponent(DashComponent):
         self.current_hashtags = current_hashtags
         self.current_start_date = current_start_date
         self.current_end_date = current_end_date
+        self.current_user = current_user
         self.table = DataTable(data=[], id=f'table-{self.name}',
                                columns=[{"name": i, "id": i} for i in self.plot_factory.top_table_columns],
                                editable=False,
                                filter_action="native",
                                sort_action="native",
                                sort_mode="multi",
-                               column_selectable="single",
-                               row_selectable="multi",
+                               column_selectable="multi",
+                               row_selectable="single",
                                row_deletable=False,
                                selected_columns=[],
                                selected_rows=[],
@@ -132,6 +133,12 @@ class TopTableComponent(DashComponent):
                 return hashtags
         return None
 
+    def update_user(self, active_cell):
+        if active_cell:
+            user = self.data['User'].iloc[active_cell['row']]
+            return user
+        return None
+
     def extract_hashtag_from_top_table(self, active_cell):
         text = self.data['Text'].iloc[active_cell['row']]
         hashtags = [x[1:] for x in text.split() if x.startswith('#')]
@@ -148,6 +155,10 @@ class TopTableComponent(DashComponent):
             Output(self.current_hashtags, 'data', allow_duplicate=True),
             [Input(self.table, 'active_cell')],
         )(self.update_hashtags)
+        app.callback(
+            Output(self.current_user, 'data'),
+            [Input(self.table, 'active_cell')],
+        )(self.update_user)
 
 
 class EgonetComponent(DashComponent):
@@ -206,6 +217,14 @@ class EgonetComponent(DashComponent):
              Input(self.current_user, 'data'),
              Input(self.depth_slider, 'value')],
         )(self.update)
+        app.callback(
+            Output(self.current_user, 'data', allow_duplicate=True),
+            [Input(self.user_dropdown, 'value')],
+        )(lambda x: x)
+        app.callback(
+            Output(self.user_dropdown, 'value'),
+            [Input(self.current_user, 'data')],
+        )(lambda x: x)
 
 
 class ControlPanelComponent(DashComponent):
@@ -341,8 +360,10 @@ class ControlPanelComponent(DashComponent):
 
 class RemissDashboard(DashComponent):
     def __init__(self, tweet_user_plot_factory, top_table_factory, egonet_plot_factory, name=None,
-                 max_wordcloud_words=100, wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=True):
+                 max_wordcloud_words=100, wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=True,
+                 debug=False):
         super().__init__(name=name)
+        self.debug = debug
         self.match_wordcloud_width = match_wordcloud_width
         self.wordcloud_height = wordcloud_height
         self.wordcloud_width = wordcloud_width
@@ -364,6 +385,7 @@ class RemissDashboard(DashComponent):
                                                      current_hashtags=self.current_hashtags,
                                                      current_start_date=self.current_start_date,
                                                      current_end_date=self.current_end_date,
+                                                     current_user=self.current_user,
                                                      name='top')
         self.tweet_user_ts_component = TweetUserTimeSeriesComponent(tweet_user_plot_factory,
                                                                     current_dataset=self.current_dataset,
@@ -388,8 +410,9 @@ class RemissDashboard(DashComponent):
                                                              wordcloud_height=self.wordcloud_height,
                                                              match_wordcloud_width=self.match_wordcloud_width)
 
-    # def update_placeholder(self, dataset, hashtags, start_date, end_date):
-    #     return html.H1(f'Hashtag: {hashtags}, Dataset: {dataset}, Start date: {start_date}, End date: {end_date}')
+    def update_placeholder(self, dataset, hashtags, start_date, end_date, current_user):
+        return html.H1(f'Hashtag: {hashtags}, Dataset: {dataset}, Start date: {start_date}, '
+                       f'End date: {end_date}, Current user: {current_user}')
 
     def layout(self, params=None):
         return dbc.Container([
@@ -406,19 +429,17 @@ class RemissDashboard(DashComponent):
                 fluid=True,
 
             ),
-            # html.Div([], style={'margin-bottom': '1rem'}, id=f'placeholder-{self.name}'),
+            html.Div([], style={'margin-bottom': '1rem'}, id=f'placeholder-{self.name}') if self.debug else None,
             dbc.Row([
                 dbc.Col([
                     self.control_panel_component.layout(),
                 ],
                     width='auto' if self.match_wordcloud_width else 4,
                     class_name='h-100',
-                    # style={f'width': f'{self.wordcloud_width + 40}px'} if self.match_wordcloud_width else None
                 ),
                 dbc.Col([
                     self.egonet_component.layout(),
                 ],
-                    # width='auto' if self.match_wordcloud_width else 4,
                 ),
             ], style={'margin-bottom': '1rem'}, justify='center'),
             self.top_table_component.layout(),
@@ -426,13 +447,15 @@ class RemissDashboard(DashComponent):
         ], fluid=True)
 
     def callbacks(self, app):
-        # app.callback(
-        #     Output(f'placeholder-{self.name}', 'children'),
-        #     [Input(self.current_dataset, 'data'),
-        #      Input(self.current_hashtags, 'data'),
-        #      Input(self.current_start_date, 'data'),
-        #      Input(self.current_end_date, 'data')],
-        # )(self.update_placeholder)
+        if self.debug:
+            app.callback(
+                Output(f'placeholder-{self.name}', 'children'),
+                [Input(self.current_dataset, 'data'),
+                 Input(self.current_hashtags, 'data'),
+                 Input(self.current_start_date, 'data'),
+                 Input(self.current_end_date, 'data'),
+                 Input(self.current_user, 'data')],
+            )(self.update_placeholder)
         self.control_panel_component.callbacks(app)
         self.tweet_user_ts_component.callbacks(app)
         self.top_table_component.callbacks(app)
