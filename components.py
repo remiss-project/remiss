@@ -32,16 +32,13 @@ class DashComponent(ABC):
 
 
 class TweetUserTimeSeriesComponent(DashComponent):
-    def __init__(self, plot_factory, current_dataset, current_hashtags, current_start_date, current_end_date,
+    def __init__(self, plot_factory, state,
                  name=None):
         super().__init__(name=name)
         self.plot_factory = plot_factory
         self.graph_tweet = dcc.Graph(figure={}, id=f'fig-tweet-{self.name}')
         self.graph_users = dcc.Graph(figure={}, id=f'fig-users-{self.name}')
-        self.current_dataset = current_dataset
-        self.current_hashtags = current_hashtags
-        self.current_start_date = current_start_date
-        self.current_end_date = current_end_date
+        self.state = state
 
     def layout(self, params=None):
         return dbc.Row([
@@ -71,24 +68,19 @@ class TweetUserTimeSeriesComponent(DashComponent):
         app.callback(
             Output(self.graph_tweet, 'figure'),
             Output(self.graph_users, 'figure'),
-            [Input(self.current_dataset, 'data'),
-             Input(self.current_hashtags, 'data'),
-             Input(self.current_start_date, 'data'),
-             Input(self.current_end_date, 'data')],
+            [Input(self.state.current_dataset, 'data'),
+             Input(self.state.current_hashtags, 'data'),
+             Input(self.state.current_start_date, 'data'),
+             Input(self.state.current_end_date, 'data')],
         )(self.update)
 
 
 class TopTableComponent(DashComponent):
-    def __init__(self, plot_factory, current_dataset, current_hashtags, current_start_date, current_end_date,
-                 current_user, name=None):
+    def __init__(self, plot_factory, state, name=None):
         super().__init__(name=name)
         self.plot_factory = plot_factory
         self.data = None
-        self.current_dataset = current_dataset
-        self.current_hashtags = current_hashtags
-        self.current_start_date = current_start_date
-        self.current_end_date = current_end_date
-        self.current_user = current_user
+        self.state = state
         self.table = DataTable(data=[], id=f'table-{self.name}',
                                columns=[{"name": i, "id": i} for i in self.plot_factory.top_table_columns],
                                editable=False,
@@ -147,26 +139,25 @@ class TopTableComponent(DashComponent):
     def callbacks(self, app):
         app.callback(
             Output(self.table, 'data'),
-            [Input(self.current_dataset, 'data'),
-             Input(self.current_start_date, 'data'),
-             Input(self.current_end_date, 'data')],
+            [Input(self.state.current_dataset, 'data'),
+             Input(self.state.current_start_date, 'data'),
+             Input(self.state.current_end_date, 'data')],
         )(self.update)
         app.callback(
-            Output(self.current_hashtags, 'data', allow_duplicate=True),
+            Output(self.state.current_hashtags, 'data', allow_duplicate=True),
             [Input(self.table, 'active_cell')],
         )(self.update_hashtags)
         app.callback(
-            Output(self.current_user, 'data'),
+            Output(self.state.current_user, 'data'),
             [Input(self.table, 'active_cell')],
         )(self.update_user)
 
 
 class EgonetComponent(DashComponent):
-    def __init__(self, plot_factory, current_dataset, current_user, name=None):
+    def __init__(self, plot_factory, state, name=None):
         super().__init__(name=name)
         self.plot_factory = plot_factory
-        self.current_dataset = current_dataset
-        self.current_user = current_user
+        self.state = state
         self.available_datasets = plot_factory.available_datasets
         self.graph_egonet = dcc.Graph(figure={}, id=f'fig-{self.name}',
                                       config={'displayModeBar': False},
@@ -218,37 +209,48 @@ class EgonetComponent(DashComponent):
         fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
         return fig
 
+    def update_user(self, user):
+        return user
+
+    def update_current_date(self, date):
+        return date
+
+    def update_date_slider(self, start_date, end_date):
+        return start_date, end_date
+
     def callbacks(self, app):
         app.callback(
             Output(self.graph_egonet, 'figure'),
-            [Input(self.current_dataset, 'data'),
-             Input(self.current_user, 'data'),
+            [Input(self.state.current_dataset, 'data'),
+             Input(self.state.current_user, 'data'),
              Input(self.depth_slider, 'value')],
         )(self.update)
         app.callback(
-            Output(self.current_user, 'data', allow_duplicate=True),
+            Output(self.state.current_user, 'data', allow_duplicate=True),
             [Input(self.user_dropdown, 'value')],
-        )(lambda x: x)
+        )(self.update_user)
         app.callback(
             Output(self.user_dropdown, 'value'),
-            [Input(self.current_user, 'data')],
-        )(lambda x: x)
+            [Input(self.state.current_user, 'data')],
+        )(self.update_user)
+        app.callback(
+            Output(self.date_slider, 'min'),
+            Output(self.date_slider, 'max'),
+            [Input(self.state.current_dataset, 'data')],
+        )(self.update_date_slider)
 
 
 class ControlPanelComponent(DashComponent):
-    def __init__(self, plot_factory, current_dataset, current_hashtags, current_start_date, current_end_date, name=None,
+    def __init__(self, plot_factory, state, name=None,
                  max_wordcloud_words=100, wordcloud_width=800, wordcloud_height=400, match_wordcloud_width=False):
         super().__init__(name)
+        self.state = state
         self.wordcloud_height = wordcloud_height
         self.wordcloud_width = wordcloud_width
         self.match_wordcloud_width = match_wordcloud_width
         self.plot_factory = plot_factory
         self.available_datasets = plot_factory.available_datasets
         self.max_wordcloud_words = max_wordcloud_words
-        self.current_dataset = current_dataset
-        self.current_hashtags = current_hashtags
-        self.current_start_date = current_start_date
-        self.current_end_date = current_end_date
         self.date_picker = self.get_date_picker_component()
         self.wordcloud = self.get_wordcloud_component()
         self.dataset_dropdown = self.get_dataset_dropdown_component()
@@ -342,28 +344,50 @@ class ControlPanelComponent(DashComponent):
             Output(self.date_picker, 'max_date_allowed'),
             Output(self.date_picker, 'start_date'),
             Output(self.date_picker, 'end_date'),
-            [Input(self.current_dataset, 'data')],
+            [Input(self.state.current_dataset, 'data')],
         )(self.update_date_range)
 
         app.callback(
-            Output(self.current_dataset, 'data'),
+            Output(self.state.current_dataset, 'data'),
             [Input(self.dataset_dropdown, 'value')],
         )(self.update_dataset_storage)
 
         app.callback(
-            Output(self.current_hashtags, 'data'),
+            Output(self.state.current_hashtags, 'data'),
             Input(self.wordcloud, 'click'),
         )(self.update_hashtag_storage)
 
         app.callback(
-            Output(self.current_start_date, 'data'),
+            Output(self.state.current_start_date, 'data'),
             [Input(self.date_picker, 'start_date')],
         )(self.update_start_date_storage)
 
         app.callback(
-            Output(self.current_end_date, 'data'),
+            Output(self.state.current_end_date, 'data'),
             [Input(self.date_picker, 'end_date')],
         )(self.update_end_date_storage)
+
+
+class RemissState(DashComponent):
+    def __init__(self, name=None):
+        super().__init__(name=name)
+        self.current_dataset = dcc.Store(id=f'current-dataset-{self.name}')
+        self.current_hashtags = dcc.Store(id=f'current-hashtags-{self.name}')
+        self.current_start_date = dcc.Store(id=f'current-start-date-{self.name}')
+        self.current_end_date = dcc.Store(id=f'current-end-date-{self.name}')
+        self.current_user = dcc.Store(id=f'current-user-{self.name}')
+
+    def layout(self, params=None):
+        return html.Div([
+            self.current_dataset,
+            self.current_hashtags,
+            self.current_start_date,
+            self.current_end_date,
+            self.current_user,
+        ])
+
+    def callbacks(self, app):
+        pass
 
 
 class RemissDashboard(DashComponent):
@@ -382,36 +406,21 @@ class RemissDashboard(DashComponent):
         self.top_table_factory = top_table_factory
         self.available_datasets = tweet_user_plot_factory.available_datasets
 
-        self.current_dataset = dcc.Store(id=f'current-dataset-{self.name}')
-        self.current_hashtags = dcc.Store(id=f'current-hashtags-{self.name}')
-        self.current_start_date = dcc.Store(id=f'current-start-date-{self.name}')
-        self.current_end_date = dcc.Store(id=f'current-end-date-{self.name}')
-        self.current_user = dcc.Store(id=f'current-user-{self.name}')
+        self.state = RemissState(name='state')
 
         self.top_table_component = TopTableComponent(top_table_factory,
-                                                     current_dataset=self.current_dataset,
-                                                     current_hashtags=self.current_hashtags,
-                                                     current_start_date=self.current_start_date,
-                                                     current_end_date=self.current_end_date,
-                                                     current_user=self.current_user,
+                                                     state=self.state,
                                                      name='top')
         self.tweet_user_ts_component = TweetUserTimeSeriesComponent(tweet_user_plot_factory,
-                                                                    current_dataset=self.current_dataset,
-                                                                    current_hashtags=self.current_hashtags,
-                                                                    current_start_date=self.current_start_date,
-                                                                    current_end_date=self.current_end_date,
+                                                                    state=self.state,
                                                                     name='ts')
 
         self.egonet_component = EgonetComponent(egonet_plot_factory,
-                                                current_dataset=self.current_dataset,
-                                                current_user=self.current_user,
+                                                state=self.state,
                                                 name='egonet')
 
         self.control_panel_component = ControlPanelComponent(tweet_user_plot_factory,
-                                                             current_dataset=self.current_dataset,
-                                                             current_hashtags=self.current_hashtags,
-                                                             current_start_date=self.current_start_date,
-                                                             current_end_date=self.current_end_date,
+                                                             state=self.state,
                                                              name='control',
                                                              max_wordcloud_words=self.max_wordcloud_words,
                                                              wordcloud_width=self.wordcloud_width,
@@ -424,11 +433,7 @@ class RemissDashboard(DashComponent):
 
     def layout(self, params=None):
         return dbc.Container([
-            self.current_dataset,
-            self.current_hashtags,
-            self.current_start_date,
-            self.current_end_date,
-            self.current_user,
+            self.state.layout(),
             dbc.NavbarSimple(
                 brand="REMISS – Towards a methodology to reduce misinformation spread about vulnerable and stigmatised groups",
                 brand_href="#",
@@ -458,11 +463,11 @@ class RemissDashboard(DashComponent):
         if self.debug:
             app.callback(
                 Output(f'placeholder-{self.name}', 'children'),
-                [Input(self.current_dataset, 'data'),
-                 Input(self.current_hashtags, 'data'),
-                 Input(self.current_start_date, 'data'),
-                 Input(self.current_end_date, 'data'),
-                 Input(self.current_user, 'data')],
+                [Input(self.state.current_dataset, 'data'),
+                 Input(self.state.current_hashtags, 'data'),
+                 Input(self.state.current_start_date, 'data'),
+                 Input(self.state.current_end_date, 'data'),
+                 Input(self.state.current_user, 'data')],
             )(self.update_placeholder)
         self.control_panel_component.callbacks(app)
         self.tweet_user_ts_component.callbacks(app)
