@@ -1,6 +1,7 @@
 from abc import ABC
 
 import dash_bootstrap_components as dbc
+import pandas as pd
 import shortuuid
 from dash import dcc, html, Input, Output
 from dash.dash_table import DataTable
@@ -169,7 +170,7 @@ class EgonetComponent(DashComponent):
                                           # value=available_users[0],
                                           id=f'user-dropdown-{self.name}')
         self.depth_slider = dcc.Slider(min=1, max=5, step=1, value=2, id=f'slider-{self.name}')
-        self.date_slider = dcc.Slider(min=0, max=1, step=1, value=0, id=f'date-slider-{self.name}')
+        self.date_slider = dcc.Slider(min=0, max=1, step=1, value=0, id=f'date-slider-{self.name}', included=False)
 
     def layout(self, params=None):
         return dbc.Row([
@@ -195,7 +196,7 @@ class EgonetComponent(DashComponent):
                                 html.Label('Date'),
                                 self.date_slider
                             ], width=12),
-                        ])
+                        ], style={'padding': '0px 50px 50px 0px'})
 
                     ])
 
@@ -216,7 +217,13 @@ class EgonetComponent(DashComponent):
         return date
 
     def update_date_slider(self, start_date, end_date):
-        return start_date, end_date
+        days = pd.date_range(start_date, end_date, freq='D')
+        style = {'transform': 'rotate(45deg)', "white-space": "nowrap", 'text-align': 'center', 'font-size': '12px',
+                 'margin-top': '1rem'}
+        marks = {i: {'label': str(days[i].date()), 'style': style} for i in
+                 range(0, len(days))}
+
+        return 0, len(days) - 1, 0, marks
 
     def callbacks(self, app):
         app.callback(
@@ -236,7 +243,10 @@ class EgonetComponent(DashComponent):
         app.callback(
             Output(self.date_slider, 'min'),
             Output(self.date_slider, 'max'),
-            [Input(self.state.current_dataset, 'data')],
+            Output(self.date_slider, 'value'),
+            Output(self.date_slider, 'marks'),
+            [Input(self.state.current_start_date, 'data'),
+             Input(self.state.current_end_date, 'data')],
         )(self.update_date_slider)
 
 
@@ -393,6 +403,7 @@ class RemissState(DashComponent):
 class RemissDashboard(DashComponent):
     def __init__(self, tweet_user_plot_factory, top_table_factory, egonet_plot_factory, name=None,
                  max_wordcloud_words=100, wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=True,
+
                  debug=False):
         super().__init__(name=name)
         self.debug = debug
