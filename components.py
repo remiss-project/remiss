@@ -178,6 +178,7 @@ class EgonetComponent(DashComponent):
                                           # value=available_users[0],
                                           id=f'user-dropdown-{self.name}')
         self.depth_slider = dcc.Slider(min=1, max=5, step=1, value=2, id=f'slider-{self.name}')
+        self.date_slider = dcc.Slider(min=0, max=1, step=1, value=0, id=f'date-slider-{self.name}')
 
     def layout(self, params=None):
         return dbc.Row([
@@ -197,7 +198,14 @@ class EgonetComponent(DashComponent):
                                 html.Label('Depth'),
                                 self.depth_slider
                             ], width=6),
-                        ], justify='center')
+                        ], justify='center'),
+                        dbc.Row([
+                            dbc.Col([
+                                html.Label('Date'),
+                                self.date_slider
+                            ], width=12),
+                        ])
+
                     ])
 
                 ], class_name='h-100')
