@@ -243,7 +243,11 @@ class EgonetPlotFactory(MongoPlotFactory):
                 return egonet
             except (RuntimeError, ValueError) as ex:
                 print(f'Computing neighbourhood for user {user} failed with error {ex}')
-        return self.get_hidden_network(dataset)
+        else:
+            if start_date and end_date:
+                return hidden_network
+            else:
+                return self.get_hidden_network(dataset)
 
     def get_hidden_network_for_date(self, dataset, start_date, end_date):
         key = (dataset, start_date, end_date)
