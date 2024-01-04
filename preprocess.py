@@ -148,3 +148,43 @@ def fix_timestamps(tweet):
                 tweet[field] = {'$date': date}
         elif isinstance(value, dict):
             fix_timestamps(value)
+
+
+def generate_test_data(twitter_jsonl_zip, metadata_file, output_file=None, freq='1D', quantity=10):
+    """
+    Sample tweets from the twitter_jsonl_zip file according to the unit, bin and quantity parameters. Store
+    them in a file to be imported into mongo using mongoimport for testing purposes.
+    :param twitter_jsonl_zip:
+    :param metadata_file:
+    :param unit:
+    :param bin:
+    :param quantity:
+    :return:
+    """
+    twitter_jsonl_zip = Path(twitter_jsonl_zip)
+    usual_suspects, parties = load_metadata(metadata_file)
+    if output_file:
+        output_mongoimport = Path(output_file)
+    else:
+        output_mongoimport = twitter_jsonl_zip.parent / (twitter_jsonl_zip.stem.split('.')[0] + '.mongoimport.test.jsonl')
+    data = []
+    with zipfile.ZipFile(twitter_jsonl_zip, 'r') as zip_ref:
+        with zip_ref.open(zip_ref.namelist()[0], 'r') as infile:
+            for line in tqdm(infile, desc='Sampling tweets'):
+                tweets = ensure_flattened(json.loads(line))
+                for tweet in tweets:
+                    remiss_metadata = retrieve_remiss_metadata(tweet, usual_suspects, parties)
+                    tweet['author']['remiss_metadata'] = remiss_metadata
+                    created_at = datetime.fromisoformat(tweet['created_at'])
+                    fix_timestamps(tweet)
+                    data.append([created_at, tweet])
+
+    df = pd.DataFrame(data, columns=['created_at', 'tweet'])
+    sample = df.groupby(pd.Grouper(key='created_at', freq=freq)).apply(
+        lambda x: x.sample(quantity)).reset_index(drop=True)
+    sample = sample['tweet']
+    with open(output_mongoimport, "w") as mongoimport_outfile:
+        for tweet in sample:
+            mongoimport_outfile.write(json.dumps(tweet) + '\n')
+
+
