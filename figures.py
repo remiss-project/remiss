@@ -207,8 +207,10 @@ class TweetUserPlotFactory(MongoPlotFactory):
 class EgonetPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, database="test_remiss", cache_dir=None,
                  reference_types=('replied_to', 'quoted', 'retweeted'), layout='fruchterman_reingold',
-                 simplification=None, threshold=0.2, delete_vertices=True, k_cores=4, available_datasets=None):
+                 simplification=None, threshold=0.2, delete_vertices=True, k_cores=4, frequency='1D',
+                 available_datasets=None):
         super().__init__(host, port, database, available_datasets)
+        self.frequency = frequency
         self.delete_vertices = delete_vertices
         self.threshold = threshold
         self.reference_types = reference_types
@@ -305,10 +307,12 @@ class EgonetPlotFactory(MongoPlotFactory):
         layout = network['layout_df']
         layout.to_csv(hn_layout_file, index=False)
 
-    def prepopulate_cache(self, start_date, end_date, frequency='1D'):
+    def prepopulate_cache(self):
         for dataset in tqdm(self.available_datasets, desc='Prepopulating cache'):
             self.get_hidden_network(dataset)
-
+            start_date, end_date = self.get_date_range(dataset)
+            for start_date, end_date in pd.date_range(start_date, end_date, freq=self.frequency).to_period():
+                self.get_hidden_network_for_date(dataset, start_date, end_date)
 
     def get_legitimacy(self, dataset):
         client = MongoClient(self.host, self.port)

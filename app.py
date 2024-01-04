@@ -18,6 +18,8 @@ REMISS_GRAPH_SIMPLIFICATION_THRESHOLD = float(os.environ.get('REMISS_GRAPH_SIMPL
 REMISS_AVAILABLE_DATASETS = os.environ.get('REMISS_AVAILABLE_DATASETS', None)
 REMISS_THEME = os.environ.get('REMISS_THEME', 'pulse').upper()
 REMISS_DEBUG = os.environ.get('REMISS_DEBUG', False)
+REMISS_FREQUENCY = os.environ.get('REMISS_FREQUENCY', '1D')
+
 available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
                        'CERULEAN': dbc.themes.CERULEAN,
                        'COSMO': dbc.themes.COSMO,
@@ -79,6 +81,7 @@ def create_app():
                                             database=REMISS_MONGODB_DATABASE, cache_dir=REMISS_CACHE_DIR,
                                             layout=REMISS_GRAPH_LAYOUT, simplification=REMISS_GRAPH_SIMPLIFICATION,
                                             threshold=REMISS_GRAPH_SIMPLIFICATION_THRESHOLD,
+                                            frequency=REMISS_FREQUENCY,
                                             available_datasets=available_datasets)
     dashboard = RemissDashboard(tweet_user_plot_factory, top_table_factory, egonet_plot_factory, debug=REMISS_DEBUG)
     print(f'Plot factories created in {time.time() - start_time} seconds.')

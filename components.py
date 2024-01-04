@@ -155,8 +155,9 @@ class TopTableComponent(DashComponent):
 
 
 class EgonetComponent(DashComponent):
-    def __init__(self, plot_factory, state, name=None):
+    def __init__(self, plot_factory, state, name=None, frequency='1D'):
         super().__init__(name=name)
+        self.frequency = frequency
         self.plot_factory = plot_factory
         self.state = state
         self.available_datasets = plot_factory.available_datasets
@@ -217,7 +218,7 @@ class EgonetComponent(DashComponent):
         return date
 
     def update_date_slider(self, start_date, end_date):
-        days = pd.date_range(start_date, end_date, freq='D')
+        days = pd.date_range(start_date, end_date, freq=self.frequency)
         style = {'transform': 'rotate(45deg)', "white-space": "nowrap", 'text-align': 'center', 'font-size': '12px',
                  'margin-top': '1rem'}
         marks = {i: {'label': str(days[i].date()), 'style': style} for i in
