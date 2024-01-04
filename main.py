@@ -1,3 +1,4 @@
+from app import create_app
 from preprocess import preprocess_tweets, generate_test_data
 import fire
 

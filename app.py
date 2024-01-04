@@ -19,6 +19,7 @@ REMISS_AVAILABLE_DATASETS = os.environ.get('REMISS_AVAILABLE_DATASETS', None)
 REMISS_THEME = os.environ.get('REMISS_THEME', 'pulse').upper()
 REMISS_DEBUG = os.environ.get('REMISS_DEBUG', False)
 REMISS_FREQUENCY = os.environ.get('REMISS_FREQUENCY', '1D')
+REMISS_PREPOPULATE = os.environ.get('REMISS_PREPOPULATE', False)
 
 available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
                        'CERULEAN': dbc.themes.CERULEAN,
@@ -82,7 +83,8 @@ def create_app():
                                             layout=REMISS_GRAPH_LAYOUT, simplification=REMISS_GRAPH_SIMPLIFICATION,
                                             threshold=REMISS_GRAPH_SIMPLIFICATION_THRESHOLD,
                                             frequency=REMISS_FREQUENCY,
-                                            available_datasets=available_datasets)
+                                            available_datasets=available_datasets,
+                                            prepopulate=REMISS_PREPOPULATE)
     dashboard = RemissDashboard(tweet_user_plot_factory, top_table_factory, egonet_plot_factory, debug=REMISS_DEBUG)
     print(f'Plot factories created in {time.time() - start_time} seconds.')
     print('Creating app...')
@@ -101,6 +103,7 @@ def create_app():
     app.layout = dashboard.layout()
     dashboard.callbacks(app)
     print(f'App created in {time.time() - start_time} seconds.')
+
     return app
 
 

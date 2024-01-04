@@ -208,7 +208,7 @@ class EgonetPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, database="test_remiss", cache_dir=None,
                  reference_types=('replied_to', 'quoted', 'retweeted'), layout='fruchterman_reingold',
                  simplification=None, threshold=0.2, delete_vertices=True, k_cores=4, frequency='1D',
-                 available_datasets=None):
+                 available_datasets=None, prepopulate=False):
         super().__init__(host, port, database, available_datasets)
         self.frequency = frequency
         self.delete_vertices = delete_vertices
@@ -220,6 +220,9 @@ class EgonetPlotFactory(MongoPlotFactory):
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.simplification = simplification
         self.k_cores = k_cores
+        self.prepopulate = prepopulate
+        if self.prepopulate:
+            self.prepopulate_cache()
 
     def get_egonet(self, dataset, user, depth, date):
         """
@@ -311,7 +314,8 @@ class EgonetPlotFactory(MongoPlotFactory):
         for dataset in tqdm(self.available_datasets, desc='Prepopulating cache'):
             self.get_hidden_network(dataset)
             start_date, end_date = self.get_date_range(dataset)
-            for start_date, end_date in pd.date_range(start_date, end_date, freq=self.frequency).to_period():
+            dates = pd.date_range(start_date, end_date, freq=self.frequency)
+            for start_date, end_date in zip(dates[:-1], dates[1:]):
                 self.get_hidden_network_for_date(dataset, start_date, end_date)
 
     def get_legitimacy(self, dataset):
@@ -464,6 +468,9 @@ class EgonetPlotFactory(MongoPlotFactory):
         """
         authors = self._get_authors(dataset, start_date, end_date)
         references = self._get_references(dataset, start_date, end_date)
+        if len(authors) == 0:
+            # in case of no authors we return an empty graph
+            return ig.Graph(directed=True)
 
         print('Computing graph')
         start_time = time.time()
