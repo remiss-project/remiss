@@ -1,5 +1,6 @@
 import time
 from abc import ABC
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
@@ -13,6 +14,7 @@ import pymongoarrow.monkey
 from pymongo import MongoClient
 from pymongo.errors import OperationFailure
 from pymongoarrow.schema import Schema
+from tqdm import tqdm
 
 pymongoarrow.monkey.patch_all()
 
@@ -210,124 +212,103 @@ class EgonetPlotFactory(MongoPlotFactory):
         self.delete_vertices = delete_vertices
         self.threshold = threshold
         self.reference_types = reference_types
+        self._hidden_networks_for_date = {}
         self._hidden_networks = {}
-        self._simplified_hidden_networks = {}
         self.layout = layout
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.simplification = simplification
         self.k_cores = k_cores
 
-    def get_egonet(self, dataset, user, depth):
-        hidden_network = self.get_hidden_network(dataset)
+    def get_egonet(self, dataset, user, depth, date):
+        """
+        Returns the egonet of a user of a certain date and depth if present,
+        otherwise returns the simplified hidden network
+        :param dataset:
+        :param user:
+        :param depth:
+        :param date:
+        :return:
+        """
+        hidden_network = self.get_hidden_network_for_date(dataset, date)
+        # check if the user is in the hidden network
         if user:
             try:
                 node = hidden_network.vs.find(username=user)
                 egonet = hidden_network.induced_subgraph(hidden_network.neighborhood(node, order=depth))
                 return egonet
             except (RuntimeError, ValueError) as ex:
-                print(f'Computing neighbourhood for user {user} failed, computing the whole network')
-        if self.simplification:
-            print(f'Returning {self.simplification} simplified hidden network')
-        return self._simplified_hidden_networks[dataset] if self.simplification else hidden_network
+                print(f'Computing neighbourhood for user {user} failed with error {ex}')
+        return self.get_hidden_network(dataset)
 
-    def load_from_cache(self, dataset):
-        cache_dir = self.cache_dir / dataset
-        graph_file = cache_dir / 'hidden_network_graph.graphmlz'
-        layout_file = cache_dir / 'hidden_network_layout.feather'
-        if self.simplification:
-            simplified_graph_file = cache_dir / f'hidden_network_graph-{self.simplification}-{self.threshold}.graphmlz'
-            simplified_layout_file = cache_dir / f'hidden_network_layout-{self.simplification}-{self.threshold}.feather'
-            simplified_graph = ig.Graph.Read_GraphMLz(str(simplified_graph_file))
-            simplified_layout = pd.read_feather(str(simplified_layout_file))
-            simplified_graph['layout_df'] = simplified_layout
-            self._simplified_hidden_networks[dataset] = simplified_graph
-            print(f'Loaded simplified hidden network from {simplified_graph_file}')
-            print(self._simplified_hidden_networks[dataset].summary())
-        graph = ig.Graph.Read_GraphMLz(str(graph_file))
-        layout = pd.read_feather(str(layout_file))
-        graph['layout_df'] = layout
-        self._hidden_networks[dataset] = graph
-        print(f'Loaded hidden network from {graph_file}')
-        print(self._hidden_networks[dataset].summary())
+    def get_hidden_network_for_date(self, dataset, start_date, end_date):
+        key = (dataset, start_date, end_date)
 
-    def compute_and_store(self, dataset):
-        (self.cache_dir / dataset).mkdir(parents=True, exist_ok=True)
-        graph_file = self.cache_dir / dataset / 'hidden_network_graph.graphmlz'
-        layout_file = self.cache_dir / dataset / 'hidden_network_layout.feather'
-        graph = self._compute_hidden_network(dataset)
-        graph.write_graphmlz(str(graph_file))
-        layout = self.compute_layout(graph)
-        layout.to_feather(str(layout_file))
-        graph['layout_df'] = layout
-        self._hidden_networks[dataset] = graph
-        if self.simplification:
-            simplified_graph_file = self.cache_dir / dataset / f'hidden_network_graph-{self.simplification}-{self.threshold}.graphmlz'
-            simplified_layout_file = self.cache_dir / dataset / f'hidden_network_layout-{self.simplification}-{self.threshold}.feather'
-            simplified_graph = self._simplify_graph(self._hidden_networks[dataset])
-            simplified_layout = self.compute_layout(simplified_graph)
-            simplified_graph.write_graphmlz(str(simplified_graph_file))
-            simplified_layout.to_feather(str(simplified_layout_file))
-            simplified_graph['layout_df'] = simplified_layout
-            self._simplified_hidden_networks[dataset] = simplified_graph
-            print(f'Simplified hidden network saved to {simplified_graph_file}')
+        if key not in self._hidden_networks_for_date:
+            if self.cache_dir and self.is_cached(dataset, start_date, end_date):
+                network = self.load_from_cache(dataset, start_date, end_date)
+            else:
+                network = self._compute_hidden_network(dataset, start_date, end_date)
+                if self.cache_dir:
+                    self.save_to_cache(dataset, start_date, end_date, network)
+            self._hidden_networks_for_date[key] = network
 
-    def is_cached(self, dataset):
-        dataset_dir = self.cache_dir / dataset
-        hn_graph_file = dataset_dir / 'hidden_network_graph.graphmlz'
-        hn_layout_file = dataset_dir / 'hidden_network_layout.feather'
-        is_cached = hn_graph_file.exists() and hn_layout_file.exists()
-        if self.simplification:
-            simplified_hn_graph_file = dataset_dir / f'hidden_network_graph-{self.simplification}-{self.threshold}.graphmlz'
-            simplified_hn_layout_file = dataset_dir / f'hidden_network_layout-{self.simplification}-{self.threshold}.feather'
-            is_cached = is_cached and simplified_hn_graph_file.exists() and simplified_hn_layout_file
-        return is_cached
+        return self._hidden_networks_for_date[key]
 
     def get_hidden_network(self, dataset):
         if dataset not in self._hidden_networks:
-            if self.cache_dir:
-                if self.is_cached(dataset):
-                    self.load_from_cache(dataset)
-                else:
-                    self.compute_and_store(dataset)
+            if self.cache_dir and self.is_cached(dataset):
+                network = self.load_from_cache(dataset)
             else:
-                self._hidden_networks[dataset] = self._compute_hidden_network(dataset)
-                if self.simplification:
-                    self._simplified_hidden_networks[dataset] = self._simplify_graph(self._hidden_networks[dataset])
+                network = self._compute_hidden_network(dataset)
+                if self.cache_dir:
+                    self.save_to_cache(dataset, network=network)
+            self._hidden_networks[dataset] = network
         return self._hidden_networks[dataset]
 
-    def _get_authors(self, dataset):
-        client = MongoClient(self.host, self.port)
-        database = client.get_database(self.database)
-        collection = database.get_collection(dataset)
+    def is_cached(self, dataset, start_date=None, end_date=None):
+        dataset_dir = self.cache_dir / dataset
+        stem = 'hidden_network'
+        if start_date:
+            stem += f'_{start_date}'
+        if end_date:
+            stem += f'_{end_date}'
+        hn_graph_file = dataset_dir / f'{stem}.graphml'
+        hn_layout_file = dataset_dir / f'{stem}.layout.csv'
+        return hn_graph_file.exists() and hn_layout_file.exists()
 
-        node_pipeline = [
-            {'$unwind': '$referenced_tweets'},
-            {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
-                        'referenced_tweets.author': {'$exists': True}}},
-            {'$project': {'_id': 0, 'id': '$referenced_tweets.author.id',
-                          'username': '$referenced_tweets.author.username',
-                          'is_usual_suspect': '$referenced_tweets.author.remiss_metadata.is_usual_suspect',
-                          'party': '$referenced_tweets.author.remiss_metadata.party'}},
-            {'$unionWith': {'coll': dataset, 'pipeline': [
-                {'$project': {'id': '$author.id',
-                              'username': '$author.username',
-                              'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
-                              'party': '$author.remiss_metadata.party'}}]}},
-            {'$group': {'_id': '$id',
-                        'username': {'$first': '$username'},
-                        'is_usual_suspect': {'$addToSet': '$is_usual_suspect'},
-                        'party': {'$addToSet': '$party'}}},
-            {'$project': {'_id': 0,
-                          'id': '$_id',
-                          'username': 1,
-                          'is_usual_suspect': {'$anyElementTrue': '$is_usual_suspect'},
-                          'party': {'$arrayElemAt': ['$party', 0]}}}
-        ]
-        print('Computing authors')
-        start_time = time.time()
-        authors = collection.aggregate_pandas_all(node_pipeline)
-        print(f'Authors computed in {time.time() - start_time} seconds')
-        return authors
+    def load_from_cache(self, dataset, start_date=None, end_date=None):
+        dataset_dir = self.cache_dir / dataset
+        stem = 'hidden_network'
+        if start_date:
+            stem += f'_{start_date}'
+        if end_date:
+            stem += f'_{end_date}'
+        hn_graph_file = dataset_dir / f'{stem}.graphml'
+        hn_layout_file = dataset_dir / f'{stem}.layout.csv'
+        network = ig.read(hn_graph_file)
+        layout = pd.read_csv(hn_layout_file)
+        network['layout_df'] = layout
+        return network
+
+    def save_to_cache(self, dataset, start_date=None, end_date=None, network=None):
+        dataset_dir = self.cache_dir / dataset
+        if not dataset_dir.exists():
+            dataset_dir.mkdir()
+        stem = 'hidden_network'
+        if start_date:
+            stem += f'_{start_date}'
+        if end_date:
+            stem += f'_{end_date}'
+        hn_graph_file = dataset_dir / f'{stem}.graphml'
+        hn_layout_file = dataset_dir / f'{stem}.layout.csv'
+        network.write_graphml(hn_graph_file)
+        layout = network['layout_df']
+        layout.to_csv(hn_layout_file, index=False)
+
+    def prepopulate_cache(self, start_date, end_date, frequency='1D'):
+        for dataset in tqdm(self.available_datasets, desc='Prepopulating cache'):
+            self.get_hidden_network(dataset)
+
 
     def get_legitimacy(self, dataset):
         client = MongoClient(self.host, self.port)
@@ -385,7 +366,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         start_time = time.time()
         legitimacy = self._get_legitimacy_per_time(dataset, unit, bin_size)
         reputation = legitimacy.cumsum(axis=1)
-        
+
         print(f'Reputation computed in {time.time() - start_time} seconds')
         return reputation
 
@@ -397,8 +378,50 @@ class EgonetPlotFactory(MongoPlotFactory):
         print(f'Status computed in {time.time() - start_time} seconds')
         return status
 
+    def _add_date_filters(self, pipeline, start_date, end_date):
+        if start_date:
+            start_date = pd.to_datetime(start_date)
+            pipeline.insert(0, {'$match': {'created_at': {'$gte': start_date}}})
+        if end_date:
+            end_date = pd.to_datetime(end_date)
+            pipeline.insert(0, {'$match': {'created_at': {'$lte': end_date}}})
 
-    def _get_references(self, dataset):
+    def _get_authors(self, dataset, start_date=None, end_date=None):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(self.database)
+        collection = database.get_collection(dataset)
+
+        node_pipeline = [
+            {'$unwind': '$referenced_tweets'},
+            {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
+                        'referenced_tweets.author': {'$exists': True}}},
+            {'$project': {'_id': 0, 'id': '$referenced_tweets.author.id',
+                          'username': '$referenced_tweets.author.username',
+                          'is_usual_suspect': '$referenced_tweets.author.remiss_metadata.is_usual_suspect',
+                          'party': '$referenced_tweets.author.remiss_metadata.party'}},
+            {'$unionWith': {'coll': dataset, 'pipeline': [
+                {'$project': {'id': '$author.id',
+                              'username': '$author.username',
+                              'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
+                              'party': '$author.remiss_metadata.party'}}]}},
+            {'$group': {'_id': '$id',
+                        'username': {'$first': '$username'},
+                        'is_usual_suspect': {'$addToSet': '$is_usual_suspect'},
+                        'party': {'$addToSet': '$party'}}},
+            {'$project': {'_id': 0,
+                          'id': '$_id',
+                          'username': 1,
+                          'is_usual_suspect': {'$anyElementTrue': '$is_usual_suspect'},
+                          'party': {'$arrayElemAt': ['$party', 0]}}}
+        ]
+        self._add_date_filters(node_pipeline, start_date, end_date)
+        print('Computing authors')
+        start_time = time.time()
+        authors = collection.aggregate_pandas_all(node_pipeline)
+        print(f'Authors computed in {time.time() - start_time} seconds')
+        return authors
+
+    def _get_references(self, dataset, start_date=None, end_date=None):
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.database)
         collection = database.get_collection(dataset)
@@ -421,6 +444,7 @@ class EgonetPlotFactory(MongoPlotFactory):
                           'weight_norm': {'$divide': ['$references.weight', '$node_weight']},
                           }},
         ]
+        self._add_date_filters(references_pipeline, start_date, end_date)
         print('Computing references')
         start_time = time.time()
         references = collection.aggregate_pandas_all(references_pipeline)
@@ -428,14 +452,14 @@ class EgonetPlotFactory(MongoPlotFactory):
         client.close()
         return references
 
-    def _compute_hidden_network(self, dataset):
+    def _compute_hidden_network(self, dataset, start_date=None, end_date=None):
         """
         Computes the hidden graph, this is, the graph of users that have interacted with each other.
         :param dataset: collection name within the database where the tweets are stored
         :return: a networkx graph with the users as nodes and the edges representing interactions between users
         """
-        authors = self._get_authors(dataset)
-        references = self._get_references(dataset)
+        authors = self._get_authors(dataset, start_date, end_date)
+        references = self._get_references(dataset, start_date, end_date)
 
         print('Computing graph')
         start_time = time.time()
@@ -460,8 +484,8 @@ class EgonetPlotFactory(MongoPlotFactory):
 
         return g
 
-    def plot_egonet(self, collection, user, depth):
-        network = self.get_egonet(collection, user, depth)
+    def plot_egonet(self, collection, user, depth, date):
+        network = self.get_egonet(collection, user, depth, date)
         network = network.as_undirected(mode='collapse')
 
         return self.plot_network(network)
@@ -576,6 +600,9 @@ class EgonetPlotFactory(MongoPlotFactory):
         fig.update_layout(scene_camera=camera)
         print(f'Plot computed in {time.time() - start_time} seconds')
         return fig
+
+    def get_simplified_hidden_network(self, dataset):
+        return self._simplified_hidden_networks[dataset]
 
 
 def compute_backbone(graph, alpha=0.05, delete_vertices=True):
