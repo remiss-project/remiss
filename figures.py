@@ -224,7 +224,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         if self.prepopulate:
             self.prepopulate_cache()
 
-    def get_egonet(self, dataset, user, depth, date):
+    def get_egonet(self, dataset, user, depth, start_date, end_date):
         """
         Returns the egonet of a user of a certain date and depth if present,
         otherwise returns the simplified hidden network
@@ -234,7 +234,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         :param date:
         :return:
         """
-        hidden_network = self.get_hidden_network_for_date(dataset, date)
+        hidden_network = self.get_hidden_network_for_date(dataset, start_date, end_date)
         # check if the user is in the hidden network
         if user:
             try:
@@ -495,8 +495,8 @@ class EgonetPlotFactory(MongoPlotFactory):
 
         return g
 
-    def plot_egonet(self, collection, user, depth, date):
-        network = self.get_egonet(collection, user, depth, date)
+    def plot_egonet(self, collection, user, depth, start_date, end_date):
+        network = self.get_egonet(collection, user, depth, start_date, end_date)
         network = network.as_undirected(mode='collapse')
 
         return self.plot_network(network)

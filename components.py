@@ -157,6 +157,7 @@ class TopTableComponent(DashComponent):
 class EgonetComponent(DashComponent):
     def __init__(self, plot_factory, state, name=None, frequency='1D'):
         super().__init__(name=name)
+        self.dates = None
         self.frequency = frequency
         self.plot_factory = plot_factory
         self.state = state
@@ -171,7 +172,7 @@ class EgonetComponent(DashComponent):
                                           # value=available_users[0],
                                           id=f'user-dropdown-{self.name}')
         self.depth_slider = dcc.Slider(min=1, max=5, step=1, value=2, id=f'slider-{self.name}')
-        self.date_slider = dcc.Slider(min=0, max=1, step=1, value=0, id=f'date-slider-{self.name}', included=False)
+        self.date_slider = dcc.Slider(min=0, max=1, step=1, value=10, id=f'date-slider-{self.name}', included=False)
 
     def layout(self, params=None):
         return dbc.Row([
@@ -205,8 +206,10 @@ class EgonetComponent(DashComponent):
             ], class_name='h-100'),
         ], justify='center', class_name='h-100 w-100', style={'margin-bottom': '1rem'})
 
-    def update(self, dataset, user, depth):
-        fig = self.plot_factory.plot_egonet(dataset, user, depth)
+    def update(self, dataset, user, depth, date_index):
+        start_date = self.dates[date_index]
+        end_date = self.dates[date_index + 1]
+        fig = self.plot_factory.plot_egonet(dataset, user, depth, start_date, end_date)
         # remove margin
         fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
         return fig
@@ -223,6 +226,7 @@ class EgonetComponent(DashComponent):
                  'margin-top': '1rem'}
         marks = {i: {'label': str(days[i].date()), 'style': style} for i in
                  range(0, len(days))}
+        self.dates = days
 
         return 0, len(days) - 1, 0, marks
 
@@ -231,7 +235,8 @@ class EgonetComponent(DashComponent):
             Output(self.graph_egonet, 'figure'),
             [Input(self.state.current_dataset, 'data'),
              Input(self.state.current_user, 'data'),
-             Input(self.depth_slider, 'value')],
+             Input(self.depth_slider, 'value'),
+             Input(self.date_slider, 'value')],
         )(self.update)
         app.callback(
             Output(self.state.current_user, 'data', allow_duplicate=True),
