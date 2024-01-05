@@ -1298,3 +1298,134 @@ class TestEgonetPlotFactory(unittest.TestCase):
         expected = expected.cumsum(axis=1)
         expected = expected.apply(lambda x: x.argsort())
         pd.testing.assert_frame_equal(expected, actual, check_dtype=False, check_like=True, check_index_type=False)
+
+    def test_egonet_date(self):
+        data_size = 100
+        day_range = 10
+        max_num_references = 20
+        start_date = datetime.fromisoformat("2019-01-01T00:00:00Z")
+        end_date = start_date
+
+        test_data = []
+        total_referenced_tweets = 0
+        usual_suspects = {}
+        parties = {}
+        expected_authors = {}
+        expected_references = []
+        for i in range(data_size):
+            for day in range(day_range):
+                if i // 2 not in usual_suspects:
+                    usual_suspects[i // 2] = random.choice([True, False])
+                if i // 2 not in parties:
+                    parties[i // 2] = random.choice(['PSOE', 'PP', 'VOX', 'UP', None])
+
+                num_referenced_tweets = random.randint(0, max_num_references)
+                total_referenced_tweets += num_referenced_tweets
+                referenced_tweets = []
+                for j in range(num_referenced_tweets):
+                    author_id = random.randint(0, data_size // 2 - 1)
+                    referenced_tweets.append(
+                        {'id': i + 1, 'author': {'id': author_id, 'username': f'TEST_USER_{author_id}'},
+                         'type': 'retweeted'})
+
+                is_usual_suspect = usual_suspects[i // 2]
+                party = parties[i // 2]
+                tweet = {"id": i, "created_at": datetime.fromisoformat("2019-01-01T23:20:00Z"),
+                         "author": {"username": f"TEST_USER_{i // 2}", "id": i // 2,
+                                    "remiss_metadata": {"party": party, "is_usual_suspect": is_usual_suspect}},
+                         "entities": {"hashtags": [{"tag": "test_hashtag"}]},
+                         'referenced_tweets': referenced_tweets,
+                         'created_at': datetime.fromisoformat("2019-01-01T00:00:00Z") + timedelta(days=day)}
+                expected_authors[i // 2] = {'id': i // 2, 'username': f'TEST_USER_{i // 2}', 'party': party,
+                                            'is_usual_suspect': is_usual_suspect}
+                if start_date <= tweet['created_at'] < end_date:
+                    expected_references.extend([(i // 2, x['author']['id']) for x in referenced_tweets])
+                test_data.append(tweet)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database('test_remiss')
+        database = client.get_database('test_remiss')
+        collection = database.get_collection('test_collection')
+        print(f'storing test data {total_referenced_tweets}')
+        collection.insert_many(test_data)
+
+        collection = 'test_collection'
+
+        self.egonet_plot.host = 'localhost'
+        self.egonet_plot.port = 27017
+        self.egonet_plot.database = 'test_remiss'
+        authors = self.egonet_plot._get_authors(collection, start_date=start_date, end_date=end_date)
+        references = self.egonet_plot._get_references(collection, start_date=start_date, end_date=end_date)
+        self.assertEqual(len(authors), 0)
+        self.assertEqual(len(references), 0)
+
+    def test_egonet_date_2(self):
+        data_size = 100
+        day_range = 10
+        max_num_references = 20
+        start_date = datetime.fromisoformat("2019-01-01T00:00:00Z")
+        end_date = datetime.fromisoformat("2019-01-01T00:00:00Z") + timedelta(days=1)
+
+        test_data = []
+        total_referenced_tweets = 0
+        usual_suspects = {}
+        parties = {}
+        expected_authors = {}
+        expected_references = []
+        for i in range(data_size):
+            for day in range(day_range):
+                if i // 2 not in usual_suspects:
+                    usual_suspects[i // 2] = random.choice([True, False])
+                if i // 2 not in parties:
+                    parties[i // 2] = random.choice(['PSOE', 'PP', 'VOX', 'UP', None])
+
+                num_referenced_tweets = random.randint(0, max_num_references)
+                referenced_tweets = []
+                for j in range(num_referenced_tweets):
+                    author_id = random.randint(0, data_size // 2 - 1)
+                    referenced_tweets.append(
+                        {'id': i + 1, 'author': {'id': author_id, 'username': f'TEST_USER_{author_id}'},
+                         'type': 'retweeted'})
+
+                is_usual_suspect = usual_suspects[i // 2]
+                party = parties[i // 2]
+                tweet = {"id": i, "created_at": datetime.fromisoformat("2019-01-01T23:20:00Z"),
+                         "author": {"username": f"TEST_USER_{i // 2}", "id": i // 2,
+                                    "remiss_metadata": {"party": party, "is_usual_suspect": is_usual_suspect}},
+                         "entities": {"hashtags": [{"tag": "test_hashtag"}]},
+                         'referenced_tweets': referenced_tweets,
+                         'created_at': datetime.fromisoformat("2019-01-01T00:00:00Z") + timedelta(days=day)}
+                expected_authors[i // 2] = {'id': i // 2, 'username': f'TEST_USER_{i // 2}', 'party': party,
+                                            'is_usual_suspect': is_usual_suspect}
+                if start_date <= tweet['created_at'] < end_date:
+                    expected_references.extend([(i // 2, x['author']['id']) for x in referenced_tweets])
+                    total_referenced_tweets += num_referenced_tweets
+
+                test_data.append(tweet)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database('test_remiss')
+        database = client.get_database('test_remiss')
+        collection = database.get_collection('test_collection')
+        print(f'storing test data {total_referenced_tweets}')
+        collection.insert_many(test_data)
+
+        collection = 'test_collection'
+
+        self.egonet_plot.host = 'localhost'
+        self.egonet_plot.port = 27017
+        self.egonet_plot.database = 'test_remiss'
+        authors = self.egonet_plot._get_authors(collection, start_date=start_date, end_date=end_date)
+        authors = authors.sort_values('id').reset_index(drop=True)
+        expected_authors = pd.DataFrame(expected_authors).T
+        expected_authors = expected_authors.sort_values('id')
+        pd.testing.assert_frame_equal(expected_authors, authors, check_dtype=False, check_like=True,
+                                      check_index_type=False)
+
+        references = self.egonet_plot._get_references(collection, start_date=start_date, end_date=end_date)
+        references = references.sort_values(['source', 'target']).reset_index(drop=True)
+        references = references[['source', 'target']]
+        expected_references = pd.DataFrame(expected_references, columns=['source', 'target'])
+        expected_references = expected_references.drop_duplicates().sort_values(['source', 'target']).reset_index(drop=True)
+        pd.testing.assert_frame_equal(expected_references, references, check_dtype=False, check_like=True,
+                                      check_index_type=False)

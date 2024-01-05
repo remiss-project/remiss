@@ -315,6 +315,9 @@ class EgonetPlotFactory(MongoPlotFactory):
         layout.to_csv(hn_layout_file, index=False)
 
     def prepopulate_cache(self):
+        if not self.cache_dir:
+            raise ValueError('Cache directory not set')
+
         for dataset in tqdm(self.available_datasets, desc='Prepopulating cache'):
             self.get_hidden_network(dataset)
             start_date, end_date = self.get_date_range(dataset)
@@ -392,16 +395,20 @@ class EgonetPlotFactory(MongoPlotFactory):
 
     def _add_date_filters(self, pipeline, start_date, end_date):
         if start_date:
-            start_date = pd.to_datetime(start_date)
-            pipeline.insert(0, {'$match': {'created_at': {'$gte': start_date}}})
+            pipeline.insert(0, {'$match': {'created_at': {'$gte': pd.to_datetime(start_date)}}})
         if end_date:
-            end_date = pd.to_datetime(end_date)
-            pipeline.insert(0, {'$match': {'created_at': {'$lte': end_date}}})
+            pipeline.insert(0, {'$match': {'created_at': {'$lt': pd.to_datetime(end_date)}}})
 
     def _get_authors(self, dataset, start_date=None, end_date=None):
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.database)
         collection = database.get_collection(dataset)
+        nested_pipeline = [
+            {'$project': {'id': '$author.id',
+                          'username': '$author.username',
+                          'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
+                          'party': '$author.remiss_metadata.party'}}]
+        self._add_date_filters(nested_pipeline, start_date, end_date)
 
         node_pipeline = [
             {'$unwind': '$referenced_tweets'},
@@ -411,11 +418,7 @@ class EgonetPlotFactory(MongoPlotFactory):
                           'username': '$referenced_tweets.author.username',
                           'is_usual_suspect': '$referenced_tweets.author.remiss_metadata.is_usual_suspect',
                           'party': '$referenced_tweets.author.remiss_metadata.party'}},
-            {'$unionWith': {'coll': dataset, 'pipeline': [
-                {'$project': {'id': '$author.id',
-                              'username': '$author.username',
-                              'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
-                              'party': '$author.remiss_metadata.party'}}]}},
+            {'$unionWith': {'coll': dataset, 'pipeline': nested_pipeline}}, # Fetch missing authors
             {'$group': {'_id': '$id',
                         'username': {'$first': '$username'},
                         'is_usual_suspect': {'$addToSet': '$is_usual_suspect'},
