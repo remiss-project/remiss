@@ -17,9 +17,11 @@ REMISS_GRAPH_SIMPLIFICATION = os.environ.get('REMISS_GRAPH_SIMPLIFICATION', 'bac
 REMISS_GRAPH_SIMPLIFICATION_THRESHOLD = float(os.environ.get('REMISS_GRAPH_SIMPLIFICATION_THRESHOLD', 0.95))
 REMISS_AVAILABLE_DATASETS = os.environ.get('REMISS_AVAILABLE_DATASETS', None)
 REMISS_THEME = os.environ.get('REMISS_THEME', 'pulse').upper()
-REMISS_DEBUG = os.environ.get('REMISS_DEBUG', True)
+REMISS_DEBUG = os.environ.get('REMISS_DEBUG', 'False')
+REMISS_DEBUG = REMISS_DEBUG.lower() == 'true'
 REMISS_FREQUENCY = os.environ.get('REMISS_FREQUENCY', '1D')
-REMISS_PREPOPULATE = os.environ.get('REMISS_PREPOPULATE', False)
+REMISS_PREPOPULATE = os.environ.get('REMISS_PREPOPULATE', 'False')
+REMISS_PREPOPULATE = REMISS_PREPOPULATE.lower() == 'true'
 
 available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
                        'CERULEAN': dbc.themes.CERULEAN,
