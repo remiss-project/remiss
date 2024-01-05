@@ -432,7 +432,8 @@ class EgonetPlotFactory(MongoPlotFactory):
         self._add_date_filters(node_pipeline, start_date, end_date)
         print('Computing authors')
         start_time = time.time()
-        authors = collection.aggregate_pandas_all(node_pipeline)
+        schema = Schema({'id': str, 'username': str, 'is_usual_suspect': bool, 'party': str})
+        authors = collection.aggregate_pandas_all(node_pipeline, schema=schema)
         print(f'Authors computed in {time.time() - start_time} seconds')
         return authors
 
