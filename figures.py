@@ -211,11 +211,14 @@ class EgonetPlotFactory(MongoPlotFactory):
                  available_datasets=None, prepopulate=False):
         super().__init__(host, port, database, available_datasets)
         self.frequency = frequency
+        self.bin_size = int(frequency[:-1])
+        pd_units = {'D': 'day', 'W': 'week', 'M': 'month', 'Y': 'year'}
+        self.unit = pd_units[frequency[-1]]
         self.delete_vertices = delete_vertices
         self.threshold = threshold
         self.reference_types = reference_types
-        self._hidden_networks_for_date = {}
         self._hidden_networks = {}
+        self._simplified_hidden_networks = {}
         self.layout = layout
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.simplification = simplification
@@ -224,17 +227,22 @@ class EgonetPlotFactory(MongoPlotFactory):
         if self.prepopulate:
             self.prepopulate_cache()
 
-    def get_egonet(self, dataset, user, depth, start_date, end_date):
+    def plot_egonet(self, collection, user, depth, start_date, end_date):
+        network = self.get_egonet(collection, user, depth)
+        network = network.as_undirected(mode='collapse')
+
+        return self.plot_network(network, start_date, end_date)
+
+    def get_egonet(self, dataset, user, depth):
         """
         Returns the egonet of a user of a certain date and depth if present,
         otherwise returns the simplified hidden network
         :param dataset:
         :param user:
         :param depth:
-        :param date:
         :return:
         """
-        hidden_network = self.get_hidden_network_for_date(dataset, start_date, end_date)
+        hidden_network = self.get_hidden_network(dataset)
         # check if the user is in the hidden network
         if user:
             try:
@@ -243,55 +251,41 @@ class EgonetPlotFactory(MongoPlotFactory):
                 return egonet
             except (RuntimeError, ValueError) as ex:
                 print(f'Computing neighbourhood for user {user} failed with error {ex}')
-        else:
-            if start_date and end_date:
-                return hidden_network
-            else:
-                return self.get_hidden_network(dataset)
-
-    def get_hidden_network_for_date(self, dataset, start_date, end_date):
-        key = (dataset, start_date, end_date)
-
-        if key not in self._hidden_networks_for_date:
-            if self.cache_dir and self.is_cached(dataset, start_date, end_date):
-                network = self.load_from_cache(dataset, start_date, end_date)
-            else:
-                network = self._compute_hidden_network(dataset, start_date, end_date)
-                if self.cache_dir:
-                    self.save_to_cache(dataset, start_date, end_date, network)
-            self._hidden_networks_for_date[key] = network
-
-        return self._hidden_networks_for_date[key]
+        return self.get_simplified_hidden_network(dataset)
 
     def get_hidden_network(self, dataset):
         if dataset not in self._hidden_networks:
-            if self.cache_dir and self.is_cached(dataset):
-                network = self.load_from_cache(dataset)
+            if self.cache_dir and self.is_cached(dataset, 'hidden_network'):
+                network = self.load_from_cache(dataset, 'hidden_network')
             else:
                 network = self._compute_hidden_network(dataset)
                 if self.cache_dir:
-                    self.save_to_cache(dataset, network=network)
+                    self.save_to_cache(dataset, network, 'hidden_network')
             self._hidden_networks[dataset] = network
+
         return self._hidden_networks[dataset]
 
-    def is_cached(self, dataset, start_date=None, end_date=None):
+    def get_simplified_hidden_network(self, dataset):
+        if dataset not in self._simplified_hidden_networks:
+            if self.cache_dir and self.is_cached(dataset, 'simplified_hidden_network'):
+                network = self.load_from_cache(dataset, 'simplified_hidden_network')
+            else:
+                network = self.get_hidden_network(dataset)
+                network = self._simplify_graph(network)
+                if self.cache_dir:
+                    self.save_to_cache(dataset, network, 'simplified_hidden_network')
+            self._simplified_hidden_networks[dataset] = network
+
+        return self._simplified_hidden_networks[dataset]
+
+    def is_cached(self, dataset, stem):
         dataset_dir = self.cache_dir / dataset
-        stem = 'hidden_network'
-        if start_date:
-            stem += f'_{start_date}'
-        if end_date:
-            stem += f'_{end_date}'
         hn_graph_file = dataset_dir / f'{stem}.graphml'
         hn_layout_file = dataset_dir / f'{stem}.layout.csv'
         return hn_graph_file.exists() and hn_layout_file.exists()
 
-    def load_from_cache(self, dataset, start_date=None, end_date=None):
+    def load_from_cache(self, dataset, stem):
         dataset_dir = self.cache_dir / dataset
-        stem = 'hidden_network'
-        if start_date:
-            stem += f'_{start_date}'
-        if end_date:
-            stem += f'_{end_date}'
         hn_graph_file = dataset_dir / f'{stem}.graphml'
         hn_layout_file = dataset_dir / f'{stem}.layout.csv'
         network = ig.read(hn_graph_file)
@@ -299,15 +293,10 @@ class EgonetPlotFactory(MongoPlotFactory):
         network['layout_df'] = layout
         return network
 
-    def save_to_cache(self, dataset, start_date=None, end_date=None, network=None):
+    def save_to_cache(self, dataset, network, stem):
         dataset_dir = self.cache_dir / dataset
         if not dataset_dir.exists():
             dataset_dir.mkdir()
-        stem = 'hidden_network'
-        if start_date:
-            stem += f'_{start_date}'
-        if end_date:
-            stem += f'_{end_date}'
         hn_graph_file = dataset_dir / f'{stem}.graphml'
         hn_layout_file = dataset_dir / f'{stem}.layout.csv'
         network.write_graphml(hn_graph_file)
@@ -318,12 +307,9 @@ class EgonetPlotFactory(MongoPlotFactory):
         if not self.cache_dir:
             raise ValueError('Cache directory not set')
 
-        for dataset in tqdm(self.available_datasets, desc='Prepopulating cache'):
+        for dataset in (pbar := tqdm(self.available_datasets, desc='Prepopulating cache')):
+            pbar.set_postfix_str(dataset)
             self.get_hidden_network(dataset)
-            start_date, end_date = self.get_date_range(dataset)
-            dates = pd.date_range(start_date, end_date, freq=self.frequency)
-            for start_date, end_date in zip(dates[:-1], dates[1:]):
-                self.get_hidden_network_for_date(dataset, start_date, end_date)
 
     def get_legitimacy(self, dataset):
         client = MongoClient(self.host, self.port)
@@ -335,11 +321,9 @@ class EgonetPlotFactory(MongoPlotFactory):
             {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
                         'referenced_tweets.author': {'$exists': True}}},
             {'$group': {'_id': '$author.id',
-                        'username': {'$first': '$author.username'},
                         'legitimacy': {'$count': {}}}},
             {'$project': {'_id': 0,
                           'id': '$_id',
-                          'username': 1,
                           'legitimacy': 1}},
         ]
         print('Computing legitimacy')
@@ -350,7 +334,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         print(f'Legitimacy computed in {time.time() - start_time} seconds')
         return legitimacy
 
-    def _get_legitimacy_per_time(self, dataset, unit='day', bin_size=1):
+    def _get_legitimacy_per_time(self, dataset):
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.database)
         collection = database.get_collection(dataset)
@@ -360,34 +344,33 @@ class EgonetPlotFactory(MongoPlotFactory):
             {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
                         'referenced_tweets.author': {'$exists': True}}},
             {'$group': {'_id': {'author': '$author.id',
-                                'date': {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}}
+                                'date': {
+                                    "$dateTrunc": {'date': "$created_at", 'unit': self.unit, 'binSize': self.bin_size}}
                                 },
-                        'username': {'$first': '$author.username'},
                         'legitimacy': {'$count': {}}}},
             {'$project': {'_id': 0,
                           'id': '$_id.author',
                           'date': '$_id.date',
-                          'username': 1,
                           'legitimacy': 1}},
         ]
         print('Computing reputation')
 
         legitimacy = collection.aggregate_pandas_all(node_pipeline)
-        legitimacy = legitimacy.pivot(columns='date', index=['id', 'username'], values='legitimacy')
+        legitimacy = legitimacy.pivot(columns='date', index='id', values='legitimacy')
         legitimacy = legitimacy.fillna(0)
         return legitimacy
 
-    def get_reputation(self, dataset, unit='day', bin_size=1):
+    def get_reputation(self, dataset):
         start_time = time.time()
-        legitimacy = self._get_legitimacy_per_time(dataset, unit, bin_size)
+        legitimacy = self._get_legitimacy_per_time(dataset)
         reputation = legitimacy.cumsum(axis=1)
 
         print(f'Reputation computed in {time.time() - start_time} seconds')
         return reputation
 
-    def get_status(self, dataset, unit='day', bin_size=1):
+    def get_status(self, dataset):
         start_time = time.time()
-        legitimacy = self._get_legitimacy_per_time(dataset, unit, bin_size)
+        legitimacy = self._get_legitimacy_per_time(dataset)
         reputation = legitimacy.cumsum(axis=1)
         status = reputation.apply(lambda x: x.argsort())
         print(f'Status computed in {time.time() - start_time} seconds')
@@ -418,7 +401,7 @@ class EgonetPlotFactory(MongoPlotFactory):
                           'username': '$referenced_tweets.author.username',
                           'is_usual_suspect': '$referenced_tweets.author.remiss_metadata.is_usual_suspect',
                           'party': '$referenced_tweets.author.remiss_metadata.party'}},
-            {'$unionWith': {'coll': dataset, 'pipeline': nested_pipeline}}, # Fetch missing authors
+            {'$unionWith': {'coll': dataset, 'pipeline': nested_pipeline}},  # Fetch missing authors
             {'$group': {'_id': '$id',
                         'username': {'$first': '$username'},
                         'is_usual_suspect': {'$addToSet': '$is_usual_suspect'},
@@ -468,14 +451,16 @@ class EgonetPlotFactory(MongoPlotFactory):
         client.close()
         return references
 
-    def _compute_hidden_network(self, dataset, start_date=None, end_date=None):
+    def _compute_hidden_network(self, dataset):
         """
         Computes the hidden graph, this is, the graph of users that have interacted with each other.
         :param dataset: collection name within the database where the tweets are stored
         :return: a networkx graph with the users as nodes and the edges representing interactions between users
         """
-        authors = self._get_authors(dataset, start_date, end_date)
-        references = self._get_references(dataset, start_date, end_date)
+        authors = self._get_authors(dataset)
+        references = self._get_references(dataset)
+        available_reputation = self.get_reputation(dataset)
+        available_legitimacy = self.get_legitimacy(dataset)
         if len(authors) == 0:
             # in case of no authors we return an empty graph
             return ig.Graph(directed=True)
@@ -487,13 +472,20 @@ class EgonetPlotFactory(MongoPlotFactory):
         # convert references which are author id based to graph id based
         references['source'] = author_to_id.loc[references['source']].reset_index(drop=True)
         references['target'] = author_to_id.loc[references['target']].reset_index(drop=True)
+        # we only have reputation and legitimacy for a subset of the authors, so the others will be set to nan
+        reputation = pd.DataFrame(np.nan, index=author_to_id.index, columns=available_reputation.columns)
+        reputation.loc[available_reputation.index] = available_reputation
+        legitimacy = pd.Series(np.nan, index=author_to_id.index)
+        legitimacy[available_legitimacy.index] = available_legitimacy['legitimacy']
 
         g = ig.Graph(directed=True)
         g.add_vertices(len(authors))
-        g.vs['id_'] = authors['id']
+        g.vs['id'] = authors['id']
         g.vs['username'] = authors['username']
         g.vs['is_usual_suspect'] = authors['is_usual_suspect']
         g.vs['party'] = authors['party']
+        g['reputation'] = reputation
+        g.vs['legitimacy'] = legitimacy
         g.add_edges(references[['source', 'target']].to_records(index=False).tolist())
         g.es['weight'] = references['weight']
         g.es['weight_inv'] = references['weight_inv']
@@ -502,16 +494,6 @@ class EgonetPlotFactory(MongoPlotFactory):
         print(f'Graph computed in {time.time() - start_time} seconds')
 
         return g
-
-    def plot_egonet(self, collection, user, depth, start_date, end_date):
-        network = self.get_egonet(collection, user, depth, start_date, end_date)
-        network = network.as_undirected(mode='collapse')
-
-        return self.plot_network(network)
-
-    def plot_hidden_network(self, collection):
-        network = self.get_hidden_network(collection)
-        return self.plot_network(network)
 
     def compute_layout(self, network):
         print(f'Computing {self.layout} layout')
@@ -532,7 +514,7 @@ class EgonetPlotFactory(MongoPlotFactory):
             raise ValueError(f'Unknown simplification {self.simplification}')
         return network
 
-    def plot_network(self, network):
+    def plot_network(self, network, start_date=None, end_date=None):
         if 'layout_df' not in network.attributes():
             layout = self.compute_layout(network)
         else:
@@ -545,41 +527,67 @@ class EgonetPlotFactory(MongoPlotFactory):
         nones = edge_positions[1::2].assign(x=None, y=None, z=None)
         edge_positions = pd.concat([edge_positions, nones]).sort_index().reset_index(drop=True)
 
+        # Legitimacy -> vertex color
+        # Reputation -> vertex size
+        # Party / Usual suspect -> vertex marker
+
         metadata = pd.DataFrame({'is_usual_suspect': network.vs['is_usual_suspect'], 'party': network.vs['party']})
 
-        color_map = {(False, False): 'blue',
-                     (False, True): 'yellow',
-                     (True, False): 'red',
-                     (True, True): 'purple'}
+        marker_map = {(False, False): 'circle',
+                      (False, True): 'square',
+                      (True, False): 'diamond',
+                      (True, True): 'cross'}
 
-        color = metadata.apply(lambda x: color_map[(x['is_usual_suspect'], x['party'] is not None)], axis=1)
+        markers = metadata.apply(lambda x: marker_map[(x['is_usual_suspect'], x['party'] is not None)], axis=1)
+
+        if start_date:
+            size = network['reputation'][start_date]
+        else:
+            size = network['reputation'].mean(axis=1)
+        # Add 1 offset and set 1 as minimum size
+        size += 2
+        size = size.fillna(1)
+        size = size / size.max() * 50 if len(network.vs) > 100 else size / size.max() * 100
+
+        color = pd.Series(network.vs['legitimacy']) + 1
+        color = color.fillna(0)
 
         edge_trace = go.Scatter3d(x=edge_positions['x'],
                                   y=edge_positions['y'],
                                   z=edge_positions['z'],
                                   mode='lines',
                                   line=dict(color='rgb(125,125,125)', width=1),
-                                  hoverinfo='none'
+                                  hoverinfo='none',
+                                  name='Interactions',
+                                  showlegend=False
                                   )
 
         text = []
         for node in network.vs:
             is_usual_suspect = 'Yes' if node['is_usual_suspect'] else 'No'
             party = f'Party: {node["party"]}' if node['party'] else '-'
-            text.append(f'{node["username"]}<br>'
-                        f'Usual suspect: {is_usual_suspect}<br>'
-                        f'Party: {party}')
+            legitimacy = f'Legitimacy: {node["legitimacy"]}' if node['legitimacy'] else '-'
+            reputation = f'Reputation: {network["reputation"].loc[node["id"]].max()}'
+            node_text = f'Username: {node["username"]}<br>' \
+                        f'Is usual suspect: {is_usual_suspect}<br>' \
+                        f'Party: {party}<br>' \
+                        f'Legitimacy: {legitimacy}<br>' \
+                        f'Reputation: {reputation}'
+            text.append(node_text)
 
         node_trace = go.Scatter3d(x=layout['x'],
                                   y=layout['y'],
                                   z=layout['z'],
                                   mode='markers',
-                                  name='users',
-                                  marker=dict(symbol='circle',
-                                              size=6 if len(network.vs) < 100 else 2,
+                                  name='Users',
+                                  marker=dict(symbol=markers,
+                                              size=size,
                                               color=color,
-                                              colorscale='Viridis',
-                                              line=dict(color='rgb(50,50,50)', width=0.5)
+                                              # coloscale set to $champagne: #ffead0ff;
+                                              # to $bright-pink-crayola: #f76f8eff;
+                                              colorscale=[[0, 'rgb(255, 234, 208)'], [1, 'rgb(247, 111, 142)']],
+                                              colorbar=dict(thickness=20, title='Legitimacy'),
+                                              line=dict(color='rgb(50,50,50)', width=0.5),
                                               ),
                                   text=text,
                                   hovertemplate='%{text}',
@@ -619,9 +627,6 @@ class EgonetPlotFactory(MongoPlotFactory):
         fig.update_layout(scene_camera=camera)
         print(f'Plot computed in {time.time() - start_time} seconds')
         return fig
-
-    def get_simplified_hidden_network(self, dataset):
-        return self._simplified_hidden_networks[dataset]
 
 
 def compute_backbone(graph, alpha=0.05, delete_vertices=True):
