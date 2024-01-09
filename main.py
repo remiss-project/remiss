@@ -1,4 +1,4 @@
-from app import create_app, prepopulate
+from app import prepopulate
 from preprocess import preprocess_tweets, generate_test_data
 import fire
 
