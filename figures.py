@@ -569,15 +569,15 @@ class EgonetPlotFactory(MongoPlotFactory):
         for node in network.vs:
             is_usual_suspect = 'Yes' if node['is_usual_suspect'] else 'No'
             party = f'Party: {node["party"]}' if node['party'] else '-'
-            legitimacy = f'Legitimacy: {node["legitimacy"]}' if node['legitimacy'] else '-'
-            reputation = network["reputation"].loc[node['author_id']]
-            reputation = reputation[start_date] if start_date else reputation.mean()
-            reputation = f'Reputation: {reputation}'
+            legitimacy_value = node["legitimacy"] if node['legitimacy'] else '-'
+            reputation_value = network["reputation"].loc[node['author_id']]
+            reputation_value = reputation_value[start_date] if start_date else reputation_value.mean()
+
             node_text = f'Username: {node["username"]}<br>' \
                         f'Is usual suspect: {is_usual_suspect}<br>' \
                         f'Party: {party}<br>' \
-                        f'Legitimacy: {legitimacy}<br>' \
-                        f'Reputation: {reputation}'
+                        f'Legitimacy: {legitimacy_value}<br>' \
+                        f'Reputation: {reputation_value}'
             text.append(node_text)
 
         node_trace = go.Scatter3d(x=layout['x'],
@@ -595,6 +595,7 @@ class EgonetPlotFactory(MongoPlotFactory):
                                               ),
                                   text=text,
                                   hovertemplate='%{text}',
+                                  name='',
                                   )
 
         axis = dict(showbackground=False,
