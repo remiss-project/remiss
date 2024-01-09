@@ -16,6 +16,10 @@ REMISS_GRAPH_LAYOUT = os.environ.get('REMISS_GRAPH_LAYOUT', 'auto')
 REMISS_GRAPH_SIMPLIFICATION = os.environ.get('REMISS_GRAPH_SIMPLIFICATION', 'backbone')
 REMISS_GRAPH_SIMPLIFICATION_THRESHOLD = float(os.environ.get('REMISS_GRAPH_SIMPLIFICATION_THRESHOLD', 0.95))
 REMISS_AVAILABLE_DATASETS = os.environ.get('REMISS_AVAILABLE_DATASETS', None)
+if REMISS_AVAILABLE_DATASETS:
+    print(f'Using available datasets {REMISS_AVAILABLE_DATASETS}...')
+    REMISS_AVAILABLE_DATASETS = REMISS_AVAILABLE_DATASETS.split(',')
+
 REMISS_THEME = os.environ.get('REMISS_THEME', 'pulse').upper()
 REMISS_DEBUG = os.environ.get('REMISS_DEBUG', 'False')
 REMISS_DEBUG = REMISS_DEBUG.lower() == 'true'
@@ -53,6 +57,11 @@ available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
 
 
 def prepopulate():
+    if REMISS_AVAILABLE_DATASETS:
+        print(f'Using available datasets {REMISS_AVAILABLE_DATASETS}...')
+        available_datasets = REMISS_AVAILABLE_DATASETS.split(',')
+    else:
+        available_datasets = None
     egonet_plot_factory = EgonetPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
                                             database=REMISS_MONGODB_DATABASE, cache_dir=REMISS_CACHE_DIR,
                                             layout=REMISS_GRAPH_LAYOUT, simplification=REMISS_GRAPH_SIMPLIFICATION,
@@ -79,27 +88,23 @@ def create_app():
         print(f'Using graph simplification method {REMISS_GRAPH_SIMPLIFICATION} with threshold '
               f'{REMISS_GRAPH_SIMPLIFICATION_THRESHOLD}...')
 
-    if REMISS_AVAILABLE_DATASETS:
-        print(f'Using available datasets {REMISS_AVAILABLE_DATASETS}...')
-        available_datasets = REMISS_AVAILABLE_DATASETS.split(',')
-    else:
-        available_datasets = None
+
 
     print('Creating plot factories...')
     start_time = time.time()
     tweet_user_plot_factory = TweetUserPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
                                                    database=REMISS_MONGODB_DATABASE,
-                                                   available_datasets=available_datasets)
+                                                   available_datasets=REMISS_AVAILABLE_DATASETS)
     top_table_factory = TopTableFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
                                         database=REMISS_MONGODB_DATABASE,
-                                        available_datasets=available_datasets)
+                                        available_datasets=REMISS_AVAILABLE_DATASETS)
 
     egonet_plot_factory = EgonetPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
                                             database=REMISS_MONGODB_DATABASE, cache_dir=REMISS_CACHE_DIR,
                                             layout=REMISS_GRAPH_LAYOUT, simplification=REMISS_GRAPH_SIMPLIFICATION,
                                             threshold=REMISS_GRAPH_SIMPLIFICATION_THRESHOLD,
                                             frequency=REMISS_FREQUENCY,
-                                            available_datasets=available_datasets,
+                                            available_datasets=REMISS_AVAILABLE_DATASETS,
                                             prepopulate=REMISS_PREPOPULATE)
     dashboard = RemissDashboard(tweet_user_plot_factory, top_table_factory, egonet_plot_factory, debug=REMISS_DEBUG)
     print(f'Plot factories created in {time.time() - start_time} seconds.')
