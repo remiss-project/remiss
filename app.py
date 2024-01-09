@@ -57,11 +57,6 @@ available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
 
 
 def prepopulate():
-    if REMISS_AVAILABLE_DATASETS:
-        print(f'Using available datasets {REMISS_AVAILABLE_DATASETS}...')
-        available_datasets = REMISS_AVAILABLE_DATASETS.split(',')
-    else:
-        available_datasets = None
     egonet_plot_factory = EgonetPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
                                             database=REMISS_MONGODB_DATABASE, cache_dir=REMISS_CACHE_DIR,
                                             layout=REMISS_GRAPH_LAYOUT, simplification=REMISS_GRAPH_SIMPLIFICATION,
