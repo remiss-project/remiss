@@ -570,7 +570,9 @@ class EgonetPlotFactory(MongoPlotFactory):
             is_usual_suspect = 'Yes' if node['is_usual_suspect'] else 'No'
             party = f'Party: {node["party"]}' if node['party'] else '-'
             legitimacy = f'Legitimacy: {node["legitimacy"]}' if node['legitimacy'] else '-'
-            reputation = f'Reputation: {network["reputation"].loc[node["id"]].max()}'
+            reputation = network["reputation"].loc[node['author_id']]
+            reputation = reputation[start_date] if start_date else reputation.mean()
+            reputation = f'Reputation: {reputation}'
             node_text = f'Username: {node["username"]}<br>' \
                         f'Is usual suspect: {is_usual_suspect}<br>' \
                         f'Party: {party}<br>' \
@@ -582,7 +584,6 @@ class EgonetPlotFactory(MongoPlotFactory):
                                   y=layout['y'],
                                   z=layout['z'],
                                   mode='markers',
-                                  name='Users',
                                   marker=dict(symbol=markers,
                                               size=size,
                                               color=color,
