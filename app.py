@@ -62,7 +62,7 @@ def prepopulate():
                                             prepopulate=False)
     print('Prepopulating...')
     start_time = time.time()
-    egonet_plot_factory.prepopulate()
+    egonet_plot_factory.prepopulate_cache()
     print(f'Prepopulated in {time.time() - start_time} seconds.')
 
 
