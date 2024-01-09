@@ -52,6 +52,20 @@ available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
                        }
 
 
+def prepopulate():
+    egonet_plot_factory = EgonetPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
+                                            database=REMISS_MONGODB_DATABASE, cache_dir=REMISS_CACHE_DIR,
+                                            layout=REMISS_GRAPH_LAYOUT, simplification=REMISS_GRAPH_SIMPLIFICATION,
+                                            threshold=REMISS_GRAPH_SIMPLIFICATION_THRESHOLD,
+                                            frequency=REMISS_FREQUENCY,
+                                            available_datasets=REMISS_AVAILABLE_DATASETS,
+                                            prepopulate=False)
+    print('Prepopulating...')
+    start_time = time.time()
+    egonet_plot_factory.prepopulate()
+    print(f'Prepopulated in {time.time() - start_time} seconds.')
+
+
 def create_app():
     load_figure_template(REMISS_THEME)
     print(f'Connecting to MongoDB at {REMISS_MONGODB_HOST}:{REMISS_MONGODB_PORT}...')
@@ -93,7 +107,7 @@ def create_app():
     start_time = time.time()
     dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
     app = dash.Dash(__name__,
-                    external_stylesheets=[available_theme_css[REMISS_THEME],  dbc.icons.FONT_AWESOME, dbc_css],
+                    external_stylesheets=[available_theme_css[REMISS_THEME], dbc.icons.FONT_AWESOME, dbc_css],
                     prevent_initial_callbacks="initial_duplicate",
                     meta_tags=[
                         {

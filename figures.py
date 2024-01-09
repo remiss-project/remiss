@@ -296,10 +296,10 @@ class EgonetPlotFactory(MongoPlotFactory):
     def save_to_cache(self, dataset, network, stem):
         dataset_dir = self.cache_dir / dataset
         if not dataset_dir.exists():
-            dataset_dir.mkdir()
+            dataset_dir.mkdir(parents=True, exist_ok=True)
         hn_graph_file = dataset_dir / f'{stem}.graphml'
         hn_layout_file = dataset_dir / f'{stem}.layout.csv'
-        network.write_graphml(hn_graph_file)
+        network.write_graphml(str(hn_graph_file))
         layout = network['layout_df']
         layout.to_csv(hn_layout_file, index=False)
 
@@ -323,13 +323,13 @@ class EgonetPlotFactory(MongoPlotFactory):
             {'$group': {'_id': '$author.id',
                         'legitimacy': {'$count': {}}}},
             {'$project': {'_id': 0,
-                          'id': '$_id',
+                          'author_id': '$_id',
                           'legitimacy': 1}},
         ]
         print('Computing legitimacy')
         start_time = time.time()
         legitimacy = collection.aggregate_pandas_all(node_pipeline)
-        legitimacy = legitimacy.set_index('id')
+        legitimacy = legitimacy.set_index('author_id')
         legitimacy = legitimacy.sort_values('legitimacy', ascending=False)
         print(f'Legitimacy computed in {time.time() - start_time} seconds')
         return legitimacy
@@ -349,14 +349,14 @@ class EgonetPlotFactory(MongoPlotFactory):
                                 },
                         'legitimacy': {'$count': {}}}},
             {'$project': {'_id': 0,
-                          'id': '$_id.author',
+                          'author_id': '$_id.author',
                           'date': '$_id.date',
                           'legitimacy': 1}},
         ]
         print('Computing reputation')
 
         legitimacy = collection.aggregate_pandas_all(node_pipeline)
-        legitimacy = legitimacy.pivot(columns='date', index='id', values='legitimacy')
+        legitimacy = legitimacy.pivot(columns='date', index='author_id', values='legitimacy')
         legitimacy = legitimacy.fillna(0)
         return legitimacy
 
@@ -387,7 +387,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         database = client.get_database(self.database)
         collection = database.get_collection(dataset)
         nested_pipeline = [
-            {'$project': {'id': '$author.id',
+            {'$project': {'author_id': '$author.id',
                           'username': '$author.username',
                           'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
                           'party': '$author.remiss_metadata.party'}}]
@@ -397,17 +397,17 @@ class EgonetPlotFactory(MongoPlotFactory):
             {'$unwind': '$referenced_tweets'},
             {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
                         'referenced_tweets.author': {'$exists': True}}},
-            {'$project': {'_id': 0, 'id': '$referenced_tweets.author.id',
+            {'$project': {'_id': 0, 'author_id': '$referenced_tweets.author.id',
                           'username': '$referenced_tweets.author.username',
                           'is_usual_suspect': '$referenced_tweets.author.remiss_metadata.is_usual_suspect',
                           'party': '$referenced_tweets.author.remiss_metadata.party'}},
             {'$unionWith': {'coll': dataset, 'pipeline': nested_pipeline}},  # Fetch missing authors
-            {'$group': {'_id': '$id',
+            {'$group': {'_id': '$author_id',
                         'username': {'$first': '$username'},
                         'is_usual_suspect': {'$addToSet': '$is_usual_suspect'},
                         'party': {'$addToSet': '$party'}}},
             {'$project': {'_id': 0,
-                          'id': '$_id',
+                          'author_id': '$_id',
                           'username': 1,
                           'is_usual_suspect': {'$anyElementTrue': '$is_usual_suspect'},
                           'party': {'$arrayElemAt': ['$party', 0]}}}
@@ -415,7 +415,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         self._add_date_filters(node_pipeline, start_date, end_date)
         print('Computing authors')
         start_time = time.time()
-        schema = Schema({'id': str, 'username': str, 'is_usual_suspect': bool, 'party': str})
+        schema = Schema({'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str})
         authors = collection.aggregate_pandas_all(node_pipeline, schema=schema)
         print(f'Authors computed in {time.time() - start_time} seconds')
         return authors
@@ -468,7 +468,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         print('Computing graph')
         start_time = time.time()
         # switch id by position (which will be the node id in the graph) and set it as index
-        author_to_id = authors['id'].reset_index().set_index('id')
+        author_to_id = authors['author_id'].reset_index().set_index('author_id')
         # convert references which are author id based to graph id based
         references['source'] = author_to_id.loc[references['source']].reset_index(drop=True)
         references['target'] = author_to_id.loc[references['target']].reset_index(drop=True)
@@ -480,7 +480,7 @@ class EgonetPlotFactory(MongoPlotFactory):
 
         g = ig.Graph(directed=True)
         g.add_vertices(len(authors))
-        g.vs['id'] = authors['id']
+        g.vs['author_id'] = authors['author_id']
         g.vs['username'] = authors['username']
         g.vs['is_usual_suspect'] = authors['is_usual_suspect']
         g.vs['party'] = authors['party']
@@ -492,6 +492,9 @@ class EgonetPlotFactory(MongoPlotFactory):
         g.es['weight_norm'] = references['weight_norm']
         print(g.summary())
         print(f'Graph computed in {time.time() - start_time} seconds')
+
+        layout = self.compute_layout(g)
+        g['layout_df'] = layout
 
         return g
 
