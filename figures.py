@@ -356,6 +356,8 @@ class EgonetPlotFactory(MongoPlotFactory):
         print('Computing reputation')
 
         legitimacy = collection.aggregate_pandas_all(node_pipeline)
+        if len(legitimacy) == 0:
+            raise ValueError(f'No data available for the selected time range and dataset: {dataset} {self.unit} {self.bin_size}')
         legitimacy = legitimacy.pivot(columns='date', index='author_id', values='legitimacy')
         legitimacy = legitimacy.fillna(0)
         return legitimacy
