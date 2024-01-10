@@ -565,7 +565,7 @@ class RemissDashboard(DashComponent):
             ], style={'margin-bottom': '1rem'}, justify='center'),
             self.top_table_component.layout(),
             self.tweet_user_ts_component.layout(),
-        ], fluid=True)
+        ], fluid=False)
 
     def callbacks(self, app):
         if self.debug:
