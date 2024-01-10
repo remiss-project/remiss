@@ -247,7 +247,8 @@ class EgonetPlotFactory(MongoPlotFactory):
         if user:
             try:
                 node = hidden_network.vs.find(username=user)
-                egonet = hidden_network.induced_subgraph(hidden_network.neighborhood(node, order=depth))
+                neighbours = hidden_network.neighborhood(node, order=depth)
+                egonet = hidden_network.induced_subgraph(neighbours)
                 return egonet
             except (RuntimeError, ValueError) as ex:
                 print(f'Computing neighbourhood for user {user} failed with error {ex}')
@@ -496,7 +497,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         print(f'Graph computed in {time.time() - start_time} seconds')
 
         layout = self.compute_layout(g)
-        g['layout_df'] = layout
+        g['layout'] = layout
 
         return g
 
@@ -505,7 +506,6 @@ class EgonetPlotFactory(MongoPlotFactory):
         start_time = time.time()
         layout = network.layout(self.layout, dim=3)
         print(f'Layout computed in {time.time() - start_time} seconds')
-        layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
         return layout
 
     def _simplify_graph(self, network):
@@ -520,10 +520,11 @@ class EgonetPlotFactory(MongoPlotFactory):
         return network
 
     def plot_network(self, network, start_date=None, end_date=None):
-        if 'layout_df' not in network.attributes():
+        if 'layout' not in network.attributes():
             layout = self.compute_layout(network)
         else:
-            layout = network['layout_df']
+            layout = network['layout']
+        layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
         print('Computing plot for network')
         print(network.summary())
         start_time = time.time()
@@ -550,12 +551,12 @@ class EgonetPlotFactory(MongoPlotFactory):
         else:
             size = network['reputation'].mean(axis=1)
         # Add 1 offset and set 1 as minimum size
-        size += 2
+        size += 4
         size = size.fillna(1)
         size = size / size.max() * 50 if len(network.vs) > 100 else size / size.max() * 100
 
-        color = pd.Series(network.vs['legitimacy']) + 1
-        color = color.fillna(0)
+        color = pd.Series(network.vs['legitimacy'])
+        # color = color.fillna(0)
 
         edge_trace = go.Scatter3d(x=edge_positions['x'],
                                   y=edge_positions['y'],
@@ -571,9 +572,10 @@ class EgonetPlotFactory(MongoPlotFactory):
         for node in network.vs:
             is_usual_suspect = 'Yes' if node['is_usual_suspect'] else 'No'
             party = f'Party: {node["party"]}' if node['party'] else '-'
-            legitimacy_value = node["legitimacy"] if node['legitimacy'] else '-'
+            legitimacy_value = node["legitimacy"] if not np.isnan(node["legitimacy"]) else '-'
             reputation_value = network["reputation"].loc[node['author_id']]
             reputation_value = reputation_value[start_date] if start_date else reputation_value.mean()
+            reputation_value = f'{reputation_value:.2f}' if not np.isnan(reputation_value) else '-'
 
             node_text = f'Username: {node["username"]}<br>' \
                         f'Is usual suspect: {is_usual_suspect}<br>' \
@@ -628,9 +630,8 @@ class EgonetPlotFactory(MongoPlotFactory):
         camera = dict(
             up=dict(x=0, y=0, z=1),
             center=dict(x=0, y=0, z=0),
-            eye=dict(x=0.7, y=0.7, z=0.7)
+            eye=dict(x=1.25, y=1.25, z=1.25)
         )
-
         fig.update_layout(scene_camera=camera)
         print(f'Plot computed in {time.time() - start_time} seconds')
         return fig
@@ -643,7 +644,6 @@ def compute_backbone(graph, alpha=0.05, delete_vertices=True):
     alphas = (1 - weights) ** (degrees - 1)
     good = np.nonzero(alphas > alpha)[0]
     backbone = graph.subgraph_edges(graph.es.select(good), delete_vertices=delete_vertices)
-
     return backbone
 
 
