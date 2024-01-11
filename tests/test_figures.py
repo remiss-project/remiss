@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 
 from pymongo import MongoClient
 
-from figures import MongoPlotFactory
+from figures.figures import MongoPlotFactory
 
 
 class TestMongoPlotFactory(unittest.TestCase):
@@ -45,7 +45,7 @@ class TestMongoPlotFactory(unittest.TestCase):
         mock_database.get_collection.return_value = mock_collection
         mock_client = Mock()
         mock_client.get_database.return_value = mock_database
-        with patch('figures.MongoClient', return_value=mock_client):
+        with patch('figures.figures.MongoClient', return_value=mock_client):
             date_range = self.mongo_plot.get_date_range("test_collection")
             self.assertEqual(date_range, ('test_date', 'test_date'))
 
@@ -61,7 +61,7 @@ class TestMongoPlotFactory(unittest.TestCase):
         mock_database.get_collection.return_value = mock_collection
         mock_client = Mock()
         mock_client.get_database.return_value = mock_database
-        with patch('figures.MongoClient', return_value=mock_client):
+        with patch('figures.figures.MongoClient', return_value=mock_client):
             hashtag_freqs = self.mongo_plot.get_hashtag_freqs("test_collection")
             self.assertEqual(hashtag_freqs, [(x['_id'], x['count']) for x in mock_collection.aggregate.return_value])
 
@@ -78,7 +78,7 @@ class TestMongoPlotFactory(unittest.TestCase):
         mock_database.get_collection.return_value = mock_collection
         mock_client = Mock()
         mock_client.get_database.return_value = mock_database
-        with patch('figures.MongoClient', return_value=mock_client):
+        with patch('figures.figures.MongoClient', return_value=mock_client):
             users = self.mongo_plot.get_users("test_collection")
             self.assertEqual(users, [str(x) for x in mock_collection.distinct.return_value])
 
@@ -100,7 +100,7 @@ class TestMongoPlotFactory(unittest.TestCase):
             'author': {'username': 'test_username', 'id': 'test_id'}
         }
 
-        with patch('figures.MongoClient', return_value=mock_client):
+        with patch('figures.figures.MongoClient', return_value=mock_client):
             user_id = self.mongo_plot.get_user_id("test_collection", "test_username")
             self.assertEqual(user_id, 'test_id')
 
@@ -113,7 +113,7 @@ class TestMongoPlotFactory(unittest.TestCase):
         # Mock MongoClient
         mock_client = Mock()
         mock_client.get_database.return_value.list_collection_names.return_value = ['collection1', 'collection2']
-        with patch('figures.MongoClient', return_value=mock_client):
+        with patch('figures.figures.MongoClient', return_value=mock_client):
             datasets = self.mongo_plot.available_datasets
             self.assertEqual(datasets, mock_client.get_database.return_value.list_collection_names.return_value)
 

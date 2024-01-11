@@ -1,207 +1,18 @@
 import time
-from abc import ABC
-from collections import defaultdict
-from datetime import datetime
 from pathlib import Path
 
 import igraph as ig
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
-from dash.dash_table import DataTable
 import pymongoarrow.monkey
 from pymongo import MongoClient
-from pymongo.errors import OperationFailure
 from pymongoarrow.schema import Schema
 from tqdm import tqdm
 
+from figures.figures import MongoPlotFactory
+
 pymongoarrow.monkey.patch_all()
-
-
-class MongoPlotFactory(ABC):
-    def __init__(self, host="localhost", port=27017, database="test_remiss", available_datasets=None):
-        super().__init__()
-        self.host = host
-        self.port = port
-        self.database = database
-        self._available_datasets = available_datasets
-        self._min_max_dates = {}
-        self._available_hashtags = {}
-
-    def _validate_collection(self, database, collection):
-        try:
-            database.validate_collection(collection)
-        except OperationFailure as ex:
-            if ex.details['code'] == 26:
-                raise ValueError(f'Dataset {collection} does not exist') from ex
-            else:
-                raise ex
-
-    def get_date_range(self, collection):
-        if collection not in self._min_max_dates:
-            client = MongoClient(self.host, self.port)
-            database = client.get_database(self.database)
-            self._validate_collection(database, collection)
-            collection = database.get_collection(collection)
-            self._min_max_dates[collection] = self._get_date_range(collection)
-            client.close()
-        return self._min_max_dates[collection]
-
-    def get_hashtag_freqs(self, collection):
-        if collection not in self._available_hashtags:
-            client = MongoClient(self.host, self.port)
-            database = client.get_database(self.database)
-            self._validate_collection(database, collection)
-            collection = database.get_collection(collection)
-            self._available_hashtags[collection] = self._get_hashtag_freqs(collection)
-            client.close()
-        return self._available_hashtags[collection]
-
-    def get_users(self, collection):
-        client = MongoClient(self.host, self.port)
-        database = client.get_database(self.database)
-        dataset = database.get_collection(collection)
-        available_users = [str(x) for x in dataset.distinct('author.username')]
-        client.close()
-        return available_users
-
-    def get_user_id(self, dataset, username):
-        client = MongoClient(self.host, self.port)
-        database = client.get_database(self.database)
-        collection = database.get_collection(dataset)
-        tweet = collection.find_one({'author.username': username})
-        client.close()
-        if tweet:
-            return tweet['author']['id']
-        else:
-            raise RuntimeError(f'User {username} not found')
-
-    @property
-    def available_datasets(self):
-        if self._available_datasets is None:
-            client = MongoClient(self.host, self.port)
-            self._available_datasets = client.get_database(self.database).list_collection_names()
-        return self._available_datasets
-
-    @staticmethod
-    def _get_date_range(collection):
-        min_date_allowed = collection.find_one(sort=[('created_at', 1)])['created_at'].date()
-        max_date_allowed = collection.find_one(sort=[('created_at', -1)])['created_at'].date()
-        return min_date_allowed, max_date_allowed
-
-    def _get_hashtag_freqs(self, collection):
-        pipeline = [
-            {'$unwind': '$entities.hashtags'},
-            {'$group': {'_id': '$entities.hashtags.tag', 'count': {'$count': {}}}},
-            {'$sort': {'count': -1}}
-        ]
-        available_hashtags_freqs = list(collection.aggregate(pipeline))
-        available_hashtags_freqs = [(x['_id'], x['count']) for x in available_hashtags_freqs]
-        return available_hashtags_freqs
-
-
-class TweetUserPlotFactory(MongoPlotFactory):
-
-    def plot_tweet_series(self, collection, hashtags, start_time, end_time, unit='day', bin_size=1):
-        pipeline = [
-            {'$group': {
-                "_id": {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}},
-                "count": {'$count': {}}}},
-            {'$sort': {'_id': 1}}
-        ]
-        print('Computing tweet series')
-        start_computing_time = time.time()
-        plot = self._get_count_area_plot(pipeline, collection, hashtags, start_time, end_time)
-        print(f'Tweet series computed in {time.time() - start_computing_time} seconds')
-        return plot
-
-    def plot_user_series(self, collection, hashtags, start_time, end_time, unit='day', bin_size=1):
-        pipeline = [
-            {'$group': {
-                "_id": {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}},
-                "users": {'$addToSet': "$author.username"}}
-            },
-            {'$project': {'count': {'$size': '$users'}}},
-            {'$sort': {'_id': 1}}
-        ]
-        print('Computing user series')
-        start_computing_time = time.time()
-        plot = self._get_count_area_plot(pipeline, collection, hashtags, start_time, end_time)
-        print(f'User series computed in {time.time() - start_computing_time} seconds')
-        return plot
-
-    def _perform_count_aggregation(self, pipeline, collection):
-        df = collection.aggregate_pandas_all(
-            pipeline,
-            schema=Schema({'_id': datetime, 'count': int})
-        )
-        df = df.rename(columns={'_id': 'Time', 'count': 'Count'}).set_index('Time')
-
-        return df
-
-    def _get_count_data(self, pipeline, hashtags, start_time, end_time, collection):
-        normal_pipeline = self._add_filters(pipeline, hashtags, start_time, end_time, user_type='normal')
-        normal_df = self._perform_count_aggregation(normal_pipeline, collection)
-
-        suspect_pipeline = self._add_filters(pipeline, hashtags, start_time, end_time, user_type='suspect')
-        suspect_df = self._perform_count_aggregation(suspect_pipeline, collection)
-
-        politician_pipeline = self._add_filters(pipeline, hashtags, start_time, end_time, user_type='politician')
-        politician_df = self._perform_count_aggregation(politician_pipeline, collection)
-
-        suspect_politician_pipeline = self._add_filters(pipeline, hashtags, start_time, end_time,
-                                                        user_type='suspect_politician')
-        suspect_politician_df = self._perform_count_aggregation(suspect_politician_pipeline, collection)
-
-        df = pd.concat([normal_df, suspect_df, politician_df, suspect_politician_df], axis=1)
-        df.columns = ['Normal', 'Usual suspect', 'Politician', 'Usual suspect politician']
-
-        return df
-
-    def _get_count_area_plot(self, pipeline, collection, hashtags, start_time, end_time):
-        client = MongoClient(self.host, self.port)
-        database = client.get_database(self.database)
-        self._validate_collection(database, collection)
-        collection = database.get_collection(collection)
-
-        df = self._get_count_data(pipeline, hashtags, start_time, end_time, collection)
-
-        if len(df) == 1:
-            plot = px.bar(df, labels={"value": "Count"})
-        else:
-            plot = px.area(df, labels={"value": "Count"})
-
-        return plot
-
-    @staticmethod
-    def _add_filters(pipeline, hashtags, start_time, end_time, user_type):
-        pipeline = pipeline.copy()
-        if user_type == 'normal':
-            pipeline.insert(0, {'$match': {'author.remiss_metadata.is_usual_suspect': False,
-                                           'author.remiss_metadata.party': None}})
-        elif user_type == 'suspect':
-            pipeline.insert(0, {'$match': {'author.remiss_metadata.is_usual_suspect': True,
-                                           'author.remiss_metadata.party': None}})
-        elif user_type == 'politician':
-            pipeline.insert(0, {'$match': {'author.remiss_metadata.is_usual_suspect': False,
-                                           'author.remiss_metadata.party': {'$ne': None}}})
-        elif user_type == 'suspect_politician':
-            pipeline.insert(0, {'$match': {'author.remiss_metadata.is_usual_suspect': True,
-                                           'author.remiss_metadata.party': {'$ne': None}}})
-        else:
-            raise ValueError(f'Unknown user type {user_type}')
-
-        if hashtags:
-            for hashtag in hashtags:
-                pipeline.insert(0, {'$match': {'entities.hashtags.tag': hashtag}})
-        if start_time:
-            start_time = pd.to_datetime(start_time)
-            pipeline.insert(0, {'$match': {'created_at': {'$gte': start_time}}})
-        if end_time:
-            end_time = pd.to_datetime(end_time)
-            pipeline.insert(0, {'$match': {'created_at': {'$lte': end_time}}})
-        return pipeline
 
 
 class EgonetPlotFactory(MongoPlotFactory):
@@ -358,7 +169,8 @@ class EgonetPlotFactory(MongoPlotFactory):
 
         legitimacy = collection.aggregate_pandas_all(node_pipeline)
         if len(legitimacy) == 0:
-            raise ValueError(f'No data available for the selected time range and dataset: {dataset} {self.unit} {self.bin_size}')
+            raise ValueError(
+                f'No data available for the selected time range and dataset: {dataset} {self.unit} {self.bin_size}')
         legitimacy = legitimacy.pivot(columns='date', index='author_id', values='legitimacy')
         legitimacy = legitimacy.fillna(0)
         return legitimacy
@@ -645,72 +457,3 @@ def compute_backbone(graph, alpha=0.05, delete_vertices=True):
     good = np.nonzero(alphas > alpha)[0]
     backbone = graph.subgraph_edges(graph.es.select(good), delete_vertices=delete_vertices)
     return backbone
-
-
-class TopTableFactory(MongoPlotFactory):
-    def __init__(self, host="localhost", port=27017, database="test_remiss", available_datasets=None, limit=50,
-                 retweet_table_columns=None, user_table_columns=None):
-        super().__init__(host, port, database, available_datasets)
-        self.limit = limit
-        self.top_table_columns = ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party']
-        self.retweeted_table_columns = ['id', 'text',
-                                        'count'] if retweet_table_columns is None else retweet_table_columns
-        self.user_table_columns = ['username', 'count'] if user_table_columns is None else user_table_columns
-
-    def get_top_retweeted(self, collection, start_time=None, end_time=None):
-        pipeline = [
-            {'$group': {'_id': '$id', 'text': {'$first': '$text'}, 'count': {'$count': {}}}},
-            {'$sort': {'count': -1}},
-            {'$limit': self.limit},
-            {'$project': {'_id': 0, 'id': '$_id', 'text': 1, 'count': 1}}
-        ]
-        pipeline = self._add_filters(pipeline, start_time, end_time)
-        df = self._perform_top_aggregation(pipeline, collection)[self.retweeted_table_columns]
-        return df
-
-    def get_top_users(self, collection, start_time=None, end_time=None):
-        pipeline = [
-            {'$group': {'_id': '$author.username', 'count': {'$count': {}}}},
-            {'$sort': {'count': -1}},
-            {'$limit': self.limit},
-            {'$project': {'_id': 0, 'username': '$_id', 'count': 1}}
-        ]
-        pipeline = self._add_filters(pipeline, start_time, end_time)
-        df = self._perform_top_aggregation(pipeline, collection)[self.user_table_columns]
-        return df
-
-    def get_top_table_data(self, collection, start_time=None, end_time=None):
-        pipeline = [
-            {'$group': {'_id': '$text', 'User': {'$first': '$author.username'},
-                        'tweet_id': {'$first': '$id'},
-                        'Retweets': {'$max': '$public_metrics.retweet_count'},
-                        'Is usual suspect': {'$max': '$author.remiss_metadata.is_usual_suspect'},
-                        'Party': {'$max': '$author.remiss_metadata.party'}}},
-            {'$sort': {'Retweets': -1}},
-            {'$limit': self.limit},
-            {'$project': {'_id': 0, 'tweet_id': 1, 'User': 1, 'Text': '$_id', 'Retweets': 1, 'Is usual suspect': 1,
-                          'Party': 1}}
-
-        ]
-        pipeline = self._add_filters(pipeline, start_time, end_time)
-        df = self._perform_top_aggregation(pipeline, collection)
-        df = df.set_index('tweet_id')
-        return df
-
-    def _add_filters(self, pipeline, start_time=None, end_time=None):
-        pipeline = pipeline.copy()
-        if start_time:
-            start_time = pd.to_datetime(start_time)
-            pipeline.insert(0, {'$match': {'created_at': {'$gte': start_time}}})
-        if end_time:
-            end_time = pd.to_datetime(end_time)
-            pipeline.insert(0, {'$match': {'created_at': {'$lte': end_time}}})
-        return pipeline
-
-    def _perform_top_aggregation(self, pipeline, collection):
-        client = MongoClient(self.host, self.port)
-        database = client.get_database(self.database)
-        dataset = database.get_collection(collection)
-        top_prolific = dataset.aggregate_pandas_all(pipeline)
-        client.close()
-        return top_prolific

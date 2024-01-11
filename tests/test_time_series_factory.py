@@ -2,17 +2,16 @@ import unittest
 from datetime import datetime
 from unittest.mock import Mock, patch
 
-import numpy as np
 import pandas as pd
 from plotly.graph_objs import Figure
 from pymongo import MongoClient
 
-from figures import TweetUserPlotFactory
+from figures import TimeSeriesFactory
 
 
-class TestTweetUserPlotFactory(unittest.TestCase):
+class TestTimeSeriesFactory(unittest.TestCase):
     def setUp(self):
-        self.tweet_user_plot = TweetUserPlotFactory()
+        self.tweet_user_plot = TimeSeriesFactory()
         self.client = MongoClient('localhost', 27017)
         self.client.drop_database('test_remiss')
         self.database = self.client.get_database('test_remiss')

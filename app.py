@@ -6,7 +6,7 @@ import dash_bootstrap_components as dbc
 from dash_bootstrap_templates import load_figure_template
 
 from components import RemissDashboard
-from figures import TweetUserPlotFactory, EgonetPlotFactory, TopTableFactory
+from figures import TimeSeriesFactory, EgonetPlotFactory, TopTableFactory
 
 REMISS_MONGODB_HOST = os.environ.get('REMISS_MONGODB_HOST', 'localhost')
 REMISS_MONGODB_PORT = int(os.environ.get('REMISS_MONGODB_PORT', 27017))
@@ -87,7 +87,7 @@ def create_app():
 
     print('Creating plot factories...')
     start_time = time.time()
-    tweet_user_plot_factory = TweetUserPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
+    tweet_user_plot_factory = TimeSeriesFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
                                                    database=REMISS_MONGODB_DATABASE,
                                                    available_datasets=REMISS_AVAILABLE_DATASETS)
     top_table_factory = TopTableFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
