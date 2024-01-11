@@ -63,57 +63,55 @@ class EgonetPlotFactory(MongoPlotFactory):
                 return egonet
             except (RuntimeError, ValueError) as ex:
                 print(f'Computing neighbourhood for user {user} failed with error {ex}')
-        return self.get_simplified_hidden_network(dataset)
+        if self.simplification:
+            return self.get_simplified_hidden_network(dataset)
+        else:
+            return hidden_network
 
     def get_hidden_network(self, dataset):
+        stem = f'hidden_network'
         if dataset not in self._hidden_networks:
-            if self.cache_dir and self.is_cached(dataset, 'hidden_network'):
-                network = self.load_from_cache(dataset, 'hidden_network')
+            if self.cache_dir and self.is_cached(dataset, stem):
+                network = self.load_from_cache(dataset, stem)
             else:
                 network = self._compute_hidden_network(dataset)
                 if self.cache_dir:
-                    self.save_to_cache(dataset, network, 'hidden_network')
+                    self.save_to_cache(dataset, network, stem)
             self._hidden_networks[dataset] = network
 
         return self._hidden_networks[dataset]
 
     def get_simplified_hidden_network(self, dataset):
+        stem = f'hidden_network-{self.simplification}-{self.threshold}'
         if dataset not in self._simplified_hidden_networks:
-            if self.cache_dir and self.is_cached(dataset, 'simplified_hidden_network'):
-                network = self.load_from_cache(dataset, 'simplified_hidden_network')
+            if self.cache_dir and self.is_cached(dataset, stem):
+                network = self.load_from_cache(dataset, stem)
             else:
                 network = self.get_hidden_network(dataset)
                 network = self._simplify_graph(network)
                 if self.cache_dir:
-                    self.save_to_cache(dataset, network, 'simplified_hidden_network')
+                    self.save_to_cache(dataset, network, stem)
             self._simplified_hidden_networks[dataset] = network
 
         return self._simplified_hidden_networks[dataset]
 
     def is_cached(self, dataset, stem):
         dataset_dir = self.cache_dir / dataset
-        hn_graph_file = dataset_dir / f'{stem}.graphml'
-        hn_layout_file = dataset_dir / f'{stem}.layout.csv'
-        return hn_graph_file.exists() and hn_layout_file.exists()
+        hn_graph_file = dataset_dir / f'{stem}.graphmlz'
+        return hn_graph_file.exists()
 
     def load_from_cache(self, dataset, stem):
         dataset_dir = self.cache_dir / dataset
-        hn_graph_file = dataset_dir / f'{stem}.graphml'
-        hn_layout_file = dataset_dir / f'{stem}.layout.csv'
+        hn_graph_file = dataset_dir / f'{stem}.graphmlz'
         network = ig.read(hn_graph_file)
-        layout = pd.read_csv(hn_layout_file)
-        network['layout_df'] = layout
         return network
 
     def save_to_cache(self, dataset, network, stem):
         dataset_dir = self.cache_dir / dataset
         if not dataset_dir.exists():
             dataset_dir.mkdir(parents=True, exist_ok=True)
-        hn_graph_file = dataset_dir / f'{stem}.graphml'
-        hn_layout_file = dataset_dir / f'{stem}.layout.csv'
-        network.write_graphml(str(hn_graph_file))
-        layout = network['layout_df']
-        layout.to_csv(hn_layout_file, index=False)
+        hn_graph_file = dataset_dir / f'{stem}.graphmlz'
+        network.write_graphmlz(str(hn_graph_file))
 
     def prepopulate_cache(self):
         if not self.cache_dir:
