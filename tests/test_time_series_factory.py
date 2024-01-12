@@ -105,7 +105,7 @@ class TestTimeSeriesFactory(unittest.TestCase):
                                  2: {0: nan, 1: nan, 2: nan, 3: 1.0}})
         pd.testing.assert_frame_equal(actual, expected)
 
-    @patch('figures.MongoClient')
+    @patch('figures.time_series.MongoClient')
     def test__get_counts(self, mock_mongo_client):
         # Mock MongoClient and database
         mock_collection = Mock()
@@ -145,13 +145,13 @@ class TestTimeSeriesFactory(unittest.TestCase):
         mock_database.get_collection.assert_called_with(collection)
 
     def test__add_filters(self):
-        hashtag = 'test_hashtag'
+        hashtag = ['test_hashtag']
         start_time = pd.to_datetime('2023-01-01')
         end_time = pd.to_datetime('2023-01-31')
         user_type = 'normal'
         expected_pipeline = [{'$match': {'created_at': {'$lte': end_time}}},
                              {'$match': {'created_at': {'$gte': start_time}}},
-                             {'$match': {'entities.hashtags.tag': hashtag}},
+                             {'$match': {'entities.hashtags.tag': hashtag[0]}},
                              {'$match': {'author.remiss_metadata.is_usual_suspect': False,
                                          'author.remiss_metadata.party': None}}]
 
@@ -162,28 +162,28 @@ class TestTimeSeriesFactory(unittest.TestCase):
     def test__add_filters_normal(self):
         expected_pipeline = [{'$match': {'author.remiss_metadata.is_usual_suspect': False,
                                          'author.remiss_metadata.party': None}}]
-        result = self.tweet_user_plot._add_filters([], hashtag=None, start_time=None, end_time=None,
+        result = self.tweet_user_plot._add_filters([], hashtags=None, start_time=None, end_time=None,
                                                    user_type='normal')
         self.assertEqual(result, expected_pipeline)
 
     def test__add_filters_suspect(self):
         expected_pipeline = [{'$match': {'author.remiss_metadata.is_usual_suspect': True,
                                          'author.remiss_metadata.party': None}}]
-        result = self.tweet_user_plot._add_filters([], hashtag=None, start_time=None, end_time=None,
+        result = self.tweet_user_plot._add_filters([], hashtags=None, start_time=None, end_time=None,
                                                    user_type='suspect')
         self.assertEqual(result, expected_pipeline)
 
     def test__add_filters_politician(self):
         expected_pipeline = [{'$match': {'author.remiss_metadata.is_usual_suspect': False,
                                          'author.remiss_metadata.party': {'$ne': None}}}]
-        result = self.tweet_user_plot._add_filters([], hashtag=None, start_time=None, end_time=None,
+        result = self.tweet_user_plot._add_filters([], hashtags=None, start_time=None, end_time=None,
                                                    user_type='politician')
         self.assertEqual(result, expected_pipeline)
 
     def test__add_filters_suspect_politician(self):
         expected_pipeline = [{'$match': {'author.remiss_metadata.is_usual_suspect': True,
                                          'author.remiss_metadata.party': {'$ne': None}}}]
-        result = self.tweet_user_plot._add_filters([], hashtag=None, start_time=None, end_time=None,
+        result = self.tweet_user_plot._add_filters([], hashtags=None, start_time=None, end_time=None,
                                                    user_type='suspect_politician')
         self.assertEqual(result, expected_pipeline)
 

@@ -33,24 +33,29 @@ class TestEgonetPlotFactory(unittest.TestCase):
         if self.egonet_plot.cache_dir:
             shutil.rmtree(self.egonet_plot.cache_dir)
 
-    @patch('figures.MongoClient')
+    @patch('figures.egonet.MongoClient')
     def test_get_egonet(self, mock_mongo_client):
         # Checks it returns the whole thing if the user is not present
 
         mock_collection = Mock()
 
-        def aggregate_pandas_all(pipeline):
+        def aggregate_pandas_all(pipeline, schema=None):
             if 'source' in pipeline[-1]['$project']:
                 # its edges
-                edges = pd.DataFrame({'source': [1, 2, 3],
-                                      'target': [2, 3, 4],
+                edges = pd.DataFrame({'source': ['1', '2', '3'],
+                                      'target': ['2', '3', '4'],
                                       'weight': [1, 2, 3],
                                       'weight_inv': [1, 0.5, 0.33],
                                       'weight_norm': [1, 0.5, 0.5]})
                 return edges
+            elif 'legitimacy' in pipeline[-1]['$project']:
+                legitimacy = pd.DataFrame({'author_id': ['1', '2', '3'],
+                                           'date': [datetime(2020, 1, 1), datetime(2020, 1, 2), datetime(2020, 1, 3)],
+                                           'legitimacy': [0.1, 0.2, 0.3]})
+                return legitimacy
             else:
                 # its authors
-                authors = pd.DataFrame({'id': [1, 2, 3, 4],
+                authors = pd.DataFrame({'author_id': ['1', '2', '3', '4'],
                                         'is_usual_suspect': [False, False, False, True],
                                         'party': ['PSOE', None, 'VOX', None],
                                         'username': ['TEST_USER_1', 'TEST_USER_2', 'TEST_USER_3', 'TEST_USER_4']})
@@ -67,64 +72,33 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
         actual = self.egonet_plot.get_egonet(collection, user, depth)
 
-        self.assertEqual({1, 2}, set(actual.vs['id_']))
-        edges = {(actual.vs[s]['id_'], actual.vs[t]['id_']) for s, t in actual.get_edgelist()}
-        self.assertEqual({(1, 2)}, edges)
+        self.assertEqual({'1', '2'}, set(actual.vs['author_id']))
+        edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}
+        self.assertEqual({('1', '2')}, edges)
 
-    @patch('figures.MongoClient')
-    def test_get_egonet_2(self, mock_mongo_client):
-        # Checks it returns the whole thing if the user is not present
-
-        mock_collection = Mock()
-
-        def aggregate_pandas_all(pipeline):
-            if 'source' in pipeline[-1]['$project']:
-                # its edges
-                edges = pd.DataFrame({'source': [1, 2, 3],
-                                      'target': [2, 3, 4],
-                                      'weight': [1, 2, 3],
-                                      'weight_inv': [1, 0.5, 0.33]})
-                return edges
-            else:
-                # its authors
-                authors = pd.DataFrame({'id': [1, 2, 3, 4],
-                                        'is_usual_suspect': [False, False, False, True],
-                                        'party': ['PSOE', None, 'VOX', None],
-                                        'username': ['TEST_USER_1', 'TEST_USER_2', 'TEST_USER_3', 'TEST_USER_4']})
-                return authors
-
-        mock_collection.aggregate_pandas_all = aggregate_pandas_all
-        mock_database = Mock()
-        mock_database.get_collection.return_value = mock_collection
-        mock_mongo_client.return_value.get_database.return_value = mock_database
-
-        collection = 'test_collection'
-        user = 'TEST_USER_4'
-        depth = 1
-
-        actual = self.egonet_plot.get_egonet(collection, user, depth)
-
-        self.assertEqual({1, 2}, set(actual.vs['id_']))
-        edges = {(actual.vs[s]['id_'], actual.vs[t]['id_']) for s, t in actual.get_edgelist()}
-        self.assertEqual({(3, 4)}, edges)
-
-    @patch('figures.MongoClient')
+    @patch('figures.egonet.MongoClient')
     def test_compute_hidden_network(self, mock_mongo_client):
         # Mock MongoClient and database
         mock_collection = Mock()
 
-        def aggregate_pandas_all(pipeline):
+        def aggregate_pandas_all(pipeline, schema=None):
             if 'source' in pipeline[-1]['$project']:
                 # its edges
-                edges = pd.DataFrame({'source': [1, 2, 3],
-                                      'target': [2, 3, 1],
+                edges = pd.DataFrame({'source': ['1', '2', '3'],
+                                      'target': ['2', '3', '1'],
                                       'weight': [1, 2, 3],
                                       'weight_inv': [1, 0.5, 0.33],
                                       'weight_norm': [1, 0.5, 0.5]})
                 return edges
+            elif 'legitimacy' in pipeline[-1]['$project']:
+                legitimacy = pd.DataFrame({'author_id': ['1', '2', '3'],
+                                           'date': [datetime(2020, 1, 1), datetime(2020, 1, 2), datetime(2020, 1, 3)],
+                                           'legitimacy': [0.1, 0.2, 0.3]})
+                return legitimacy
+
             else:
                 # its authors
-                authors = pd.DataFrame({'id': [1, 2, 3],
+                authors = pd.DataFrame({'author_id': ['1', '2', '3'],
                                         'is_usual_suspect': [False, False, False],
                                         'party': ['PSOE', None, 'VOX'],
                                         'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682']})
@@ -135,35 +109,39 @@ class TestEgonetPlotFactory(unittest.TestCase):
         mock_database.get_collection.return_value = mock_collection
         mock_mongo_client.return_value.get_database.return_value = mock_database
 
-        # Mock get_user_id
-        self.egonet_plot.get_user_id = Mock(return_value=1)
-        collection = 'test_collection'
+        actual = self.egonet_plot.get_hidden_network(self.collection)
 
-        actual = self.egonet_plot.get_hidden_network(collection)
-
-        self.assertEqual({1, 2, 3}, set(actual.vs['id_']))
-        edges = {frozenset((actual.vs[s]['id_'], actual.vs[t]['id_'])) for s, t in actual.get_edgelist()}
-        expected = {(2, 3), (1, 2), (1, 3)}
+        self.assertEqual({'1', '2', '3'}, set(actual.vs['author_id']))
+        edges = {frozenset((actual.vs[s]['author_id'], actual.vs[t]['author_id'])) for s, t in actual.get_edgelist()}
+        expected = {('2', '3'), ('1', '2'), ('1', '3')}
         expected = {frozenset(x) for x in expected}
         self.assertEqual(expected, edges)
 
-    @patch('figures.MongoClient')
+    @patch('figures.egonet.MongoClient')
     def test_compute_hidden_network_2(self, mock_mongo_client):
         # Mock MongoClient and database
         mock_collection = Mock()
 
-        def aggregate_pandas_all(pipeline):
+        def aggregate_pandas_all(pipeline, schema=None):
             if 'source' in pipeline[-1]['$project']:
                 # its edges
-                edges = pd.DataFrame({'source': [1, 2, 3],
-                                      'target': [2, 3, 4],
+                edges = pd.DataFrame({'source': ['1', '2', '3'],
+                                      'target': ['2', '3', '4'],
                                       'weight': [1, 2, 3],
                                       'weight_inv': [1, 0.5, 0.33],
                                       'weight_norm': [1, 0.5, 0.5]})
                 return edges
+            elif 'legitimacy' in pipeline[-1]['$project']:
+                legitimacy = pd.DataFrame({'author_id': ['1', '2', '3', '4'],
+                                           'date': [datetime(2020, 1, 1),
+                                                    datetime(2020, 1, 2),
+                                                    datetime(2020, 1, 3),
+                                                    datetime(2020, 1, 4)],
+                                           'legitimacy': [0.1, 0.2, 0.3, 0.4]})
+                return legitimacy
             else:
                 # its authors
-                authors = pd.DataFrame({'id': [1, 2, 3, 4],
+                authors = pd.DataFrame({'author_id': ['1', '2', '3', '4'],
                                         'is_usual_suspect': [False, False, False, False],
                                         'party': ['PSOE', None, 'VOX', None],
                                         'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682',
@@ -181,27 +159,35 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
         actual = self.egonet_plot.get_hidden_network(collection)
 
-        self.assertEqual({1, 2, 3, 4}, set(actual.vs['id_']))
-        edges = {(actual.vs[s]['id_'], actual.vs[t]['id_']) for s, t in actual.get_edgelist()}
-        self.assertEqual({(2, 3), (1, 2), (3, 4)}, edges)
+        self.assertEqual({'1', '2', '3', '4'}, set(actual.vs['author_id']))
+        edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}
+        self.assertEqual({('2', '3'), ('1', '2'), ('3', '4')}, edges)
 
-    @patch('figures.MongoClient')
+    @patch('figures.egonet.MongoClient')
     def test_compute_hidden_network_weight(self, mock_mongo_client):
         # Mock MongoClient and database
         mock_collection = Mock()
 
-        def aggregate_pandas_all(pipeline):
+        def aggregate_pandas_all(pipeline, schema=None):
             if 'source' in pipeline[-1]['$project']:
                 # its edges
-                edges = pd.DataFrame({'source': [1, 2, 3],
-                                      'target': [2, 3, 4],
+                edges = pd.DataFrame({'source': ['1', '2', '3'],
+                                      'target': ['2', '3', '4'],
                                       'weight': [1, 2, 3],
                                       'weight_inv': [1, 0.5, 0.33],
                                       'weight_norm': [1, 0.5, 0.5]})
                 return edges
+            elif 'legitimacy' in pipeline[-1]['$project']:
+                legitimacy = pd.DataFrame({'author_id': ['1', '2', '3', '4'],
+                                           'date': [datetime(2020, 1, 1),
+                                                    datetime(2020, 1, 2),
+                                                    datetime(2020, 1, 3),
+                                                    datetime(2020, 1, 4)],
+                                           'legitimacy': [0.1, 0.2, 0.3, 0.4]})
+                return legitimacy
             else:
                 # its authors
-                authors = pd.DataFrame({'id': [1, 2, 3, 4],
+                authors = pd.DataFrame({'author_id': ['1', '2', '3', '4'],
                                         'is_usual_suspect': [False, False, False, False],
                                         'party': ['PSOE', None, 'VOX', None],
                                         'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682',
@@ -269,11 +255,16 @@ class TestEgonetPlotFactory(unittest.TestCase):
     def test_plot_egonet(self):
         # Mock get_egonet
         network = ig.Graph.GRG(8, 0.2)
-        network.vs['id_'] = [0, 1, 2, 3, 4, 5, 6, 7]
+        network.vs['author_id'] = ['0', '1', '2', '3', '4', '5', '6', '7']
         network.vs['username'] = ['TEST_USER_0', 'TEST_USER_1', 'TEST_USER_2', 'TEST_USER_3', 'TEST_USER_4',
                                   'TEST_USER_5', 'TEST_USER_6', 'TEST_USER_7']
         network.vs['party'] = ['PSOE', None, 'VOX', None, 'PSOE', None, 'VOX', None]
         network.vs['is_usual_suspect'] = [False, False, False, False, True, True, True, True]
+        network['reputation'] = pd.DataFrame({'author_id': ['0', '1', '2', '3', '4', '5', '6', '7'],
+                                              datetime(2020, 1, 1): [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+                                              }).set_index('author_id')
+
+        network.vs['legitimacy'] = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
         self.egonet_plot.get_egonet = Mock(return_value=network)
 
         collection = 'test_collection'
@@ -289,16 +280,32 @@ class TestEgonetPlotFactory(unittest.TestCase):
     def test_get_authors_and_references(self):
         # Checks it returns the whole thing if the user is not present
         data_size = 100
-
+        test_data = create_test_data_db(self.database, self.collection, data_size)
         collection = 'test_collection'
         authors = self.egonet_plot._get_authors(collection)
         references = self.egonet_plot._get_references(collection)
+        expected_references = []
+        expected_authors = []
+        for tweet in test_data:
+            expected_authors.append(
+                {'author_id': tweet['author']['id'], 'username': tweet['author']['username'],
+                 'party': tweet['author']['remiss_metadata']['party'],
+                 'is_usual_suspect': tweet['author']['remiss_metadata']['is_usual_suspect']})
+            for referenced_tweet in tweet['referenced_tweets']:
+                expected_references.append(
+                    {'source': tweet['author']['id'], 'target': referenced_tweet['author']['id']})
+        expected_references = pd.DataFrame(expected_references)
+        expected_references = expected_references.groupby(['source', 'target']).size().reset_index(name='weight')
+        expected_references['weight_inv'] = 1 / expected_references['weight']
+        weight_norm = expected_references.groupby('source')['weight'].transform('sum')
+        expected_references['weight_norm'] = expected_references['weight'] / weight_norm
+        expected_authors = pd.DataFrame(expected_authors).drop_duplicates()
         self.assertEqual(data_size // 2, len(authors))
         expected_referenced_tweets = expected_references.shape[0] - expected_references[
             ['source', 'target']].duplicated().sum()
         self.assertEqual(len(references), expected_referenced_tweets)
-        authors = authors.sort_values('id').reset_index(drop=True)
-        expected_authors = expected_authors.sort_values('id').reset_index(drop=True)
+        authors = authors.sort_values('author_id').reset_index(drop=True)
+        expected_authors = expected_authors.sort_values('author_id').reset_index(drop=True)
         pd.testing.assert_frame_equal(expected_authors, authors,
                                       check_dtype=False, check_like=True)
         references = references.sort_values(['source', 'target']).reset_index(drop=True)
@@ -306,41 +313,18 @@ class TestEgonetPlotFactory(unittest.TestCase):
         pd.testing.assert_frame_equal(expected_references, references,
                                       check_dtype=False, check_like=True)
 
-    def test_get_egonet_2(self):
+    def test_get_egonet_speed(self):
         # Checks it returns the whole thing if the user is not present
-
-        collection = 'test_collection'
+        create_test_data_db(self.database, self.collection, 1000)
         user = 'test_user'
         depth = 1
         print('computing egonet')
         self.egonet_plot.host = 'localhost'
         self.egonet_plot.port = 27017
         self.egonet_plot.database = 'test_remiss'
-        actual = self.egonet_plot.get_egonet(collection, user, depth)
-        self.assertEqual(data_size // 2, actual.vcount())
-        self.assertEqual(len(expected_references), actual.ecount())
-        actual_authors = pd.DataFrame({'id': actual.vs['id_'],
-                                       'username': actual.vs['username'],
-                                       'party': actual.vs['party'],
-                                       'is_usual_suspect': actual.vs['is_usual_suspect']})
-        actual_authors = actual_authors.sort_values('id').reset_index(drop=True)
-        expected_authors = expected_authors.sort_values('id').reset_index(drop=True)
-        pd.testing.assert_frame_equal(expected_authors, actual_authors,
-                                      check_dtype=False, check_like=True)
-        actual_references = {frozenset([actual.vs[s]['id_'], actual.vs[t]['id_']]) for s, t in actual.get_edgelist()}
-        expected_references = {frozenset([x['source'], x['target']]) for _, x in expected_references.iterrows()}
-        self.assertEqual(expected_references, actual_references)
-
-    def test_get_egonet_speed(self):
-        # Checks it returns the whole thing if the user is not present
-
-        print('computing egonet')
-        self.egonet_plot.host = 'localhost'
-        self.egonet_plot.port = 27017
-        self.egonet_plot.database = 'test_remiss'
         # time computation of get_egonet
         start_time = time.time()
-        actual = self.egonet_plot.get_egonet(collection, user, depth)
+        actual = self.egonet_plot.get_egonet(self.collection, user, depth)
         end_time = time.time()
         total_time = end_time - start_time
         print(f'took {total_time}')
@@ -404,7 +388,6 @@ class TestEgonetPlotFactory(unittest.TestCase):
                         ig.Graph.Read_GraphMLz(
                             f'/tmp/remiss_cache/{self.collection}/hidden_network.graphmlz').get_edgelist())
         self.assertEquals(len(actual['layout'].coords), actual.vcount())
-
 
     def test_backbone(self):
         test_data = []
@@ -484,46 +467,32 @@ class TestEgonetPlotFactory(unittest.TestCase):
                             f'/tmp/remiss_cache/{self.collection}/hidden_network-backbone-0.4.graphmlz').get_edgelist())
         self.assertEquals(len(actual['layout'].coords), actual.vcount())
 
-    def test_plot_cache(self):
-        # Checks it returns the whole thing if the user is not present
-        self.egonet_plot.simplification = 'backbone'
-        self.egonet_plot.threshold = 0.4
-
-        print('computing egonet')
-        self.egonet_plot.host = 'localhost'
-        self.egonet_plot.port = 27017
-        self.egonet_plot.database = 'test_remiss'
-        self.egonet_plot.cache_dir = Path('/tmp/remiss_cache')
-        start_time = time.time()
-        actual = self.egonet_plot.plot_egonet(collection, user, depth)
-        end_time = time.time()
-        total_time_no_cache = end_time - start_time
-        print(f'took {total_time_no_cache} no cache')
-        start_time = time.time()
-        actual = self.egonet_plot.plot_egonet(collection, user, depth)
-        end_time = time.time()
-        total_time = end_time - start_time
-        print(f'took {total_time}')
-        self.assertLess(total_time, total_time_no_cache)
-
-    @patch('figures.MongoClient')
+    @patch('figures.egonet.MongoClient')
     def test_check_color_coding(self, mock_mongo_client):
 
         # Mock MongoClient and database
         mock_collection = Mock()
 
-        def aggregate_pandas_all(pipeline):
+        def aggregate_pandas_all(pipeline, schema=None):
             if 'source' in pipeline[-1]['$project']:
                 # its edges
-                edges = pd.DataFrame({'source': [1, 2, 3],
-                                      'target': [2, 3, 4],
+                edges = pd.DataFrame({'source': ['1', '2', '3'],
+                                      'target': ['2', '3', '4'],
                                       'weight': [1, 2, 3],
                                       'weight_inv': [1, 0.5, 0.33],
                                       'weight_norm': [1, 0.5, 0.5]})
                 return edges
+            elif 'legitimacy' in pipeline[-1]['$project']:
+                legitimacy = pd.DataFrame({'author_id': ['1', '2', '3', '4'],
+                                           'date': [datetime(2020, 1, 1),
+                                                    datetime(2020, 1, 2),
+                                                    datetime(2020, 1, 3),
+                                                    datetime(2020, 1, 4)],
+                                           'legitimacy': [0.1, 0.2, 0.3, 0.4]})
+                return legitimacy
             else:
                 # its authors
-                authors = pd.DataFrame({'id': [1, 2, 3, 4],
+                authors = pd.DataFrame({'author_id': ['1', '2', '3', '4'],
                                         'is_usual_suspect': [False, False, True, True],
                                         'party': [None, 'PSOE', None, 'VOX'],
                                         'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682',
@@ -537,29 +506,41 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
         collection = 'test_collection'
 
-        expected_colors = ['blue', 'yellow', 'red', 'purple']
+        expected_colors = [0.1, 0.2, 0.3, 0.4]
 
-        plot = self.egonet_plot.plot_egonet(collection, None, 1)
+        plot = self.egonet_plot.plot_egonet(collection, None, 1, start_date=None, end_date=None)
         self.assertEqual(list(plot['data'][1]['marker']['color']), expected_colors)
 
-    @patch('figures.MongoClient')
-    def test_check_color_coding_2(self, mock_mongo_client):
+    @patch('figures.egonet.MongoClient')
+    def test_check_size_coding(self, mock_mongo_client):
 
         # Mock MongoClient and database
         mock_collection = Mock()
 
-        def aggregate_pandas_all(pipeline):
+        def aggregate_pandas_all(pipeline, schema=None):
             if 'source' in pipeline[-1]['$project']:
                 # its edges
-                edges = pd.DataFrame({'source': [1, 2, 3],
-                                      'target': [2, 3, 4],
+                edges = pd.DataFrame({'source': ['1', '2', '3'],
+                                      'target': ['2', '3', '4'],
                                       'weight': [1, 2, 3],
                                       'weight_inv': [1, 0.5, 0.33],
                                       'weight_norm': [1, 0.5, 0.5]})
                 return edges
+            elif 'date' in pipeline[-1]['$project']:
+                legitimacy = pd.DataFrame({'author_id': ['1', '2', '3', '4'],
+                                           'date': [datetime(2020, 1, 1),
+                                                    datetime(2020, 1, 2),
+                                                    datetime(2020, 1, 3),
+                                                    datetime(2020, 1, 4)],
+                                           'legitimacy': [0.1, 0.2, 0.3, 0.4]})
+                return legitimacy
+            elif 'legitimacy' in pipeline[-1]['$project']:
+                legitimacy = pd.DataFrame({'author_id': ['1', '2', '3', '4'],
+                                           'legitimacy': [0.2, 0.3, 0.4, 0.5]})
+                return legitimacy
             else:
                 # its authors
-                authors = pd.DataFrame({'id': [1, 2, 3, 4],
+                authors = pd.DataFrame({'author_id': ['1', '2', '3', '4'],
                                         'is_usual_suspect': [False, False, True, True],
                                         'party': [None, None, None, 'VOX'],
                                         'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682',
@@ -573,31 +554,44 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
         collection = 'test_collection'
 
-        expected_colors = ['blue', 'blue', 'red', 'purple']
+        expected_colors = [0.2, 0.3, 0.4, 0.5]
+        expected_sizes = [9.56521739130435, 10.0, 10.0, 9.56521739130435]
 
         plot = self.egonet_plot.plot_egonet(collection, None, 1)
         self.assertEqual(list(plot['data'][1]['marker']['color']), expected_colors)
+        self.assertEqual(list(plot['data'][1]['marker']['size']), expected_sizes)
 
-    @patch('figures.MongoClient')
-    def test_check_color_coding_3(self, mock_mongo_client):
-
+    @patch('figures.egonet.MongoClient')
+    def test_check_marker_coding(self, mock_mongo_client):
         # Mock MongoClient and database
         mock_collection = Mock()
 
-        def aggregate_pandas_all(pipeline):
+        def aggregate_pandas_all(pipeline, schema=None):
             if 'source' in pipeline[-1]['$project']:
                 # its edges
-                edges = pd.DataFrame({'source': [1, 2, 3],
-                                      'target': [2, 3, 4],
+                edges = pd.DataFrame({'source': ['1', '2', '3'],
+                                      'target': ['2', '3', '4'],
                                       'weight': [1, 2, 3],
                                       'weight_inv': [1, 0.5, 0.33],
                                       'weight_norm': [1, 0.5, 0.5]})
                 return edges
+            elif 'date' in pipeline[-1]['$project']:
+                legitimacy = pd.DataFrame({'author_id': ['1', '2', '3', '4'],
+                                           'date': [datetime(2020, 1, 1),
+                                                    datetime(2020, 1, 2),
+                                                    datetime(2020, 1, 3),
+                                                    datetime(2020, 1, 4)],
+                                           'legitimacy': [0.1, 0.2, 0.3, 0.4]})
+                return legitimacy
+            elif 'legitimacy' in pipeline[-1]['$project']:
+                legitimacy = pd.DataFrame({'author_id': ['1', '2', '3', '4'],
+                                           'legitimacy': [0.2, 0.3, 0.4, 0.5]})
+                return legitimacy
             else:
                 # its authors
-                authors = pd.DataFrame({'id': [1, 2, 3, 4],
-                                        'is_usual_suspect': [False, False, True, True],
-                                        'party': ['PSOE', 'PSOE', None, 'VOX'],
+                authors = pd.DataFrame({'author_id': ['1', '2', '3', '4'],
+                                        'is_usual_suspect': [False, True, False, True],
+                                        'party': [None, None, 'PP', 'VOX'],
                                         'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682',
                                                      'TEST_USER_488683']})
                 return authors
@@ -609,60 +603,27 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
         collection = 'test_collection'
 
-        expected_colors = ['yellow', 'yellow', 'red', 'purple']
+        expected = ['circle', 'diamond', 'square', 'cross']
 
         plot = self.egonet_plot.plot_egonet(collection, None, 1)
-        self.assertEqual(list(plot['data'][1]['marker']['color']), expected_colors)
-
-    @patch('figures.MongoClient')
-    def test_check_color_coding_4(self, mock_mongo_client):
-
-        # Mock MongoClient and database
-        mock_collection = Mock()
-
-        def aggregate_pandas_all(pipeline):
-            if 'source' in pipeline[-1]['$project']:
-                # its edges
-                edges = pd.DataFrame({'source': [1, 2, 3],
-                                      'target': [2, 3, 4],
-                                      'weight': [1, 2, 3],
-                                      'weight_inv': [1, 0.5, 0.33],
-                                      'weight_norm': [1, 0.5, 0.5]})
-                return edges
-            else:
-                # its authors
-                authors = pd.DataFrame({'id': [1, 2, 3, 4],
-                                        'is_usual_suspect': [True, True, True, True],
-                                        'party': ['VOX', 'VOX', 'VOX', 'VOX'],
-                                        'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682',
-                                                     'TEST_USER_488683']})
-                return authors
-
-        mock_collection.aggregate_pandas_all = aggregate_pandas_all
-        mock_database = Mock()
-        mock_database.get_collection.return_value = mock_collection
-        mock_mongo_client.return_value.get_database.return_value = mock_database
-
-        collection = 'test_collection'
-
-        expected_colors = ['purple', 'purple', 'purple', 'purple']
-
-        plot = self.egonet_plot.plot_egonet(collection, None, 1)
-        self.assertEqual(list(plot['data'][1]['marker']['color']), expected_colors)
+        self.assertEqual(list(plot['data'][1]['marker']['symbol']), expected)
 
     def test_no_isolated_vertices(self):
         # Checks it returns the whole thing if the user is not present
         self.egonet_plot.simplification = 'backbone'
         self.egonet_plot.threshold = 0.232
         self.egonet_plot.cache_dir = None
-        data_size = 10000
+        data_size = 1000
         max_num_references = 10
-
+        user = 'test_user'
+        depth = 1
+        test_data = create_test_data_db(self.database, self.collection, data_size,
+                                        max_num_references=max_num_references)
         print('computing egonet')
         self.egonet_plot.host = 'localhost'
         self.egonet_plot.port = 27017
         self.egonet_plot.database = 'test_remiss'
-        actual = self.egonet_plot.plot_egonet(collection, user, depth)
+        actual = self.egonet_plot.plot_egonet(self.collection, user, depth)
 
         # Check that every vertex is connected to at least one edge
         vertices = actual['data'][1]
@@ -671,34 +632,64 @@ class TestEgonetPlotFactory(unittest.TestCase):
         edges = np.vstack((edges['x'], edges['y'])).T
         vertices = {tuple(coord) for coord in vertices if not np.isnan(coord).all()}
         edges = {tuple(coord) for coord in edges if not np.isnan(coord).all()}
-
         self.assertEqual(edges, vertices)
 
-    def test_legitimacy(self):
+    def test_no_text(self):
+        # Checks it returns the whole thing if the user is not present
+        self.egonet_plot.simplification = 'backbone'
+        self.egonet_plot.threshold = 0.232
+        self.egonet_plot.cache_dir = None
+        data_size = 1000
+        max_num_references = 10
+        user = 'test_user'
+        depth = 1
+        test_data = create_test_data_db(self.database, self.collection, data_size,
+                                        max_num_references=max_num_references)
+        print('computing egonet')
+        self.egonet_plot.host = 'localhost'
+        self.egonet_plot.port = 27017
+        self.egonet_plot.database = 'test_remiss'
+        actual = self.egonet_plot.plot_egonet(self.collection, user, depth)
 
-        expected_legitimacy['id'] = expected_legitimacy['username'].str.replace('TEST_USER_', '').astype(np.int32)
-        expected_legitimacy = expected_legitimacy.set_index('id')
-        # expected_legitimacy = expected_legitimacy / expected_legitimacy.max()
-        expected_legitimacy = expected_legitimacy.sort_values('legitimacy', ascending=False)
-        pd.testing.assert_frame_equal(expected_legitimacy, actual, check_dtype=False, check_like=True)
+        # Check that every text is different from %text
+        self.assertEqual(actual['data'][1]['x'].shape[0], len(set(actual['data'][1]['text'])))
+
+    def test_legitimacy(self):
+        # compute legitimacy per time as the amount of referenced tweets attained by each user by unit of time
+        day_range = 10
+        test_data = create_test_data_db(database=self.database, collection=self.collection,
+                                        day_range=day_range)
+
+        self.egonet_plot.unit = 'day'
+        self.egonet_plot.bin_size = 20 + day_range
+        actual = self.egonet_plot.get_legitimacy(self.collection)
+        expected = pd.DataFrame({'author_id': [t['author']['id'] for t in test_data],
+                                 'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
+
+        expected = expected.groupby(['author_id'])['legitimacy'].sum()
+
+        expected = expected.to_frame()
+        expected.columns = actual.columns
+        pd.testing.assert_frame_equal(expected, actual, check_dtype=False, check_like=True, check_index_type=False)
 
     def test_reputation(self):
         # compute reputation as the amount of referenced tweets attained by each user
         data_size = 100
         day_range = 10
         max_num_references = 20
+        test_data = create_test_data_db(database=self.database, collection=self.collection,
+                                        day_range=day_range, data_size=data_size, max_num_references=max_num_references)
 
         self.egonet_plot.host = 'localhost'
         self.egonet_plot.port = 27017
         self.egonet_plot.database = 'test_remiss'
-        actual = self.egonet_plot.get_reputation(collection)
-        expected = pd.DataFrame({'username': [t['author']['username'] for t in test_data],
-                                 'id': [t['author']['id'] for t in test_data],
+        actual = self.egonet_plot.get_reputation(self.collection)
+        expected = pd.DataFrame({'author_id': [t['author']['id'] for t in test_data],
                                  'date': [t['created_at'].date() for t in test_data],
                                  'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
 
-        expected = expected.groupby(['id', 'username', 'date'])['legitimacy'].sum().to_frame()
-        expected = expected.reset_index().pivot(index=['id', 'username'], columns='date', values='legitimacy')
+        expected = expected.groupby(['author_id', 'date'])['legitimacy'].sum().to_frame()
+        expected = expected.reset_index().pivot(index='author_id', columns='date', values='legitimacy')
         expected.columns = pd.DatetimeIndex(expected.columns)
         expected = expected.cumsum(axis=1)
         pd.testing.assert_frame_equal(expected, actual, check_dtype=False, check_like=True,

@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import pymongoarrow.monkey
+from igraph import Layout
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
 from tqdm import tqdm
@@ -19,8 +20,10 @@ class EgonetPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, database="test_remiss", cache_dir=None,
                  reference_types=('replied_to', 'quoted', 'retweeted'), layout='fruchterman_reingold',
                  simplification=None, threshold=0.2, delete_vertices=True, k_cores=4, frequency='1D',
-                 available_datasets=None, prepopulate=False):
+                 available_datasets=None, prepopulate=False, small_size_multiplier=50, big_size_multiplier=10):
         super().__init__(host, port, database, available_datasets)
+        self.big_size_multiplier = big_size_multiplier
+        self.small_size_multiplier = small_size_multiplier
         self.frequency = frequency
         self.bin_size = int(frequency[:-1])
         pd_units = {'D': 'day', 'W': 'week', 'M': 'month', 'Y': 'year'}
@@ -38,7 +41,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         if self.prepopulate:
             self.prepopulate_cache()
 
-    def plot_egonet(self, collection, user, depth, start_date, end_date):
+    def plot_egonet(self, collection, user, depth, start_date=None, end_date=None):
         network = self.get_egonet(collection, user, depth)
         network = network.as_undirected(mode='collapse')
 
@@ -361,12 +364,14 @@ class EgonetPlotFactory(MongoPlotFactory):
         else:
             size = network['reputation'].mean(axis=1)
         # Add 1 offset and set 1 as minimum size
-        size += 4
+        size = size + 1
         size = size.fillna(1)
-        size = size / size.max() * 50 if len(network.vs) > 100 else size / size.max() * 100
+        if len(network.vs) > 100:
+            size = size / size.max() * self.small_size_multiplier
+        else:
+            size = size / size.max() * self.big_size_multiplier
 
         color = pd.Series(network.vs['legitimacy'])
-        # color = color.fillna(0)
 
         edge_trace = go.Scatter3d(x=edge_positions['x'],
                                   y=edge_positions['y'],
@@ -454,4 +459,7 @@ def compute_backbone(graph, alpha=0.05, delete_vertices=True):
     alphas = (1 - weights) ** (degrees - 1)
     good = np.nonzero(alphas > alpha)[0]
     backbone = graph.subgraph_edges(graph.es.select(good), delete_vertices=delete_vertices)
+    if 'layout' in graph.attributes():
+        layout = pd.DataFrame(graph['layout'].coords, columns=['x', 'y', 'z'], index=graph.vs['author_id'])
+        backbone['layout'] = Layout(layout.loc[backbone.vs['author_id']].values.tolist(), dim=3)
     return backbone
