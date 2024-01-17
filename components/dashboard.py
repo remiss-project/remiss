@@ -3,7 +3,7 @@ from dash import dcc, html, Input, Output
 from dash_holoniq_wordcloud import DashWordcloud
 
 from components.components import RemissComponent
-from components.control_panel_component import ControlPanelComponent
+from components.control_panel import ControlPanelComponent
 from components.egonet import EgonetComponent
 from components.time_series import TimeSeriesComponent
 from components.top_table import TopTableComponent
@@ -14,11 +14,11 @@ from components.top_table import TopTableComponent
 class RemissState(RemissComponent):
     def __init__(self, name=None):
         super().__init__(name=name)
-        self.current_dataset = dcc.Store(id=f'current-dataset-{self.name}')
-        self.current_hashtags = dcc.Store(id=f'current-hashtags-{self.name}')
-        self.current_start_date = dcc.Store(id=f'current-start-date-{self.name}')
-        self.current_end_date = dcc.Store(id=f'current-end-date-{self.name}')
-        self.current_user = dcc.Store(id=f'current-user-{self.name}')
+        self.current_dataset = dcc.Store(id=f'current-dataset-{self.name}', storage_type='session')
+        self.current_hashtags = dcc.Store(id=f'current-hashtags-{self.name}', storage_type='session')
+        self.current_start_date = dcc.Store(id=f'current-start-date-{self.name}', storage_type='session')
+        self.current_end_date = dcc.Store(id=f'current-end-date-{self.name}', storage_type='session')
+        self.current_user = dcc.Store(id=f'current-user-{self.name}', storage_type='session')
 
     def layout(self, params=None):
         return html.Div([

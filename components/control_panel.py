@@ -1,3 +1,5 @@
+import json
+
 import dash_bootstrap_components as dbc
 from dash import dcc, Input, Output
 from dash_holoniq_wordcloud import DashWordcloud
@@ -70,7 +72,7 @@ class ControlPanelComponent(RemissComponent):
         return dropdown_dataset
 
     def update_hashtag_storage(self, click_data):
-        return [click_data[0][0]] if click_data and len(click_data) == 1 else None
+        return [click_data[0]] if click_data else None
 
     def update_start_date_storage(self, start_date):
         return start_date

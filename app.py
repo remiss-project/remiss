@@ -21,7 +21,7 @@ if REMISS_AVAILABLE_DATASETS:
     REMISS_AVAILABLE_DATASETS = REMISS_AVAILABLE_DATASETS.split(',')
 
 REMISS_THEME = os.environ.get('REMISS_THEME', 'pulse').upper()
-REMISS_DEBUG = os.environ.get('REMISS_DEBUG', 'False')
+REMISS_DEBUG = os.environ.get('REMISS_DEBUG', 'True')
 REMISS_DEBUG = REMISS_DEBUG.lower() == 'true'
 REMISS_FREQUENCY = os.environ.get('REMISS_FREQUENCY', '1D')
 REMISS_PREPOPULATE = os.environ.get('REMISS_PREPOPULATE', 'False')
@@ -101,7 +101,8 @@ def create_app():
                                             frequency=REMISS_FREQUENCY,
                                             available_datasets=REMISS_AVAILABLE_DATASETS,
                                             prepopulate=REMISS_PREPOPULATE)
-    dashboard = RemissDashboard(tweet_user_plot_factory, top_table_factory, egonet_plot_factory, debug=REMISS_DEBUG)
+    dashboard = RemissDashboard(tweet_user_plot_factory, top_table_factory, egonet_plot_factory, name='dashboard',
+                                debug=REMISS_DEBUG)
     print(f'Plot factories created in {time.time() - start_time} seconds.')
     print('Creating app...')
     start_time = time.time()
