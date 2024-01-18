@@ -2,7 +2,8 @@ import os
 import time
 
 os.environ['PATH'] = '/run/host/usr/bin/:' + os.environ['PATH']
-os.environ['LD_LIBRARY_PATH'] = '/run/host/usr/lib64/:/run/host/usr/lib64/samba/'
+os.environ['LD_LIBRARY_PATH'] = '/run/host/usr/lib64/:/run/host/usr/lib64/samba/:' + os.environ.get('LD_LIBRARY_PATH',
+                                                                                                    '')
 os.environ['REMISS_DEBUG'] = 'True'
 
 from app import create_app
@@ -181,6 +182,51 @@ def test_008_change_user_egonet_plot_table_hashtag_selection(dash_duo):
 
     dash_duo.wait_for_element("#fig-egonet", timeout=4)
     after_egonet_plot_screenshot = dash_duo.find_element("#fig-egonet").text
+
+    assert before_egonet_plot_screenshot != after_egonet_plot_screenshot, "egonet plot should change"
+    assert dash_duo.get_logs() == [], "browser console should contain no error"
+
+
+def test_009_egonet_date_filtering(dash_duo):
+    app = create_app()
+    dash_duo.start_server(app)
+    dash_duo.driver.maximize_window()
+    dash_duo.wait_for_element("#fig-egonet", timeout=4)
+    before_egonet_plot_screenshot = dash_duo.find_element("#fig-egonet").get_attribute('innerHTML')
+
+    # click on date filtering checkbox
+    checkbox = dash_duo.find_element('#date-checkbox-egonet')
+    checkbox.click()
+    # click on any date
+    dash_duo.wait_for_element('#date-slider-egonet', timeout=4)
+    slider = dash_duo.find_element('#date-slider-egonet')
+    time.sleep(1)
+    slider.click()
+
+    dash_duo.wait_for_element("#fig-egonet", timeout=4)
+    after_egonet_plot_screenshot = dash_duo.find_element("#fig-egonet").get_attribute('innerHTML')
+
+    assert before_egonet_plot_screenshot != after_egonet_plot_screenshot, "egonet plot should change"
+    assert dash_duo.get_logs() == [], "browser console should contain no error"
+
+
+def test_010_egonet_user_filtering(dash_duo):
+    app = create_app()
+    dash_duo.start_server(app)
+    dash_duo.driver.maximize_window()
+    dash_duo.wait_for_element("#fig-egonet", timeout=4)
+    before_egonet_plot_screenshot = dash_duo.find_element("#fig-egonet").get_attribute('innerHTML')
+
+    # click on date filtering checkbox
+    checkbox = dash_duo.find_element('#user-checkbox-egonet')
+    checkbox.click()
+    # click on any date
+    dash_duo.wait_for_element('#date-slider-egonet', timeout=4)
+    time.sleep(1)
+    dash_duo.select_dcc_dropdown('#user-dropdown-egonet', 1)
+
+    dash_duo.wait_for_element("#fig-egonet", timeout=4)
+    after_egonet_plot_screenshot = dash_duo.find_element("#fig-egonet").get_attribute('innerHTML')
 
     assert before_egonet_plot_screenshot != after_egonet_plot_screenshot, "egonet plot should change"
     assert dash_duo.get_logs() == [], "browser console should contain no error"
