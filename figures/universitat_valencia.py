@@ -1,9 +1,4 @@
-import re
-
-import requests
 from figures.figures import RemoteAPIFactory
-import json
-import plotly
 
 
 class EmotionPerHourLinePlotFactory(RemoteAPIFactory):

@@ -1,5 +1,5 @@
 from html.parser import HTMLParser
-from unittest.mock import patch, Mock
+from unittest.mock import Mock
 
 from plotly.graph_objs import Figure
 
