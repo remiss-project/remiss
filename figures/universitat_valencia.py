@@ -1,11 +1,11 @@
 from figures.figures import RemoteAPIFactory
 
 
-class EmotionPerHourLinePlotFactory(RemoteAPIFactory):
+class EmotionPerHourPlotFactory(RemoteAPIFactory):
     def __init__(self, api_url='http://agentsim.uv.es:5000/api', chart_id='graph1'):
         super().__init__(api_url, chart_id)
 
-    def plot_emotion_line_per_hour(self, dataset, start_time, end_time):
+    def plot_emotion_per_hour(self, dataset, start_time, end_time):
         return self.plotly_html_to_figure(self.fetch_plot_html(dataset, start_time, end_time))
 
 
@@ -13,7 +13,7 @@ class AverageEmotionBarPlotFactory(RemoteAPIFactory):
     def __init__(self, api_url='http://agentsim.uv.es:5000/api', chart_id='graph2'):
         super().__init__(api_url, chart_id)
 
-    def plot_average_emotion_bar(self, dataset, start_time, end_time):
+    def plot_average_emotion(self, dataset, start_time, end_time):
         return self.plotly_html_to_figure(self.fetch_plot_html(dataset, start_time, end_time))
 
 

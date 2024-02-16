@@ -12,3 +12,5 @@ theme: PULSE
 debug: True
 frequency: 1D
 prepopulate: False
+uv:
+  api_url: 'http://agentsim.uv.es:5000/api'

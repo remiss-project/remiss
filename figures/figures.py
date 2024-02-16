@@ -103,8 +103,6 @@ class RemoteAPIFactory(ABC):
     def plotly_html_to_figure(self, html):
         data_str = re.findall(r'<script type="application/json" data-for="htmlwidget-.*">(.*)</script>', html)[-1]
         call_args = json.loads(f'[{data_str}]')
-        with open('test_resources/plotly.json', 'w') as f:
-            f.write(json.dumps(call_args))
         data = call_args[0]['x']['data']
         layout = call_args[0]['x']['layout']
         plotly_json = {'data': data, 'layout': layout}
@@ -118,4 +116,4 @@ class RemoteAPIFactory(ABC):
             return response.text
 
         else:
-            raise RuntimeError(f'Error {response.status_code} while fetching emotion line per hour data.')
+            raise RuntimeError(f'Error {response.status_code} while fetching {self.__class__.__name__}.')

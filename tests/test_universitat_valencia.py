@@ -3,12 +3,12 @@ from unittest.mock import Mock
 
 from plotly.graph_objs import Figure
 
-from figures.universitat_valencia import EmotionPerHourLinePlotFactory, AverageEmotionBarPlotFactory, \
+from figures.universitat_valencia import EmotionPerHourPlotFactory, AverageEmotionBarPlotFactory, \
     TopProfilesPlotFactory, TopHashtagsPlotFactory, TopicRankingPlotFactory, NetworkTopicsPlotFactory
 
 
 def test_fetch_plot_html_emotion_per_hour():
-    plot_factory = EmotionPerHourLinePlotFactory()
+    plot_factory = EmotionPerHourPlotFactory()
     html = plot_factory.fetch_plot_html('madrid', 'start_time', 'end_time')
     # Validate that html is actually a valid html with some plotly stuff in it
     parser = HTMLParser()
@@ -20,16 +20,16 @@ def test_fetch_plot_html_emotion_per_hour():
 
 
 def test_plot_emotion_line_per_hour():
-    plot_factory = EmotionPerHourLinePlotFactory()
+    plot_factory = EmotionPerHourPlotFactory()
     with open('test_resources/emotion_per_hour.html', 'r') as f:
         html = f.read()
     plot_factory.fetch_plot_html = Mock(return_value=html)
-    fig = plot_factory.plot_emotion_line_per_hour('madrid', 'start_time', 'end_time')
+    fig = plot_factory.plot_emotion_per_hour('madrid', 'start_time', 'end_time')
     assert isinstance(fig, Figure)
 
 
 def test_plotly_html_to_figure_emotion_per_hour():
-    plot_factory = EmotionPerHourLinePlotFactory()
+    plot_factory = EmotionPerHourPlotFactory()
     with open('test_resources/emotion_per_hour.html', 'r') as f:
         html = f.read()
     fig = plot_factory.plotly_html_to_figure(html)

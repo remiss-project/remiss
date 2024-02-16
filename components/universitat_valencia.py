@@ -24,7 +24,7 @@ class EmotionPerHourComponent(RemissComponent):
         ], justify='center', style={'margin-bottom': '1rem'})
 
     def update(self, dataset, start_date, end_date):
-        return self.plot_factory.plot_emotion_line_per_hour(dataset, start_date, end_date)
+        return self.plot_factory.plot_emotion_per_hour(dataset, start_date, end_date)
 
     def callbacks(self, app):
         app.callback(
@@ -55,7 +55,7 @@ class AverageEmotionBarComponent(RemissComponent):
         ], justify='center', style={'margin-bottom': '1rem'})
 
     def update(self, dataset, start_date, end_date):
-        return self.plot_factory.plot_average_emotion_bar(dataset, start_date, end_date)
+        return self.plot_factory.plot_average_emotion(dataset, start_date, end_date)
 
     def callbacks(self, app):
         app.callback(

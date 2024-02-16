@@ -7,7 +7,8 @@ from components.control_panel import ControlPanelComponent
 from components.egonet import EgonetComponent
 from components.time_series import TimeSeriesComponent
 from components.top_table import TopTableComponent
-from components.universitat_valencia import EmotionPerHourComponent
+from components.universitat_valencia import EmotionPerHourComponent, AverageEmotionBarComponent, TopProfilesComponent, \
+    TopHashtagsComponent, TopicRankingComponent, NetworkTopicsComponent
 
 
 class RemissState(RemissComponent):
@@ -91,25 +92,25 @@ class RemissDashboard(RemissComponent):
                                                                   state=self.state,
                                                                   name='emotion_per_hour')
 
-        self.average_emotion_component = EmotionPerHourComponent(average_emotion_factory,
-                                                                 state=self.state,
-                                                                 name='average_emotion')
+        self.average_emotion_component = AverageEmotionBarComponent(average_emotion_factory,
+                                                                    state=self.state,
+                                                                    name='average_emotion')
 
-        self.top_profiles_component = EmotionPerHourComponent(top_profiles_factory,
-                                                              state=self.state,
-                                                              name='top_profiles')
+        self.top_profiles_component = TopProfilesComponent(top_profiles_factory,
+                                                           state=self.state,
+                                                           name='top_profiles')
 
-        self.top_hashtags_component = EmotionPerHourComponent(top_hashtags_factory,
-                                                              state=self.state,
-                                                              name='top_hashtags')
+        self.top_hashtags_component = TopHashtagsComponent(top_hashtags_factory,
+                                                           state=self.state,
+                                                           name='top_hashtags')
 
-        self.topic_ranking_component = EmotionPerHourComponent(topic_ranking_factory,
+        self.topic_ranking_component = TopicRankingComponent(topic_ranking_factory,
+                                                             state=self.state,
+                                                             name='topic_ranking')
+
+        self.network_topics_component = NetworkTopicsComponent(network_topics_factory,
                                                                state=self.state,
-                                                               name='topic_ranking')
-
-        self.network_topics_component = EmotionPerHourComponent(network_topics_factory,
-                                                                state=self.state,
-                                                                name='network_topics')
+                                                               name='network_topics')
 
     def update_placeholder(self, dataset, hashtags, start_date, end_date, current_user):
         return html.H1(f'Hashtag: {hashtags}, Dataset: {dataset}, Start date: {start_date}, '
@@ -141,6 +142,12 @@ class RemissDashboard(RemissComponent):
             ], style={'margin-bottom': '1rem'}, justify='center'),
             self.top_table_component.layout(),
             self.tweet_user_ts_component.layout(),
+            self.emotion_per_hour_component.layout(),
+            self.average_emotion_component.layout(),
+            self.top_profiles_component.layout(),
+            self.top_hashtags_component.layout(),
+            self.topic_ranking_component.layout(),
+            self.network_topics_component.layout(),
         ], fluid=False)
 
     def callbacks(self, app):
@@ -157,3 +164,9 @@ class RemissDashboard(RemissComponent):
         self.tweet_user_ts_component.callbacks(app)
         self.top_table_component.callbacks(app)
         self.egonet_component.callbacks(app)
+        self.emotion_per_hour_component.callbacks(app)
+        self.average_emotion_component.callbacks(app)
+        self.top_profiles_component.callbacks(app)
+        self.top_hashtags_component.callbacks(app)
+        self.topic_ranking_component.callbacks(app)
+        self.network_topics_component.callbacks(app)
