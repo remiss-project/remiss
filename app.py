@@ -1,31 +1,16 @@
+import json
 import os
 import time
 
 import dash
 import dash_bootstrap_components as dbc
+import fire
+import yaml
 from dash_bootstrap_templates import load_figure_template
+from pyaml_env import parse_config
 
 from components import RemissDashboard
 from figures import TimeSeriesFactory, EgonetPlotFactory, TopTableFactory
-
-REMISS_MONGODB_HOST = os.environ.get('REMISS_MONGODB_HOST', 'localhost')
-REMISS_MONGODB_PORT = int(os.environ.get('REMISS_MONGODB_PORT', 27017))
-REMISS_MONGODB_DATABASE = os.environ.get('REMISS_MONGODB_DATABASE', 'remiss')
-REMISS_CACHE_DIR = os.environ.get('REMISS_CACHE_DIR', None)
-REMISS_GRAPH_LAYOUT = os.environ.get('REMISS_GRAPH_LAYOUT', 'fruchterman_reingold')
-REMISS_GRAPH_SIMPLIFICATION = os.environ.get('REMISS_GRAPH_SIMPLIFICATION', 'backbone')
-REMISS_GRAPH_SIMPLIFICATION_THRESHOLD = float(os.environ.get('REMISS_GRAPH_SIMPLIFICATION_THRESHOLD', 0.95))
-REMISS_AVAILABLE_DATASETS = os.environ.get('REMISS_AVAILABLE_DATASETS', None)
-if REMISS_AVAILABLE_DATASETS:
-    print(f'Using available datasets {REMISS_AVAILABLE_DATASETS}...')
-    REMISS_AVAILABLE_DATASETS = REMISS_AVAILABLE_DATASETS.split(',')
-
-REMISS_THEME = os.environ.get('REMISS_THEME', 'pulse').upper()
-REMISS_DEBUG = os.environ.get('REMISS_DEBUG', 'True')
-REMISS_DEBUG = REMISS_DEBUG.lower() == 'true'
-REMISS_FREQUENCY = os.environ.get('REMISS_FREQUENCY', '1D')
-REMISS_PREPOPULATE = os.environ.get('REMISS_PREPOPULATE', 'False')
-REMISS_PREPOPULATE = REMISS_PREPOPULATE.lower() == 'true'
 
 available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
                        'CERULEAN': dbc.themes.CERULEAN,
@@ -56,13 +41,14 @@ available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
                        }
 
 
-def prepopulate():
-    egonet_plot_factory = EgonetPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
-                                            database=REMISS_MONGODB_DATABASE, cache_dir=REMISS_CACHE_DIR,
-                                            layout=REMISS_GRAPH_LAYOUT, simplification=REMISS_GRAPH_SIMPLIFICATION,
-                                            threshold=REMISS_GRAPH_SIMPLIFICATION_THRESHOLD,
-                                            frequency=REMISS_FREQUENCY,
-                                            available_datasets=REMISS_AVAILABLE_DATASETS,
+def prepopulate(config):
+    egonet_plot_factory = EgonetPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                            database=config['mongodb']['database'], cache_dir=config['cache_dir'],
+                                            layout=config['graph_layout'],
+                                            simplification=config['graph_simplification']['method'],
+                                            threshold=config['graph_simplification']['threshold'],
+                                            frequency=config['frequency'],
+                                            available_datasets=config['available_datasets'],
                                             prepopulate=False)
     print('Prepopulating...')
     start_time = time.time()
@@ -70,45 +56,46 @@ def prepopulate():
     print(f'Prepopulated in {time.time() - start_time} seconds.')
 
 
-def create_app():
-    load_figure_template(REMISS_THEME)
-    print(f'Connecting to MongoDB at {REMISS_MONGODB_HOST}:{REMISS_MONGODB_PORT}...')
-    print(f'Using database {REMISS_MONGODB_DATABASE}...')
-    if REMISS_CACHE_DIR:
-        print(f'Using cache directory {REMISS_CACHE_DIR}...')
+def create_app(config):
+    load_figure_template(config['theme'])
+
+    print(f'Connecting to MongoDB at {config["mongodb"]["host"]}:{config["mongodb"]["port"]}...')
+    print(f'Using database {"database"}...')
+    if config['cache_dir']:
+        print(f'Using cache directory {config["cache_dir"]}...')
     else:
         print('Not using cache...')
 
-    if REMISS_GRAPH_SIMPLIFICATION:
-        print(f'Using graph simplification method {REMISS_GRAPH_SIMPLIFICATION} with threshold '
-              f'{REMISS_GRAPH_SIMPLIFICATION_THRESHOLD}...')
-
-
+    if config['graph_simplification']:
+        print(f'Using graph simplification method {config["graph_simplification"]["method"]} with threshold '
+              f'{config["graph_simplification"]["threshold"]}...')
 
     print('Creating plot factories...')
     start_time = time.time()
-    tweet_user_plot_factory = TimeSeriesFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
-                                                   database=REMISS_MONGODB_DATABASE,
-                                                   available_datasets=REMISS_AVAILABLE_DATASETS)
-    top_table_factory = TopTableFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
-                                        database=REMISS_MONGODB_DATABASE,
-                                        available_datasets=REMISS_AVAILABLE_DATASETS)
+    tweet_user_plot_factory = TimeSeriesFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                                database=config['mongodb']['database'],
+                                                available_datasets=config['available_datasets'])
+    top_table_factory = TopTableFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                        database=config['mongodb']['database'],
+                                        available_datasets=config['available_datasets'])
 
-    egonet_plot_factory = EgonetPlotFactory(host=REMISS_MONGODB_HOST, port=REMISS_MONGODB_PORT,
-                                            database=REMISS_MONGODB_DATABASE, cache_dir=REMISS_CACHE_DIR,
-                                            layout=REMISS_GRAPH_LAYOUT, simplification=REMISS_GRAPH_SIMPLIFICATION,
-                                            threshold=REMISS_GRAPH_SIMPLIFICATION_THRESHOLD,
-                                            frequency=REMISS_FREQUENCY,
-                                            available_datasets=REMISS_AVAILABLE_DATASETS,
-                                            prepopulate=REMISS_PREPOPULATE)
+    egonet_plot_factory = EgonetPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                            database=config['mongodb']['database'], cache_dir=config['cache_dir'],
+                                            layout=config['graph_layout'],
+                                            simplification=config['graph_simplification']['method'],
+                                            threshold=config['graph_simplification']['threshold'],
+                                            frequency=config['frequency'],
+                                            available_datasets=config['available_datasets'],
+                                            prepopulate=config['prepopulate']
+                                            )
     dashboard = RemissDashboard(tweet_user_plot_factory, top_table_factory, egonet_plot_factory, name='dashboard',
-                                debug=REMISS_DEBUG)
+                                debug=config['debug'])
     print(f'Plot factories created in {time.time() - start_time} seconds.')
     print('Creating app...')
     start_time = time.time()
     dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
     app = dash.Dash(__name__,
-                    external_stylesheets=[available_theme_css[REMISS_THEME], dbc.icons.FONT_AWESOME, dbc_css],
+                    external_stylesheets=[available_theme_css[config['theme']], dbc.icons.FONT_AWESOME, dbc_css],
                     prevent_initial_callbacks="initial_duplicate",
                     meta_tags=[
                         {
@@ -123,9 +110,19 @@ def create_app():
 
     return app
 
+def load_config(config):
+    config = parse_config(config)
+    return config
+
+
+
+def main(config='dev_config.yaml'):
+    config = load_config(config)
+    app = create_app(config)
+    print('Running app...')
+    app.run(debug=config['debug'])
+
 
 # Run the app
 if __name__ == '__main__':
-    app = create_app()
-    print('Running app...')
-    app.run(debug=REMISS_DEBUG)
+    fire.Fire(main)

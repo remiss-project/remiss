@@ -24,7 +24,7 @@ class EgonetComponent(RemissComponent):
                                       responsive=True,
                                       style={'height': '100%', 'width': '100%'},
                                       )
-        available_users = self.plot_factory.get_users(self.available_datasets[0])
+        available_users = self.plot_factory.get_users(list(self.available_datasets.values())[0])
         self.user_dropdown = dcc.Dropdown(options=[{"label": x, "value": x} for x in available_users],
                                           # value=available_users[0],
                                           id=f'user-dropdown-{self.name}', disabled=True)

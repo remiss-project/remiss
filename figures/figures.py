@@ -70,6 +70,7 @@ class MongoPlotFactory(ABC):
         if self._available_datasets is None:
             client = MongoClient(self.host, self.port)
             self._available_datasets = client.get_database(self.database).list_collection_names()
+            self._available_datasets = {x.capitalize().strip(): x for x in self._available_datasets}
         return self._available_datasets
 
     @staticmethod
@@ -87,3 +88,7 @@ class MongoPlotFactory(ABC):
         available_hashtags_freqs = list(collection.aggregate(pipeline))
         available_hashtags_freqs = [(x['_id'], x['count']) for x in available_hashtags_freqs]
         return available_hashtags_freqs
+
+
+class RemoteAPIFactory(MongoPlotFactory):
+    pass

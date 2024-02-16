@@ -1,0 +1,17 @@
+mongodb:
+  host: localhost
+  port: 27017
+  database: remiss
+cache_dir: /shared/data/remiss/Twitter/.cache
+graph_layout: fruchterman_reingold
+graph_simplification:
+  method: backbone
+  threshold: 0.95
+available_datasets:
+  Generalitat 2021: Generalitat
+  Barcelona 2023: Barcelona
+  Estatales 2022: Estatal
+theme: PULSE
+debug: "True"
+frequency: 1D
+prepopulate: "False"
