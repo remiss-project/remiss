@@ -7,8 +7,7 @@ from components.control_panel import ControlPanelComponent
 from components.egonet import EgonetComponent
 from components.time_series import TimeSeriesComponent
 from components.top_table import TopTableComponent
-
-
+from components.universitat_valencia import EmotionPerHourComponent
 
 
 class RemissState(RemissComponent):
@@ -34,7 +33,16 @@ class RemissState(RemissComponent):
 
 
 class RemissDashboard(RemissComponent):
-    def __init__(self, tweet_user_plot_factory, top_table_factory, egonet_plot_factory, name=None,
+    def __init__(self, tweet_user_plot_factory,
+                 top_table_factory,
+                 egonet_plot_factory,
+                 emotion_per_hour_factory,
+                 average_emotion_factory,
+                 top_profiles_factory,
+                 top_hashtags_factory,
+                 topic_ranking_factory,
+                 network_topics_factory,
+                 name=None,
                  max_wordcloud_words=100, wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=True,
 
                  debug=False):
@@ -48,6 +56,13 @@ class RemissDashboard(RemissComponent):
         self.tweet_user_plot_factory = tweet_user_plot_factory
         self.egonet_plot_factory = egonet_plot_factory
         self.top_table_factory = top_table_factory
+        self.emotion_per_hour_factory = emotion_per_hour_factory
+        self.average_emotion_factory = average_emotion_factory
+        self.top_profiles_factory = top_profiles_factory
+        self.top_hashtags_factory = top_hashtags_factory
+        self.topic_ranking_factory = topic_ranking_factory
+        self.network_topics_factory = network_topics_factory
+
         self.available_datasets = tweet_user_plot_factory.available_datasets
 
         self.state = RemissState(name='state')
@@ -71,6 +86,30 @@ class RemissDashboard(RemissComponent):
                                                              wordcloud_width=self.wordcloud_width,
                                                              wordcloud_height=self.wordcloud_height,
                                                              match_wordcloud_width=self.match_wordcloud_width)
+
+        self.emotion_per_hour_component = EmotionPerHourComponent(emotion_per_hour_factory,
+                                                                  state=self.state,
+                                                                  name='emotion_per_hour')
+
+        self.average_emotion_component = EmotionPerHourComponent(average_emotion_factory,
+                                                                 state=self.state,
+                                                                 name='average_emotion')
+
+        self.top_profiles_component = EmotionPerHourComponent(top_profiles_factory,
+                                                              state=self.state,
+                                                              name='top_profiles')
+
+        self.top_hashtags_component = EmotionPerHourComponent(top_hashtags_factory,
+                                                              state=self.state,
+                                                              name='top_hashtags')
+
+        self.topic_ranking_component = EmotionPerHourComponent(topic_ranking_factory,
+                                                               state=self.state,
+                                                               name='topic_ranking')
+
+        self.network_topics_component = EmotionPerHourComponent(network_topics_factory,
+                                                                state=self.state,
+                                                                name='network_topics')
 
     def update_placeholder(self, dataset, hashtags, start_date, end_date, current_user):
         return html.H1(f'Hashtag: {hashtags}, Dataset: {dataset}, Start date: {start_date}, '

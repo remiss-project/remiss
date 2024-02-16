@@ -4,7 +4,7 @@ import dash_bootstrap_components as dbc
 from .components import RemissComponent
 
 
-class EmotionPerHourLineComponent(RemissComponent):
+class EmotionPerHourComponent(RemissComponent):
     def __init__(self, plot_factory, state, name=None):
         super().__init__(name=name)
         self.plot_factory = plot_factory
