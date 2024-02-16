@@ -1,6 +1,10 @@
+import json
+import re
 from abc import ABC
 
+import plotly
 import pymongoarrow.monkey
+import requests
 from pymongo import MongoClient
 from pymongo.errors import OperationFailure
 
@@ -90,5 +94,28 @@ class MongoPlotFactory(ABC):
         return available_hashtags_freqs
 
 
-class RemoteAPIFactory(MongoPlotFactory):
-    pass
+class RemoteAPIFactory(ABC):
+    def __init__(self, api_url, chart_id):
+        super().__init__()
+        self.api_url = api_url
+        self.chart_id = chart_id
+
+    def plotly_html_to_figure(self, html):
+        data_str = re.findall(r'<script type="application/json" data-for="htmlwidget-.*">(.*)</script>', html)[-1]
+        call_args = json.loads(f'[{data_str}]')
+        with open('test_resources/plotly.json', 'w') as f:
+            f.write(json.dumps(call_args))
+        data = call_args[0]['x']['data']
+        layout = call_args[0]['x']['layout']
+        plotly_json = {'data': data, 'layout': layout}
+        return plotly.io.from_json(json.dumps(plotly_json), skip_invalid=True)
+
+    def fetch_plot_html(self, dataset=None, start_time=None, end_time=None):
+        response = requests.get(f'{self.api_url}/{self.chart_id}',
+                                params={'name': dataset, 'start_time': start_time, 'end_time': end_time})
+        if response.status_code == 200:
+            # Return plotly figure
+            return response.text
+
+        else:
+            raise RuntimeError(f'Error {response.status_code} while fetching emotion line per hour data.')

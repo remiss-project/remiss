@@ -1,17 +1,55 @@
+import re
+
 import requests
-
 from figures.figures import RemoteAPIFactory
+import json
+import plotly
 
 
-class UVChart1PlotFactory(RemoteAPIFactory):
-    def __init__(self, host, port, database, url, available_datasets=None):
-        super().__init__(host, port, database, available_datasets)
-        self.url = url
+class EmotionPerHourLinePlotFactory(RemoteAPIFactory):
+    def __init__(self, api_url='http://agentsim.uv.es:5000/api', chart_id='graph1'):
+        super().__init__(api_url, chart_id)
 
-    def plot_user_sentiment(self, user_id, start_time, end_time):
-        response = requests.get(f'{self.url}/user_sentiment/{user_id}', params={'start_time': start_time, 'end_time': end_time})
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise RuntimeError(f'Failed to get user sentiment for user {user_id}: {response.text}')
+    def plot_emotion_line_per_hour(self, dataset, start_time, end_time):
+        return self.plotly_html_to_figure(self.fetch_plot_html(dataset, start_time, end_time))
 
+
+class AverageEmotionBarPlotFactory(RemoteAPIFactory):
+    def __init__(self, api_url='http://agentsim.uv.es:5000/api', chart_id='graph2'):
+        super().__init__(api_url, chart_id)
+
+    def plot_average_emotion_bar(self, dataset, start_time, end_time):
+        return self.plotly_html_to_figure(self.fetch_plot_html(dataset, start_time, end_time))
+
+
+class TopProfilesPlotFactory(RemoteAPIFactory):
+    def __init__(self, api_url='http://agentsim.uv.es:5000/api', chart_id='graph3'):
+        super().__init__(api_url, chart_id)
+
+    def plot_top_profiles(self, dataset, start_time, end_time):
+        return self.plotly_html_to_figure(self.fetch_plot_html(dataset, start_time, end_time))
+
+
+class TopHashtagsPlotFactory(RemoteAPIFactory):
+    def __init__(self, api_url='http://agentsim.uv.es:5000/api', chart_id='graph4'):
+        super().__init__(api_url, chart_id)
+
+    def plot_top_hashtags(self, dataset, start_time, end_time):
+        return self.plotly_html_to_figure(self.fetch_plot_html(dataset, start_time, end_time))
+
+
+class TopicRankingPlotFactory(RemoteAPIFactory):
+    def __init__(self, api_url='http://agentsim.uv.es:5000/api', chart_id='graph5'):
+        super().__init__(api_url, chart_id)
+
+    def plot_topic_ranking(self, dataset, start_time, end_time):
+        return self.plotly_html_to_figure(self.fetch_plot_html(dataset, start_time, end_time))
+
+
+# network topics by probability of talk about fake news
+class NetworkTopicsPlotFactory(RemoteAPIFactory):
+    def __init__(self, api_url='http://agentsim.uv.es:5000/api', chart_id='graph6'):
+        super().__init__(api_url, chart_id)
+
+    def plot_network_topics(self, dataset, start_time, end_time):
+        return self.plotly_html_to_figure(self.fetch_plot_html(dataset, start_time, end_time))
