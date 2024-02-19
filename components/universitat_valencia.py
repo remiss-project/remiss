@@ -32,6 +32,7 @@ class EmotionPerHourComponent(RemissComponent):
             [Input(self.state.current_dataset, 'data'),
              Input(self.state.current_start_date, 'data'),
              Input(self.state.current_end_date, 'data')],
+
         )(self.update)
 
 
