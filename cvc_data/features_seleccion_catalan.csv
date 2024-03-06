@@ -1,0 +1,67 @@
+﻿category;feature_name;display_name
+temas;independence_empath;independència
+temas;party_empath;festa
+temas;optimism_empath;optimisme
+temas;celebration_empath;celebració
+temas;love_empath;amor
+temas;family_empath;família
+temas;affection_empath;afecte
+temas;children_empath;nens
+temas;musical_empath;música
+temas;religion_empath;religió
+temas;attractive_empath;atractiu
+temas;philosophy_empath;filosofía
+temas;friends_empath;amics
+temas;vacation_empath;vacances
+temas;disappointment_empath;decepció
+temas;lust_empath;luxúria
+temas;government_empath;govern
+temas;dispute_empath;disputa
+temas;aggression_empath;agressió
+temas;wedding_empath;matrimoni
+emociones;joy_emolex;alegría*
+emociones;trust_emolex;confiança*
+emociones;fear_emolex;por*
+emociones;surprise_emolex;sorpresa*
+emociones;sadness_emolex;tristesa
+emociones;disgust_emolex;fàstic
+emociones;anger_emolex;ira*
+emociones;anticipation_emolex;anticipació*
+sentimientos_hate_speech;positive_sentiment;positiva
+sentimientos_hate_speech;negative_sentiment;negativa*
+sentimientos_hate_speech;neutral_sentiment;neutral*
+sentimientos_hate_speech;hate_hate_sp;discurs d'odi
+factores_linguisticos;present_liwc;verbs conjugats en present
+factores_linguisticos;pronoun_liwc;pronoms
+factores_linguisticos;ppron_liwc;pronoms personals
+factores_linguisticos;i_liwc;primera persona del singular
+factores_linguisticos;adverb_liwc;adverbis
+factores_linguisticos;preps_liwc;preposicions
+factores_linguisticos;conj_liwc;conjuncions
+factores_linguisticos;ipron_liwc;pronoms personals en primera persona del singular
+factores_linguisticos;you_liwc;seggona persona del singular
+factores_linguisticos;article_liwc;articles
+genero;gender_demo_female;dona
+genero;gender_demo_male;home
+genero;gender_demo_organization;organització
+edad;age_demo_19-29;19-29 anys
+edad;age_demo_30-39;30-39 anys
+edad;age_demo_<=18;menor de 19 anys
+edad;age_demo_>=40;major de 39 anys
+verificado;is_verified;compte verificat
+interacciones;followers_count;seguidors*
+interacciones;friends_count;seguits*
+interacciones;listed_count;llistes en les que apareix*
+interacciones;favorites_count;quantitat de tweets favorits
+interacciones;retweets_count_social;mitjana de retweets rebuts*
+interacciones;favs_count_social;"mitjana de ""favorits"" rebuts*"
+interacciones;mentions_count_social;mitjana de mencions realitzades
+comportamiento;week_days_count_ratio_behav;proporció de tweets publicats en dies laborables (Dil-Div)*
+comportamiento;weekend_days_count_ratio_behav;proporció de tweets publicats en cap de setmana (Diss i Dium)*
+comportamiento;tweets_sleep_time_ratio_behav;proporció de tweets publicats a la nit*
+comportamiento;tweets_awake_time_ratio_behav;proporció de tweets publicats en el dia*
+otros;median_time_betweet_tweets_behav;temps mitjà entre publicacions
+otros;ratio_quoted_tweet_types;proporció mitjana de tweets que son cites
+otros;ratio_retweets_tweet_types;proporció mitjana de tweets que son retweets
+otros;ratio_replies_tweet_types;proporció mitjana de tweets que son respostes
+otros;ratio_original_tweet_types;proporció mitjana de tweets que son originals*

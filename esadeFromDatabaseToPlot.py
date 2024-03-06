@@ -429,9 +429,9 @@ def getFiguresFromFeatures(all_features_for_user, df_feature_selection_to_use_ca
 
 pio.renderers.default = "firefox"
 print("Loading Recorded Features")
-df_feature_selection_to_use_cat = pd.read_csv('./features_seleccion_catalan.csv', sep='\;');
-df_feature_selection_to_use_esp = pd.read_csv('./features_seleccion_castellano.csv', sep='\;');
-df_feature_selection_to_use_eng = pd.read_csv('./features_seleccion_ingles.csv', sep='\;');
+df_feature_selection_to_use_cat = pd.read_csv('cvc_data/features_seleccion_catalan.csv', sep='\;');
+df_feature_selection_to_use_esp = pd.read_csv('cvc_data/features_seleccion_castellano.csv', sep='\;');
+df_feature_selection_to_use_eng = pd.read_csv('cvc_data/features_seleccion_ingles.csv', sep='\;');
 
 # print(pio.renderers)
 print("Asking info to the database")

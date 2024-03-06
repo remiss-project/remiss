@@ -1,0 +1,67 @@
+﻿category;feature_name;display_name
+temas;friends_empath;amics
+temas;attractive_empath;atractiu
+temas;affection_empath;afecte
+temas;stealing_empath;robatoris
+temas;crime_empath;crim
+temas;optimism_empath;optimisme
+temas;beauty_empath;bellesa
+temas;government_empath;govern
+temas;independence_empath;independència
+temas;love_empath;amor
+temas;dispute_empath;disputa
+temas;law_empath;lleis
+temas;positive_emotion_empath;emoció positiva
+temas;war_empath;guerra
+temas;power_empath;poder
+temas;negotiate_empath;negociar
+temas;politics_empath;política
+temas;childish_empath;infantil
+temas;gain_empath;ganancia
+temas;dominant_heirarchical_empath;dominante jeràrquic
+emociones;joy_emolex;alegria
+emociones;trust_emolex;confiança*
+emociones;fear_emolex;por*
+emociones;surprise_emolex;sorpresa
+emociones;sadness_emolex;tristesa*
+emociones;disgust_emolex;fàstic*
+emociones;anger_emolex;ira*
+emociones;anticipation_emolex;anticipació*
+sentimientos_hate_speech;positive_sentiment;positiva*
+sentimientos_hate_speech;negative_sentiment;negativa*
+sentimientos_hate_speech;neutral_sentiment;neutral*
+sentimientos_hate_speech;hate_hate_sp;discurs d'odi
+factores_linguisticos;Prepos_liwc;preposicions
+factores_linguisticos;Yo_liwc;pronoms personales en primera persona del singular
+factores_linguisticos;verbYO_liwc;verbs en primera persona
+factores_linguisticos;ElElla_liwc;pronoms personals en tercera persona del singular
+factores_linguisticos;Articulo_liwc;articles
+factores_linguisticos;Numeros_liwc;números
+factores_linguisticos;Ellos_liwc;pronoms personals en tercera persona del plural
+factores_linguisticos;informal_liwc;ús de llenguatge informal
+factores_linguisticos;VosUtds_liwc;pronoms personals en segona persona del plural
+factores_linguisticos;TuUtd_liwc;pronoms personals en segona persona del singular
+genero;gender_demo_female;dona
+genero;gender_demo_male;home
+genero;gender_demo_organization;organització*
+edad;age_demo_19-29;19-29 anys
+edad;age_demo_30-39;30-39 anys
+edad;age_demo_<=18;menor de 19 anys*
+edad;age_demo_>=40;mayor de 39 anys
+verificado;is_verified;compte verificat
+interacciones;followers_count;seguidors*
+interacciones;friends_count;seguits*
+interacciones;listed_count;listes en les que apareix*
+interacciones;favorites_count;quantitat de tweets favorits
+interacciones;retweets_count_social;mitjana de retweets rebuts*
+interacciones;favs_count_social;"mitjana de ""favorits"" rebuts*"
+interacciones;mentions_count_social;mitjana de mencions realitzades
+comportamiento;week_days_count_ratio_behav;proporció de tweets publicats en días laborables (Dill-Div)
+comportamiento;weekend_days_count_ratio_behav;proporció de tweets publicats en cap de setmana (Diss i Diu) 
+comportamiento;tweets_sleep_time_ratio_behav;proporció de tweets publicats a la nit
+comportamiento;tweets_awake_time_ratio_behav;proporció de tweets publicats durant el dia
+otros;median_time_betweet_tweets_behav;temps mitjà entre publicacions
+otros;ratio_quoted_tweet_types;proporció mitjana de tweets que son cites
+otros;ratio_retweets_tweet_types;proporció mitjana de tweets que son retweets*
+otros;ratio_replies_tweet_types;proporció mitjana de tweets que son respostes
+otros;ratio_original_tweet_types;proporció mitjana de tweets que son originals*

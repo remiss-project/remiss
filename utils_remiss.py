@@ -3,20 +3,20 @@ import pandas as pd
 
 def get_median_values_users(lang):
     if lang == 'en':
-        rel_feats = load_relevant_features("results_selected_features_names1_fake_spreaders_en3_random_en")
-        rel_fake_spreaders = load_medians_file("results_1_fake_spreaders_en", rel_feats)
-        rel_fact_checkers = load_medians_file("results_2_fact_checkers_eng", rel_feats)
-        rel_random = load_medians_file("results_3_random_en", rel_feats)
+        rel_feats = load_relevant_features("cvc_data/results_selected_features_names1_fake_spreaders_en3_random_en")
+        rel_fake_spreaders = load_medians_file("cvc_data/results_1_fake_spreaders_en", rel_feats)
+        rel_fact_checkers = load_medians_file("cvc_data/results_2_fact_checkers_eng", rel_feats)
+        rel_random = load_medians_file("cvc_data/results_3_random_en", rel_feats)
     elif lang == 'es':
-        rel_feats = load_relevant_features("results_selected_features_names4_fake_spreaders_esp6_random_es")
-        rel_fake_spreaders = load_medians_file("results_4_fake_spreaders_esp", rel_feats)
-        rel_fact_checkers = load_medians_file("results_5_fact_checkers_esp", rel_feats)
-        rel_random = load_medians_file("results_6_random_es", rel_feats)
+        rel_feats = load_relevant_features("cvc_data/results_selected_features_names4_fake_spreaders_esp6_random_es")
+        rel_fake_spreaders = load_medians_file("cvc_data/results_4_fake_spreaders_esp", rel_feats)
+        rel_fact_checkers = load_medians_file("cvc_data/results_5_fact_checkers_esp", rel_feats)
+        rel_random = load_medians_file("cvc_data/results_6_random_es", rel_feats)
     else:  # asumiendo catalan sin que existan otros lenguajes
-        rel_feats = load_relevant_features("results_selected_features_names6_random_es7_fake_spreaders_cat")
-        rel_fake_spreaders = load_medians_file("results_7_fake_spreaders_cat", rel_feats)
-        rel_fact_checkers = load_medians_file("results_5_fact_checkers_esp", rel_feats)
-        rel_random = load_medians_file("results_6_random_es", rel_feats)
+        rel_feats = load_relevant_features("cvc_data/results_selected_features_names6_random_es7_fake_spreaders_cat")
+        rel_fake_spreaders = load_medians_file("cvc_data/results_7_fake_spreaders_cat", rel_feats)
+        rel_fact_checkers = load_medians_file("cvc_data/results_5_fact_checkers_esp", rel_feats)
+        rel_random = load_medians_file("cvc_data/results_6_random_es", rel_feats)
     return rel_feats, rel_fake_spreaders, rel_fact_checkers, rel_random
 
 
