@@ -1,3 +1,6 @@
+import pandas as pd
+
+
 def get_median_values_users(lang):
     if lang == 'en':
         rel_feats = load_relevant_features("results_selected_features_names1_fake_spreaders_en3_random_en")
