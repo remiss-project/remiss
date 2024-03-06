@@ -444,8 +444,8 @@ try:
     myclient = MongoClient(uri)
     mydb = myclient['CVCUI']
     mycol = mydb["CVCFeatures"]
-    # result = mycol.find().limit(5)
-    result = mycol.find()
+    result = mycol.find().limit(5)
+    # result = mycol.find()
 except Exception as e:
     print(e)
 
