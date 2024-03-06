@@ -1,17 +1,8 @@
 ﻿# -*- coding: utf-8 -*-
 print("importing libs")
-import json
-import os
-import datetime
 import pandas as pd
-import utils_remiss as ur
-import utils_plot as up
-import sys
-from collections import Counter
-import matplotlib.pyplot as plt
+from figures import utils_plot as up, utils_remiss as ur
 import numpy as np
-import plotly.tools as tls
-import plotly.offline as py
 import plotly.io as pio
 import plotly.graph_objects as go
 
@@ -35,9 +26,9 @@ def getFiguresFromFeatures(all_features_for_user, df_feature_selection_to_use_ca
     if (lang == 'ca'):
         df_feature_selection_to_use = df_feature_selection_to_use_cat;
         fake_spreaders_feats, fact_checkers_feats, random_feats = ur.get_all_values_users('ca');
-        df_features_fake_spreaders_to_use = ur.convertDictToDataframe(fake_spreaders_feats);
-        df_features_fact_checkers_to_use = ur.convertDictToDataframe(fact_checkers_feats);
-        df_features_control_to_use = ur.convertDictToDataframe(random_feats);
+        df_features_fake_spreaders_to_use = ur.convert_dict_to_dataframe(fake_spreaders_feats);
+        df_features_fact_checkers_to_use = ur.convert_dict_to_dataframe(fact_checkers_feats);
+        df_features_control_to_use = ur.convert_dict_to_dataframe(random_feats);
 
         rel_feats, rel_fake_spreaders, rel_fact_checkers, rel_random = ur.get_median_values_users('ca');
         # we ignore teh rel_feats because we have just loaded from the upper files, and are already correctes. Hopefully are the same.
@@ -49,9 +40,9 @@ def getFiguresFromFeatures(all_features_for_user, df_feature_selection_to_use_ca
         rel_feats, rel_fake_spreaders, rel_fact_checkers, rel_random = ur.get_median_values_users('es');
         # we ignore teh rel_feats because we have just loaded from the upper files, and are already correctes. Hopefully are the same.
         fake_spreaders_feats, fact_checkers_feats, random_feats = ur.get_all_values_users('es');
-        df_features_fake_spreaders_to_use = ur.convertDictToDataframe(fake_spreaders_feats);
-        df_features_fact_checkers_to_use = ur.convertDictToDataframe(fact_checkers_feats);
-        df_features_control_to_use = ur.convertDictToDataframe(random_feats);
+        df_features_fake_spreaders_to_use = ur.convert_dict_to_dataframe(fake_spreaders_feats);
+        df_features_fact_checkers_to_use = ur.convert_dict_to_dataframe(fact_checkers_feats);
+        df_features_control_to_use = ur.convert_dict_to_dataframe(random_feats);
 
         LineSpacerVector = LineSpacerVectorES
 
@@ -63,9 +54,9 @@ def getFiguresFromFeatures(all_features_for_user, df_feature_selection_to_use_ca
 
         # Second we load ALL the features, to make the plots...
         fake_spreaders_feats, fact_checkers_feats, random_feats = ur.get_all_values_users('en');
-        df_features_fake_spreaders_to_use = ur.convertDictToDataframe(fake_spreaders_feats);
-        df_features_fact_checkers_to_use = ur.convertDictToDataframe(fact_checkers_feats);
-        df_features_control_to_use = ur.convertDictToDataframe(random_feats);
+        df_features_fake_spreaders_to_use = ur.convert_dict_to_dataframe(fake_spreaders_feats);
+        df_features_fact_checkers_to_use = ur.convert_dict_to_dataframe(fact_checkers_feats);
+        df_features_control_to_use = ur.convert_dict_to_dataframe(random_feats);
 
         LineSpacerVector = LineSpacerVectorEN
 
@@ -91,8 +82,8 @@ def getFiguresFromFeatures(all_features_for_user, df_feature_selection_to_use_ca
         generoEstimado = "Organitzazió";
 
     print("Gràfic de Informació de l\'Usuari")
-    userInfoPy = up.createUserInfoImage_plotly(anonimyzedUserName, anonimyzedDescription, str(nFollowers),
-                                               str(nFollowed), edadEstimada, generoEstimado, verificat)
+    userInfoPy = up.create_user_info_image(anonimyzedUserName, anonimyzedDescription, str(nFollowers),
+                                           str(nFollowed), edadEstimada, generoEstimado, verificat)
     # userInfoPy.write_html("./3-plotly_grafics/"+str(i)+"-00_UserInfo.html")
     # userInfoPy.show()
 
@@ -169,8 +160,8 @@ def getFiguresFromFeatures(all_features_for_user, df_feature_selection_to_use_ca
             tittle = "Top 20 temas d'interès amb més diferències significatives (p<0.05) entre difussors de notícies falses i usuaris de control"
             # Show a Vertical Bars plot.
             print("Gràfic de Temes d\'Interès")
-            verticalBarsPlotPyTemesInteres = up.drawVerticalBarsPlot_plotly(barNames, valuesToShow, colorsToShowValues,
-                                                                            labels, tittle);
+            verticalBarsPlotPyTemesInteres = up.draw_vertical_barplot(barNames, valuesToShow, colorsToShowValues,
+                                                                      labels, tittle);
         # verticalBarsPlotPyTemesInteres.write_html("./3-plotly_grafics/"+str(i)+"-01_TemesInteres.html")
 
         # verticalBarsPlot = up.drawVerticalBarsPlot(barNames, valuesToShow, colorsToShowValues, labels, tittle);
@@ -200,7 +191,7 @@ def getFiguresFromFeatures(all_features_for_user, df_feature_selection_to_use_ca
             colors = ['red', 'green', 'lightskyblue', 'orange'];
             # Show a radar plot
             print("Gràfic d'Emocions")
-            radarPlotPyEmocions = up.drawRadarPlot_plotly(categories, valors, etiquetes, titol, colors);
+            radarPlotPyEmocions = up.draw_radarplot(categories, valors, etiquetes, titol, colors);
         # radarPlotPyEmocions.write_html("./3-plotly_grafics/"+str(i)+"-02-Emocions.html")
         # radarPlotPy.show(renderer="firefox")
 
@@ -232,8 +223,8 @@ def getFiguresFromFeatures(all_features_for_user, df_feature_selection_to_use_ca
             #			veryRight_column.text('  ')
             print("Gràfic de Gènere")
 
-            verticalAccumulatedBarsPlotPyGenere = up.drawVerticalAcumulatedBarsPlot_plotly(etiquetes, valors, colors,
-                                                                                           labels, titol);
+            verticalAccumulatedBarsPlotPyGenere = up.draw_vertical_acumulated_barplot_plotly(etiquetes, valors, colors,
+                                                                                             labels, titol);
         # verticalAccumulatedBarsPlotPyGenere.show();
         # verticalAccumulatedBarsPlotPyGenere.write_html("./3-plotly_grafics/"+str(i)+"-03-Genere.html")
 
@@ -267,8 +258,8 @@ def getFiguresFromFeatures(all_features_for_user, df_feature_selection_to_use_ca
             #		for x in range(LineSpacerVector[2]):
             #			right_column.text('  ')
             print("Gràfic de Edat")
-            verticalAccumulatedBarsPlotPyEdad = up.drawVerticalAcumulatedBarsPlot_plotly(etiquetes, valors, colors,
-                                                                                         labels, titol);
+            verticalAccumulatedBarsPlotPyEdad = up.draw_vertical_acumulated_barplot_plotly(etiquetes, valors, colors,
+                                                                                           labels, titol);
         # verticalAccumulatedBarsPlotPyEdad.show();
         # verticalAccumulatedBarsPlotPyEdad.write_html("./3-plotly_grafics/"+str(i)+"-04-Edat.html")
         # verticalAccumulatedBarsPlot = up.drawVerticalAcumulatedBarsPlot(etiquetes, valors, colors, labels, titol);
@@ -296,9 +287,9 @@ def getFiguresFromFeatures(all_features_for_user, df_feature_selection_to_use_ca
                 #				veryRight_column.text('  ')
                 print("Gràfic de Factors Lingüístics")
 
-                horitzontalBarsPlotPyFactorsLinguistics = up.drawHoritzontalBarsPlot_plotly(barNames, valuesToShow,
-                                                                                            colorsToShowValues, labels,
-                                                                                            tittle);
+                horitzontalBarsPlotPyFactorsLinguistics = up.draw_horizontal_barplot(barNames, valuesToShow,
+                                                                                     colorsToShowValues, labels,
+                                                                                     tittle);
             # horitzontalBarsPlotPy.show();
             # horitzontalBarsPlotPyFactorsLinguistics.write_html("./3-plotly_grafics/"+str(i)+"-05-FactorsLinguistics.html")
             # horitzontalBarsPlot = up.drawHoritzontalBarsPlot(barNames, valuesToShow, colorsToShowValues, labels, tittle);
@@ -329,8 +320,8 @@ def getFiguresFromFeatures(all_features_for_user, df_feature_selection_to_use_ca
             print("Gràfic de Polaritat dels Tweets")
             # verticalBarsPlot = up.drawVerticalBarsPlot(barNames, valuesToShow, colorsToShowValues, labels, tittle);
             # plt.show();
-            verticalBarsPlotPyPolaritat = up.drawVerticalBarsPlot_plotly(barNames, valuesToShow, colorsToShowValues,
-                                                                         labels, tittle);
+            verticalBarsPlotPyPolaritat = up.draw_vertical_barplot(barNames, valuesToShow, colorsToShowValues,
+                                                                   labels, tittle);
         # verticallBarsPlotPy.show();
         # verticalBarsPlotPyPolaritat.write_html("./3-plotly_grafics/"+str(i)+"-06-Polaritat.html")
 
@@ -364,15 +355,15 @@ def getFiguresFromFeatures(all_features_for_user, df_feature_selection_to_use_ca
             # horitzontalBarsPlot1 = up.drawHoritzontalBarsPlot(barNames1, valuesToShow1, colorsToShowValues, labels, tittle);
             # plt.plot();
             print("Bar names are", barNames1)
-            horitzontalBarsPlot1PyInteraccions1 = up.drawHoritzontalBarsPlot_plotly(barNames1, valuesToShow1,
-                                                                                    colorsToShowValues, labels, tittle);
+            horitzontalBarsPlot1PyInteraccions1 = up.draw_horizontal_barplot(barNames1, valuesToShow1,
+                                                                             colorsToShowValues, labels, tittle);
             # horitzontalBarsPlot1Py.show();
             # horitzontalBarsPlot1PyInteraccions1.write_html("./3-plotly_grafics/"+str(i)+"-07-Interaccions1.html")
 
             print("Gràfic de Interaccions 2")
             print("Bar names are", barNames2)
-            horitzontalBarsPlot2PyInteraccions2 = up.drawHoritzontalBarsPlot_plotly(barNames2, valuesToShow2,
-                                                                                    colorsToShowValues, labels, tittle);
+            horitzontalBarsPlot2PyInteraccions2 = up.draw_horizontal_barplot(barNames2, valuesToShow2,
+                                                                             colorsToShowValues, labels, tittle);
         # horitzontalBarsPlot2Py.show();
         # horitzontalBarsPlot2PyInteraccions2.write_html("./3-plotly_grafics/"+str(i)+"-08-Interaccions2.html")
         # horitzontalBarsPlot2 = up.drawHoritzontalBarsPlot(barNames2, valuesToShow2, colorsToShowValues, labels, tittle);
@@ -401,7 +392,7 @@ def getFiguresFromFeatures(all_features_for_user, df_feature_selection_to_use_ca
             #		for x in range(LineSpacerVector[7]):
             #			veryRight_column.text('  ')
             print("Gràfic de Comportament 1")
-            donutPlotPyComportament1 = up.drawDonutsPlot_plotly(valuesToShow, labels, tittles,
+            donutPlotPyComportament1 = up.draw_donutplot(valuesToShow, labels, tittles,
                                                                 "Gràfic de Comportament 1");
             # donutPlotPyComportament1.write_html("./3-plotly_grafics/"+str(i)+"-09-Comportament1.html")
             # donutPlotPy.show()
@@ -414,7 +405,7 @@ def getFiguresFromFeatures(all_features_for_user, df_feature_selection_to_use_ca
                             [controlCases[2], controlCases[3]], [userValues[2], userValues[3]]];
             # Show a Donut Plot.
             print("Gràfic de Comportament 2")
-            donutPlotPyComportament2 = up.drawDonutsPlot_plotly(valuesToShow, labels, tittles,
+            donutPlotPyComportament2 = up.draw_donutplot(valuesToShow, labels, tittles,
                                                                 "Gràfic de Comportament 2");
             # donutPlotPyComportament2.write_html("./3-plotly_grafics/"+str(i)+"-10-Comportament2.html")
             # donutPlotPy.show()

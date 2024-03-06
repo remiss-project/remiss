@@ -5,8 +5,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 
-def createUserInfoImage_plotly(userName, anonimyzedDescription, nFollowersStr, nFollowedStr, edadEstimadaStr,
-                               generoEstimadoStr, verificatStr):
+def create_user_info_image(userName, anonimyzedDescription, nFollowersStr, nFollowedStr, edadEstimadaStr,
+                           generoEstimadoStr, verificatStr):
     # Set up the layout parameters
     width = 700
     height = 700
@@ -107,7 +107,7 @@ def createUserInfoImage_plotly(userName, anonimyzedDescription, nFollowersStr, n
     return fig
 
 
-def drawRadarPlot_plotly(categories0, valors0, etiquetes, titol, colors):
+def draw_radarplot(categories0, valors0, etiquetes, titol, colors):
     categories1 = copy.deepcopy(categories0)
     valors1 = copy.deepcopy(valors0)  # we make a true local copy because we modify them.
 
@@ -144,7 +144,7 @@ def drawRadarPlot_plotly(categories0, valors0, etiquetes, titol, colors):
     return fig
 
 
-def drawHoritzontalBarsPlot_plotly(barNames, valuesToShow0, colorsToShowValues0, etiquetes0, tittle):
+def draw_horizontal_barplot(barNames, valuesToShow0, colorsToShowValues0, etiquetes0, tittle):
     # First of all, we reverse the lists to show them in the proper order.
     valuesToShow = valuesToShow0.copy()
     colorsToShowValues = colorsToShowValues0.copy()
@@ -189,7 +189,7 @@ def drawHoritzontalBarsPlot_plotly(barNames, valuesToShow0, colorsToShowValues0,
     return fig
 
 
-def drawVerticalAcumulatedBarsPlot_plotly(barNames, valuesForEachGroup, colors, labels, title):
+def draw_vertical_acumulated_barplot_plotly(barNames, valuesForEachGroup, colors, labels, title):
     fig = go.Figure()
     NumberOfBars = len(barNames)
     ind = list(range(NumberOfBars))  # the x locations for the groups
@@ -237,7 +237,7 @@ def drawVerticalAcumulatedBarsPlot_plotly(barNames, valuesForEachGroup, colors, 
     return fig
 
 
-def drawVerticalBarsPlot_plotly(barNames, valuesToShow, colorsToShowValues, labels, title):
+def draw_vertical_barplot(barNames, valuesToShow, colorsToShowValues, labels, title):
     # set width of bar
     barWidth = 0.25
     if len(valuesToShow) == 4:
@@ -262,7 +262,7 @@ def drawVerticalBarsPlot_plotly(barNames, valuesToShow, colorsToShowValues, labe
     return fig
 
 
-def drawDonutsPlot_plotly(valuesToShow, labels, tittle, tittleText):
+def draw_donutplot(valuesToShow, labels, tittle, tittleText):
     # print (tittle)
     width = 1.5
     # kwargs = dict(size=20, font=dict(weight='bold'), valign='middle')
