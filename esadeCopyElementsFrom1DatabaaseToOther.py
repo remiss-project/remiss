@@ -2,7 +2,7 @@
 from pymongo.mongo_client import MongoClient
 
 uriSource = "mongodb+srv://esala:eureka@cvcui.n1hmtmt.mongodb.net/?retryWrites=true&w=majority"
-uriDestiny = "mongodb+srv://esala:eureka@cvcui.n1hmtmt.mongodb.net/?retryWrites=true&w=majority"
+uriDestiny = "mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.0.0"
 try:
     myclientSource = MongoClient(uriSource)
     mydbSource = myclientSource['CVCUI']
