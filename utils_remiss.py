@@ -70,3 +70,32 @@ def convertDictToDataframe(relevantFeaturesDict):
     # print("    /-/*-/*-/*-/-*/*-/-*/-*/-*/-*/-DATAFRAME IS",df.to_string());
     # print ("Size is ", df.info())
     return df
+
+
+def get_all_values_users(lang):
+    if lang == 'en':
+        rel_fake_spreaders = load_medians_file_all_features("cvc_data/results_1_fake_spreaders_en")
+        rel_fact_checkers = load_medians_file_all_features("cvc_data/results_2_fact_checkers_eng")
+        rel_random = load_medians_file_all_features("cvc_data/results_3_random_en")
+    elif lang == 'es':
+        rel_fake_spreaders = load_medians_file_all_features("cvc_data/results_4_fake_spreaders_esp")
+        rel_fact_checkers = load_medians_file_all_features("cvc_data/results_5_fact_checkers_esp")
+        rel_random = load_medians_file_all_features("cvc_data/results_6_random_es")
+    else:  # asumiendo catalan sin que existan otros lenguajes
+        rel_fake_spreaders = load_medians_file_all_features("cvc_data/results_7_fake_spreaders_cat")
+        rel_fact_checkers = load_medians_file_all_features("cvc_data/results_5_fact_checkers_esp")
+        rel_random = load_medians_file_all_features("cvc_data/results_6_random_es")
+    return rel_fake_spreaders, rel_fact_checkers, rel_random
+
+
+def load_medians_file_all_features(filepath):
+    relevant_vals = {}
+    relevant_vals['AllValues'] = {}
+    with open(filepath, 'r', encoding='utf-8') as f:
+        content = f.readlines()
+        for line in content:
+            line = line.split("\t")
+            feature = line[0]
+            median = line[1].replace("\n", "")
+            relevant_vals['AllValues'][feature] = median
+    return relevant_vals
