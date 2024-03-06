@@ -5,7 +5,7 @@ import os
 import datetime
 import pandas as pd
 import utils_remiss as ur
-import utilsPlot as up
+import utils_plot as up
 import sys
 from collections import Counter
 import matplotlib.pyplot as plt
@@ -442,8 +442,8 @@ uri = "mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS
 
 try:
     myclient = MongoClient(uri)
-    mydb = myclient['CVCUI']
-    mycol = mydb["CVCFeatures"]
+    mydb = myclient['CVCUI2']
+    mycol = mydb["CVCFeatures2"]
     result = mycol.find().limit(5)
     # result = mycol.find()
 except Exception as e:
