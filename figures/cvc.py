@@ -5,50 +5,68 @@ import pandas as pd
 from pymongo import MongoClient
 
 from figures.figures import MongoPlotFactory
-from figures.utils_plot import create_user_info_image, draw_vertical_barplot, draw_radarplot, \
+from figures.utils_plot import draw_vertical_barplot, draw_radarplot, \
     draw_vertical_acumulated_barplot_plotly, draw_horizontal_barplot, draw_donutplot
 from figures.utils_remiss import convert_dict_to_dataframe, get_all_values_users, get_median_values_users
+import plotly.graph_objects as go
 
 
 class CVCPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, database="CVCUI2", available_datasets=None, lang='ca',
-                 data_dir='./data'):
+                 data_dir='./cvc_data'):
         super().__init__(host, port, database, available_datasets)
         self.lang = lang
         self.data_dir = Path(data_dir)
 
         # Read feature selection files
-        feature_selection_cat = pd.read_csv(self.data_dir / 'features_seleccion_catalan.csv', sep=';')
-        feature_selection_esp = pd.read_csv(self.data_dir / 'features_seleccion_castellano.csv', sep=';')
-        feature_selection_eng = pd.read_csv(self.data_dir / 'features_seleccion_ingles.csv', sep=';')
+        feature_files = {
+            'ca': 'features_seleccion_catalan.csv',
+            'es': 'features_seleccion_castellano.csv',
+            'en': 'features_seleccion_ingles.csv'
+        }
+        self.features = pd.read_csv(self.data_dir / feature_files[lang], sep=';')
 
-        # Set dataframe based on language
-        if self.lang == 'ca':
-            self.feature_selection = feature_selection_cat
-            self.line_spacer_vector = [0, 1, 1, 11, 16, 11, 6, 0, 3, 0, 9]
-        elif self.lang == 'es':
-            self.feature_selection = feature_selection_esp
-            self.line_spacer_vector = [1, 1, 1, 11, 9, 0, 14, 0, 2, 9, 0]
-        elif self.lang == 'en':
-            self.feature_selection = feature_selection_eng
-            self.line_spacer_vector = [1, 1, 1, 11, 15, 0, 14, 0, 2, 9, 0]
-        # Get feature values for different user groups
-        (self.rel_feats, self.rel_fake_spreaders,
-         self.rel_fact_checkers, self.rel_random) = get_median_values_users(self.lang)
-        fake_spreaders_feats, fact_checkers_feats, random_feats = get_all_values_users(self.lang)
+        # Set line spacer vector based on language
+        self.line_spacer_vector = {
+            'ca': [0, 1, 1, 11, 16, 11, 6, 0, 3, 0, 9],
+            'es': [1, 1, 1, 11, 9, 0, 14, 0, 2, 9, 0],
+            'en': [1, 1, 1, 11, 15, 0, 14, 0, 2, 9, 0]
+        }[lang]
+
+        fake_spreaders_feats, fact_checkers_feats, random_feats = get_all_values_users(lang)
 
         # Convert feature values to dataframes
-        self.spreaders = convert_dict_to_dataframe(fake_spreaders_feats)
-        self.checkers = convert_dict_to_dataframe(fact_checkers_feats)
+        self.fake_news_spreaders = convert_dict_to_dataframe(fake_spreaders_feats)
+        self.fact_checkers = convert_dict_to_dataframe(fact_checkers_feats)
         self.control_cases = convert_dict_to_dataframe(random_feats)
 
     def load_data_for_user(self, dataset, user_id):
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.database)
         collection = database.get_collection(dataset)
-        user_data = collection.find_one({'author.id': user_id})
+        user_data = collection.find_one({'twitter_id': user_id})
         client.close()
         return user_data
+
+    def get_all_values_users(self, lang):
+        if lang == 'en':
+            fake_spreaders_path = "../cvc_data/results_1_fake_spreaders_en"
+            fact_checkers_path = "../cvc_data/results_2_fact_checkers_eng"
+            random_path = "../cvc_data/results_3_random_en"
+        elif lang == 'es':
+            fake_spreaders_path = "../cvc_data/results_4_fake_spreaders_esp"
+            fact_checkers_path = "../cvc_data/results_5_fact_checkers_esp"
+            random_path = "../cvc_data/results_6_random_es"
+        else:  # Assuming Catalan without other languages existing
+            fake_spreaders_path = "../cvc_data/results_7_fake_spreaders_cat"
+            fact_checkers_path = "../cvc_data/results_5_fact_checkers_esp"
+            random_path = "../cvc_data/results_6_random_es"
+
+        rel_fake_spreaders = get_median_values_users(fake_spreaders_path)
+        rel_fact_checkers = get_median_values_users(fact_checkers_path)
+        rel_random = get_median_values_users(random_path)
+
+        return rel_fake_spreaders, rel_fact_checkers, rel_random
 
     def plot_user_info(self, dataset, user_id):
         user_data = self.load_data_for_user(dataset, user_id)
@@ -68,53 +86,48 @@ class CVCPlotFactory(MongoPlotFactory):
         elif estimated_gender == "organization":
             estimated_gender = "Organització"
 
-        return create_user_info_image(anonymized_user_name, anonymized_description,
-                                      n_followers, n_followed,
-                                      estimated_age, estimated_gender, verified)
+        return create_user_info_plot(anonymized_user_name, anonymized_description,
+                                     n_followers, n_followed,
+                                     estimated_age, estimated_gender, verified)
+
+    def _get_plot_data(self, dataset, user_id, category):
+        user_data = self.load_data_for_user(dataset, user_id)
+        category_features = self.features.loc[
+            self.features["category"] == category]
+        feature_names = category_features["feature_name"].tolist()
+        display_names = category_features["display_name"].tolist()
+
+        user_data = [user_data[x] for x in feature_names]
+        fake_news_spreaders = self.fake_news_spreaders[feature_names].values.astype(float).tolist()[0]
+        fact_checkers = self.fact_checkers[feature_names].values.astype(float).tolist()[0]
+        control_cases = self.control_cases[feature_names].values.astype(float).tolist()[0]
+        return user_data, fake_news_spreaders, fact_checkers, control_cases, display_names
 
     def plot_vertical_barplot_topics(self, dataset, user_id):
-        user_data = self.load_data_for_user(dataset, user_id)
-        category_features = self.feature_selection.loc[
-            self.feature_selection["category"] == 'temas']
-        features_names = category_features["feature_name"].tolist()
-        topics_of_interest = category_features["display_name"].tolist()
+        user_data, fake_news_spreaders, fact_checkers, control_cases, display_names = self._get_plot_data(dataset,
+                                                                                                          user_id,
+                                                                                                          'temas')
 
-        current_user = [user_data[x] for x in features_names]
-        fake_news_spreaders = self.spreaders[features_names].values.astype(float).tolist()[0]
-        fact_checkers = self.checkers[features_names].values.astype(float).tolist()[0]
-        control_cases = self.control_cases[features_names].values.astype(float).tolist()[0]
-
-        label1 = 'Difusors de Notícies Falses'
-        label2 = 'Usuaris de Control'
-        label3 = 'Usuari'
-        label4 = "Verificadors"
-
-        bar_names = topics_of_interest
-        values_to_show = [fake_news_spreaders, fact_checkers, control_cases, current_user]
+        bar_names = display_names
+        values_to_show = [fake_news_spreaders, fact_checkers, control_cases, user_data]
         colors_to_show_values = ['red', 'green', 'blue', 'orange']
-        labels = [label1, label4, label2, label3]
-        title = "Top 20 temes d'interès amb més diferències significatives (p<0.05) entre difusors de notícies falses i usuaris de control"
+        labels = ['Difusors de Notícies Falses', "Verificadors", 'Usuaris de Control', 'Usuari']
+        title = ("Top 20 temes d'interès amb més diferències significatives (p<0.05) entre difusors de "
+                 "notícies falses i usuaris de control")
         return draw_vertical_barplot(bar_names, values_to_show, colors_to_show_values,
                                      labels, title)
 
     def plot_radarplot_emotions(self, dataset, user_id):
-        user_data = self.load_data_for_user(dataset, user_id)
-        category_features = self.feature_selection.loc[
-            self.feature_selection["category"] == 'emociones']
-        features_names = category_features["feature_name"].tolist()
-        categories = category_features["display_name"].tolist()
+        user_data, fake_news_spreaders, fact_checkers, control_cases, display_names = self._get_plot_data(dataset,
+                                                                                                          user_id,
+                                                                                                          'emociones')
 
-        current_user = [user_data[x] for x in features_names]
-        fake_news_spreaders = self.spreaders[features_names].values.astype(float).tolist()[0]
-        fact_checkers = self.checkers[features_names].values.astype(float).tolist()[0]
-        control_cases = self.control_cases[features_names].values.astype(float).tolist()[0]
-
-        labels = ('Fake News Spreaders', 'Fact Checkers', 'Random Control Users', 'User')
-        title = "Emotions"
-        values = [fake_news_spreaders, fact_checkers, control_cases, current_user]
+        labels = ['Difusors de Notícies Falses', 'Usuaris de Control', 'Usuari', "Verificadors"]
+        title = "Emocions"
+        values = [fake_news_spreaders, fact_checkers, control_cases, user_data]
         colors = ['red', 'green', 'lightskyblue', 'orange']
 
-        return draw_radarplot(categories, values, labels, title, colors)
+        return draw_radarplot(display_names, values, labels, title, colors)
 
     def plot_vertical_accumulated_barplot_by_genre(self, dataset, user_id, genre):
         user_types = ['Fake News Spreaders', 'Fact Checkers', 'Random Control Users']
@@ -168,14 +181,14 @@ class CVCPlotFactory(MongoPlotFactory):
 
     def plot_vertical_barplot_polarity(self, dataset, user_id):
         user_data = self.load_data_for_user(dataset, user_id)
-        category_features = self.feature_selection.loc[
-            self.feature_selection["category"] == 'sentimientos_hate_speech']
+        category_features = self.features.loc[
+            self.features["category"] == 'sentimientos_hate_speech']
         features_names = category_features["feature_name"].tolist()
         bar_names = category_features["display_name"].tolist()
         current_user = [user_data[x] for x in features_names]
 
-        fake_news_spreaders = self.spreaders[features_names].values.astype(float).tolist()[0]
-        fact_checkers = self.checkers[features_names].values.astype(float).tolist()[0]
+        fake_news_spreaders = self.fake_news_spreaders[features_names].values.astype(float).tolist()[0]
+        fact_checkers = self.fact_checkers[features_names].values.astype(float).tolist()[0]
         control_cases = self.control_cases[features_names].values.astype(float).tolist()[0]
         label1 = 'Difusors de Notícies Falses'
         label2 = 'Verificadors'
@@ -192,14 +205,14 @@ class CVCPlotFactory(MongoPlotFactory):
 
     def plot_horizontal_bars_plot_interactions(self, dataset, user_id):
         user_data = self.load_data_for_user(dataset, user_id)
-        category_features = self.feature_selection.loc[
-            self.feature_selection["category"] == 'interacciones']
+        category_features = self.features.loc[
+            self.features["category"] == 'interacciones']
         features_names = category_features["feature_name"].tolist()
         bar_names = category_features["display_name"].tolist()
         current_user = [user_data[x] for x in features_names]
 
-        fake_news_spreaders = self.spreaders[features_names].values.astype(float).tolist()[0]
-        fact_checkers = self.checkers[features_names].values.astype(float).tolist()[0]
+        fake_news_spreaders = self.fake_news_spreaders[features_names].values.astype(float).tolist()[0]
+        fact_checkers = self.fact_checkers[features_names].values.astype(float).tolist()[0]
         control_cases = self.control_cases[features_names].values.astype(float).tolist()[0]
         labels = ['Difusors de Notícies Falses', 'Verificadors', 'Usuaris de Control', 'Usuari']
         title = "Interaccions Socials"
@@ -231,14 +244,14 @@ class CVCPlotFactory(MongoPlotFactory):
 
     def plot_donut_plot_behaviour(self, dataset, user_id):
         user_data = self.load_data_for_user(dataset, user_id)
-        category_features = self.feature_selection.loc[
-            self.feature_selection["category"] == 'comportamiento']
+        category_features = self.features.loc[
+            self.features["category"] == 'comportamiento']
         features_names = category_features["feature_name"].tolist()
         display_names = category_features["display_name"].tolist()
         current_user = [user_data[x] for x in features_names]
 
-        fake_news_spreaders = self.spreaders[features_names].values.astype(float).tolist()[0]
-        fact_checkers = self.checkers[features_names].values.astype(float).tolist()[0]
+        fake_news_spreaders = self.fake_news_spreaders[features_names].values.astype(float).tolist()[0]
+        fact_checkers = self.fact_checkers[features_names].values.astype(float).tolist()[0]
         control_cases = self.control_cases[features_names].values.astype(float).tolist()[0]
 
         titles = ['Difusors de Notícies Falses', 'Verificadors', 'Usuaris de Control', 'Usuari']
@@ -264,3 +277,48 @@ class CVCPlotFactory(MongoPlotFactory):
                                                   "Gràfic de Comportament 2")
 
         return donut_plot_py_behavior_1, donut_plot_py_behavior_2
+
+
+def create_user_info_plot(user_name, anonymized_description, n_followers, n_followed, estimated_age,
+                          estimated_gender_str, verified_str, width=700, height=700):
+    # Create a blank figure
+    fig = go.Figure()
+
+    # Add annotations for user information
+    user_info_annotations = [
+        ("User Analysis: " + user_name, 4.0),
+        (format_description(anonymized_description), 3.5),
+        ("Number of Followers: " + n_followers, 2.0),
+        ("Number of Followed: " + n_followed, 1.75),
+        ("Estimated Age: " + estimated_age, 1.5),
+        ("Estimated Gender: " + estimated_gender_str, 1.25),
+        ("Verified Account: " + verified_str, 1.0)
+    ]
+
+    for text, y in user_info_annotations:
+        fig.add_annotation(
+            text=text,
+            x=0.05,
+            y=y,
+            xanchor='left',
+            yanchor='top',
+            font=dict(size=18, color='grey'),
+            showarrow=False
+        )
+
+    # Set the layout parameters
+    fig.update_layout(
+        width=width,
+        height=height,
+        plot_bgcolor='white',
+        yaxis={'visible': False, 'showticklabels': False},
+        xaxis={'visible': False, 'showticklabels': False}
+    )
+
+    return fig
+
+
+def format_description(description):
+    # Break the description into multiple lines
+    description_lines = [description[i:i + 60] for i in range(0, len(description), 60)]
+    return '<br>'.join(description_lines)
