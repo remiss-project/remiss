@@ -286,13 +286,13 @@ def create_user_info_plot(user_name, anonymized_description, n_followers, n_foll
 
     # Add annotations for user information
     user_info_annotations = [
-        ("User Analysis: " + user_name, 4.0),
+        ("Anàlisis de l'usuari:" + user_name, 4.0),
         (format_description(anonymized_description), 3.5),
-        ("Number of Followers: " + n_followers, 2.0),
-        ("Number of Followed: " + n_followed, 1.75),
-        ("Estimated Age: " + estimated_age, 1.5),
-        ("Estimated Gender: " + estimated_gender_str, 1.25),
-        ("Verified Account: " + verified_str, 1.0)
+        ("Nombre of Followers: " + n_followers, 2.0),
+        ("Nombre of Followed: " + n_followed, 1.75),
+        ("Edat estimada: " + estimated_age, 1.5),
+        ("Génere estimat: " + estimated_gender_str, 1.25),
+        ("Compte verificat: " + verified_str, 1.0)
     ]
 
     for text, y in user_info_annotations:
