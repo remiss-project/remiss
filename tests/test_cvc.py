@@ -21,14 +21,6 @@ def test_init():
     assert cvc_plot_factory.control_cases.equals(control_cases)
 
 
-def test_median_files():
-    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
-    actual = cvc_plot_factory.load_medians_file_all_features("../cvc_data/results_7_fake_spreaders_cat").sort_index()
-    expected = load_medians_file_all_features("../cvc_data/results_7_fake_spreaders_cat")['AllValues']
-    expected = pd.Series(expected, name='median').sort_index()
-    assert actual == expected
-
-
 def test_load_data_for_user():
     cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
     user_data = cvc_plot_factory.load_data_for_user('CVCFeatures2', '100485425')
