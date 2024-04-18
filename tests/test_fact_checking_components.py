@@ -1,5 +1,8 @@
+import unittest
+from pathlib import Path
 from unittest import TestCase
 
+from dash import Dash, html
 from dash.html import Iframe
 from pymongo import MongoClient
 
@@ -31,7 +34,7 @@ class FactCheckingComponentTest(TestCase):
         # - a TimeSeriesComponent
         # find components recursively
         def find_components(component, found_components):
-            if hasattr(component, 'children'):
+            if hasattr(component, 'children') and component.children:
                 for child in component.children:
                     find_components(child, found_components)
             if isinstance(component, Iframe):
@@ -48,24 +51,25 @@ class FactCheckingComponentTest(TestCase):
         # check that among the ids are correctly patched
         # find components recursively
         def find_components(component, found_components):
-            if hasattr(component, 'children'):
+            if hasattr(component, 'children') and component.children:
                 for child in component.children:
                     find_components(child, found_components)
-            if isinstance(component, DatePickerRange):
-                found_components.append(component)
-            if isinstance(component, DashWordcloud):
-                found_components.append(component)
-            if isinstance(component, Graph):
+            if isinstance(component, Iframe):
                 found_components.append(component)
 
         found_components = []
         find_components(layout, found_components)
         component_ids = ['-'.join(component.id.split('-')[:-1]) for component in found_components]
-        self.assertIn('fig-tweet', component_ids)
-        self.assertIn('fig-users', component_ids)
+        self.assertIn('fact-checking-iframe', component_ids)
         found_main_ids = ['-'.join(component.id.split('-')[-1:]) for component in found_components]
         self.assertIn(self.component.name, found_main_ids)
         self.assertEqual(len(set(found_main_ids)), 1)
+
+    def test_render(self):
+        app = Dash()
+        self.component.callbacks(app)
+        app.layout = self.component.layout()
+        app.run_server(debug=True, port=8050)
 
     def test_update_callback(self):
         app = Dash()

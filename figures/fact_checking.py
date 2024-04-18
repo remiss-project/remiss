@@ -1,7 +1,9 @@
 from pathlib import Path
 
+import plotly.express as px
 import pymongoarrow
 from pymongo import MongoClient
+from skimage import io
 
 from figures.figures import MongoPlotFactory
 
@@ -16,33 +18,56 @@ class FactCheckingPlotFactory(MongoPlotFactory):
         self.fact_checking_database = fact_checking_database
         self.data_dir = Path(data_dir)
 
-    def plot_fact_checking(self, dataset, tweet_id):
-        data_id = self.get_fact_checking_data_id(dataset, tweet_id)
-        data = self.load_data_for_tweet(dataset, data_id)
+    def plot_claim_image(self, dataset, tweet_id):
+        data = self.load_data_for_tweet(dataset, tweet_id)
+        fig = self.load_image(dataset, data['id'], 'claim_image')
+        return fig
+
+    def plot_evidence_image(self, dataset, tweet_id):
+        data = self.load_data_for_tweet(dataset, tweet_id)
+        fig = self.load_image(dataset, data['id'], 'evidence_image')
+        return fig
+
+    def plot_graph_claim(self, dataset, tweet_id):
+        data = self.load_data_for_tweet(dataset, tweet_id)
+        fig = self.load_image(dataset, data['id'], 'graph_claim')
+        return fig
+
+    def plot_graph_evidence_text(self, dataset, tweet_id):
+        data = self.load_data_for_tweet(dataset, tweet_id)
+        fig = self.load_image(dataset, data['id'], 'graph_evidence_text')
+        return fig
+
+    def plot_graph_evidence_vis(self, dataset, tweet_id):
+        data = self.load_data_for_tweet(dataset, tweet_id)
+        fig = self.load_image(dataset, data['id'], 'graph_evidence_vis')
+        return fig
+
+    def plot_visual_evidences(self, dataset, tweet_id):
+        data = self.load_data_for_tweet(dataset, tweet_id)
+        fig = self.load_image(dataset, data['id'], 'visual_evidences')
+        return fig
+
+    def get_metadata(self, dataset, tweet_id):
+        data = self.load_data_for_tweet(dataset, tweet_id)
         return data
 
-    def get_fact_checking_data_id(self, dataset, tweet_id):
+    def load_image(self, dataset, fact_checking_id, image_type):
+        image_dir = self.data_dir / dataset / str(fact_checking_id)
+        # find matching image with image_type as filename, disregarding extension
+        image_path = next(image_dir.glob(f'{image_type}.*'))
+        img = io.imread(image_path)
+        fig = px.imshow(img)
+        return fig
+
+    def load_data_for_tweet(self, dataset, tweet_id):
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.fact_checking_database)
         self._validate_collection(database, dataset)
         collection = database.get_collection(dataset)
-        data_id = collection.find_one({'tweet_id': tweet_id})['id']
+        data = collection.find_one({'tweet_id': tweet_id})
         client.close()
-        return data_id
-
-    def load_data_for_tweet(self, dataset, data_id):
-        data_path = self.data_dir / dataset / f'{data_id}.htm'
-        with open(data_path, 'r') as f:
-            data = f.read()
-
         return data
-
-
-
-
-
-
-
 # Features
 # - Claim
 #    - Tweet text (T)
