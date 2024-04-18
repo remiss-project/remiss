@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import dash_bootstrap_components as dbc
-from dash import dcc, html
+from dash import dcc, html, Output, Input
 from components.components import RemissComponent
 
 
@@ -152,5 +152,48 @@ class FactCheckingComponent(RemissComponent):
             ])
         ], justify='center', style={'margin-bottom': '1rem'})
 
+    def update(self, dataset, tweet_id):
+        metadata = self.plot_factory.get_metadata(dataset, tweet_id)
+        claim_text = metadata['claim_text']
+        text_evidences = metadata['text_evidences']
+        evidence_text = metadata['evidence_text']
+        evidence_image_alt_text = metadata['evidence_image_alt_text']
+        predicted_label = metadata['results']['predicted_label']
+        actual_label = metadata['results']['actual_label']
+        num_claim_edges = metadata['results']['num_claim_edges']
+        frac_verified = metadata['results']['frac_verified']
+        explanations = metadata['results']['explanations']
+        visual_similarity_score = metadata['results']['visual_similarity_score']
+
+        claim_image = self.plot_factory.plot_claim_image(dataset, tweet_id)
+        evidence_image = self.plot_factory.plot_evidence_image(dataset, tweet_id)
+        graph_claim = self.plot_factory.plot_graph_claim(dataset, tweet_id)
+        graph_evidence_text = self.plot_factory.plot_graph_evidence_text(dataset, tweet_id)
+        graph_evidence_vis = self.plot_factory.plot_graph_evidence_vis(dataset, tweet_id)
+        visual_evidences = self.plot_factory.plot_visual_evidences(dataset, tweet_id)
+
+        return claim_image, evidence_image, graph_claim, graph_evidence_text, graph_evidence_vis, visual_evidences, \
+            claim_text, text_evidences, evidence_text, evidence_image_alt_text, predicted_label, actual_label, \
+            num_claim_edges, frac_verified, explanations, visual_similarity_score
+
     def callbacks(self, app):
-        pass
+        app.callback(
+            Output(self.claim_image, 'figure'),
+            Output(self.evidence_image, 'figure'),
+            Output(self.graph_claim, 'figure'),
+            Output(self.graph_evidence_text, 'figure'),
+            Output(self.graph_evidence_vis, 'figure'),
+            Output(self.visual_evidences, 'figure'),
+            Output(self.claim_text, 'children'),
+            Output(self.text_evidences, 'children'),
+            Output(self.evidence_text, 'children'),
+            Output(self.evidence_image_alt_text, 'children'),
+            Output(self.predicted_label, 'children'),
+            Output(self.actual_label, 'children'),
+            Output(self.num_claim_edges, 'children'),
+            Output(self.frac_verified, 'children'),
+            Output(self.explanations, 'children'),
+            Output(self.visual_similarity_score, 'children'),
+            [Input(self.state.current_dataset, 'data'),
+             Input(self.state.current_tweet, 'data')],
+        )(self.update)

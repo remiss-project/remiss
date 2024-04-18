@@ -19,6 +19,7 @@ class RemissState(RemissComponent):
         self.current_start_date = dcc.Store(id=f'current-start-date-{self.name}', storage_type='session')
         self.current_end_date = dcc.Store(id=f'current-end-date-{self.name}', storage_type='session')
         self.current_user = dcc.Store(id=f'current-user-{self.name}', storage_type='session')
+        self.current_tweet = dcc.Store(id=f'current-tweet-{self.name}', storage_type='session')
 
     def layout(self, params=None):
         return html.Div([
@@ -27,6 +28,7 @@ class RemissState(RemissComponent):
             self.current_start_date,
             self.current_end_date,
             self.current_user,
+            self.current_tweet,
         ])
 
     def callbacks(self, app):

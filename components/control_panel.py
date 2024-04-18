@@ -133,3 +133,4 @@ class ControlPanelComponent(RemissComponent):
             Output(self.state.current_end_date, 'data'),
             [Input(self.date_picker, 'end_date')],
         )(self.update_end_date_storage)
+
