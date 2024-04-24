@@ -46,6 +46,8 @@ class CVCPlotFactory(MongoPlotFactory):
         collection = database.get_collection(dataset)
         user_data = collection.find_one({'twitter_id': user_id})
         client.close()
+        if not user_data:
+            raise ValueError(f"User with id {user_id} not found in dataset {dataset}")
         return user_data
 
     def get_all_values_users(self, lang):

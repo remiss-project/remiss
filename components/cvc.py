@@ -25,7 +25,7 @@ class CVCComponent(RemissComponent):
             ]),
         ], justify='center', style={'margin-bottom': '1rem'})
 
-    def update(self, dataset, user):
+    def update(self, *args, **kwargs):
         raise NotImplementedError()
 
     def callbacks(self, app):
@@ -47,7 +47,7 @@ class TopicVerticalBarplotComponent(CVCComponent):
     title = 'Topic vertical barplot'
 
     def update(self, dataset, user):
-        return self.plot_factory.plot_topic_vertical_barplot(dataset, user)
+        return self.plot_factory.plot_vertical_barplot_topics(dataset, user)
 
 
 class RadarplotEmotionsComponent(CVCComponent):
@@ -60,9 +60,21 @@ class RadarplotEmotionsComponent(CVCComponent):
 class VerticalAccumulatedBarplotAge(CVCComponent):
     title = 'Vertical accumulated barplot by age'
 
-    def update(self, dataset, user):
-        return self.plot_factory.plot_vertical_accumulated_barplot_by_age(dataset, user)
+    def update(self):
+        return self.plot_factory.plot_vertical_accumulated_barplot_by_age()
 
+    def callbacks(self, app):
+        pass
+
+# plot_vertical_accumulated_barplot_by_genre
+class VerticalAccumulatedBarplotGenre(CVCComponent):
+    title = 'Vertical accumulated barplot by genre'
+
+    def update(self):
+        return self.plot_factory.plot_vertical_accumulated_barplot_by_genre()
+
+    def callbacks(self, app):
+        pass
 
 # plot_vertical_barplot_polarity
 class VerticalBarplotPolarity(CVCComponent):
@@ -90,7 +102,7 @@ class HorizontalBarplotInteraction2(CVCComponent):
 
 # plot_donut_plot_behaviour
 
-class DonutPlotBehaviour(CVCComponent):
+class DonutPlotBehaviour1(CVCComponent):
     title = 'Donut plot behaviour 1'
 
     def update(self, dataset, user):
