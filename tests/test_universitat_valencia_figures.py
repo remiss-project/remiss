@@ -44,8 +44,8 @@ def test_fetch_plot_average_emotion():
 
 def test_plot_average_emotion():
     plot_factory = UVAPIFactory()
-    with open('test_resources/average_emotion.json', 'r') as f:
-        plot_json = f.read()
+    # with open('test_resources/average_emotion.json', 'r') as f:
+    #     plot_json = f.read()
     plot_factory.fetch_graph_json = Mock(return_value=plot_json)
     fig = plot_factory.plot_average_emotion('madrid', 'start_time', 'end_time')
     fig.show()
@@ -56,8 +56,8 @@ def test_plot_average_emotion():
 def test_fetch_plot_top_profiles():
     plot_factory = UVAPIFactory()
     plotly_json = plot_factory.fetch_graph_json('graph3', 'madrid', None, None)
-    with open('test_resources/top_profiles.json', 'w') as f:
-        f.write(plotly_json)
+    # with open('test_resources/top_profiles.json', 'w') as f:
+    #     f.write(plotly_json)
     fig = plotly.io.from_json(plotly_json, skip_invalid=True)
     fig.show()
     assert isinstance(fig, Figure)
@@ -78,8 +78,8 @@ def test_plot_top_profiles():
 def test_fetch_plot_top_hashtags():
     plot_factory = UVAPIFactory()
     plotly_json = plot_factory.fetch_graph_json('graph4', 'madrid', None, None)
-    with open('test_resources/top_hashtags.json', 'w') as f:
-        f.write(plotly_json)
+    # with open('test_resources/top_hashtags.json', 'w') as f:
+    #     f.write(plotly_json)
     fig = plotly.io.from_json(plotly_json, skip_invalid=True)
     fig.show()
     assert isinstance(fig, Figure)
@@ -100,8 +100,8 @@ def test_plot_top_hashtags():
 def test_fetch_plot_topic_ranking():
     plot_factory = UVAPIFactory()
     plotly_json = plot_factory.fetch_graph_json('graph5', 'madrid', None, None)
-    with open('test_resources/topic_ranking.json', 'w') as f:
-        f.write(plotly_json)
+    # with open('test_resources/topic_ranking.json', 'w') as f:
+    #     f.write(plotly_json)
     fig = plotly.io.from_json(plotly_json, skip_invalid=True)
     fig.show()
     assert isinstance(fig, Figure)

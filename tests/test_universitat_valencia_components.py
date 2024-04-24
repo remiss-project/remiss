@@ -315,3 +315,49 @@ def test_network_topics_component_run_server():
     output = ctx.run(run_callback)
     print(output)
     plot_factory.fetch_graph_json.assert_called_with('madrid', 'start_time', 'end_time')
+
+
+def test_uv_demo():
+    # create factory
+    state = RemissState()
+    plot_factory = UVAPIFactory()
+    # mock api calls so it does not take ages
+    def fetch_graph_json(graph_id, dataset, start_time=None, end_time=None):
+        graphs = ['emotion_per_hour', 'average_emotion', 'top_profiles', 'top_hashtags', 'topic_ranking', 'network_topics']
+        graph = graphs[int(graph_id[-1]) - 1]
+        with open(f'test_resources/{graph}.json', 'r') as f:
+            return f.read()
+    plot_factory.fetch_graph_json = fetch_graph_json
+    # create components
+    emotion_per_hour = EmotionPerHourComponent(plot_factory, state)
+    average_emotion = AverageEmotionBarComponent(plot_factory, state)
+    top_profiles = TopProfilesComponent(plot_factory, state)
+    top_hashtags = TopHashtagsComponent(plot_factory, state)
+    topic_ranking = TopicRankingComponent(plot_factory, state)
+    # network_topics = NetworkTopicsComponent(plot_factory, state)
+    # create control panel
+    time_series_factory = TimeSeriesFactory()
+    control_panel = ControlPanelComponent(time_series_factory, state)
+    # create dash app
+    dash_app = Dash(__name__)
+    # add callbacks
+    emotion_per_hour.callbacks(dash_app)
+    average_emotion.callbacks(dash_app)
+    top_profiles.callbacks(dash_app)
+    top_hashtags.callbacks(dash_app)
+    topic_ranking.callbacks(dash_app)
+    # network_topics.callbacks(dash_app)
+    control_panel.callbacks(dash_app)
+    # create layout
+    dash_app.layout = dbc.Container([
+        state.layout(),
+        control_panel.layout(),
+        emotion_per_hour.layout(),
+        average_emotion.layout(),
+        top_profiles.layout(),
+        top_hashtags.layout(),
+        topic_ranking.layout(),
+        # network_topics.layout(),
+    ])
+    # run server
+    dash_app.run(debug=True)
