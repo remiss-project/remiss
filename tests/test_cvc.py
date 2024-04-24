@@ -1,7 +1,5 @@
-import pandas as pd
-
 from figures.cvc import CVCPlotFactory
-from figures.utils_remiss import get_all_values_users, convert_dict_to_dataframe, load_medians_file_all_features
+from figures.utils_remiss import get_all_values_users, convert_dict_to_dataframe
 
 
 def test_init():
@@ -25,40 +23,66 @@ def test_load_data_for_user():
     cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
     user_data = cvc_plot_factory.load_data_for_user('CVCFeatures2', '100485425')
     assert user_data['twitter_id'] == '100485425'
-    assert user_data['name'] == 'Santaflow'
+    assert user_data['description'] == 'basado y sin complejos. Publi al DM CONTRATACIÓN: mas.sabor.estudios@gmail.com'
 
 
 def test_plot_user_info():
-    assert False
-
-
-def test__get_plot_data():
-    assert False
+    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    plot_user_info = cvc_plot_factory.plot_user_info('CVCFeatures2', '100485425')
+    plot_user_info.show()
+    assert len(plot_user_info.layout.annotations) == 7
 
 
 def test_plot_vertical_barplot_topics():
-    assert False
+    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    plot_vertical_barplot_topics = cvc_plot_factory.plot_vertical_barplot_topics('CVCFeatures2', '100485425')
+    plot_vertical_barplot_topics.show()
+    assert len(plot_vertical_barplot_topics.data) == 4
 
 
 def test_plot_radarplot_emotions():
-    assert False
+    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    plot_radarplot_emotions = cvc_plot_factory.plot_radarplot_emotions('CVCFeatures2', '100485425')
+    plot_radarplot_emotions.show()
+    assert len(plot_radarplot_emotions.data) == 4
 
 
 def test_plot_vertical_accumulated_barplot_by_genre():
-    assert False
+    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    plot_vertical_accumulated_barplot_by_genre = cvc_plot_factory.plot_vertical_accumulated_barplot_by_genre()
+    plot_vertical_accumulated_barplot_by_genre.show()
+    assert len(plot_vertical_accumulated_barplot_by_genre.data) == 3
 
 
 def test_plot_vertical_accumulated_barplot_by_age():
-    assert False
+    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    plot_vertical_accumulated_barplot_by_age = cvc_plot_factory.plot_vertical_accumulated_barplot_by_age()
+    plot_vertical_accumulated_barplot_by_age.show()
+    assert len(plot_vertical_accumulated_barplot_by_age.data) == 4
 
 
 def test_plot_vertical_barplot_polarity():
-    assert False
+    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    plot_vertical_barplot_polarity = cvc_plot_factory.plot_vertical_barplot_polarity('CVCFeatures2', '100485425')
+    plot_vertical_barplot_polarity.show()
+    assert len(plot_vertical_barplot_polarity.data) == 4
 
 
 def test_plot_horizontal_bars_plot_interactions():
-    assert False
+    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    horizontal_bars_plot_1_py_interactions_1, horizontal_bars_plot_2_py_interactions_2 = cvc_plot_factory.plot_horizontal_bars_plot_interactions(
+        'CVCFeatures2', '100485425')
+    horizontal_bars_plot_1_py_interactions_1.show()
+    horizontal_bars_plot_2_py_interactions_2.show()
+    assert len(horizontal_bars_plot_1_py_interactions_1.data) == 4
+    assert len(horizontal_bars_plot_2_py_interactions_2.data) == 4
 
 
 def test_plot_donut_plot_behaviour():
-    assert False
+    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    donut_plot_py_behavior_1, donut_plot_py_behavior_2 = cvc_plot_factory.plot_donut_plot_behaviour('CVCFeatures2',
+                                                                                                    '100485425')
+    donut_plot_py_behavior_1.show()
+    donut_plot_py_behavior_2.show()
+    assert len(donut_plot_py_behavior_1.data) == 4
+    assert len(donut_plot_py_behavior_2.data) == 4

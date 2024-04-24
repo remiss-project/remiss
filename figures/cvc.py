@@ -129,7 +129,7 @@ class CVCPlotFactory(MongoPlotFactory):
 
         return draw_radarplot(display_names, values, labels, title, colors)
 
-    def plot_vertical_accumulated_barplot_by_genre(self, dataset, user_id, genre):
+    def plot_vertical_accumulated_barplot_by_genre(self):
         user_types = ['Fake News Spreaders', 'Fact Checkers', 'Random Control Users']
         title = "User Group by Gender"
 
@@ -153,7 +153,7 @@ class CVCPlotFactory(MongoPlotFactory):
         return draw_vertical_acumulated_barplot_plotly(user_types, values, colors,
                                                        labels, title)
 
-    def plot_vertical_accumulated_barplot_by_age(self, dataset, user_id, age):
+    def plot_vertical_accumulated_barplot_by_age(self):
         user_types = ['Fake News Spreaders', 'Fact Checkers', 'Random Control Users']
         title = "User Groups by Age"
         if self.lang == "ca":
