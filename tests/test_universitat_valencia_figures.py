@@ -13,8 +13,8 @@ def test_fetch_plot_html_emotion_per_hour():
     # Validate that html is actually a valid html with some plotly stuff in it
     parser = HTMLParser()
     parser.feed(html)
-    # with open('test_resources/emotion_per_hour.html', 'w') as f:
-    #     f.write(html)
+    with open('test_resources/emotion_per_hour.html', 'w') as f:
+        f.write(html)
     assert 'plotly' in html
     assert 'newPlot' in html
 
@@ -53,7 +53,7 @@ def test_plot_average_emotion_bar():
     with open('test_resources/average_emotion.html', 'r') as f:
         html = f.read()
     plot_factory.fetch_plot_html = Mock(return_value=html)
-    fig = plot_factory.plot_average_emotion_bar('madrid', 'start_time', 'end_time')
+    fig = plot_factory.plot_average_emotion('madrid', 'start_time', 'end_time')
     assert isinstance(fig, Figure)
 
 
