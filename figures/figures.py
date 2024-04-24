@@ -12,7 +12,7 @@ pymongoarrow.monkey.patch_all()
 
 
 class MongoPlotFactory(ABC):
-    def __init__(self, host="localhost", port=27017, database="test_remiss", available_datasets=None):
+    def __init__(self, host="localhost", port=27017, database="test", available_datasets=None):
         super().__init__()
         self.host = host
         self.port = port
@@ -71,7 +71,7 @@ class MongoPlotFactory(ABC):
 
     @property
     def available_datasets(self):
-        if self._available_datasets is None:
+        if not self._available_datasets:
             client = MongoClient(self.host, self.port)
             self._available_datasets = client.get_database(self.database).list_collection_names()
             self._available_datasets = {x.capitalize().strip(): x for x in self._available_datasets}
