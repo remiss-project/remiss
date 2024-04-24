@@ -39,7 +39,7 @@ def test_emotion_per_hour_component_run_server():
         expected = f.read()
 
     plot_factory = EmotionPerHourPlotFactory()
-    plot_factory.fetch_plot_html = Mock(return_value=expected)
+    plot_factory.fetch_graph_json = Mock(return_value=expected)
     time_series_factory = TimeSeriesFactory()
     state = RemissState()
     component = EmotionPerHourComponent(plot_factory, state)
@@ -63,7 +63,7 @@ def test_emotion_per_hour_component_run_server():
     ctx = copy_context()
     output = ctx.run(run_callback)
     print(output)
-    plot_factory.fetch_plot_html.assert_called_with('madrid', 'start_time', 'end_time')
+    plot_factory.fetch_graph_json.assert_called_with('madrid', 'start_time', 'end_time')
 
 
 def test_average_emotion_bar_component():
@@ -89,7 +89,7 @@ def test_average_emotion_bar_component_run_server():
         expected = f.read()
 
     plot_factory = AverageEmotionBarPlotFactory()
-    plot_factory.fetch_plot_html = Mock(return_value=expected)
+    plot_factory.fetch_graph_json = Mock(return_value=expected)
     time_series_factory = TimeSeriesFactory()
     state = RemissState()
     component = AverageEmotionBarComponent(plot_factory, state)
@@ -113,7 +113,7 @@ def test_average_emotion_bar_component_run_server():
     ctx = copy_context()
     output = ctx.run(run_callback)
     print(output)
-    plot_factory.fetch_plot_html.assert_called_with('madrid', 'start_time', 'end_time')
+    plot_factory.fetch_graph_json.assert_called_with('madrid', 'start_time', 'end_time')
 
 
 def test_top_profiles_component():
@@ -139,7 +139,7 @@ def test_top_profiles_component_run_server():
         expected = f.read()
 
     plot_factory = TopProfilesPlotFactory()
-    plot_factory.fetch_plot_html = Mock(return_value=expected)
+    plot_factory.fetch_graph_json = Mock(return_value=expected)
     time_series_factory = TimeSeriesFactory()
     state = RemissState()
     component = TopProfilesComponent(plot_factory, state)
@@ -163,7 +163,7 @@ def test_top_profiles_component_run_server():
     ctx = copy_context()
     output = ctx.run(run_callback)
     print(output)
-    plot_factory.fetch_plot_html.assert_called_with('madrid', 'start_time', 'end_time')
+    plot_factory.fetch_graph_json.assert_called_with('madrid', 'start_time', 'end_time')
 
 
 def test_top_hashtags_component():
@@ -189,7 +189,7 @@ def test_top_hashtags_component_run_server():
         expected = f.read()
 
     plot_factory = TopHashtagsPlotFactory()
-    plot_factory.fetch_plot_html = Mock(return_value=expected)
+    plot_factory.fetch_graph_json = Mock(return_value=expected)
     time_series_factory = TimeSeriesFactory()
     state = RemissState()
     component = TopHashtagsComponent(plot_factory, state)
@@ -213,7 +213,7 @@ def test_top_hashtags_component_run_server():
     ctx = copy_context()
     output = ctx.run(run_callback)
     print(output)
-    plot_factory.fetch_plot_html.assert_called_with('madrid', 'start_time', 'end_time')
+    plot_factory.fetch_graph_json.assert_called_with('madrid', 'start_time', 'end_time')
 
 
 def test_topic_ranking_component():
@@ -239,7 +239,7 @@ def test_topic_ranking_component_run_server():
         expected = f.read()
 
     plot_factory = TopicRankingPlotFactory()
-    plot_factory.fetch_plot_html = Mock(return_value=expected)
+    plot_factory.fetch_graph_json = Mock(return_value=expected)
     time_series_factory = TimeSeriesFactory()
     state = RemissState()
     component = TopicRankingComponent(plot_factory, state)
@@ -263,7 +263,7 @@ def test_topic_ranking_component_run_server():
     ctx = copy_context()
     output = ctx.run(run_callback)
     print(output)
-    plot_factory.fetch_plot_html.assert_called_with('madrid', 'start_time', 'end_time')
+    plot_factory.fetch_graph_json.assert_called_with('madrid', 'start_time', 'end_time')
 
 
 def test_network_topics_component():
@@ -291,7 +291,7 @@ def test_network_topics_component_run_server():
         expected = f.read()
 
     plot_factory = NetworkTopicsPlotFactory()
-    plot_factory.fetch_plot_html = Mock(return_value=expected)
+    plot_factory.fetch_graph_json = Mock(return_value=expected)
     time_series_factory = TimeSeriesFactory()
     state = RemissState()
     component = NetworkTopicsComponent(plot_factory, state)
@@ -315,4 +315,4 @@ def test_network_topics_component_run_server():
     ctx = copy_context()
     output = ctx.run(run_callback)
     print(output)
-    plot_factory.fetch_plot_html.assert_called_with('madrid', 'start_time', 'end_time')
+    plot_factory.fetch_graph_json.assert_called_with('madrid', 'start_time', 'end_time')

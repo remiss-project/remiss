@@ -1,0 +1,332 @@
+{
+  "visdat": {
+    "7a6c5bf3b89b": ["function () ", "plotlyVisDat"]
+  },
+  "cur_data": "7a6c5bf3b89b",
+  "attrs": {
+    "7a6c5bf3b89b": {
+      "x": {},
+      "y": {},
+      "color": {},
+      "colors": "viridis",
+      "alpha_stroke": 1,
+      "sizes": [10, 100],
+      "spans": [1, 20],
+      "type": "bar"
+    }
+  },
+  "layout": {
+    "margin": {
+      "b": 40,
+      "l": 60,
+      "t": 25,
+      "r": 10
+    },
+    "title": "",
+    "xaxis": {
+      "domain": [0, 1],
+      "automargin": true,
+      "title": "",
+      "tickmode": "array",
+      "tickvals": ["Ironia", "Odio", "Dirigido", "Agresividad", "Diversion", "Tristeza", "Enfado", "Sorpresa", "Disgusto", "Miedo", "Toxico"],
+      "ticktext": ["Agresividad", "Enfado", "Disgusto", "Miedo", "Odio", "Ironia", "Diversion", "Tristeza", "Sorpresa", "Dirigido", "Toxico"]
+    },
+    "yaxis": {
+      "domain": [0, 1],
+      "automargin": true,
+      "title": "",
+      "range": [0, 0.6033992202449292]
+    },
+    "tickangle": -45,
+    "tickfont": {
+      "size": 10
+    },
+    "hovermode": "closest",
+    "showlegend": false
+  },
+  "source": "A",
+  "config": {
+    "modeBarButtonsToAdd": ["hoverclosest", "hovercompare"],
+    "showSendToCloud": false
+  },
+  ".hideLegend": true,
+  "data": [
+    {
+      "x": ["Agresividad"],
+      "y": [0.03402752583237658],
+      "type": "bar",
+      "name": "Agresividad",
+      "marker": {
+        "color": "rgba(68,1,84,1)",
+        "line": {
+          "color": "rgba(68,1,84,1)"
+        }
+      },
+      "textfont": {
+        "color": "rgba(68,1,84,1)"
+      },
+      "error_y": {
+        "color": "rgba(68,1,84,1)"
+      },
+      "error_x": {
+        "color": "rgba(68,1,84,1)"
+      },
+      "xaxis": "x",
+      "yaxis": "y",
+      "frame": null
+    },
+    {
+      "x": ["Dirigido"],
+      "y": [0.016146546115575967],
+      "type": "bar",
+      "name": "Dirigido",
+      "marker": {
+        "color": "rgba(72,37,117,1)",
+        "line": {
+          "color": "rgba(72,37,117,1)"
+        }
+      },
+      "textfont": {
+        "color": "rgba(72,37,117,1)"
+      },
+      "error_y": {
+        "color": "rgba(72,37,117,1)"
+      },
+      "error_x": {
+        "color": "rgba(72,37,117,1)"
+      },
+      "xaxis": "x",
+      "yaxis": "y",
+      "frame": null
+    },
+    {
+      "x": ["Disgusto"],
+      "y": [0.041331161500191352],
+      "type": "bar",
+      "name": "Disgusto",
+      "marker": {
+        "color": "rgba(65,68,135,1)",
+        "line": {
+          "color": "rgba(65,68,135,1)"
+        }
+      },
+      "textfont": {
+        "color": "rgba(65,68,135,1)"
+      },
+      "error_y": {
+        "color": "rgba(65,68,135,1)"
+      },
+      "error_x": {
+        "color": "rgba(65,68,135,1)"
+      },
+      "xaxis": "x",
+      "yaxis": "y",
+      "frame": null
+    },
+    {
+      "x": ["Diversion"],
+      "y": [0.072549703406046689],
+      "type": "bar",
+      "name": "Diversion",
+      "marker": {
+        "color": "rgba(53,96,141,1)",
+        "line": {
+          "color": "rgba(53,96,141,1)"
+        }
+      },
+      "textfont": {
+        "color": "rgba(53,96,141,1)"
+      },
+      "error_y": {
+        "color": "rgba(53,96,141,1)"
+      },
+      "error_x": {
+        "color": "rgba(53,96,141,1)"
+      },
+      "xaxis": "x",
+      "yaxis": "y",
+      "frame": null
+    },
+    {
+      "x": ["Enfado"],
+      "y": [0.23074125526215078],
+      "type": "bar",
+      "name": "Enfado",
+      "marker": {
+        "color": "rgba(42,120,142,1)",
+        "line": {
+          "color": "rgba(42,120,142,1)"
+        }
+      },
+      "textfont": {
+        "color": "rgba(42,120,142,1)"
+      },
+      "error_y": {
+        "color": "rgba(42,120,142,1)"
+      },
+      "error_x": {
+        "color": "rgba(42,120,142,1)"
+      },
+      "xaxis": "x",
+      "yaxis": "y",
+      "frame": null
+    },
+    {
+      "x": ["Ironia"],
+      "y": [0.091239901454267122],
+      "type": "bar",
+      "name": "Ironia",
+      "marker": {
+        "color": "rgba(33,144,141,1)",
+        "line": {
+          "color": "rgba(33,144,141,1)"
+        }
+      },
+      "textfont": {
+        "color": "rgba(33,144,141,1)"
+      },
+      "error_y": {
+        "color": "rgba(33,144,141,1)"
+      },
+      "error_x": {
+        "color": "rgba(33,144,141,1)"
+      },
+      "xaxis": "x",
+      "yaxis": "y",
+      "frame": null
+    },
+    {
+      "x": ["Miedo"],
+      "y": [0.011004506314580942],
+      "type": "bar",
+      "name": "Miedo",
+      "marker": {
+        "color": "rgba(34,168,132,1)",
+        "line": {
+          "color": "rgba(34,168,132,1)"
+        }
+      },
+      "textfont": {
+        "color": "rgba(34,168,132,1)"
+      },
+      "error_y": {
+        "color": "rgba(34,168,132,1)"
+      },
+      "error_x": {
+        "color": "rgba(34,168,132,1)"
+      },
+      "xaxis": "x",
+      "yaxis": "y",
+      "frame": null
+    },
+    {
+      "x": ["Odio"],
+      "y": [0.058655826636050519],
+      "type": "bar",
+      "name": "Odio",
+      "marker": {
+        "color": "rgba(67,190,113,1)",
+        "line": {
+          "color": "rgba(67,190,113,1)"
+        }
+      },
+      "textfont": {
+        "color": "rgba(67,190,113,1)"
+      },
+      "error_y": {
+        "color": "rgba(67,190,113,1)"
+      },
+      "error_x": {
+        "color": "rgba(67,190,113,1)"
+      },
+      "xaxis": "x",
+      "yaxis": "y",
+      "frame": null
+    },
+    {
+      "x": ["Sorpresa"],
+      "y": [0.022176234213547648],
+      "type": "bar",
+      "name": "Sorpresa",
+      "marker": {
+        "color": "rgba(122,209,81,1)",
+        "line": {
+          "color": "rgba(122,209,81,1)"
+        }
+      },
+      "textfont": {
+        "color": "rgba(122,209,81,1)"
+      },
+      "error_y": {
+        "color": "rgba(122,209,81,1)"
+      },
+      "error_x": {
+        "color": "rgba(122,209,81,1)"
+      },
+      "xaxis": "x",
+      "yaxis": "y",
+      "frame": null
+    },
+    {
+      "x": ["Toxico"],
+      "y": [0.6033992202449292],
+      "type": "bar",
+      "name": "Toxico",
+      "marker": {
+        "color": "rgba(188,223,39,1)",
+        "line": {
+          "color": "rgba(188,223,39,1)"
+        }
+      },
+      "textfont": {
+        "color": "rgba(188,223,39,1)"
+      },
+      "error_y": {
+        "color": "rgba(188,223,39,1)"
+      },
+      "error_x": {
+        "color": "rgba(188,223,39,1)"
+      },
+      "xaxis": "x",
+      "yaxis": "y",
+      "frame": null
+    },
+    {
+      "x": ["Tristeza"],
+      "y": [0.020735151167240718],
+      "type": "bar",
+      "name": "Tristeza",
+      "marker": {
+        "color": "rgba(253,231,37,1)",
+        "line": {
+          "color": "rgba(253,231,37,1)"
+        }
+      },
+      "textfont": {
+        "color": "rgba(253,231,37,1)"
+      },
+      "error_y": {
+        "color": "rgba(253,231,37,1)"
+      },
+      "error_x": {
+        "color": "rgba(253,231,37,1)"
+      },
+      "xaxis": "x",
+      "yaxis": "y",
+      "frame": null
+    }
+  ],
+  "highlight": {
+    "on": "plotly_click",
+    "persistent": false,
+    "dynamic": false,
+    "selectize": false,
+    "opacityDim": 0.20000000000000001,
+    "selected": {
+      "opacity": 1
+    },
+    "debounce": 0
+  },
+  "shinyEvents": ["plotly_hover", "plotly_click", "plotly_selected", "plotly_relayout", "plotly_brushed", "plotly_brushing", "plotly_clickannotation", "plotly_doubleclick", "plotly_deselect", "plotly_afterplot", "plotly_sunburstclick"],
+  "base_url": "https://plot.ly"
+}

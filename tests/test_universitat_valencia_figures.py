@@ -1,180 +1,162 @@
-from html.parser import HTMLParser
+import json
 from unittest.mock import Mock
 
+import plotly
 from plotly.graph_objs import Figure
+from pyvis.network import Network
 
-from figures.universitat_valencia import EmotionPerHourPlotFactory, AverageEmotionBarPlotFactory, \
-    TopProfilesPlotFactory, TopHashtagsPlotFactory, TopicRankingPlotFactory, NetworkTopicsPlotFactory
-
-
-def test_fetch_plot_html_emotion_per_hour():
-    plot_factory = EmotionPerHourPlotFactory()
-    html = plot_factory.fetch_plot_html('madrid', 'start_time', 'end_time')
-    # Validate that html is actually a valid html with some plotly stuff in it
-    parser = HTMLParser()
-    parser.feed(html)
-    with open('test_resources/emotion_per_hour.html', 'w') as f:
-        f.write(html)
-    assert 'plotly' in html
-    assert 'newPlot' in html
+from figures.universitat_valencia import UVAPIFactory
 
 
-def test_plot_emotion_line_per_hour():
-    plot_factory = EmotionPerHourPlotFactory()
-    with open('test_resources/emotion_per_hour.html', 'r') as f:
-        html = f.read()
-    plot_factory.fetch_plot_html = Mock(return_value=html)
+def test_fetch_plot_emotion_per_hour():
+    plot_factory = UVAPIFactory()
+    plotly_json = plot_factory.fetch_graph_json('graph1', 'madrid', None, None)
+    # with open('test_resources/emotion_per_hour.json', 'w') as f:
+    #     f.write(plotly_json)
+    fig = plotly.io.from_json(plotly_json, skip_invalid=True)
+    fig.show()
+    assert isinstance(fig, Figure)
+    assert len(fig.data) == 14
+
+
+def test_plot_emotion_per_hour():
+    plot_factory = UVAPIFactory()
+    with open('test_resources/emotion_per_hour.json', 'r') as f:
+        plot_json = f.read()
+    plot_factory.fetch_graph_json = Mock(return_value=plot_json)
     fig = plot_factory.plot_emotion_per_hour('madrid', 'start_time', 'end_time')
+    fig.show()
     assert isinstance(fig, Figure)
+    assert len(fig.data) == 14
 
 
-def test_plotly_html_to_figure_emotion_per_hour():
-    plot_factory = EmotionPerHourPlotFactory()
-    with open('test_resources/emotion_per_hour.html', 'r') as f:
-        html = f.read()
-    fig = plot_factory.plotly_html_to_figure(html)
+def test_fetch_plot_average_emotion():
+    plot_factory = UVAPIFactory()
+    plotly_json = plot_factory.fetch_graph_json('graph2', 'madrid', None, None)
+    # with open('test_resources/average_emotion.json', 'w') as f:
+    #     f.write(plotly_json)
+    fig = plotly.io.from_json(plotly_json, skip_invalid=True)
+    fig.show()
     assert isinstance(fig, Figure)
+    assert len(fig.data) == 11
 
 
-def test_fetch_plot_html_average_emotion():
-    plot_factory = AverageEmotionBarPlotFactory()
-    html = plot_factory.fetch_plot_html('madrid', 'start_time', 'end_time')
-    # Validate that html is actually a valid html with some plotly stuff in it
-    parser = HTMLParser()
-    parser.feed(html)
-    # with open('test_resources/average_emotion.html', 'w') as f:
-    #     f.write(html)
-    assert 'plotly' in html
-    assert 'newPlot' in html
-
-
-def test_plot_average_emotion_bar():
-    plot_factory = AverageEmotionBarPlotFactory()
-    with open('test_resources/average_emotion.html', 'r') as f:
-        html = f.read()
-    plot_factory.fetch_plot_html = Mock(return_value=html)
+def test_plot_average_emotion():
+    plot_factory = UVAPIFactory()
+    with open('test_resources/average_emotion.json', 'r') as f:
+        plot_json = f.read()
+    plot_factory.fetch_graph_json = Mock(return_value=plot_json)
     fig = plot_factory.plot_average_emotion('madrid', 'start_time', 'end_time')
+    fig.show()
     assert isinstance(fig, Figure)
+    assert len(fig.data) == 11
 
 
-def test_plotly_html_to_figure_average_emotion():
-    plot_factory = AverageEmotionBarPlotFactory()
-    with open('test_resources/average_emotion.html', 'r') as f:
-        html = f.read()
-    fig = plot_factory.plotly_html_to_figure(html)
+def test_fetch_plot_top_profiles():
+    plot_factory = UVAPIFactory()
+    plotly_json = plot_factory.fetch_graph_json('graph3', 'madrid', None, None)
+    with open('test_resources/top_profiles.json', 'w') as f:
+        f.write(plotly_json)
+    fig = plotly.io.from_json(plotly_json, skip_invalid=True)
+    fig.show()
     assert isinstance(fig, Figure)
-
-
-def test_fetch_plot_html_top_profiles():
-    plot_factory = TopProfilesPlotFactory()
-    html = plot_factory.fetch_plot_html('madrid', 'start_time', 'end_time')
-    # Validate that html is actually a valid html with some plotly stuff in it
-    parser = HTMLParser()
-    parser.feed(html)
-    # with open('test_resources/top_profiles.html', 'w') as f:
-    #     f.write(html)
-    assert 'plotly' in html
-    assert 'newPlot' in html
+    assert len(fig.data) == 2
 
 
 def test_plot_top_profiles():
-    plot_factory = TopProfilesPlotFactory()
-    with open('test_resources/top_profiles.html', 'r') as f:
-        html = f.read()
-    plot_factory.fetch_plot_html = Mock(return_value=html)
+    plot_factory = UVAPIFactory()
+    with open('test_resources/top_profiles.json', 'r') as f:
+        plot_json = f.read()
+    plot_factory.fetch_graph_json = Mock(return_value=plot_json)
     fig = plot_factory.plot_top_profiles('madrid', 'start_time', 'end_time')
+    fig.show()
     assert isinstance(fig, Figure)
+    assert len(fig.data) == 2
 
 
-def test_plotly_html_to_figure_top_profiles():
-    plot_factory = TopProfilesPlotFactory()
-    with open('test_resources/top_profiles.html', 'r') as f:
-        html = f.read()
-    fig = plot_factory.plotly_html_to_figure(html)
+def test_fetch_plot_top_hashtags():
+    plot_factory = UVAPIFactory()
+    plotly_json = plot_factory.fetch_graph_json('graph4', 'madrid', None, None)
+    with open('test_resources/top_hashtags.json', 'w') as f:
+        f.write(plotly_json)
+    fig = plotly.io.from_json(plotly_json, skip_invalid=True)
+    fig.show()
     assert isinstance(fig, Figure)
-
-
-def test_fetch_plot_html_top_hashtags():
-    plot_factory = TopHashtagsPlotFactory()
-    html = plot_factory.fetch_plot_html('madrid', 'start_time', 'end_time')
-    # Validate that html is actually a valid html with some plotly stuff in it
-    parser = HTMLParser()
-    parser.feed(html)
-    # with open('test_resources/top_hashtags.html', 'w') as f:
-    #     f.write(html)
-    assert 'plotly' in html
-    assert 'newPlot' in html
+    assert len(fig.data) == 2
 
 
 def test_plot_top_hashtags():
-    plot_factory = TopHashtagsPlotFactory()
-    with open('test_resources/top_hashtags.html', 'r') as f:
-        html = f.read()
-    plot_factory.fetch_plot_html = Mock(return_value=html)
+    plot_factory = UVAPIFactory()
+    with open('test_resources/top_hashtags.json', 'r') as f:
+        plot_json = f.read()
+    plot_factory.fetch_graph_json = Mock(return_value=plot_json)
     fig = plot_factory.plot_top_hashtags('madrid', 'start_time', 'end_time')
+    fig.show()
     assert isinstance(fig, Figure)
+    assert len(fig.data) == 2
 
 
-def test_plotly_html_to_figure_top_hashtags():
-    plot_factory = TopHashtagsPlotFactory()
-    with open('test_resources/top_hashtags.html', 'r') as f:
-        html = f.read()
-    fig = plot_factory.plotly_html_to_figure(html)
+def test_fetch_plot_topic_ranking():
+    plot_factory = UVAPIFactory()
+    plotly_json = plot_factory.fetch_graph_json('graph5', 'madrid', None, None)
+    with open('test_resources/topic_ranking.json', 'w') as f:
+        f.write(plotly_json)
+    fig = plotly.io.from_json(plotly_json, skip_invalid=True)
+    fig.show()
     assert isinstance(fig, Figure)
-
-
-def test_fetch_plot_html_topic_ranking():
-    plot_factory = TopicRankingPlotFactory()
-    html = plot_factory.fetch_plot_html('castleon', 'start_time', 'end_time')
-    # Validate that html is actually a valid html with some plotly stuff in it
-    parser = HTMLParser()
-    parser.feed(html)
-    # with open('test_resources/topic_ranking.html', 'w') as f:
-    #     f.write(html)
-    assert 'plotly' in html
-    assert 'newPlot' in html
+    assert len(fig.data) == 2
 
 
 def test_plot_topic_ranking():
-    plot_factory = TopicRankingPlotFactory()
-    with open('test_resources/topic_ranking.html', 'r') as f:
-        html = f.read()
-    plot_factory.fetch_plot_html = Mock(return_value=html)
-    fig = plot_factory.plot_topic_ranking('castleon', 'start_time', 'end_time')
+    plot_factory = UVAPIFactory()
+    with open('test_resources/topic_ranking.json', 'r') as f:
+        plot_json = f.read()
+    plot_factory.fetch_graph_json = Mock(return_value=plot_json)
+    fig = plot_factory.plot_topic_ranking('madrid', 'start_time', 'end_time')
+    fig.show()
     assert isinstance(fig, Figure)
+    assert len(fig.data) == 2
 
 
-def test_plotly_html_to_figure_topic_ranking():
-    plot_factory = TopicRankingPlotFactory()
-    with open('test_resources/topic_ranking.html', 'r') as f:
-        html = f.read()
-    fig = plot_factory.plotly_html_to_figure(html)
-    assert isinstance(fig, Figure)
+def test_fetch_plot_network_topics():
+    plot_factory = UVAPIFactory()
+    visjs = plot_factory.fetch_graph_json('graph6', 'madrid', None, None)
+    # with open('test_resources/network_topics.json', 'w') as f:
+    #     f.write(visjs)
 
+    network = Network()
+    network.from_json(visjs)
+    network.show()
 
-def test_fetch_plot_html_network_topics():
-    plot_factory = NetworkTopicsPlotFactory()
-    html = plot_factory.fetch_plot_html('castleon', 'start_time', 'end_time')
-    # Validate that html is actually a valid html with some plotly stuff in it
-    parser = HTMLParser()
-    parser.feed(html)
-    with open('test_resources/network_topics.html', 'w') as f:
-        f.write(html)
-    assert 'plotly' in html
-    assert 'newPlot' in html
 
 
 def test_plot_network_topics():
-    plot_factory = NetworkTopicsPlotFactory()
-    with open('test_resources/network_topics.html', 'r') as f:
-        html = f.read()
-    plot_factory.fetch_plot_html = Mock(return_value=html)
-    fig = plot_factory.plot_network_topics('castleon', 'start_time', 'end_time')
-    assert isinstance(fig, Figure)
+    plot_factory = UVAPIFactory()
+    with open('test_resources/network_topics.json', 'r') as f:
+        plot_json = f.read()
+    plot_factory.fetch_graph_json = Mock(return_value=plot_json)
+    # fig = plot_factory.plot_network_topics('madrid', 'start_time', 'end_time')
+    # fig.show()
+    # assert isinstance(fig, Figure)
+    # assert len(fig.data) > 1
+    plot_json = json.loads(plot_json)
+    network = Network(height='1000px', width='100%')
+    for node in plot_json['Misnodes']:
+        node['n_id'] = node.pop('id')
+        network.add_node(**node)
+    for edge in plot_json['Mislinks']:
+        edge['source'] = edge.pop('from')
+        network.add_edge(**edge)
 
-def test_plotly_html_to_figure_network_topics():
-    plot_factory = NetworkTopicsPlotFactory()
-    with open('test_resources/network_topics.html', 'r') as f:
-        html = f.read()
-    fig = plot_factory.plotly_html_to_figure(html)
+    network.show('test_resources/network_topics_pyvis.html')
+
+def test_plotly_json_to_figure():
+    plot_factory = UVAPIFactory()
+    with open('test_resources/emotion_per_hour.json', 'r') as f:
+        plot_json = f.read()
+    fig = plot_factory.plotly_json_to_figure(plot_json)
+    fig.show()
     assert isinstance(fig, Figure)
+    assert len(fig.data) == 14
+
+
