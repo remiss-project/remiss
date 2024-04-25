@@ -74,6 +74,8 @@ class MongoPlotFactory(ABC):
         if not self._available_datasets:
             client = MongoClient(self.host, self.port)
             self._available_datasets = client.get_database(self.database).list_collection_names()
+            if not self._available_datasets:
+                raise RuntimeError('No datasets available')
             self._available_datasets = {x.capitalize().strip(): x for x in self._available_datasets}
         return self._available_datasets
 

@@ -8,8 +8,7 @@ from pyaml_env import parse_config
 
 from components import RemissDashboard
 from figures import TimeSeriesFactory, EgonetPlotFactory, TopTableFactory
-from figures.universitat_valencia import EmotionPerHourPlotFactory, AverageEmotionBarPlotFactory, \
-    TopProfilesPlotFactory, TopHashtagsPlotFactory, TopicRankingPlotFactory, NetworkTopicsPlotFactory
+from figures.universitat_valencia import UVAPIFactory
 
 available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
                        'CERULEAN': dbc.themes.CERULEAN,
@@ -87,22 +86,13 @@ def create_app(config):
                                             available_datasets=config['available_datasets'],
                                             prepopulate=config['prepopulate']
                                             )
-    emotion_per_hour_factory = EmotionPerHourPlotFactory(api_url=config['uv']['api_url'])
-    average_emotion_factory = AverageEmotionBarPlotFactory(api_url=config['uv']['api_url'])
-    top_profiles_factory = TopProfilesPlotFactory(api_url=config['uv']['api_url'])
-    top_hashtags_factory = TopHashtagsPlotFactory(api_url=config['uv']['api_url'])
-    topic_ranking_factory = TopicRankingPlotFactory(api_url=config['uv']['api_url'])
-    network_topics_factory = NetworkTopicsPlotFactory(api_url=config['uv']['api_url'])
+    uv_factory = UVAPIFactory(api_url=config['uv']['api_url'])
+
 
     dashboard = RemissDashboard(tweet_user_plot_factory,
                                 top_table_factory,
                                 egonet_plot_factory,
-                                emotion_per_hour_factory,
-                                average_emotion_factory,
-                                top_profiles_factory,
-                                top_hashtags_factory,
-                                topic_ranking_factory,
-                                network_topics_factory,
+                                uv_factory,
                                 name='dashboard',
                                 debug=config['debug'])
     print(f'Plot factories created in {time.time() - start_time} seconds.')
@@ -132,6 +122,7 @@ def load_config(config):
 
 
 def main(config='dev_config.yaml'):
+    print(f'Loading config from {config}...')
     config = load_config(config)
     app = create_app(config)
     print('Running app...')

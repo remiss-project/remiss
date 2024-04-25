@@ -1,7 +1,7 @@
 mongodb:
   host: localhost
   port: 27017
-  database: remiss
+  database: test
 cache_dir:
 graph_layout: fruchterman_reingold
 graph_simplification:
@@ -13,4 +13,4 @@ debug: True
 frequency: 1D
 prepopulate: False
 uv:
-  api_url: 'http://agentsim.uv.es:5000/api'
+  api_url: 'http://srvinv02.esade.es:5005/api'

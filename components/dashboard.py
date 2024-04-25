@@ -39,12 +39,7 @@ class RemissDashboard(RemissComponent):
     def __init__(self, tweet_user_plot_factory,
                  top_table_factory,
                  egonet_plot_factory,
-                 emotion_per_hour_factory,
-                 average_emotion_factory,
-                 top_profiles_factory,
-                 top_hashtags_factory,
-                 topic_ranking_factory,
-                 network_topics_factory,
+                 uv_factory,
                  name=None,
                  max_wordcloud_words=100, wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=True,
 
@@ -59,12 +54,7 @@ class RemissDashboard(RemissComponent):
         self.tweet_user_plot_factory = tweet_user_plot_factory
         self.egonet_plot_factory = egonet_plot_factory
         self.top_table_factory = top_table_factory
-        self.emotion_per_hour_factory = emotion_per_hour_factory
-        self.average_emotion_factory = average_emotion_factory
-        self.top_profiles_factory = top_profiles_factory
-        self.top_hashtags_factory = top_hashtags_factory
-        self.topic_ranking_factory = topic_ranking_factory
-        self.network_topics_factory = network_topics_factory
+        self.uv_factory = uv_factory
 
         self.available_datasets = tweet_user_plot_factory.available_datasets
 
@@ -90,27 +80,27 @@ class RemissDashboard(RemissComponent):
                                                              wordcloud_height=self.wordcloud_height,
                                                              match_wordcloud_width=self.match_wordcloud_width)
 
-        self.emotion_per_hour_component = EmotionPerHourComponent(emotion_per_hour_factory,
+        self.emotion_per_hour_component = EmotionPerHourComponent(uv_factory,
                                                                   state=self.state,
                                                                   name='emotion_per_hour')
 
-        self.average_emotion_component = AverageEmotionBarComponent(average_emotion_factory,
+        self.average_emotion_component = AverageEmotionBarComponent(uv_factory,
                                                                     state=self.state,
                                                                     name='average_emotion')
 
-        self.top_profiles_component = TopProfilesComponent(top_profiles_factory,
+        self.top_profiles_component = TopProfilesComponent(uv_factory,
                                                            state=self.state,
                                                            name='top_profiles')
 
-        self.top_hashtags_component = TopHashtagsComponent(top_hashtags_factory,
+        self.top_hashtags_component = TopHashtagsComponent(uv_factory,
                                                            state=self.state,
                                                            name='top_hashtags')
 
-        self.topic_ranking_component = TopicRankingComponent(topic_ranking_factory,
+        self.topic_ranking_component = TopicRankingComponent(uv_factory,
                                                              state=self.state,
                                                              name='topic_ranking')
 
-        self.network_topics_component = NetworkTopicsComponent(network_topics_factory,
+        self.network_topics_component = NetworkTopicsComponent(uv_factory,
                                                                state=self.state,
                                                                name='network_topics')
 
