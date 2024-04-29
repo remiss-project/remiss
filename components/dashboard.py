@@ -6,7 +6,7 @@ from components.components import RemissComponent
 from components.control_panel import ControlPanelComponent
 from components.egonet import EgonetComponent
 from components.time_series import TimeSeriesComponent
-from components.top_table import TopTableComponent
+from components.tweet_table import TweetTable
 from components.universitat_valencia import EmotionPerHourComponent, AverageEmotionBarComponent, TopProfilesComponent, \
     TopHashtagsComponent, TopicRankingComponent, NetworkTopicsComponent
 
@@ -37,7 +37,7 @@ class RemissState(RemissComponent):
 
 class RemissDashboard(RemissComponent):
     def __init__(self, tweet_user_plot_factory,
-                 top_table_factory,
+                 tweet_table_factory,
                  egonet_plot_factory,
                  uv_factory,
                  name=None,
@@ -53,16 +53,16 @@ class RemissDashboard(RemissComponent):
 
         self.tweet_user_plot_factory = tweet_user_plot_factory
         self.egonet_plot_factory = egonet_plot_factory
-        self.top_table_factory = top_table_factory
+        self.top_table_factory = tweet_table_factory
         self.uv_factory = uv_factory
 
         self.available_datasets = tweet_user_plot_factory.available_datasets
 
         self.state = RemissState(name='state')
 
-        self.top_table_component = TopTableComponent(top_table_factory,
-                                                     state=self.state,
-                                                     name='top')
+        self.tweet_table = TweetTable(tweet_table_factory,
+                                      state=self.state,
+                                      name='top')
         self.tweet_user_ts_component = TimeSeriesComponent(tweet_user_plot_factory,
                                                            state=self.state,
                                                            name='ts')
@@ -132,7 +132,7 @@ class RemissDashboard(RemissComponent):
                 ],
                 ),
             ], style={'margin-bottom': '1rem'}, justify='center'),
-            self.top_table_component.layout(),
+            self.tweet_table.layout(),
             self.tweet_user_ts_component.layout(),
             self.emotion_per_hour_component.layout(),
             self.average_emotion_component.layout(),
@@ -154,7 +154,7 @@ class RemissDashboard(RemissComponent):
             )(self.update_placeholder)
         self.control_panel_component.callbacks(app)
         self.tweet_user_ts_component.callbacks(app)
-        self.top_table_component.callbacks(app)
+        self.tweet_table.callbacks(app)
         self.egonet_component.callbacks(app)
         self.emotion_per_hour_component.callbacks(app)
         self.average_emotion_component.callbacks(app)

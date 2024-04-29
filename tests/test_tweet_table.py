@@ -4,12 +4,12 @@ from unittest import TestCase
 from pymongo import MongoClient
 import pandas as pd
 
-from figures import TopTableFactory
+from figures import TweetTableFactory
 
 
 class TestTopTableFactory(TestCase):
     def setUp(self):
-        self.top_table_factory = TopTableFactory()
+        self.top_table_factory = TweetTableFactory()
         self.client = MongoClient('localhost', 27017)
         self.client.drop_database('test_remiss')
         self.database = self.client.get_database('test_remiss')

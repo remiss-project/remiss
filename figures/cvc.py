@@ -41,9 +41,6 @@ class CVCPlotFactory(MongoPlotFactory):
         self.control_cases = convert_dict_to_dataframe(random_feats)
 
     def load_data_for_user(self, dataset, user_id):
-        # TODO remove this once everything is fit in the same database
-        dataset = 'CVCFeatures2'
-        user_id = '100485425'
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.database)
         collection = database.get_collection(dataset)

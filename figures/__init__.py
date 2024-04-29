@@ -1,3 +1,3 @@
 from .egonet import EgonetPlotFactory
-from .top_table import TopTableFactory
+from .tweet_table import TweetTableFactory
 from .time_series import TimeSeriesFactory

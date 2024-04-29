@@ -7,7 +7,7 @@ from dash_bootstrap_templates import load_figure_template
 from pyaml_env import parse_config
 
 from components import RemissDashboard
-from figures import TimeSeriesFactory, EgonetPlotFactory, TopTableFactory
+from figures import TimeSeriesFactory, EgonetPlotFactory, TweetTableFactory
 from figures.universitat_valencia import UVAPIFactory
 
 available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
@@ -73,9 +73,9 @@ def create_app(config):
     tweet_user_plot_factory = TimeSeriesFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                                 database=config['mongodb']['database'],
                                                 available_datasets=config['available_datasets'])
-    top_table_factory = TopTableFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                        database=config['mongodb']['database'],
-                                        available_datasets=config['available_datasets'])
+    tweet_table_factory = TweetTableFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                            database=config['mongodb']['database'],
+                                            available_datasets=config['available_datasets'])
 
     egonet_plot_factory = EgonetPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                             database=config['mongodb']['database'], cache_dir=config['cache_dir'],
@@ -90,7 +90,7 @@ def create_app(config):
 
 
     dashboard = RemissDashboard(tweet_user_plot_factory,
-                                top_table_factory,
+                                tweet_table_factory,
                                 egonet_plot_factory,
                                 uv_factory,
                                 name='dashboard',

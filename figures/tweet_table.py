@@ -9,12 +9,12 @@ from figures.figures import MongoPlotFactory
 pymongoarrow.monkey.patch_all()
 
 
-class TopTableFactory(MongoPlotFactory):
+class TweetTableFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, database="test_remiss", available_datasets=None, limit=50,
                  retweet_table_columns=None, user_table_columns=None):
         super().__init__(host, port, database, available_datasets)
         self.limit = limit
-        self.top_table_columns = ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party']
+        self.top_table_columns = ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party', '']
         self.retweeted_table_columns = ['id', 'text',
                                         'count'] if retweet_table_columns is None else retweet_table_columns
         self.user_table_columns = ['username', 'count'] if user_table_columns is None else user_table_columns
