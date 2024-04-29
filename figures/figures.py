@@ -12,56 +12,52 @@ pymongoarrow.monkey.patch_all()
 
 
 class MongoPlotFactory(ABC):
-    def __init__(self, host="localhost", port=27017, database="test", available_datasets=None):
+    def __init__(self, host="localhost", port=27017, available_datasets=None):
         super().__init__()
         self.host = host
         self.port = port
-        self.database = database
         self._available_datasets = available_datasets
         self._min_max_dates = {}
         self._available_hashtags = {}
 
-    def _validate_collection(self, database, collection):
-        try:
-            database.validate_collection(collection)
-        except OperationFailure as ex:
-            if ex.details['code'] == 26:
-                raise ValueError(f'Dataset {collection} does not exist') from ex
-            else:
-                raise ex
+    def _validate_dataset(self, client, dataset):
+        if dataset not in client.list_database_names():
+            raise RuntimeError(f'Dataset {dataset} not found')
 
-    def get_date_range(self, collection):
-        if collection not in self._min_max_dates:
+    def get_date_range(self, dataset):
+        if dataset not in self._min_max_dates:
             client = MongoClient(self.host, self.port)
-            database = client.get_database(self.database)
-            self._validate_collection(database, collection)
-            collection = database.get_collection(collection)
-            self._min_max_dates[collection] = self._get_date_range(collection)
+            self._validate_dataset(client, dataset)
+            database = client.get_database(dataset)
+            dataset = database.get_collection('raw')
+            self._min_max_dates[dataset] = self._get_date_range(dataset)
             client.close()
-        return self._min_max_dates[collection]
+        return self._min_max_dates[dataset]
 
-    def get_hashtag_freqs(self, collection):
-        if collection not in self._available_hashtags:
+    def get_hashtag_freqs(self, dataset):
+        if dataset not in self._available_hashtags:
             client = MongoClient(self.host, self.port)
-            database = client.get_database(self.database)
-            self._validate_collection(database, collection)
-            collection = database.get_collection(collection)
-            self._available_hashtags[collection] = self._get_hashtag_freqs(collection)
+            self._validate_dataset(client, dataset)
+            database = client.get_database(dataset)
+            collection = database.get_collection('raw')
+            self._available_hashtags[dataset] = self._get_hashtag_freqs(collection)
             client.close()
-        return self._available_hashtags[collection]
+        return self._available_hashtags[dataset]
 
-    def get_users(self, collection):
+    def get_users(self, dataset):
         client = MongoClient(self.host, self.port)
-        database = client.get_database(self.database)
-        dataset = database.get_collection(collection)
-        available_users = [str(x) for x in dataset.distinct('author.username')]
+        self._validate_dataset(client, dataset)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
+        available_users = [str(x) for x in collection.distinct('author.username')]
         client.close()
         return available_users
 
     def get_user_id(self, dataset, username):
         client = MongoClient(self.host, self.port)
-        database = client.get_database(self.database)
-        collection = database.get_collection(dataset)
+        self._validate_dataset(client, dataset)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
         tweet = collection.find_one({'author.username': username})
         client.close()
         if tweet:
@@ -73,10 +69,12 @@ class MongoPlotFactory(ABC):
     def available_datasets(self):
         if not self._available_datasets:
             client = MongoClient(self.host, self.port)
-            self._available_datasets = client.get_database(self.database).list_collection_names()
-            if not self._available_datasets:
+            available_datasets = client.list_database_names()
+            client.close()
+            available_datasets = list(set(available_datasets) - {'admin', 'config', 'local', 'CVCUI2'})
+            if not available_datasets:
                 raise RuntimeError('No datasets available')
-            self._available_datasets = {x.capitalize().strip(): x for x in self._available_datasets}
+            self._available_datasets = available_datasets
         return self._available_datasets
 
     @staticmethod
