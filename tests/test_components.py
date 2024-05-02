@@ -36,7 +36,16 @@ class RemissDashboardTest(TestCase):
         self.top_table_factory.user_table_columns = ['id', 'name', 'screen_name']
         self.top_table_factory.top_table_columns = ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party']
 
-        self.component = RemissDashboard(self.tweet_user_plot_factory, self.top_table_factory, self.egonet_plot_factory)
+        self.uv_factory = Mock()
+        self.uv_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
+        self.uv_factory.get_date_range.return_value = (datetime(2023, 1, 1),
+                                                        datetime(2023, 12, 31))
+        self.uv_factory.get_users.return_value = ['user1', 'user2', 'user3']
+        self.uv_factory.get_hashtag_freqs.return_value = [('hashtag1', 10), ('hashtag2', 5),
+                                                        ('hashtag3', 3), ('hashtag4', 2),
+                                                        ('hashtag5', 1), ('hashtag6', 1), ]
+
+        self.component = RemissDashboard(self.tweet_user_plot_factory, self.top_table_factory, self.egonet_plot_factory, self.uv_factory)
 
     def test_layout(self):
         layout = self.component.layout()
