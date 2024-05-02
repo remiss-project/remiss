@@ -23,7 +23,7 @@ class ControlPanelComponent(RemissComponent):
         self.dataset_dropdown = self.get_dataset_dropdown_component()
 
     def get_wordcloud_component(self):
-        available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(list(self.available_datasets.values())[0])
+        available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(self.available_datasets[0])
         if self.max_wordcloud_words:
             print(f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
             available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
@@ -41,12 +41,13 @@ class ControlPanelComponent(RemissComponent):
         )
 
     def get_dataset_dropdown_component(self):
-        return dcc.Dropdown(options=[{"label": name, "value": db_key} for name, db_key in self.available_datasets.items()],
-                            value=list(self.available_datasets.values())[0],
+        available_datasets = {db_key: db_key.replace('_', ' ').capitalize().strip() for db_key in self.available_datasets}
+        return dcc.Dropdown(options=[{"label": db_key, "value": name} for name, db_key in available_datasets.items()],
+                            value=self.available_datasets[0],
                             id=f'dataset-dropdown-{self.name}')
 
     def get_date_picker_component(self):
-        min_date_allowed, max_date_allowed, start_date, end_date = self.update_date_range(list(self.available_datasets.values())[0])
+        min_date_allowed, max_date_allowed, start_date, end_date = self.update_date_range(self.available_datasets[0])
         return dcc.DatePickerRange(
             id=f'date-picker-{self.name}',
             min_date_allowed=min_date_allowed,

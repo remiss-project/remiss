@@ -6,7 +6,7 @@ from components.components import RemissComponent
 from components.control_panel import ControlPanelComponent
 from components.egonet import EgonetComponent
 from components.time_series import TimeSeriesComponent
-from components.tweet_table import TweetTable
+from components.tweet_table import TweetTableComponent
 from components.universitat_valencia import EmotionPerHourComponent, AverageEmotionBarComponent, TopProfilesComponent, \
     TopHashtagsComponent, TopicRankingComponent, NetworkTopicsComponent
 
@@ -60,9 +60,9 @@ class RemissDashboard(RemissComponent):
 
         self.state = RemissState(name='state')
 
-        self.tweet_table = TweetTable(tweet_table_factory,
-                                      state=self.state,
-                                      name='top')
+        self.tweet_table = TweetTableComponent(tweet_table_factory,
+                                               state=self.state,
+                                               name='top')
         self.tweet_user_ts_component = TimeSeriesComponent(tweet_user_plot_factory,
                                                            state=self.state,
                                                            name='ts')

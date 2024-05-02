@@ -5,7 +5,7 @@ from dash.dash_table import DataTable
 from components.components import RemissComponent
 
 
-class TweetTable(RemissComponent):
+class TweetTableComponent(RemissComponent):
     def __init__(self, plot_factory, state, name=None):
         super().__init__(name=name)
         self.plot_factory = plot_factory
