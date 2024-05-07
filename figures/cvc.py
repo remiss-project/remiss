@@ -42,8 +42,8 @@ class CVCPlotFactory(MongoPlotFactory):
 
     def load_data_for_user(self, dataset, user_id):
         client = MongoClient(self.host, self.port)
-        database = client.get_database(self.database)
-        collection = database.get_collection(dataset)
+        database = client.get_database(dataset)
+        collection = database.get_collection('profiling')
         user_data = collection.find_one({'twitter_id': user_id})
         client.close()
         if not user_data:

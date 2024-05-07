@@ -53,12 +53,48 @@ class TestTopTableFactory(TestCase):
                     'Retweets': {0: 1, 1: 2, 2: 3},
                     'Text': {0: 'test_text', 1: 'test_text2', 2: 'test_text3'},
                     'User': {0: 'TEST_USER_0', 1: 'TEST_USER_1', 2: 'TEST_USER_2'},
-                    'Multimodal fact-checking': {0: False, 1: True, 2: False},
-                    'Profiling': {0: False, 1: False, 2: True}}
+                    }
         expected = pd.DataFrame(expected)
         expected.index = expected.index.astype(str)
         expected.index.name = 'tweet_id'
         expected = expected[
-            ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party', 'Multimodal fact-checking', 'Profiling']]
+            ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party']]
         expected = expected.iloc[[2, 1, 0]]
         pd.testing.assert_frame_equal(actual, expected)
+
+    def test_get_top_table_profiling_only(self):
+        dataset = 'test_dataset'
+        actual = self.top_table_factory.get_top_table_data(dataset, only_profiling=True)
+        expected = {'Is usual suspect': {2: True},
+                    'Party': {2: 'VOX'},
+                    'Retweets': {2: 3},
+                    'Text': {2: 'test_text3'},
+                    'User': {2: 'TEST_USER_2'},
+                    }
+        expected = pd.DataFrame(expected)
+        expected.index = expected.index.astype(str)
+        expected.index.name = 'tweet_id'
+        expected = expected[
+            ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party']]
+        pd.testing.assert_frame_equal(actual, expected)
+
+    def test_get_top_table_multimodal_only(self):
+        dataset = 'test_dataset'
+        actual = self.top_table_factory.get_top_table_data(dataset, only_multimodal=True)
+        expected = {'Is usual suspect': {1: False},
+                    'Party': {1: None},
+                    'Retweets': {1: 2},
+                    'Text': {1: 'test_text2'},
+                    'User': {1: 'TEST_USER_1'},
+                    }
+        expected = pd.DataFrame(expected)
+        expected.index = expected.index.astype(str)
+        expected.index.name = 'tweet_id'
+        expected = expected[
+            ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party']]
+        pd.testing.assert_frame_equal(actual, expected)
+
+    def test_get_top_table_multimodal_profiling_only(self):
+        dataset = 'test_dataset'
+        actual = self.top_table_factory.get_top_table_data(dataset, only_multimodal=True, only_profiling=True)
+        assert actual.empty

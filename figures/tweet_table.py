@@ -13,34 +13,31 @@ class TweetTableFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, available_datasets=None, limit=50):
         super().__init__(host, port, available_datasets)
         self.limit = limit
-        self.top_table_columns = ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party', 'Multimodal fact-checking',
-                                  'Profiling']
+        self.top_table_columns = ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party']
 
-    def get_top_table_data(self, dataset, start_time=None, end_time=None):
+    def get_top_table_data(self, dataset, start_time=None, end_time=None, only_multimodal=False, only_profiling=False):
         pipeline = [
             {'$group': {'_id': '$text', 'User': {'$first': '$author.username'},
                         'tweet_id': {'$first': '$id'},
                         'Retweets': {'$max': '$public_metrics.retweet_count'},
                         'Is usual suspect': {'$max': '$author.remiss_metadata.is_usual_suspect'},
                         'Party': {'$max': '$author.remiss_metadata.party'},
-                        'Multimodal fact-checking': {'$max': '$author.remiss_metadata.has_multimodal_fact-checking'},
-                        'Profiling': {'$max': '$author.remiss_metadata.has_profiling'}
                         }},
             {'$sort': {'Retweets': -1}},
             {'$limit': self.limit},
             {'$project': {'_id': 0, 'tweet_id': 1, 'User': 1, 'Text': '$_id', 'Retweets': 1, 'Is usual suspect': 1,
-                          'Party': 1, 'Multimodal fact-checking': 1, 'Profiling': 1}}
+                          'Party': 1}}
 
         ]
-        pipeline = self._add_filters(pipeline, start_time, end_time)
+        pipeline = self._add_filters(pipeline, start_time, end_time, only_multimodal, only_profiling)
         schema = Schema({'tweet_id': str, 'User': str, 'Text': str, 'Retweets': int, 'Is usual suspect': bool,
-                         'Party': str, 'Multimodal fact-checking': bool, 'Profiling': bool})
+                         'Party': str})
         df = self._perform_top_aggregation(pipeline, dataset, schema)
         df = df.set_index('tweet_id')
 
         return df
 
-    def _add_filters(self, pipeline, start_time=None, end_time=None):
+    def _add_filters(self, pipeline, start_time=None, end_time=None, only_multimodal=False, only_profiling=False):
         pipeline = pipeline.copy()
         if start_time:
             start_time = pd.to_datetime(start_time)
@@ -50,6 +47,10 @@ class TweetTableFactory(MongoPlotFactory):
             # Add a day to account for all the tweets published in that day
             end_time = end_time + pd.Timedelta(days=1)
             pipeline.insert(0, {'$match': {'created_at': {'$lte': end_time}}})
+        if only_multimodal:
+            pipeline.insert(0, {'$match': {'author.remiss_metadata.has_multimodal_fact-checking': True}})
+        if only_profiling:
+            pipeline.insert(0, {'$match': {'author.remiss_metadata.has_profiling': True}})
         return pipeline
 
     def _perform_top_aggregation(self, pipeline, dataset, schema=None):

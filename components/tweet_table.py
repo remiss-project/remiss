@@ -36,16 +36,30 @@ class TweetTableComponent(RemissComponent):
                                ]
 
                                )
+        self.only_profiling_checkbox = dbc.Checklist(
+            options=[{"label": "Only profiling", "value": "only_profiling"}],
+            value=[],
+            id=f'only_profiling-{self.name}',
+            inline=True,
+        )
+        self.only_multimodal_checkbox = dbc.Checklist(
+            options=[{"label": "Only multimodal", "value": "only_multimodal"}],
+            value=[],
+            id=f'only_multimodal-{self.name}',
+            inline=True,
+        )
 
     def layout(self, params=None):
         return dbc.Row([
             dbc.Col([
+                self.only_profiling_checkbox,
+                self.only_multimodal_checkbox,
                 self.table
             ], width=12),
         ], justify='center', style={'margin-bottom': '1rem'})
 
-    def update(self, dataset, start_date, end_date):
-        self.data = self.plot_factory.get_top_table_data(dataset, start_date, end_date)
+    def update(self, dataset, start_date, end_date, only_multimodal, only_profiling):
+        self.data = self.plot_factory.get_top_table_data(dataset, start_date, end_date, only_multimodal, only_profiling)
         return self.data.to_dict('records')
 
     def update_hashtags(self, active_cell):
@@ -71,7 +85,9 @@ class TweetTableComponent(RemissComponent):
             Output(self.table, 'data'),
             [Input(self.state.current_dataset, 'data'),
              Input(self.state.current_start_date, 'data'),
-             Input(self.state.current_end_date, 'data')],
+             Input(self.state.current_end_date, 'data'),
+             Input(f'only_profiling-{self.name}', 'value'),
+             Input(f'only_multimodal-{self.name}', 'value')],
         )(self.update)
         app.callback(
             Output(self.state.current_hashtags, 'data', allow_duplicate=True),
