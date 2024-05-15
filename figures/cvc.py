@@ -12,9 +12,9 @@ import plotly.graph_objects as go
 
 
 class CVCPlotFactory(MongoPlotFactory):
-    def __init__(self, host="localhost", port=27017, database="CVCUI2", available_datasets=None, lang='ca',
+    def __init__(self, host="localhost", port=27017, available_datasets=None, lang='ca',
                  data_dir='./cvc_data'):
-        super().__init__(host, port, database, available_datasets)
+        super().__init__(host, port, available_datasets)
         self.lang = lang
         self.data_dir = Path(data_dir)
 
