@@ -40,6 +40,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                     # If the tweet is not found we add it as vertice and skip the edges
                     vertices.append(reference['id'])
 
+
     def _get_graph(self, vertices, edges):
         vertices = pd.DataFrame(vertices, columns=['tweet_id'])
         edges = pd.DataFrame(edges, columns=['source', 'target'])
