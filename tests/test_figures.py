@@ -43,6 +43,7 @@ class TestMongoPlotFactory(unittest.TestCase):
         mock_collection.find_one.return_value = {'created_at': mock_date}
         mock_database = Mock()
         mock_database.get_collection.return_value = mock_collection
+        mock_database.list_collection_names.return_value = ['raw']
         mock_client = Mock()
         mock_client.get_database.return_value = mock_database
         mock_client.list_database_names.return_value = ['test_dataset']
@@ -60,6 +61,7 @@ class TestMongoPlotFactory(unittest.TestCase):
         ]
         mock_database = Mock()
         mock_database.get_collection.return_value = mock_collection
+        mock_database.list_collection_names.return_value = ['raw']
         mock_client = Mock()
         mock_client.get_database.return_value = mock_database
         mock_client.list_database_names.return_value = ['test_dataset']
@@ -81,6 +83,7 @@ class TestMongoPlotFactory(unittest.TestCase):
         mock_collection.distinct.return_value = ['test_user1', 'test_user2']
         mock_database = Mock()
         mock_database.get_collection.return_value = mock_collection
+        mock_database.list_collection_names.return_value = ['raw']
         mock_client = Mock()
         mock_client.get_database.return_value = mock_database
         mock_client.list_database_names.return_value = ['test_dataset']
@@ -98,6 +101,7 @@ class TestMongoPlotFactory(unittest.TestCase):
         mock_collection = Mock()
         mock_database = Mock()
         mock_database.get_collection.return_value = mock_collection
+        mock_database.list_collection_names.return_value = ['raw']
         mock_client = Mock()
         mock_client.get_database.return_value = mock_database
         mock_client.list_database_names.return_value = ['test_dataset']
@@ -124,7 +128,7 @@ class TestMongoPlotFactory(unittest.TestCase):
             self.assertEqual(datasets, ['test_dataset'])
 
     def test_available_datasets_2(self):
-        expected = ['test', 'test_dataset']
+        expected = ['test_dataset']
         actual = self.mongo_plot.available_datasets
         self.assertEqual(expected, actual)
 

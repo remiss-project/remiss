@@ -19,17 +19,15 @@ from figures.egonet import compute_backbone
 class TestEgonetPlotFactory(unittest.TestCase):
     def setUp(self):
         self.egonet_plot = EgonetPlotFactory()
-        self.database = 'test_remiss'
         self.host = 'localhost'
         self.port = 27017
-        self.egonet_plot.database = self.database
         self.egonet_plot.host = self.host
         self.egonet_plot.port = self.port
-        self.collection = 'test_collection'
+        self.dataset = 'test_dataset'
 
     def tearDown(self) -> None:
         client = MongoClient('localhost', 27017)
-        client.drop_database(self.database)
+        client.drop_database(self.dataset)
         if self.egonet_plot.cache_dir:
             shutil.rmtree(self.egonet_plot.cache_dir)
 
@@ -109,7 +107,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         mock_database.get_collection.return_value = mock_collection
         mock_mongo_client.return_value.get_database.return_value = mock_database
 
-        actual = self.egonet_plot.get_hidden_network(self.collection)
+        actual = self.egonet_plot.get_hidden_network(self.dataset)
 
         self.assertEqual({'1', '2', '3'}, set(actual.vs['author_id']))
         edges = {frozenset((actual.vs[s]['author_id'], actual.vs[t]['author_id'])) for s, t in actual.get_edgelist()}
@@ -235,16 +233,15 @@ class TestEgonetPlotFactory(unittest.TestCase):
             test_data.append(tweet)
 
         client = MongoClient('localhost', 27017)
-        client.drop_database('test_remiss')
-        database = client.get_database('test_remiss')
-        collection = database.get_collection('test_collection')
+        client.drop_database(self.dataset)
+        database = client.get_database(self.dataset)
+        collection = database.get_collection('raw')
         collection.insert_many(test_data)
 
         # Mock get_user_id
         self.egonet_plot.get_user_id = Mock(return_value=1)
-        collection = 'test_collection'
 
-        actual = self.egonet_plot._get_references(collection)
+        actual = self.egonet_plot._get_references(self.dataset)
         actual = actual.sort_values(['source', 'target']).reset_index(drop=True)
         self.assertEqual(actual['weight'].to_list(), [1, 1, 2, 1])
         self.assertEqual(actual['weight_inv'].to_list(), [1, 1, 0.5, 1])
@@ -280,10 +277,9 @@ class TestEgonetPlotFactory(unittest.TestCase):
     def test_get_authors_and_references(self):
         # Checks it returns the whole thing if the user is not present
         data_size = 100
-        test_data = create_test_data_db(self.database, self.collection, data_size)
-        collection = 'test_collection'
-        authors = self.egonet_plot._get_authors(collection)
-        references = self.egonet_plot._get_references(collection)
+        test_data = create_test_data_db(self.dataset, data_size)
+        authors = self.egonet_plot._get_authors(self.dataset)
+        references = self.egonet_plot._get_references(self.dataset)
         expected_references = []
         expected_authors = []
         for tweet in test_data:
@@ -315,16 +311,15 @@ class TestEgonetPlotFactory(unittest.TestCase):
 
     def test_get_egonet_speed(self):
         # Checks it returns the whole thing if the user is not present
-        create_test_data_db(self.database, self.collection, 1000)
+        create_test_data_db(self.dataset, 1000)
         user = 'test_user'
         depth = 1
         print('computing egonet')
         self.egonet_plot.host = 'localhost'
         self.egonet_plot.port = 27017
-        self.egonet_plot.database = 'test_remiss'
         # time computation of get_egonet
         start_time = time.time()
-        actual = self.egonet_plot.get_egonet(self.collection, user, depth)
+        actual = self.egonet_plot.get_egonet(self.dataset, user, depth)
         end_time = time.time()
         total_time = end_time - start_time
         print(f'took {total_time}')
@@ -334,59 +329,58 @@ class TestEgonetPlotFactory(unittest.TestCase):
         # Checks it returns the whole thing if the user is not present
         user = 'test_user'
         depth = 1
-        test_data = create_test_data_db(self.database, self.collection)
+        test_data = create_test_data_db(self.dataset)
         print('computing egonet')
         self.egonet_plot.host = 'localhost'
         self.egonet_plot.port = 27017
-        self.egonet_plot.database = 'test_remiss'
         self.egonet_plot.cache_dir = Path('/tmp/remiss_cache')
+        shutil.rmtree(self.egonet_plot.cache_dir, ignore_errors=True)
         start_time = time.time()
-        actual = self.egonet_plot.get_egonet(self.collection, user, depth)
+        actual = self.egonet_plot.get_egonet(self.dataset, user, depth)
         end_time = time.time()
         total_time_no_cache = end_time - start_time
         print(f'took {total_time_no_cache} no cache')
         self.assertLessEqual(total_time_no_cache, 60)
-        self.assertTrue(Path(f'/tmp/remiss_cache/{self.collection}/hidden_network.graphmlz').exists())
+        self.assertTrue(Path(f'/tmp/remiss_cache/{self.dataset}/hidden_network.graphmlz').exists())
         start_time = time.time()
-        actual = self.egonet_plot.get_egonet(self.collection, user, depth)
+        actual = self.egonet_plot.get_egonet(self.dataset, user, depth)
         end_time = time.time()
         total_time = end_time - start_time
         print(f'took {total_time}')
         self.assertLess(total_time, total_time_no_cache)
         self.assertTrue(actual.get_edgelist(),
                         ig.Graph.Read_GraphMLz(
-                            f'/tmp/remiss_cache/{self.collection}/hidden_network.graphmlz').get_edgelist())
+                            f'/tmp/remiss_cache/{self.dataset}/hidden_network.graphmlz').get_edgelist())
         self.assertEquals(len(actual['layout'].coords), actual.vcount())
 
     def test_cache_simplified_hidden_untouched(self):
         # Checks it returns the whole thing if the user is not present
         user = 'test_user'
         depth = 1
-        test_data = create_test_data_db(self.database, self.collection)
+        test_data = create_test_data_db(self.dataset)
         print('computing egonet')
         self.egonet_plot.host = 'localhost'
         self.egonet_plot.port = 27017
-        self.egonet_plot.database = 'test_remiss'
         self.egonet_plot.cache_dir = Path('/tmp/remiss_cache')
         self.egonet_plot.simplification = 'backbone'
         self.egonet_plot.threshold = 0.7
         start_time = time.time()
-        actual = self.egonet_plot.get_egonet(self.collection, user, depth)
+        actual = self.egonet_plot.get_egonet(self.dataset, user, depth)
         end_time = time.time()
         total_time_no_cache = end_time - start_time
         print(f'took {total_time_no_cache} no cache')
         self.assertLessEqual(total_time_no_cache, 60)
-        self.assertTrue(Path(f'/tmp/remiss_cache/{self.collection}/hidden_network.graphmlz').exists())
+        self.assertTrue(Path(f'/tmp/remiss_cache/{self.dataset}/hidden_network.graphmlz').exists())
         start_time = time.time()
-        actual = self.egonet_plot.get_egonet(self.collection, user, depth)
-        actual = self.egonet_plot._hidden_networks[self.collection]
+        actual = self.egonet_plot.get_egonet(self.dataset, user, depth)
+        actual = self.egonet_plot._hidden_networks[self.dataset]
         end_time = time.time()
         total_time = end_time - start_time
         print(f'took {total_time}')
         self.assertLess(total_time, total_time_no_cache)
         self.assertTrue(actual.get_edgelist(),
                         ig.Graph.Read_GraphMLz(
-                            f'/tmp/remiss_cache/{self.collection}/hidden_network.graphmlz').get_edgelist())
+                            f'/tmp/remiss_cache/{self.dataset}/hidden_network.graphmlz').get_edgelist())
         self.assertEquals(len(actual['layout'].coords), actual.vcount())
 
     def test_backbone(self):
@@ -407,13 +401,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
             test_data.append(tweet)
 
         client = MongoClient('localhost', 27017)
-        client.drop_database('test_remiss')
-        database = client.get_database('test_remiss')
-        collection = database.get_collection('test_collection')
+        client.drop_database(self.dataset)
+        database = client.get_database(self.dataset)
+        collection = database.get_collection('raw')
         collection.insert_many(test_data)
 
-        collection = 'test_collection'
-        network = self.egonet_plot._compute_hidden_network(collection)
+        network = self.egonet_plot._compute_hidden_network(self.dataset)
         backbone = compute_backbone(network, alpha=0.2)
         actual = {frozenset(x) for x in backbone.get_edgelist()}
         expected = {frozenset((0, 1))}
@@ -442,29 +435,28 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.egonet_plot.threshold = 0.4
         user = 'test_user'
         depth = 1
-        test_data = create_test_data_db(self.database, self.collection)
+        test_data = create_test_data_db(self.dataset)
 
         print('computing egonet')
         self.egonet_plot.host = 'localhost'
         self.egonet_plot.port = 27017
-        self.egonet_plot.database = 'test_remiss'
         self.egonet_plot.cache_dir = Path('/tmp/remiss_cache')
         start_time = time.time()
-        actual = self.egonet_plot.get_egonet(self.collection, user, depth)
+        actual = self.egonet_plot.get_egonet(self.dataset, user, depth)
         end_time = time.time()
         total_time_no_cache = end_time - start_time
         print(f'took {total_time_no_cache} no cache')
         self.assertLessEqual(total_time_no_cache, 60)
-        self.assertTrue(Path(f'/tmp/remiss_cache/{self.collection}/hidden_network-backbone-0.4.graphmlz').exists())
+        self.assertTrue(Path(f'/tmp/remiss_cache/{self.dataset}/hidden_network-backbone-0.4.graphmlz').exists())
         start_time = time.time()
-        actual = self.egonet_plot.get_egonet(self.collection, user, depth)
+        actual = self.egonet_plot.get_egonet(self.dataset, user, depth)
         end_time = time.time()
         total_time = end_time - start_time
         print(f'took {total_time}')
         self.assertLess(total_time, total_time_no_cache)
         self.assertTrue(actual.get_edgelist(),
                         ig.Graph.Read_GraphMLz(
-                            f'/tmp/remiss_cache/{self.collection}/hidden_network-backbone-0.4.graphmlz').get_edgelist())
+                            f'/tmp/remiss_cache/{self.dataset}/hidden_network-backbone-0.4.graphmlz').get_edgelist())
         self.assertEquals(len(actual['layout'].coords), actual.vcount())
 
     @patch('figures.egonet.MongoClient')
@@ -617,13 +609,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
         max_num_references = 10
         user = 'test_user'
         depth = 1
-        test_data = create_test_data_db(self.database, self.collection, data_size,
+        test_data = create_test_data_db(self.dataset, data_size,
                                         max_num_references=max_num_references)
         print('computing egonet')
         self.egonet_plot.host = 'localhost'
         self.egonet_plot.port = 27017
-        self.egonet_plot.database = 'test_remiss'
-        actual = self.egonet_plot.plot_egonet(self.collection, user, depth)
+        actual = self.egonet_plot.plot_egonet(self.dataset, user, depth)
 
         # Check that every vertex is connected to at least one edge
         vertices = actual['data'][1]
@@ -643,13 +634,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
         max_num_references = 10
         user = 'test_user'
         depth = 1
-        test_data = create_test_data_db(self.database, self.collection, data_size,
+        test_data = create_test_data_db(self.dataset, data_size,
                                         max_num_references=max_num_references)
         print('computing egonet')
         self.egonet_plot.host = 'localhost'
         self.egonet_plot.port = 27017
-        self.egonet_plot.database = 'test_remiss'
-        actual = self.egonet_plot.plot_egonet(self.collection, user, depth)
+        actual = self.egonet_plot.plot_egonet(self.dataset, user, depth)
 
         # Check that every text is different from %text
         self.assertEqual(actual['data'][1]['x'].shape[0], len(set(actual['data'][1]['text'])))
@@ -657,12 +647,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
     def test_legitimacy(self):
         # compute legitimacy per time as the amount of referenced tweets attained by each user by unit of time
         day_range = 10
-        test_data = create_test_data_db(database=self.database, collection=self.collection,
+        test_data = create_test_data_db(dataset=self.dataset,
                                         day_range=day_range)
 
         self.egonet_plot.unit = 'day'
         self.egonet_plot.bin_size = 20 + day_range
-        actual = self.egonet_plot.get_legitimacy(self.collection)
+        actual = self.egonet_plot.get_legitimacy(self.dataset)
         expected = pd.DataFrame({'author_id': [t['author']['id'] for t in test_data],
                                  'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
 
@@ -677,13 +667,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
         data_size = 100
         day_range = 10
         max_num_references = 20
-        test_data = create_test_data_db(database=self.database, collection=self.collection,
+        test_data = create_test_data_db(dataset=self.dataset,
                                         day_range=day_range, data_size=data_size, max_num_references=max_num_references)
 
         self.egonet_plot.host = 'localhost'
         self.egonet_plot.port = 27017
-        self.egonet_plot.database = 'test_remiss'
-        actual = self.egonet_plot.get_reputation(self.collection)
+        actual = self.egonet_plot.get_reputation(self.dataset)
         expected = pd.DataFrame({'author_id': [t['author']['id'] for t in test_data],
                                  'date': [t['created_at'].date() for t in test_data],
                                  'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
@@ -698,12 +687,12 @@ class TestEgonetPlotFactory(unittest.TestCase):
     def test__get_legitimacy_per_time_1(self):
         # compute legitimacy per time as the amount of referenced tweets attained by each user by unit of time
         day_range = 10
-        test_data = create_test_data_db(database=self.database, collection=self.collection,
+        test_data = create_test_data_db(self.dataset,
                                         day_range=day_range)
 
         self.egonet_plot.unit = 'day'
         self.egonet_plot.bin_size = 20 + day_range
-        actual = self.egonet_plot._get_legitimacy_per_time(self.collection)
+        actual = self.egonet_plot._get_legitimacy_per_time(self.dataset)
         expected = pd.DataFrame({'author_id': [t['author']['id'] for t in test_data],
                                  'date': [t['created_at'].date() for t in test_data],
                                  'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
@@ -717,10 +706,9 @@ class TestEgonetPlotFactory(unittest.TestCase):
     def test__get_legitimacy_per_time_2(self):
         # compute legitimacy per time as the amount of referenced tweets attained by each user by unit of time
         day_range = 10
-        test_data = create_test_data_db(database=self.database, collection=self.collection,
+        test_data = create_test_data_db(dataset=self.dataset,
                                         day_range=day_range)
-        self.egonet_plot.database = 'test_remiss'
-        actual = self.egonet_plot._get_legitimacy_per_time(self.collection)
+        actual = self.egonet_plot._get_legitimacy_per_time(self.dataset)
         expected = pd.DataFrame({
             'author_id': [t['author']['id'] for t in test_data],
             'date': [t['created_at'].date() for t in test_data],
@@ -735,9 +723,9 @@ class TestEgonetPlotFactory(unittest.TestCase):
     def test_status(self):
         # compute status as the amount of referenced tweets attained by each user
         day_range = 10
-        test_data = create_test_data_db(database=self.database, collection=self.collection,
+        test_data = create_test_data_db(dataset=self.dataset,
                                         day_range=day_range)
-        actual = self.egonet_plot.get_status(self.collection)
+        actual = self.egonet_plot.get_status(self.dataset)
         expected = pd.DataFrame({'author_id': [t['author']['id'] for t in test_data],
                                  'date': [t['created_at'].date() for t in test_data],
                                  'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
@@ -747,7 +735,8 @@ class TestEgonetPlotFactory(unittest.TestCase):
         expected.columns = pd.DatetimeIndex(expected.columns)
         expected = expected.cumsum(axis=1)
         expected = expected.apply(lambda x: x.argsort())
-        pd.testing.assert_frame_equal(expected, actual, check_dtype=False, check_like=True, check_index_type=False)
+        pd.testing.assert_frame_equal(expected, actual, check_dtype=False, check_like=True, check_index_type=False,
+                                      check_column_type=False)
 
     def test_egonet_date(self):
         data_size = 100
@@ -755,11 +744,11 @@ class TestEgonetPlotFactory(unittest.TestCase):
         max_num_references = 20
         start_date = datetime.fromisoformat("2019-01-01T00:00:00Z")
         end_date = start_date
-        test_data = create_test_data_db(database=self.database, collection=self.collection,
+        test_data = create_test_data_db(dataset=self.dataset,
                                         day_range=day_range, data_size=data_size, max_num_references=max_num_references)
 
-        authors = self.egonet_plot._get_authors(self.collection, start_date=start_date, end_date=end_date)
-        references = self.egonet_plot._get_references(self.collection, start_date=start_date, end_date=end_date)
+        authors = self.egonet_plot._get_authors(self.dataset, start_date=start_date, end_date=end_date)
+        references = self.egonet_plot._get_references(self.dataset, start_date=start_date, end_date=end_date)
         self.assertEqual(len(authors), 0)
         self.assertEqual(len(references), 0)
 
@@ -770,9 +759,9 @@ class TestEgonetPlotFactory(unittest.TestCase):
         start_date = datetime.fromisoformat("2019-01-01T00:00:00Z")
         end_date = datetime.fromisoformat("2019-01-01T00:00:00Z") + timedelta(days=1)
 
-        test_data = create_test_data_db(database=self.database, collection=self.collection,
+        test_data = create_test_data_db(dataset=self.dataset,
                                         day_range=day_range, data_size=data_size, max_num_references=max_num_references)
-        authors = self.egonet_plot._get_authors(self.collection, start_date=start_date, end_date=end_date)
+        authors = self.egonet_plot._get_authors(self.dataset, start_date=start_date, end_date=end_date)
         authors = authors.sort_values('author_id').reset_index(drop=True)
         expected_authors = {}
         expected_references = []
@@ -791,7 +780,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         pd.testing.assert_frame_equal(expected_authors, authors, check_dtype=False, check_like=True,
                                       check_index_type=False)
 
-        references = self.egonet_plot._get_references(self.collection, start_date=start_date, end_date=end_date)
+        references = self.egonet_plot._get_references(self.dataset, start_date=start_date, end_date=end_date)
         references = references.sort_values(['source', 'target']).reset_index(drop=True)
         references = references[['source', 'target']]
         expected_references = pd.DataFrame(expected_references, columns=['source', 'target'])
@@ -801,7 +790,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
                                       check_index_type=False)
 
 
-def create_test_data_db(database='unit_test_remiss', collection='unit_test', data_size=100, day_range=10,
+def create_test_data_db(dataset='unit_test_remiss', data_size=100, day_range=10,
                         max_num_references=20):
     test_data = []
     total_referenced_tweets = 0
@@ -835,9 +824,9 @@ def create_test_data_db(database='unit_test_remiss', collection='unit_test', dat
             test_data.append(tweet)
 
     client = MongoClient('localhost', 27017)
-    client.drop_database(database)
-    database = client.get_database(database)
-    collection = database.get_collection(collection)
+    client.drop_database(dataset)
+    database = client.get_database(dataset)
+    collection = database.get_collection('raw')
     collection.insert_many(test_data)
 
     return test_data

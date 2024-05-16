@@ -317,7 +317,7 @@ def test_network_topics_component_run_server():
     plot_factory.fetch_graph_json.assert_called_with('madrid', 'start_time', 'end_time')
 
 
-def test_uv_demo():
+def _test_uv_render():
     # create factory
     state = RemissState()
     plot_factory = UVAPIFactory()

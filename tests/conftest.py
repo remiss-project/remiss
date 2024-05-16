@@ -3,6 +3,8 @@ from datetime import datetime
 
 from pymongo import MongoClient
 
+from preprocess import unfix_timestamps
+
 
 def populate_test_database(database_name):
     client = MongoClient('localhost', 27017)
@@ -10,7 +12,12 @@ def populate_test_database(database_name):
     db = client[database_name]
     collection = db.get_collection('raw')
     with open('test_resources/test_data.jsonl') as f:
-        test_data = [json.loads(line) for line in f]
+        test_data = []
+        for line in f:
+            tweet = json.loads(line)
+            unfix_timestamps(tweet)
+            test_data.append(tweet)
+
     collection.insert_many(test_data)
 
     # # Add profiling data

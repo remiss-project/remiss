@@ -12,9 +12,9 @@ class TestTimeSeriesFactory(unittest.TestCase):
     def setUp(self):
         self.plot_factory = FactCheckingPlotFactory(data_dir=DATA_DIR)
         self.client = MongoClient('localhost', 27017)
-        self.client.drop_database('fact_checking')
-        self.database = self.client.get_database('fact_checking')
-        self.collection = self.database.get_collection('test_dataset')
+        self.client.drop_database('test_dataset')
+        self.database = self.client.get_database('test_dataset')
+        self.collection = self.database.get_collection('multimodal')
         self.test_data = [
             {
                 "claim_text": "A shot of the All Nippon Airways Boeing 787 Dreamliner that s painted in the likeness of R2D2 in Los Angeles on Dec 15 2015",
@@ -34,6 +34,11 @@ class TestTimeSeriesFactory(unittest.TestCase):
             }
         ]
         self.collection.insert_many(self.test_data)
+        self.client.close()
+
+    def tearDown(self) -> None:
+        self.client = MongoClient('localhost', 27017)
+        self.client.drop_database('test_dataset')
         self.client.close()
 
     def test_claim_image(self):

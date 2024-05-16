@@ -17,11 +17,11 @@ pymongoarrow.monkey.patch_all()
 
 
 class EgonetPlotFactory(MongoPlotFactory):
-    def __init__(self, host="localhost", port=27017, database="test_remiss", cache_dir=None,
+    def __init__(self, host="localhost", port=27017, cache_dir=None,
                  reference_types=('replied_to', 'quoted', 'retweeted'), layout='fruchterman_reingold',
                  simplification=None, threshold=0.2, delete_vertices=True, k_cores=4, frequency='1D',
                  available_datasets=None, prepopulate=False, small_size_multiplier=50, big_size_multiplier=10):
-        super().__init__(host, port, database, available_datasets)
+        super().__init__(host, port, available_datasets)
         self.big_size_multiplier = big_size_multiplier
         self.small_size_multiplier = small_size_multiplier
         self.frequency = frequency
@@ -126,8 +126,8 @@ class EgonetPlotFactory(MongoPlotFactory):
 
     def get_legitimacy(self, dataset):
         client = MongoClient(self.host, self.port)
-        database = client.get_database(self.database)
-        collection = database.get_collection(dataset)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
 
         node_pipeline = [
             {'$unwind': '$referenced_tweets'},
@@ -149,8 +149,8 @@ class EgonetPlotFactory(MongoPlotFactory):
 
     def _get_legitimacy_per_time(self, dataset):
         client = MongoClient(self.host, self.port)
-        database = client.get_database(self.database)
-        collection = database.get_collection(dataset)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
 
         node_pipeline = [
             {'$unwind': '$referenced_tweets'},
@@ -200,8 +200,8 @@ class EgonetPlotFactory(MongoPlotFactory):
 
     def _get_authors(self, dataset, start_date=None, end_date=None):
         client = MongoClient(self.host, self.port)
-        database = client.get_database(self.database)
-        collection = database.get_collection(dataset)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
         nested_pipeline = [
             {'$project': {'author_id': '$author.id',
                           'username': '$author.username',
@@ -217,7 +217,7 @@ class EgonetPlotFactory(MongoPlotFactory):
                           'username': '$referenced_tweets.author.username',
                           'is_usual_suspect': '$referenced_tweets.author.remiss_metadata.is_usual_suspect',
                           'party': '$referenced_tweets.author.remiss_metadata.party'}},
-            {'$unionWith': {'coll': dataset, 'pipeline': nested_pipeline}},  # Fetch missing authors
+            {'$unionWith': {'coll': 'raw', 'pipeline': nested_pipeline}},  # Fetch missing authors
             {'$group': {'_id': '$author_id',
                         'username': {'$first': '$username'},
                         'is_usual_suspect': {'$addToSet': '$is_usual_suspect'},
@@ -234,12 +234,13 @@ class EgonetPlotFactory(MongoPlotFactory):
         schema = Schema({'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str})
         authors = collection.aggregate_pandas_all(node_pipeline, schema=schema)
         print(f'Authors computed in {time.time() - start_time} seconds')
+        client.close()
         return authors
 
     def _get_references(self, dataset, start_date=None, end_date=None):
         client = MongoClient(self.host, self.port)
-        database = client.get_database(self.database)
-        collection = database.get_collection(dataset)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
 
         references_pipeline = [
             {'$unwind': '$referenced_tweets'},

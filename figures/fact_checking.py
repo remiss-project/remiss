@@ -11,11 +11,11 @@ pymongoarrow.monkey.patch_all()
 
 
 class FactCheckingPlotFactory(MongoPlotFactory):
-    def __init__(self, data_dir='fact_checking_data', host="localhost", port=27017, database="test_remiss",
-                 fact_checking_database='fact_checking',
+    def __init__(self, data_dir='fact_checking_data', host="localhost", port=27017,
+                 multimodal_collection_name='multimodal',
                  available_datasets=None):
-        super().__init__(host, port, database, available_datasets)
-        self.fact_checking_database = fact_checking_database
+        super().__init__(host, port, available_datasets)
+        self.multimodal_collection_name = multimodal_collection_name
         self.data_dir = Path(data_dir)
 
     def plot_claim_image(self, dataset, tweet_id):
@@ -53,21 +53,34 @@ class FactCheckingPlotFactory(MongoPlotFactory):
         return data
 
     def load_image(self, dataset, fact_checking_id, image_type):
-        image_dir = self.data_dir / dataset / str(fact_checking_id)
+        image_dir = self.data_dir /  dataset / 'images' / str(fact_checking_id)
         # find matching image with image_type as filename, disregarding extension
-        image_path = next(image_dir.glob(f'{image_type}.*'))
+        try:
+            image_path = next(image_dir.glob(f'{image_type}.*'))
+        except StopIteration:
+            raise RuntimeError(f'Image {image_type} not found for fact checking id {fact_checking_id}')
         img = io.imread(image_path)
         fig = px.imshow(img)
         return fig
 
     def load_data_for_tweet(self, dataset, tweet_id):
         client = MongoClient(self.host, self.port)
-        database = client.get_database(self.fact_checking_database)
-        self._validate_collection(database, dataset)
-        collection = database.get_collection(dataset)
+        database = client.get_database(dataset)
+        self._validate_dataset(client, dataset)
+        collection = database.get_collection(self.multimodal_collection_name)
         data = collection.find_one({'tweet_id': tweet_id})
         client.close()
+        if data is None:
+            raise RuntimeError(f'Tweet {tweet_id} not found in dataset {dataset}')
         return data
+
+    def _validate_dataset(self, client, dataset):
+        if dataset not in client.list_database_names():
+            raise RuntimeError(f'Dataset {dataset} not found')
+        else:
+            collections = client.get_database(dataset).list_collection_names()
+            if self.multimodal_collection_name not in collections:
+                raise RuntimeError(f'Collection {self.multimodal_collection_name} not found in dataset {dataset}')
 # Features
 # - Claim
 #    - Tweet text (T)

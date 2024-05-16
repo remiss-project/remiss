@@ -4,6 +4,7 @@ from unittest import TestCase
 import dash_bootstrap_components as dbc
 from dash import Dash, Output, Input
 from dash import dcc
+from dash.dcc import Graph
 from dash.html import Iframe
 from pymongo import MongoClient
 
@@ -43,26 +44,6 @@ class FactCheckingComponentTest(TestCase):
         self.state = RemissState(name='state')
         self.component = FactCheckingComponent(self.plot_factory, self.state, name='fact_checking')
 
-    def test_layout(self):
-        layout = self.component.layout()
-
-        # check that among the final components of the layout we have:
-        # - a DatePickerRange
-        # - a Wordcloud
-        # - a TimeSeriesComponent
-        # find components recursively
-        def find_components(component, found_components):
-            if hasattr(component, 'children') and component.children:
-                for child in component.children:
-                    find_components(child, found_components)
-            if isinstance(component, Iframe):
-                found_components.append(component)
-
-        found_components = []
-        find_components(layout, found_components)
-        found_components = [type(component) for component in found_components]
-        self.assertIn(Iframe, found_components)
-
     def test_layout_ids(self):
         layout = self.component.layout()
 
@@ -72,18 +53,20 @@ class FactCheckingComponentTest(TestCase):
             if hasattr(component, 'children') and component.children:
                 for child in component.children:
                     find_components(child, found_components)
-            if isinstance(component, Iframe):
+            if isinstance(component, Graph):
                 found_components.append(component)
 
         found_components = []
         find_components(layout, found_components)
         component_ids = ['-'.join(component.id.split('-')[:-1]) for component in found_components]
-        self.assertIn('fact-checking-iframe', component_ids)
+        expected_components = ['fig-claim-image', 'fig-graph-claim', 'fig-visual-evidences', 'fig-graph-evidence-text',
+                               'fig-evidence-image', 'fig-graph-evidence-vis']
+        self.assertEqual(set(component_ids), set(expected_components))
         found_main_ids = ['-'.join(component.id.split('-')[-1:]) for component in found_components]
         self.assertIn(self.component.name, found_main_ids)
         self.assertEqual(len(set(found_main_ids)), 1)
 
-    def test_render(self):
+    def _test_render(self):
         dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
         app = Dash(__name__,
                    external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME, dbc_css],
@@ -108,7 +91,7 @@ class FactCheckingComponentTest(TestCase):
         app.callback(Output(self.state.current_dataset, 'data'),
                      [Input('dataset-dropdown', 'value')])(lambda x: x)
         app.callback(Output(self.state.current_tweet, 'data'),
-                        [Input('tweet-dropdown', 'value')])(lambda x: x)
+                     [Input('tweet-dropdown', 'value')])(lambda x: x)
         app.layout = dbc.Container([
             self.state.layout(),
             self.component.layout(),

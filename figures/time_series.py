@@ -70,11 +70,11 @@ class TimeSeriesFactory(MongoPlotFactory):
 
         return df
 
-    def _get_count_area_plot(self, pipeline, collection, hashtags, start_time, end_time):
+    def _get_count_area_plot(self, pipeline, dataset, hashtags, start_time, end_time):
         client = MongoClient(self.host, self.port)
-        database = client.get_database(self.database)
-        self._validate_collection(database, collection)
-        collection = database.get_collection(collection)
+        self._validate_dataset(client, dataset)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
 
         df = self._get_count_data(pipeline, hashtags, start_time, end_time, collection)
 

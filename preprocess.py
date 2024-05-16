@@ -1,18 +1,12 @@
 import json
+import zipfile
+from datetime import datetime
 from pathlib import Path
 
-import networkx as nx
 import pandas as pd
-from datetime import datetime
-from pymongo import MongoClient
-from pymongo.errors import OperationFailure
-from pymongoarrow.schema import Schema
+import pymongoarrow.monkey
 from tqdm import tqdm
 from twarc import ensure_flattened
-import zipfile
-import pymongoarrow.monkey
-import networkx
-import plotly.graph_objects as go
 
 pymongoarrow.monkey.patch_all()
 
@@ -150,6 +144,21 @@ def fix_timestamps(tweet):
             fix_timestamps(value)
 
 
+def unfix_timestamps(tweet):
+    date_fields = {'created_at', 'editable_until', 'retrieved_at'}
+    for field, value in tweet.items():
+        if field in date_fields:
+            if isinstance(value, dict):
+                if '$date' not in value:
+                    raise ValueError(f'Unexpected format in timestamp field {field}: {value}')
+                else:
+                    # Cast to datetime
+                    tweet[field] = datetime.fromisoformat(value['$date'])
+
+        elif isinstance(value, dict):
+            unfix_timestamps(value)
+
+
 def generate_test_data(twitter_jsonl_zip, metadata_file, output_file=None, freq='1D', quantity=10):
     """
     Sample tweets from the twitter_jsonl_zip file according to the unit, bin and quantity parameters. Store
@@ -166,7 +175,8 @@ def generate_test_data(twitter_jsonl_zip, metadata_file, output_file=None, freq=
     if output_file:
         output_mongoimport = Path(output_file)
     else:
-        output_mongoimport = twitter_jsonl_zip.parent / (twitter_jsonl_zip.stem.split('.')[0] + '.mongoimport.test.jsonl')
+        output_mongoimport = twitter_jsonl_zip.parent / (
+                    twitter_jsonl_zip.stem.split('.')[0] + '.mongoimport.test.jsonl')
     data = []
     with zipfile.ZipFile(twitter_jsonl_zip, 'r') as zip_ref:
         with zip_ref.open(zip_ref.namelist()[0], 'r') as infile:
@@ -186,5 +196,3 @@ def generate_test_data(twitter_jsonl_zip, metadata_file, output_file=None, freq=
     with open(output_mongoimport, "w") as mongoimport_outfile:
         for tweet in sample:
             mongoimport_outfile.write(json.dumps(tweet) + '\n')
-
-

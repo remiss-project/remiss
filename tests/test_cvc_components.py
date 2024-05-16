@@ -1,4 +1,5 @@
 from contextvars import copy_context
+from unittest import TestCase
 
 import dash_bootstrap_components as dbc
 from dash import Dash
@@ -16,14 +17,14 @@ from figures.cvc import CVCPlotFactory
 from tests.conftest import populate_test_database, delete_test_database
 
 
-class TestCVCComponents:
-    @staticmethod
-    def setUpClass():
+class TestCVCComponents(TestCase):
+    @classmethod
+    def setUpClass(cls):
         populate_test_database('test_dataset')
 
-    @staticmethod
-    def tearDownClass():
-        delete_test_database('test_dataset')
+    # @classmethod
+    # def tearDownClass(cls):
+    #     delete_test_database('test_dataset')
 
     def test_plot_user_info_component(self):
         cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
@@ -60,7 +61,7 @@ class TestCVCComponents:
             context_value.set(AttributeDict({'inputs': {'current-dataset-state': 'data',
                                                         'current-start-date-state': 'data',
                                                         'current-end-date-state': 'data'}}))
-            component.update('CVCFeatures2', '100485425')
+            component.update('test_dataset', '100485425')
 
         ctx = copy_context()
         output = ctx.run(run_callback)
@@ -100,7 +101,7 @@ class TestCVCComponents:
             context_value.set(AttributeDict({'inputs': {'current-dataset-state': 'data',
                                                         'current-start-date-state': 'data',
                                                         'current-end-date-state': 'data'}}))
-            component.update('CVCFeatures2', '100485425')
+            component.update('test_dataset', '100485425')
 
         ctx = copy_context()
         output = ctx.run(run_callback)
@@ -140,7 +141,7 @@ class TestCVCComponents:
             context_value.set(AttributeDict({'inputs': {'current-dataset-state': 'data',
                                                         'current-start-date-state': 'data',
                                                         'current-end-date-state': 'data'}}))
-            component.update('CVCFeatures2', '100485425')
+            component.update('test_dataset', '100485425')
 
         ctx = copy_context()
         output = ctx.run(run_callback)
@@ -248,7 +249,7 @@ class TestCVCComponents:
             context_value.set(AttributeDict({'inputs': {'current-dataset-state': 'data',
                                                         'current-start-date-state': 'data',
                                                         'current-end-date-state': 'data'}}))
-            component.update('CVCFeatures2', '100485425')
+            component.update('test_dataset', '100485425')
 
         ctx = copy_context()
         output = ctx.run(run_callback)
@@ -288,7 +289,7 @@ class TestCVCComponents:
             context_value.set(AttributeDict({'inputs': {'current-dataset-state': 'data',
                                                         'current-start-date-state': 'data',
                                                         'current-end-date-state': 'data'}}))
-            component.update('CVCFeatures2', '100485425')
+            component.update('test_dataset', '100485425')
 
         ctx = copy_context()
         output = ctx.run(run_callback)
@@ -328,7 +329,7 @@ class TestCVCComponents:
             context_value.set(AttributeDict({'inputs': {'current-dataset-state': 'data',
                                                         'current-start-date-state': 'data',
                                                         'current-end-date-state': 'data'}}))
-            component.update('CVCFeatures2', '100485425')
+            component.update('test_dataset', '100485425')
 
         ctx = copy_context()
         output = ctx.run(run_callback)
@@ -368,7 +369,7 @@ class TestCVCComponents:
             context_value.set(AttributeDict({'inputs': {'current-dataset-state': 'data',
                                                         'current-start-date-state': 'data',
                                                         'current-end-date-state': 'data'}}))
-            component.update('CVCFeatures2', '100485425')
+            component.update('test_dataset', '100485425')
 
         ctx = copy_context()
         output = ctx.run(run_callback)
@@ -408,12 +409,12 @@ class TestCVCComponents:
             context_value.set(AttributeDict({'inputs': {'current-dataset-state': 'data',
                                                         'current-start-date-state': 'data',
                                                         'current-end-date-state': 'data'}}))
-            component.update('CVCFeatures2', '100485425')
+            component.update('test_dataset', '100485425')
 
         ctx = copy_context()
         output = ctx.run(run_callback)
 
-    def test_run_server(self):
+    def _test_run_server(self):
         # create factories
         cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
 

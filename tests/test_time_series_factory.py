@@ -13,9 +13,10 @@ class TestTimeSeriesFactory(unittest.TestCase):
     def setUp(self):
         self.tweet_user_plot = TimeSeriesFactory()
         self.client = MongoClient('localhost', 27017)
-        self.client.drop_database('test_remiss')
-        self.database = self.client.get_database('test_remiss')
-        self.collection = self.database.get_collection('test_collection')
+        self.dataset = 'test_dataset'
+        self.client.drop_database(self.dataset)
+        self.database = self.client.get_database(self.dataset)
+        self.collection = self.database.get_collection('raw')
         test_data = [{"id": 0, "created_at": datetime.fromisoformat("2019-01-01T23:20:00Z"),
                       "author": {"username": "TEST_USER_0", "id": 0,
                                  "remiss_metadata": {"party": "PSOE", "is_usual_suspect": False}},
@@ -59,7 +60,7 @@ class TestTimeSeriesFactory(unittest.TestCase):
 
     def test_plot_tweet_series_2(self):
         from numpy import nan
-        actual = self.tweet_user_plot.plot_tweet_series('test_collection', None, None, None)
+        actual = self.tweet_user_plot.plot_tweet_series(self.dataset, None, None, None)
         self.assertEqual([datetime(2019, 1, 1, 0, 0),
                           datetime(2019, 1, 2, 0, 0),
                           datetime(2019, 1, 3, 0, 0)], list(actual['data'][0]['x']))
@@ -96,7 +97,8 @@ class TestTimeSeriesFactory(unittest.TestCase):
 
     def test_plot_user_series_2(self):
         from numpy import nan
-        actual = self.tweet_user_plot.plot_user_series('test_collection', None, None, None)
+        actual = self.tweet_user_plot.plot_user_series(self.dataset
+                                                       , None, None, None)
         self.assertEqual([datetime(2019, 1, 1, 0, 0),
                           datetime(2019, 1, 2, 0, 0),
                           datetime(2019, 1, 3, 0, 0)], list(actual['data'][0]['x']))
@@ -111,8 +113,9 @@ class TestTimeSeriesFactory(unittest.TestCase):
         mock_collection = Mock()
         mock_database = Mock()
         mock_database.get_collection.return_value = mock_collection
+        mock_database.list_collection_names.return_value = ['raw']
         mock_mongo_client.return_value.get_database.return_value = mock_database
-
+        mock_mongo_client.return_value.list_database_names.return_value = ['test_dataset']
         # Mock aggregate_pandas_all
         mock_collection.aggregate_pandas_all.return_value = pd.DataFrame({'_id': [datetime(2023, 1, 1),
                                                                                   datetime(2023, 1, 2),
@@ -122,7 +125,6 @@ class TestTimeSeriesFactory(unittest.TestCase):
         # Mock _add_filters
         self.tweet_user_plot._add_filters = Mock(return_value='mocked_pipeline')
 
-        collection = 'test_collection'
         hashtag = 'test_hashtag'
         start_time = '2023-01-01'
         end_time = '2023-01-31'
@@ -136,13 +138,13 @@ class TestTimeSeriesFactory(unittest.TestCase):
             {'$sort': {'_id': 1}}
         ]
         result = self.tweet_user_plot._get_count_area_plot(
-            expected_pipeline, collection, hashtag, start_time, end_time
+            expected_pipeline, self.dataset, hashtag, start_time, end_time
         )
 
         self.assertIsInstance(result, Figure)
 
         mock_mongo_client.assert_called_with(self.tweet_user_plot.host, self.tweet_user_plot.port)
-        mock_database.get_collection.assert_called_with(collection)
+        mock_database.get_collection.assert_called_with('raw')
 
     def test__add_filters(self):
         hashtag = ['test_hashtag']

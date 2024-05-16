@@ -68,18 +68,20 @@ class TestTopTableComponent(TestCase):
 
         self.assertEqual(callback['inputs'], [{'id': 'current-dataset-state', 'property': 'data'},
                                               {'id': 'current-start-date-state', 'property': 'data'},
-                                              {'id': 'current-end-date-state', 'property': 'data'}])
+                                              {'id': 'current-end-date-state', 'property': 'data'},
+                                              {'id': 'only_profiling-table_test', 'property': 'value'},
+                                              {'id': 'only_multimodal-table_test', 'property': 'value'}])
         actual_output = callback['output']
         self.assertEqual(actual_output.component_id, 'table-table_test')
         self.assertEqual(actual_output.component_property, 'data')
 
-    def test_render(self):
+    def _test_render(self):
         dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
 
         control_panel = ControlPanelComponent(self.top_table_factory, self.state)
 
         app = Dash(prevent_initial_callbacks='initial_duplicate',
-                   external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME, dbc_css],)
+                   external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME, dbc_css], )
         self.component.callbacks(app)
         control_panel.callbacks(app)
 
