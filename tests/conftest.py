@@ -11,7 +11,7 @@ def populate_test_database(database_name):
     client.drop_database(database_name)
     db = client[database_name]
     collection = db.get_collection('raw')
-    with open('test_resources/test_data.jsonl') as f:
+    with open('test_resources/Openarms.preprocessed.jsonl') as f:
         test_data = []
         for line in f:
             tweet = json.loads(line)

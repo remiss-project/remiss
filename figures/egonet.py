@@ -246,7 +246,7 @@ class EgonetPlotFactory(MongoPlotFactory):
             {'$unwind': '$referenced_tweets'},
             {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
                         'referenced_tweets.author': {'$exists': True}}},
-            {'$project': {'_id': 0, 'source': '$author.id', 'target': '$referenced_tweets.author.id'}},
+            {'$project': {'_id': 0, 'target': '$author.id', 'source': '$referenced_tweets.author.id'}},
             {'$group': {'_id': {'source': '$source', 'target': '$target'},
                         'weight': {'$count': {}}}},
             {'$project': {'_id': 0, 'source': '$_id.source', 'target': '$_id.target', 'weight': 1}},
