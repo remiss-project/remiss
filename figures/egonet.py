@@ -315,13 +315,6 @@ class EgonetPlotFactory(MongoPlotFactory):
 
         return g
 
-    def compute_layout(self, network):
-        print(f'Computing {self.layout} layout')
-        start_time = time.time()
-        layout = network.layout(self.layout, dim=3)
-        print(f'Layout computed in {time.time() - start_time} seconds')
-        return layout
-
     def _simplify_graph(self, network):
         if self.simplification == 'maximum_spanning_tree':
             network = network.spanning_tree(weights=network.es['weight_inv'])
@@ -332,6 +325,13 @@ class EgonetPlotFactory(MongoPlotFactory):
         else:
             raise ValueError(f'Unknown simplification {self.simplification}')
         return network
+
+    def compute_layout(self, network):
+        print(f'Computing {self.layout} layout')
+        start_time = time.time()
+        layout = network.layout(self.layout, dim=3)
+        print(f'Layout computed in {time.time() - start_time} seconds')
+        return layout
 
     def plot_network(self, network, start_date=None, end_date=None):
         if 'layout' not in network.attributes():

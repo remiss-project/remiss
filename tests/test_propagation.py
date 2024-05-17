@@ -22,7 +22,16 @@ class PropagationTestCase(unittest.TestCase):
         self.plot_factory = PropagationPlotFactory(available_datasets=['test_dataset'])
 
     def test_propagation_tree(self):
-        graph = self.plot_factory.get_propagation_tree('test_dataset', '1159711316703088641')
+        graph = self.plot_factory.get_propagation_tree('test_dataset', '1160842257647493120')
+        self.assertEqual(graph.vcount(), 76)
+        self.assertEqual(graph.ecount(), 61)
+        self.assertEqual(graph.is_directed(), True)
+        self.assertIsInstance(graph.vs['author_id'][0], str)
+        self.assertIsInstance(graph.vs['username'][0], str)
+        self.assertIsInstance(graph.vs['tweet_id'][0], str)
+        self.assertEqual(graph.vs['party'][0], None)
+        self.assertEqual(graph.vs['is_usual_suspect'][0], False)
+
         # Display the igraph graph with matplotlib
         layout = graph.layout(self.plot_factory.layout)
         fig, ax = plt.subplots()
@@ -46,6 +55,13 @@ class PropagationTestCase(unittest.TestCase):
         print(df)
         df.hist(log=True, bins=100)
         plt.show()
+
+    def test_tweets_with_references(self):
+        tweets, references = self.plot_factory.get_conversation('test_dataset', '1160842257647493120')
+        self.assertEqual(tweets.columns.tolist(), ['author_id', 'username', 'is_usual_suspect', 'party'])
+        self.assertEqual(len(references), 67)
+        self.assertEqual(len(tweets), 76)
+
 
     def test_propagation_tree_simple(self):
         client = MongoClient('localhost', 27017)
@@ -71,6 +87,16 @@ class PropagationTestCase(unittest.TestCase):
         plt.show()
         actual_edges = set((graph.vs['label'][edge.source], graph.vs['label'][edge.target]) for edge in graph.es)
         self.assertEqual(actual_edges, set(edges))
+
+    def test_propagation_tree_plot(self):
+        graph = self.plot_factory.get_propagation_tree('test_dataset', '1160842257647493120')
+        fig = self.plot_factory.plot_network(graph)
+        fig.show()
+
+    def test_plot_propagation_tree(self):
+        fig = self.plot_factory.plot_propagation_tree('test_dataset', '1160842257647493120')
+        fig.show()
+
 
 
 
