@@ -11,9 +11,10 @@ import igraph as ig
 
 
 class PropagationTestCase(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        populate_test_database('test_dataset')
+    # @classmethod
+    # def setUpClass(cls):
+    #     populate_test_database('test_dataset')
+
     #
     # @classmethod
     # def tearDownClass(cls):
@@ -64,7 +65,6 @@ class PropagationTestCase(unittest.TestCase):
         self.assertEqual(len(references), 67)
         self.assertEqual(len(tweets), 76)
 
-
     def test_propagation_tree_simple(self):
         client = MongoClient('localhost', 27017)
         dataset = 'test_simple_dataset'
@@ -95,14 +95,17 @@ class PropagationTestCase(unittest.TestCase):
         fig = self.plot_factory.plot_network(graph)
         fig.show()
 
+    def test_depth_plot(self):
+        fig = self.plot_factory.plot_depth('test_dataset', '1160842257647493120')
+        fig.show()
+
+    def test_size_plot(self):
+        fig = self.plot_factory.plot_size('test_dataset', '1160842257647493120')
+        fig.show()
+
     def test_plot_propagation_tree(self):
         fig = self.plot_factory.plot_propagation_tree('test_dataset', '1160842257647493120')
         fig.show()
-
-
-
-
-
 
 
 if __name__ == '__main__':

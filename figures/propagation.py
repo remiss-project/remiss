@@ -4,6 +4,7 @@ import time
 import igraph as ig
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 import pyarrow
 import pymongo
 import pymongoarrow
@@ -249,4 +250,18 @@ class PropagationPlotFactory(MongoPlotFactory):
         )
         fig.update_layout(scene_camera=camera)
         print(f'Plot computed in {time.time() - start_time} seconds')
+        return fig
+
+    def plot_size(self, dataset, tweet_id):
+        graph = self.get_propagation_tree(dataset, tweet_id)
+        # get the difference between the first tweet and the rest in minutes
+        size = pd.Series(graph.vs['created_at'], index=graph.vs['label'])
+        size = size - size.min()
+        size = size.dt.total_seconds() / 60
+        # temporal cumulative histogram over time. the x axis is in minutes
+        fig = px.histogram(size, x=size, nbins=100, cumulative=True)
+        # set the x axis to be in minutes
+        fig.update_xaxes(title_text='Minutes')
+        fig.update_yaxes(title_text='Cumulative number of tweets')
+
         return fig
