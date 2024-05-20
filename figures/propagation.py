@@ -1,8 +1,11 @@
+import datetime
 import time
 
 import igraph as ig
 import pandas as pd
 import plotly.graph_objects as go
+import pyarrow
+import pymongo
 import pymongoarrow
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
@@ -63,7 +66,8 @@ class PropagationPlotFactory(MongoPlotFactory):
                           'author_id': '$author.id',
                           'username': '$author.username',
                           'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
-                          'party': '$author.remiss_metadata.party'
+                          'party': '$author.remiss_metadata.party',
+                          'created_at': 1
                           }}
         ]
         tweet_ids_pipeline = [
@@ -71,30 +75,41 @@ class PropagationPlotFactory(MongoPlotFactory):
             {'$unwind': '$referenced_tweets'},
             {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
                         'referenced_tweets.id': {'$exists': True},
-                        'referenced_tweets.author': {'$exists': True}
+                        'referenced_tweets.author': {'$exists': True},
+                        'created_at': {'$exists': True}
                         }},
             {'$project': {'_id': 0, 'tweet_id': '$referenced_tweets.id',
                           'author_id': '$referenced_tweets.author.id',
                           'username': '$referenced_tweets.author.username',
                           'is_usual_suspect': '$referenced_tweets.author.remiss_metadata.is_usual_suspect',
-                          'party': '$referenced_tweets.author.remiss_metadata.party'
+                          'party': '$referenced_tweets.author.remiss_metadata.party',
+                          'created_at': 1
                           }},
             {'$unionWith': {'coll': 'raw', 'pipeline': nested_pipeline}},  # Fetch missing tweets
             {'$group': {'_id': '$tweet_id',
                         'author_id': {'$first': '$author_id'},
                         'username': {'$first': '$username'},
                         'is_usual_suspect': {'$addToSet': '$is_usual_suspect'},
-                        'party': {'$addToSet': '$party'}}},
+                        'party': {'$addToSet': '$party'},
+                        'created_at': {'$first': '$created_at'},
+                        }
+             },
             {'$project': {'_id': 0,
                           'tweet_id': '$_id',
                           'author_id': 1,
                           'username': 1,
                           'is_usual_suspect': {'$anyElementTrue': '$is_usual_suspect'},
-                          'party': {'$arrayElemAt': ['$party', 0]}}}
+                          'party': {'$arrayElemAt': ['$party', 0]},
+                          'created_at': 1
+                          }
+             }
         ]
-        schema = Schema({'tweet_id': str, 'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str})
+        schema = Schema({'tweet_id': str, 'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str,
+                         'created_at': str})
         tweets = collection.aggregate_pandas_all(tweet_ids_pipeline, schema=schema)
         client.close()
+        tweets['created_at'] = pd.to_datetime(tweets['created_at'])
+
         return tweets, references
 
     def get_propagation_tree(self, dataset, tweet_id):
@@ -112,12 +127,8 @@ class PropagationPlotFactory(MongoPlotFactory):
         graph.add_vertices(len(vertices))
         graph.add_edges(edges[['source', 'target']].to_records(index=False).tolist())
         graph.vs['label'] = vertices['username'].tolist()
-        graph.vs['tweet_id'] = vertices['tweet_id'].tolist()
-        graph.vs['username'] = vertices['username'].tolist()
-        graph.vs['author_id'] = vertices['author_id'].tolist()
-        graph.vs['is_usual_suspect'] = vertices['is_usual_suspect'].tolist()
-        graph.vs['party'] = vertices['party'].tolist()
-
+        for column in vertices.columns:
+            graph.vs[column] = vertices[column].tolist()
         return graph
 
     def get_tweet(self, dataset, tweet_id):
@@ -158,10 +169,11 @@ class PropagationPlotFactory(MongoPlotFactory):
         nones = edge_positions[1::2].assign(x=None, y=None, z=None)
         edge_positions = pd.concat([edge_positions, nones]).sort_index().reset_index(drop=True)
 
-        color_map = {'normal': 'rgb(255, 234, 208)', 'suspect': 'rgb(247, 111, 142)', 'politician': 'rgb(111, 247, 142)',
+        color_map = {'normal': 'rgb(255, 234, 208)', 'suspect': 'rgb(247, 111, 142)',
+                     'politician': 'rgb(111, 247, 142)',
                      'suspect_politician': 'rgb(111, 142, 247)'}
         color = [color_map['normal'] if not is_usual_suspect else color_map[party] for is_usual_suspect, party in
-                    zip(network.vs['is_usual_suspect'], network.vs['party'])]
+                 zip(network.vs['is_usual_suspect'], network.vs['party'])]
         size = [3 if not is_usual_suspect else 10 for is_usual_suspect in network.vs['is_usual_suspect']]
 
         # metadata = pd.DataFrame({'is_usual_suspect': network.vs['is_usual_suspect'], 'party': network.vs['party']})
@@ -183,8 +195,7 @@ class PropagationPlotFactory(MongoPlotFactory):
 
             node_text = f'Username: {node["username"]}<br>' \
                         f'Is usual suspect: {is_usual_suspect}<br>' \
-                        f'Party: {party}<br>' \
-
+                        f'Party: {party}<br>'
             text.append(node_text)
 
         node_trace = go.Scatter3d(x=layout['x'],

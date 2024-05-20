@@ -2,18 +2,19 @@ import unittest
 
 import igraph as ig
 import matplotlib.pyplot as plt
+from pandas import Timestamp
 from pymongo import MongoClient
 
 from figures.propagation import PropagationPlotFactory
-from tests.conftest import populate_test_database
+from tests.conftest import populate_test_database, delete_test_database
 import igraph as ig
 
 
 class PropagationTestCase(unittest.TestCase):
-    # @classmethod
-    # def setUpClass(cls):
-    #     populate_test_database('test_dataset')
-
+    @classmethod
+    def setUpClass(cls):
+        populate_test_database('test_dataset')
+    #
     # @classmethod
     # def tearDownClass(cls):
     #     delete_test_database('test_dataset')
@@ -31,6 +32,7 @@ class PropagationTestCase(unittest.TestCase):
         self.assertIsInstance(graph.vs['tweet_id'][0], str)
         self.assertEqual(graph.vs['party'][0], None)
         self.assertEqual(graph.vs['is_usual_suspect'][0], False)
+        self.assertEqual(graph.vs['created_at'][0], Timestamp('2019-08-10 10:09:05+0000', tz='UTC'))
 
         # Display the igraph graph with matplotlib
         layout = graph.layout(self.plot_factory.layout)
