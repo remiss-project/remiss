@@ -111,14 +111,14 @@ class PropagationPlotFactory(MongoPlotFactory):
         client.close()
         tweets['created_at'] = pd.to_datetime(tweets['created_at'])
 
-        return tweets, references
+        return conversation_id, tweets, references
 
     def get_propagation_tree(self, dataset, tweet_id):
-        conversation_tweets, references = self.get_conversation(dataset, tweet_id)
-        graph = self._get_graph(conversation_tweets, references)
+        conversation_id, conversation_tweets, references = self.get_conversation(dataset, tweet_id)
+        graph = self._get_graph(conversation_id, conversation_tweets, references)
         return graph
 
-    def _get_graph(self, vertices, edges):
+    def _get_graph(self, conversation_id, vertices, edges):
         # switch id by position (which will be the node id in the graph) and set it as index
         tweet_to_id = vertices['tweet_id'].reset_index().set_index('tweet_id')
         # convert references which are author id based to graph id based
@@ -128,6 +128,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         graph.add_vertices(len(vertices))
         graph.add_edges(edges[['source', 'target']].to_records(index=False).tolist())
         graph.vs['label'] = vertices['username'].tolist()
+        graph['conversation_id'] = conversation_id
         for column in vertices.columns:
             graph.vs[column] = vertices[column].tolist()
         return graph
@@ -263,5 +264,25 @@ class PropagationPlotFactory(MongoPlotFactory):
         # set the x axis to be in minutes
         fig.update_xaxes(title_text='Minutes')
         fig.update_yaxes(title_text='Cumulative number of tweets')
+
+        return fig
+
+    def plot_depth(self, dataset, tweet_id):
+        graph = self.get_propagation_tree(dataset, tweet_id)
+        # Find maximum number of hops from any node to any node over time
+        shortest_paths = pd.DataFrame(graph.shortest_paths_dijkstra())
+        shortest_paths = shortest_paths.replace(float('inf'), -1)
+        created_at = pd.Series(graph.vs['created_at'])
+        order = created_at.argsort()
+        shortest_paths = shortest_paths.iloc[order, order]
+        created_at = created_at.iloc[order]
+        depths = {}
+        for i, time in enumerate(created_at):
+            depths[time] = shortest_paths.iloc[:i + 1, :i + 1].max().max()
+
+        depths = pd.Series(depths, name='Depth')
+        fig = px.line(depths, x=depths.index, y=depths.values)
+        fig.update_xaxes(title_text='Time')
+        fig.update_yaxes(title_text='Depth')
 
         return fig
