@@ -115,10 +115,12 @@ class PropagationPlotFactory(MongoPlotFactory):
 
     def get_propagation_tree(self, dataset, tweet_id):
         conversation_id, conversation_tweets, references = self.get_conversation(dataset, tweet_id)
-        graph = self._get_graph(conversation_id, conversation_tweets, references)
+        graph = self._get_graph(conversation_tweets, references)
+        graph['conversation_id'] = conversation_id
+
         return graph
 
-    def _get_graph(self, conversation_id, vertices, edges):
+    def _get_graph(self, vertices, edges):
         # switch id by position (which will be the node id in the graph) and set it as index
         tweet_to_id = vertices['tweet_id'].reset_index().set_index('tweet_id')
         # convert references which are author id based to graph id based
@@ -128,7 +130,6 @@ class PropagationPlotFactory(MongoPlotFactory):
         graph.add_vertices(len(vertices))
         graph.add_edges(edges[['source', 'target']].to_records(index=False).tolist())
         graph.vs['label'] = vertices['username'].tolist()
-        graph['conversation_id'] = conversation_id
         for column in vertices.columns:
             graph.vs[column] = vertices[column].tolist()
         return graph
@@ -285,4 +286,75 @@ class PropagationPlotFactory(MongoPlotFactory):
         fig.update_xaxes(title_text='Time')
         fig.update_yaxes(title_text='Depth')
 
+        return fig
+
+    def get_full_graph(self, dataset):
+        client = MongoClient(self.host, self.port)
+        self._validate_dataset(client, dataset)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
+        pipeline = [
+            {'$unwind': '$referenced_tweets'},
+            {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
+                        'referenced_tweets.id': {'$exists': True},
+                        'referenced_tweets.author': {'$exists': True}
+                        }},
+            {'$project': {'_id': 0, 'target': '$id', 'source': '$referenced_tweets.id'}},
+            {'$group': {'_id': {'source': '$source', 'target': '$target'}}},
+            {'$project': {'_id': 0, 'source': '$_id.source', 'target': '$_id.target'}},
+        ]
+        edges = collection.aggregate_pandas_all(pipeline)
+        nested_pipeline = [
+            {'$project': {'tweet_id': '$id',
+                          'author_id': '$author.id',
+                          'username': '$author.username',
+                          'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
+                          'party': '$author.remiss_metadata.party',
+                          'created_at': 1
+                          }}
+        ]
+        tweet_ids_pipeline = [
+            {'$unwind': '$referenced_tweets'},
+            {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
+                        'referenced_tweets.id': {'$exists': True},
+                        'referenced_tweets.author': {'$exists': True},
+                        'created_at': {'$exists': True}
+                        }},
+            {'$project': {'_id': 0, 'tweet_id': '$referenced_tweets.id',
+                          'author_id': '$referenced_tweets.author.id',
+                          'username': '$referenced_tweets.author.username',
+                          'is_usual_suspect': '$referenced_tweets.author.remiss_metadata.is_usual_suspect',
+                          'party': '$referenced_tweets.author.remiss_metadata.party',
+                          'created_at': 1
+                          }},
+            {'$unionWith': {'coll': 'raw', 'pipeline': nested_pipeline}},  # Fetch missing tweets
+            {'$group': {'_id': '$tweet_id',
+                        'author_id': {'$first': '$author'},
+                        'username': {'$first': '$username'},
+                        'is_usual_suspect': {'$addToSet': '$is_usual_suspect'},
+                        'party': {'$addToSet': '$party'},
+                        'created_at': {'$first': '$created_at'},
+                        }
+                },
+            {'$project': {'_id': 0,
+                          'tweet_id': '$_id',
+                          'author_id': 1,
+                          'username': 1,
+                          'is_usual_suspect': {'$anyElementTrue': '$is_usual_suspect'},
+                          'party': {'$arrayElemAt': ['$party', 0]},
+                          'created_at': 1
+                          }
+                }
+        ]
+        schema = Schema({'tweet_id': str, 'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str,
+                         'created_at': str})
+        tweets = collection.aggregate_pandas_all(tweet_ids_pipeline, schema=schema)
+        client.close()
+        tweets['created_at'] = pd.to_datetime(tweets['created_at'])
+        graph = self._get_graph(tweets, edges)
+        return graph
+
+    def plot_propagation(self, dataset):
+        graph = self.get_full_graph(dataset)
+        fig = self.plot_network(graph)
         return fig

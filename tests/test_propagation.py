@@ -107,6 +107,11 @@ class PropagationTestCase(unittest.TestCase):
         fig = self.plot_factory.plot_propagation_tree('test_dataset', '1160842257647493120')
         fig.show()
 
+    def test_graph_propagation(self):
+        graph = self.plot_factory.get_full_graph('test_dataset')
+        components = graph.connected_components(mode='weak')
+        self.assertEqual(len(components), 8485)
+
 
 if __name__ == '__main__':
     unittest.main()
