@@ -114,6 +114,20 @@ class PropagationPlotFactory(MongoPlotFactory):
         schema = Schema({'tweet_id': str, 'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str,
                          'created_at': datetime.datetime})
         tweets = collection.aggregate_pandas_all(tweets_pipeline, schema=schema)
+        if conversation_id not in tweets['tweet_id'].values:
+            # add dummy conversation id tweet picking data from the original tweet
+            conversation_tweet = {'tweet_id': conversation_id,
+                                  'author_id': '-',
+                                  'username': '-',
+                                  'is_usual_suspect': False,
+                                  'party': None,
+                                  'created_at': tweets['created_at'].min() - pd.Timedelta(1, 's')}
+
+            # link it to the oldest tweet in the conversation
+            oldest_tweet_id = tweets['tweet_id'].iloc[tweets['created_at'].idxmin()]
+            references = pd.concat([pd.DataFrame([{'source': conversation_id, 'target': oldest_tweet_id}]),
+                                    references], ignore_index=True)
+            tweets = pd.concat([pd.DataFrame([conversation_tweet]), tweets], ignore_index=True)
         client.close()
 
         return conversation_id, tweets, references
@@ -133,11 +147,6 @@ class PropagationPlotFactory(MongoPlotFactory):
         graph = ig.Graph(directed=True)
         graph['conversation_id'] = conversation_id
 
-        # Check if conversation_id is inside the vertices. If not add dummy vertex for it
-        if conversation_id not in vertices['tweet_id'].values:
-            vertices = vertices.append({'tweet_id': conversation_id, 'author_id': None, 'username': None,
-                                        'is_usual_suspect': None, 'party': None, 'created_at': None}, ignore_index=True)
-
         graph.add_vertices(len(vertices))
         graph.add_edges(edges[['source', 'target']].to_records(index=False).tolist())
         graph.vs['label'] = vertices['username'].tolist()
@@ -145,16 +154,16 @@ class PropagationPlotFactory(MongoPlotFactory):
             graph.vs[column] = vertices[column].tolist()
 
         # link connected components to the conversation id vertex
-        components = graph.connected_components(mode='weak')
-        if len(components) > 1:
-            conversation_id_index = graph.vs.find(tweet_id=conversation_id).index
-            created_at = pd.Series(graph.vs['created_at'])
-            for component in components:
-                if conversation_id_index not in component:
-                    # get first tweet in the component by created_at
-                    first = created_at.iloc[component].idxmin()
-                    # link it to the conversation id
-                    graph.add_edge(conversation_id_index, first)
+        # components = graph.connected_components(mode='weak')
+        # if len(components) > 1:
+        #     conversation_id_index = graph.vs.find(tweet_id=conversation_id).index
+        #     created_at = pd.Series(graph.vs['created_at'])
+        #     for component in components:
+        #         if conversation_id_index not in component:
+        #             # get first tweet in the component by created_at
+        #             first = created_at.iloc[component].idxmin()
+        #             # link it to the conversation id
+        #             graph.add_edge(conversation_id_index, first)
 
         return graph
 
@@ -358,8 +367,6 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         return fig
 
-
-
     def get_full_graph(self, dataset):
         client = MongoClient(self.host, self.port)
         self._validate_dataset(client, dataset)
@@ -423,10 +430,31 @@ class PropagationPlotFactory(MongoPlotFactory):
         tweets = collection.aggregate_pandas_all(tweet_ids_pipeline, schema=schema)
         client.close()
         tweets['created_at'] = pd.to_datetime(tweets['created_at'])
-        graph = self._get_graph(tweets, edges)
+        graph = self._get_graph(None, tweets, edges)
         return graph
 
     def plot_propagation(self, dataset):
         graph = self.get_full_graph(dataset)
         fig = self.plot_network(graph)
         return fig
+
+    def plot_cascade_ccdf(self, dataset):
+        conversation_ids = self.get_conversation_ids(dataset)
+        for conversation_id in conversation_ids['conversation_id']:
+            graph = self.get_propagation_tree(dataset, conversation_id)
+
+        return fig
+
+    def get_conversation_ids(self, dataset):
+        client = MongoClient(self.host, self.port)
+        self._validate_dataset(client, dataset)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
+        pipeline = [
+            {'$match': {'conversation_id': {'$exists': True}}},
+            {'$group': {'_id': '$conversation_id'}},
+            {'$project': {'conversation_id': '$_id', '_id': 0}}
+        ]
+        df = collection.aggregate_pandas_all(pipeline)
+        client.close()
+        return df
