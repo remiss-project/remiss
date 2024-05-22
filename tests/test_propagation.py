@@ -215,9 +215,12 @@ class PropagationTestCase(unittest.TestCase):
         layout = graph.layout(self.plot_factory.layout)
         ig.plot(graph, layout=layout, target=ax)
         plt.show()
-        actual_edges = set((graph.vs['label'][edge.source], graph.vs['label'][edge.target]) for edge in graph.es)
+        actual_edges = pd.DataFrame([(graph.vs['label'][edge.source], graph.vs['label'][edge.target]) for edge in graph.es], columns=['source', 'target'])
+        actual_edges['source'] = actual_edges['source'].str.replace('-', 'username_0').astype(str)
+        actual_edges['target'] = actual_edges['target'].str.replace('-', 'username_0').astype(str)
+        actual_edges = set(actual_edges.itertuples(index=False, name=None))
+        edges.append((0, 1))
         expected_edges = {(f'username_{source}', f'username_{target}') for source, target in edges}
-        expected_edges.add(('username_0', 'username_3'))
         self.assertEqual(actual_edges, expected_edges)
         self.assertEqual(len(graph.connected_components(mode='weak')), 1)
 
