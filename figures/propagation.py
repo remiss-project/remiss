@@ -154,16 +154,16 @@ class PropagationPlotFactory(MongoPlotFactory):
             graph.vs[column] = vertices[column].tolist()
 
         # link connected components to the conversation id vertex
-        # components = graph.connected_components(mode='weak')
-        # if len(components) > 1:
-        #     conversation_id_index = graph.vs.find(tweet_id=conversation_id).index
-        #     created_at = pd.Series(graph.vs['created_at'])
-        #     for component in components:
-        #         if conversation_id_index not in component:
-        #             # get first tweet in the component by created_at
-        #             first = created_at.iloc[component].idxmin()
-        #             # link it to the conversation id
-        #             graph.add_edge(conversation_id_index, first)
+        components = graph.connected_components(mode='weak')
+        if len(components) > 1:
+            conversation_id_index = graph.vs.find(tweet_id=conversation_id).index
+            created_at = pd.Series(graph.vs['created_at'])
+            for component in components:
+                if conversation_id_index not in component:
+                    # get first tweet in the component by created_at
+                    first = created_at.iloc[component].idxmin()
+                    # link it to the conversation id
+                    graph.add_edge(conversation_id_index, first)
 
         return graph
 
