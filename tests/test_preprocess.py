@@ -1,5 +1,6 @@
 import json
 import random
+import sys
 import unittest
 from collections.abc import Mapping
 from pathlib import Path
@@ -7,6 +8,7 @@ from unittest import TestCase
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 from twarc import ensure_flattened
 
 from preprocess import preprocess_tweets, fix_timestamps
@@ -285,7 +287,7 @@ class TestPreprocess(TestCase):
                 assert_mongoimport_date_format(tweet)
 
 
-    def test_preprocess_timestamps_openarms(self):
+    def test_preprocess_timestamps_openarms_1(self):
         def assert_mongoimport_date_format(tweet):
             date_fields = {'created_at', 'editable_until', 'retrieved_at'}
             for field, value in tweet.items():
@@ -310,3 +312,30 @@ class TestPreprocess(TestCase):
             tweet = json.load(f)
             fix_timestamps(tweet)
             assert_mongoimport_date_format(tweet)
+
+    def test_preprocess_timestamps_openarms_2(self):
+
+        # retrieve all the fields that are timestamps
+        date_fields = ['created_at', 'editable_until', 'retrieved_at']
+
+        def assert_mongoimport_date_format(tweet):
+            date_fields = {'created_at', 'editable_until', 'retrieved_at'}
+            for field, value in tweet.items():
+                if field in date_fields:
+                    self.assertIsInstance(value, dict)
+                    self.assertEqual(len(value), 1)
+                    self.assertEqual(list(value.keys()), ['$date'])
+                    date = list(value.values())
+                    self.assertEqual(len(date), 1)
+                    date_str = date[0]
+                    # check that the date_str is an actual iso8601 date
+                    pd.to_datetime(date_str)
+
+                elif isinstance(value, dict):
+                    assert_mongoimport_date_format(value)
+
+        with open('test_resources/Openarms.mongoimport.jsonl') as f:
+            for line in tqdm(f, file=sys.stdout):
+                tweet = json.loads(line)
+                # find all nested fields that contain timestamps
+                assert_mongoimport_date_format(tweet)
