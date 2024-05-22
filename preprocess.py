@@ -142,6 +142,10 @@ def fix_timestamps(tweet):
                 tweet[field] = {'$date': date}
         elif isinstance(value, dict):
             fix_timestamps(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    fix_timestamps(item)
 
 
 def unfix_timestamps(tweet):
@@ -157,6 +161,10 @@ def unfix_timestamps(tweet):
 
         elif isinstance(value, dict):
             unfix_timestamps(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    unfix_timestamps(item)
 
 
 def generate_test_data(twitter_jsonl_zip, metadata_file, output_file=None, freq='1D', quantity=10):
