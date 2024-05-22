@@ -108,12 +108,12 @@ class PropagationPlotFactory(MongoPlotFactory):
         ]
         tweets_pipeline = [
             *referenced_tweet_pipeline,
-            # {'$unionWith': {'coll': 'raw', 'pipeline': tweet_pipeline}},  # Fetch missing tweets
-            # *merge_tweets_and_references_pipeline
+            {'$unionWith': {'coll': 'raw', 'pipeline': tweet_pipeline}},  # Fetch missing tweets
+            *merge_tweets_and_references_pipeline
         ]
-        # schema = Schema({'tweet_id': str, 'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str,
-        #                  'created_at': datetime.datetime})
-        tweets = collection.aggregate_pandas_all(tweet_pipeline)#, schema=schema)
+        schema = Schema({'tweet_id': str, 'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str,
+                         'created_at': datetime.datetime})
+        tweets = collection.aggregate_pandas_all(tweets_pipeline, schema=schema)
         client.close()
 
         return conversation_id, tweets, references
@@ -289,7 +289,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         graph = self.get_propagation_tree(dataset, tweet_id)
         # get the difference between the first tweet and the rest in minutes
         size = pd.Series(graph.vs['created_at'], index=graph.vs['label'])
-        size = size - size.min()
+        size = size - graph.vs.find(tweet_id=graph['conversation_id'])['created_at']
         size = size.dt.total_seconds() / 60
         # temporal cumulative histogram over time. the x axis is in minutes
         fig = px.histogram(size, x=size, nbins=100, cumulative=True)
@@ -301,17 +301,14 @@ class PropagationPlotFactory(MongoPlotFactory):
 
     def plot_depth(self, dataset, tweet_id):
         graph = self.get_propagation_tree(dataset, tweet_id)
-        # Find maximum number of hops from any node to conversation_id over time
-        conversation_id_index = graph.vs.find(tweet_id=graph['conversation_id']).index
-        shortest_paths = pd.Series(graph.shortest_paths_dijkstra(source=conversation_id_index)[0])
-        shortest_paths = shortest_paths.replace(float('inf'), pd.NA)
+        shortest_paths = self.get_shortest_paths_to_conversation_id(graph)
         created_at = pd.Series(graph.vs['created_at'])
         order = created_at.argsort()
-        shortest_paths = shortest_paths.iloc[order, order]
+        shortest_paths = shortest_paths.iloc[order]
         created_at = created_at.iloc[order]
         depths = {}
         for i, time in enumerate(created_at):
-            depths[time] = shortest_paths.iloc[:i + 1, :i + 1].max().max()
+            depths[time] = shortest_paths.iloc[:i + 1].max()
 
         depths = pd.Series(depths, name='Depth')
         fig = px.line(depths, x=depths.index, y=depths.values)
@@ -319,6 +316,49 @@ class PropagationPlotFactory(MongoPlotFactory):
         fig.update_yaxes(title_text='Depth')
 
         return fig
+
+    def plot_max_breadth(self, dataset, tweet_id):
+        graph = self.get_propagation_tree(dataset, tweet_id)
+        shortest_paths = self.get_shortest_paths_to_conversation_id(graph)
+        created_at = pd.Series(graph.vs['created_at'])
+        order = created_at.argsort()
+        shortest_paths = shortest_paths.iloc[order]
+        created_at = created_at.iloc[order]
+        max_breadth = {}
+        for i, time in enumerate(created_at):
+            max_breadth[time] = shortest_paths.iloc[:i + 1].value_counts().max()
+
+        max_breadth = pd.Series(max_breadth, name='Max Breadth')
+        fig = px.line(max_breadth, x=max_breadth.index, y=max_breadth.values)
+        fig.update_xaxes(title_text='Time')
+        fig.update_yaxes(title_text='Max Breadth')
+
+        return fig
+
+    def plot_structured_virality(self, dataset, tweet_id):
+        graph = self.get_propagation_tree(dataset, tweet_id)
+        # Specifically, we define structural
+        # virality as the average distance between all pairs
+        # of nodes in a diffusion tree
+        shortests_paths = pd.DataFrame(graph.as_undirected().shortest_paths_dijkstra())
+        shortests_paths = shortests_paths.replace(float('inf'), pd.NA)
+        created_at = pd.Series(graph.vs['created_at'])
+        order = created_at.argsort()
+        shortests_paths = shortests_paths.iloc[order, order]
+        created_at = created_at.iloc[order]
+        structured_virality = {}
+        for i, time in enumerate(created_at):
+            current_shortests_paths = shortests_paths.iloc[:i + 1, :i + 1]
+            structured_virality[time] = current_shortests_paths.mean().mean()
+
+        structured_virality = pd.Series(structured_virality, name='Structured Virality')
+        fig = px.line(structured_virality, x=structured_virality.index, y=structured_virality.values)
+        fig.update_xaxes(title_text='Time')
+        fig.update_yaxes(title_text='Structured Virality')
+
+        return fig
+
+
 
     def get_full_graph(self, dataset):
         client = MongoClient(self.host, self.port)

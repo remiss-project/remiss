@@ -188,6 +188,14 @@ class PropagationTestCase(unittest.TestCase):
         fig = self.plot_factory.plot_size('test_dataset', '1160842257647493120')
         fig.show()
 
+    def test_max_breadth_plot(self):
+        fig = self.plot_factory.plot_max_breadth('test_dataset', '1160842257647493120')
+        fig.show()
+
+    def test_structured_virality_plot(self):
+        fig = self.plot_factory.plot_structured_virality('test_dataset', '1160842257647493120')
+        fig.show()
+
     def test_plot_propagation_tree(self):
         fig = self.plot_factory.plot_propagation_tree('test_dataset', '1160842257647493120')
         fig.show()
