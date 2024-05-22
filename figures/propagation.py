@@ -54,14 +54,14 @@ class PropagationPlotFactory(MongoPlotFactory):
                         'referenced_tweets.id': {'$exists': True},
                         'referenced_tweets.author': {'$exists': True}
                         }},
-            {'$project': {'_id': 0, 'target': '$id', 'source': '$referenced_tweets.id'}},
+            {'$project': {'_id': 0, 'source': '$id', 'target': '$referenced_tweets.id'}},
             {'$group': {'_id': {'source': '$source', 'target': '$target'}}},
             {'$project': {'_id': 0, 'source': '$_id.source', 'target': '$_id.target'}},
 
         ]
 
         references = collection.aggregate_pandas_all(references_pipeline)
-        nested_pipeline = [
+        tweet_pipeline = [
             {'$match': {'conversation_id': conversation_id}},
             {'$project': {'tweet_id': '$id',
                           'author_id': '$author.id',
@@ -71,7 +71,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                           'created_at': 1
                           }}
         ]
-        tweet_ids_pipeline = [
+        referenced_tweet_pipeline = [
             {'$match': {'conversation_id': conversation_id}},
             {'$unwind': '$referenced_tweets'},
             {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
@@ -84,9 +84,10 @@ class PropagationPlotFactory(MongoPlotFactory):
                           'username': '$referenced_tweets.author.username',
                           'is_usual_suspect': '$referenced_tweets.author.remiss_metadata.is_usual_suspect',
                           'party': '$referenced_tweets.author.remiss_metadata.party',
-                          'created_at': 1
-                          }},
-            {'$unionWith': {'coll': 'raw', 'pipeline': nested_pipeline}},  # Fetch missing tweets
+                          'created_at': '$referenced_tweets.created_at'
+                          }}
+        ]
+        merge_tweets_and_references_pipeline = [
             {'$group': {'_id': '$tweet_id',
                         'author_id': {'$first': '$author_id'},
                         'username': {'$first': '$username'},
@@ -105,33 +106,56 @@ class PropagationPlotFactory(MongoPlotFactory):
                           }
              }
         ]
-        schema = Schema({'tweet_id': str, 'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str,
-                         'created_at': str})
-        tweets = collection.aggregate_pandas_all(tweet_ids_pipeline, schema=schema)
+        tweets_pipeline = [
+            *referenced_tweet_pipeline,
+            # {'$unionWith': {'coll': 'raw', 'pipeline': tweet_pipeline}},  # Fetch missing tweets
+            # *merge_tweets_and_references_pipeline
+        ]
+        # schema = Schema({'tweet_id': str, 'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str,
+        #                  'created_at': datetime.datetime})
+        tweets = collection.aggregate_pandas_all(tweet_pipeline)#, schema=schema)
         client.close()
-        tweets['created_at'] = pd.to_datetime(tweets['created_at'])
 
         return conversation_id, tweets, references
 
     def get_propagation_tree(self, dataset, tweet_id):
         conversation_id, conversation_tweets, references = self.get_conversation(dataset, tweet_id)
-        graph = self._get_graph(conversation_tweets, references)
-        graph['conversation_id'] = conversation_id
+        graph = self._get_graph(conversation_id, conversation_tweets, references)
 
         return graph
 
-    def _get_graph(self, vertices, edges):
+    def _get_graph(self, conversation_id, vertices, edges):
         # switch id by position (which will be the node id in the graph) and set it as index
         tweet_to_id = vertices['tweet_id'].reset_index().set_index('tweet_id')
         # convert references which are author id based to graph id based
         edges['source'] = tweet_to_id.loc[edges['source']].reset_index(drop=True)
         edges['target'] = tweet_to_id.loc[edges['target']].reset_index(drop=True)
         graph = ig.Graph(directed=True)
+        graph['conversation_id'] = conversation_id
+
+        # Check if conversation_id is inside the vertices. If not add dummy vertex for it
+        if conversation_id not in vertices['tweet_id'].values:
+            vertices = vertices.append({'tweet_id': conversation_id, 'author_id': None, 'username': None,
+                                        'is_usual_suspect': None, 'party': None, 'created_at': None}, ignore_index=True)
+
         graph.add_vertices(len(vertices))
         graph.add_edges(edges[['source', 'target']].to_records(index=False).tolist())
         graph.vs['label'] = vertices['username'].tolist()
         for column in vertices.columns:
             graph.vs[column] = vertices[column].tolist()
+
+        # link connected components to the conversation id vertex
+        components = graph.connected_components(mode='weak')
+        if len(components) > 1:
+            conversation_id_index = graph.vs.find(tweet_id=conversation_id).index
+            created_at = pd.Series(graph.vs['created_at'])
+            for component in components:
+                if conversation_id_index not in component:
+                    # get first tweet in the component by created_at
+                    first = created_at.iloc[component].idxmin()
+                    # link it to the conversation id
+                    graph.add_edge(conversation_id_index, first)
+
         return graph
 
     def get_tweet(self, dataset, tweet_id):
@@ -254,6 +278,13 @@ class PropagationPlotFactory(MongoPlotFactory):
         print(f'Plot computed in {time.time() - start_time} seconds')
         return fig
 
+    @staticmethod
+    def get_shortest_paths_to_conversation_id(graph):
+        conversation_id_index = graph.vs.find(tweet_id=graph['conversation_id']).index
+        shortest_paths = pd.Series(graph.as_undirected().shortest_paths_dijkstra(source=conversation_id_index)[0])
+        shortest_paths = shortest_paths.replace(float('inf'), pd.NA)
+        return shortest_paths
+
     def plot_size(self, dataset, tweet_id):
         graph = self.get_propagation_tree(dataset, tweet_id)
         # get the difference between the first tweet and the rest in minutes
@@ -270,9 +301,10 @@ class PropagationPlotFactory(MongoPlotFactory):
 
     def plot_depth(self, dataset, tweet_id):
         graph = self.get_propagation_tree(dataset, tweet_id)
-        # Find maximum number of hops from any node to any node over time
-        shortest_paths = pd.DataFrame(graph.shortest_paths_dijkstra())
-        shortest_paths = shortest_paths.replace(float('inf'), -1)
+        # Find maximum number of hops from any node to conversation_id over time
+        conversation_id_index = graph.vs.find(tweet_id=graph['conversation_id']).index
+        shortest_paths = pd.Series(graph.shortest_paths_dijkstra(source=conversation_id_index)[0])
+        shortest_paths = shortest_paths.replace(float('inf'), pd.NA)
         created_at = pd.Series(graph.vs['created_at'])
         order = created_at.argsort()
         shortest_paths = shortest_paths.iloc[order, order]
@@ -335,7 +367,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                         'party': {'$addToSet': '$party'},
                         'created_at': {'$first': '$created_at'},
                         }
-                },
+             },
             {'$project': {'_id': 0,
                           'tweet_id': '$_id',
                           'author_id': 1,
@@ -344,7 +376,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                           'party': {'$arrayElemAt': ['$party', 0]},
                           'created_at': 1
                           }
-                }
+             }
         ]
         schema = Schema({'tweet_id': str, 'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str,
                          'created_at': str})
