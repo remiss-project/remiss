@@ -272,6 +272,10 @@ class PropagationTestCase(unittest.TestCase):
         fig = self.plot_factory.plot_size_cascade_ccdf('test_dataset')
         fig.show()
 
+    def test_cascade_count_over_time_plot(self):
+        fig = self.plot_factory.plot_cascade_count_over_time('test_dataset')
+        fig.show()
+
 
 if __name__ == '__main__':
     unittest.main()

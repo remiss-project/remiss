@@ -484,6 +484,34 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         return fig
 
+    def plot_cascade_count_over_time(self, dataset):
+        conversation_ids = self.get_conversation_ids(dataset)
+        # conversation_ids['user_type'] = conversation_ids.apply(transform_user_type, axis=1)
+        # conversation_ids = conversation_ids.drop(columns=['is_usual_suspect', 'party'])
+        conversation_ids = conversation_ids.set_index('created_at')
+        conversation_ids['is_politician'] = conversation_ids['party'].notnull()
+        conversation_ids['is_suspect_politician'] = conversation_ids['is_usual_suspect'] & conversation_ids['is_politician']
+        conversation_ids['is_normal'] = ~conversation_ids['is_usual_suspect'] & ~conversation_ids['is_politician']
+        conversation_ids['is_suspect'] = conversation_ids['is_usual_suspect'] & ~conversation_ids['is_politician']
+        conversation_ids['is_politician'] = conversation_ids['is_politician'] & ~conversation_ids['is_usual_suspect']
+        conversation_ids = conversation_ids.drop(columns=['conversation_id', 'is_usual_suspect', 'party'])
+        conversation_ids = conversation_ids.rename(columns={'is_normal': 'Normal', 'is_suspect': 'Suspect',
+                                                            'is_politician': 'Politician',
+                                                            'is_suspect_politician': 'Suspect politician'})
+
+        # Resample by month
+        conversation_ids = conversation_ids.resample('M').sum()
+        conversation_ids = conversation_ids.fillna(0)
+        fig = px.line(conversation_ids, x=conversation_ids.index, y=conversation_ids.columns, log_y=True,
+                      title='Number of cascades over time', labels={'value': 'Number of cascades (log scale)'},
+                      category_orders={'variable': ['Normal', 'Suspect', 'Politician', 'Suspect politician']}
+                      )
+
+        fig.update_yaxes(title_text='Number of cascades (log scale)')
+        fig.update_xaxes(title_text='Time')
+
+        return fig
+
     def get_conversation_ids(self, dataset):
         client = MongoClient(self.host, self.port)
         self._validate_dataset(client, dataset)
@@ -494,11 +522,16 @@ class PropagationPlotFactory(MongoPlotFactory):
             {'$match': {'$expr': {'$eq': ['$id', '$conversation_id']}}},
             {'$project': {'_id': 0, 'conversation_id': 1,
                           'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
-                          'party': '$author.remiss_metadata.party'}}
+                          'party': '$author.remiss_metadata.party',
+                          'created_at': 1
+                          }}
         ]
-        df = collection.aggregate_pandas_all(pipeline)
+        schema = Schema({'conversation_id': str, 'is_usual_suspect': bool, 'party': str,
+                         'created_at': datetime.datetime})
+        df = collection.aggregate_pandas_all(pipeline, schema=schema)
         client.close()
         return df
+
 
 def transform_user_type(x):
     if x['is_usual_suspect'] and x['party'] is not None:
