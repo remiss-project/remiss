@@ -1,4 +1,5 @@
 import datetime
+import random
 import time
 
 import igraph as ig
@@ -24,7 +25,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         self.reference_types = reference_types
         self.layout = layout
 
-    def get_conversation_lengths(self, dataset):
+    def get_conversation_sizes(self, dataset):
         client = MongoClient(self.host, self.port)
         self._validate_dataset(client, dataset)
         database = client.get_database(dataset)
@@ -32,11 +33,18 @@ class PropagationPlotFactory(MongoPlotFactory):
         # Compute the length of the conversation for conversation
         pipeline = [
             {'$match': {'conversation_id': {'$exists': True}}},
-            {'$group': {'_id': '$conversation_id', 'length': {'$sum': 1}}},
-            {'$sort': {'_id': 1}}
+            {'$group': {'_id': '$conversation_id',
+                        'size': {'$count': {}},
+                        'is_usual_suspect': {'$addToSet': '$author.remiss_metadata.is_usual_suspect'},
+                        'party': {'$addToSet': '$author.remiss_metadata.party'}
+                        }},
+            {'$sort': {'size': 1}},
+            {'$project': {'_id': 0, 'conversation_id': '$_id', 'size': 1,
+                          'is_usual_suspect': {'$anyElementTrue': '$is_usual_suspect'},
+                          'party': {'$arrayElemAt': ['$party', 0]}
+                          }}
         ]
         df = collection.aggregate_pandas_all(pipeline)
-        df = df.rename(columns={'_id': 'Conversation ID', 'length': 'Length'}).sort_values('Length', ascending=False)
         return df
 
     def get_conversation(self, dataset, tweet_id):
@@ -139,19 +147,22 @@ class PropagationPlotFactory(MongoPlotFactory):
         return graph
 
     def _get_graph(self, conversation_id, vertices, edges):
-        # switch id by position (which will be the node id in the graph) and set it as index
-        tweet_to_id = vertices['tweet_id'].reset_index().set_index('tweet_id')
-        # convert references which are author id based to graph id based
-        edges['source'] = tweet_to_id.loc[edges['source']].reset_index(drop=True)
-        edges['target'] = tweet_to_id.loc[edges['target']].reset_index(drop=True)
         graph = ig.Graph(directed=True)
         graph['conversation_id'] = conversation_id
 
         graph.add_vertices(len(vertices))
-        graph.add_edges(edges[['source', 'target']].to_records(index=False).tolist())
         graph.vs['label'] = vertices['username'].tolist()
         for column in vertices.columns:
             graph.vs[column] = vertices[column].tolist()
+
+        if len(edges) > 0:
+            # switch id by position (which will be the node id in the graph) and set it as index
+            tweet_to_id = vertices['tweet_id'].reset_index().set_index('tweet_id')
+            # convert references which are author id based to graph id based
+            edges['source'] = tweet_to_id.loc[edges['source']].reset_index(drop=True)
+            edges['target'] = tweet_to_id.loc[edges['target']].reset_index(drop=True)
+
+            graph.add_edges(edges[['source', 'target']].to_records(index=False).tolist())
 
         # link connected components to the conversation id vertex
         components = graph.connected_components(mode='weak')
@@ -438,10 +449,38 @@ class PropagationPlotFactory(MongoPlotFactory):
         fig = self.plot_network(graph)
         return fig
 
-    def plot_cascade_ccdf(self, dataset):
+    def plot_depth_cascade_ccdf(self, dataset):
         conversation_ids = self.get_conversation_ids(dataset)
+        depths = []
         for conversation_id in conversation_ids['conversation_id']:
             graph = self.get_propagation_tree(dataset, conversation_id)
+            depth = self.get_shortest_paths_to_conversation_id(graph).max()
+            depths.append(depth)
+
+        conversation_ids['depth'] = depths
+        conversation_ids['user_type'] = conversation_ids.apply(transform_user_type, axis=1)
+        conversation_ids = conversation_ids.drop(columns=['is_usual_suspect', 'party'])
+        ccdf = {}
+        for user_type, df in conversation_ids.groupby('user_type'):
+            ccdf[user_type] = df['depth'].value_counts(normalize=True).sort_index(ascending=False).cumsum()
+
+        ccdf = pd.DataFrame(ccdf)
+        fig = px.line(ccdf, x=ccdf.index, y=ccdf.columns, log_y=True)
+
+        return fig
+
+    def plot_size_cascade_ccdf(self, dataset):
+        conversation_sizes = self.get_conversation_sizes(dataset)
+
+        conversation_sizes['user_type'] = conversation_sizes.apply(transform_user_type, axis=1)
+        conversation_sizes = conversation_sizes.drop(columns=['is_usual_suspect', 'party'])
+        ccdf = {}
+        for user_type, df in conversation_sizes.groupby('user_type'):
+            ccdf[user_type] = df['size'].value_counts(normalize=True).sort_index(ascending=False).cumsum()
+
+        ccdf = pd.DataFrame(ccdf)
+        ccdf = ccdf * 100
+        fig = px.line(ccdf, x=ccdf.index, y=ccdf.columns, log_y=True)
 
         return fig
 
@@ -450,11 +489,23 @@ class PropagationPlotFactory(MongoPlotFactory):
         self._validate_dataset(client, dataset)
         database = client.get_database(dataset)
         collection = database.get_collection('raw')
+        # get tweets that are the start of the conversation, so its conversation_id is the tweet_id
         pipeline = [
-            {'$match': {'conversation_id': {'$exists': True}}},
-            {'$group': {'_id': '$conversation_id'}},
-            {'$project': {'conversation_id': '$_id', '_id': 0}}
+            {'$match': {'$expr': {'$eq': ['$id', '$conversation_id']}}},
+            {'$project': {'_id': 0, 'conversation_id': 1,
+                          'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
+                          'party': '$author.remiss_metadata.party'}}
         ]
         df = collection.aggregate_pandas_all(pipeline)
         client.close()
         return df
+
+def transform_user_type(x):
+    if x['is_usual_suspect'] and x['party'] is not None:
+        return 'Suspect politician'
+    elif x['is_usual_suspect']:
+        return 'Suspect'
+    elif x['party'] is not None:
+        return 'Politician'
+    else:
+        return 'Normal'

@@ -49,7 +49,7 @@ class PropagationTestCase(unittest.TestCase):
         self.assertFalse(shortest_paths.isna().any())
 
     def test_propagation_lengths(self):
-        df = self.plot_factory.get_conversation_lengths('test_dataset')
+        df = self.plot_factory.get_conversation_sizes('test_dataset')
         for tweet_id in df['Conversation ID'].iloc[11:]:
             try:
                 graph = self.plot_factory.get_propagation_tree('test_dataset', tweet_id)
@@ -264,8 +264,12 @@ class PropagationTestCase(unittest.TestCase):
         components = graph.connected_components(mode='weak')
         self.assertEqual(len(components), 8485)
 
-    def test_cascade_ccdf_plot(self):
-        fig = self.plot_factory.plot_cascade_ccdf('test_dataset')
+    def test_depth_cascade_ccdf_plot(self):
+        fig = self.plot_factory.plot_depth_cascade_ccdf('test_dataset')
+        fig.show()
+
+    def test_size_cascade_ccdf_plot(self):
+        fig = self.plot_factory.plot_size_cascade_ccdf('test_dataset')
         fig.show()
 
 
