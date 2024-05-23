@@ -252,7 +252,7 @@ class PropagationTestCase(unittest.TestCase):
         fig.show()
 
     def test_structured_virality_plot(self):
-        fig = self.plot_factory.plot_structured_virality('test_dataset', '1160842257647493120')
+        fig = self.plot_factory.plot_structural_virality('test_dataset', '1160842257647493120')
         fig.show()
 
     def test_plot_propagation_tree(self):

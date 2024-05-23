@@ -355,7 +355,7 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         return fig
 
-    def plot_structured_virality(self, dataset, tweet_id):
+    def plot_structural_virality(self, dataset, tweet_id):
         graph = self.get_propagation_tree(dataset, tweet_id)
         # Specifically, we define structural
         # virality as the average distance between all pairs
