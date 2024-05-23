@@ -99,13 +99,33 @@ class PropagationComponentTest(unittest.TestCase):
                 break
 
         self.assertEqual(callback['inputs'], [{'id': 'current-dataset-state', 'property': 'data'},
-                                              {'id': 'current-hashtags-state', 'property': 'data'},
-                                              {'id': 'current-start-date-state', 'property': 'data'},
-                                              {'id': 'current-end-date-state', 'property': 'data'}])
+                                              {'id': 'current-tweet-state', 'property': 'data'}])
         actual_output = [{'component_id': o.component_id, 'property': o.component_property} for o in
                          callback['output']]
-        self.assertEqual(actual_output, [{'component_id': 'fig-tweet-timeseries', 'property': 'figure'},
-                                         {'component_id': 'fig-users-timeseries', 'property': 'figure'}])
+        self.assertEqual(actual_output, [{'component_id': 'fig-propagation-tree-propagation', 'property': 'figure'},
+                                         {'component_id': 'fig-propagation-depth-propagation', 'property': 'figure'},
+                                         {'component_id': 'fig-propagation-size-propagation', 'property': 'figure'},
+                                         {'component_id': 'fig-propagation-max-breadth-propagation',
+                                          'property': 'figure'},
+                                         {'component_id': 'fig-propagation-structural-virality-propagation',
+                                          'property': 'figure'}])
+
+    def test_update_cascade_callback(self):
+        app = Dash()
+        self.component.callbacks(app)
+
+        callback = None
+        for cb in app.callback_map.values():
+            if 'PropagationComponent.update_cascade' in str(cb["callback"]):
+                callback = cb
+                break
+
+        self.assertEqual(callback['inputs'], [{'id': 'current-dataset-state', 'property': 'data'}])
+        actual_output = [{'component_id': o.component_id, 'property': o.component_property} for o in
+                         callback['output']]
+        self.assertEqual(actual_output, [{'component_id': 'fig-cascade-ccdf-propagation', 'property': 'figure'},
+                                         {'component_id': 'fig-cascade-count-over-time-propagation',
+                                          'property': 'figure'}])
 
 
 if __name__ == '__main__':
