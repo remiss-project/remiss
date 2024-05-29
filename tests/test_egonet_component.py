@@ -100,7 +100,5 @@ class EgonetComponentTest(TestCase):
         self.assertEqual(callback['output'].component_id, f'fig-{self.component.name}')
         self.assertEqual(callback['output'].component_property, 'figure')
 
-
-
 if __name__ == '__main__':
     unittest.main()

@@ -184,7 +184,7 @@ def generate_test_data(twitter_jsonl_zip, metadata_file, output_file=None, freq=
         output_mongoimport = Path(output_file)
     else:
         output_mongoimport = twitter_jsonl_zip.parent / (
-                    twitter_jsonl_zip.stem.split('.')[0] + '.mongoimport.test.jsonl')
+                twitter_jsonl_zip.stem.split('.')[0] + '.mongoimport.test.jsonl')
     data = []
     with zipfile.ZipFile(twitter_jsonl_zip, 'r') as zip_ref:
         with zip_ref.open(zip_ref.namelist()[0], 'r') as infile:
@@ -204,3 +204,33 @@ def generate_test_data(twitter_jsonl_zip, metadata_file, output_file=None, freq=
     with open(output_mongoimport, "w") as mongoimport_outfile:
         for tweet in sample:
             mongoimport_outfile.write(json.dumps(tweet) + '\n')
+
+
+def validate_fact_checking_dataset_data(data_dir):
+    data_dir = Path(data_dir)
+    expected_tweet_images = {'claim_image', 'evidence_image', 'graph_claim', 'graph_evidence_text',
+                             'graph_evidence_vis', 'visual_evidences'}
+
+    expected_metadata_fields = {'claim_text', 'id', 'tweet_id', 'text_evidences', 'evidence_text',
+                                'evidence_image_alt_text', 'results'}
+    expected_metadata_results = {'predicted_label', 'actual_label', 'num_claim_edges', 'frac_verified', 'explanations',
+                                 'visual_similarity_score'}
+
+    for dataset in data_dir.iterdir():
+        if dataset.is_dir():
+            for tweet_images_dir in dataset.iterdir():
+                if tweet_images_dir.is_dir():
+                    images = {image.stem for image in tweet_images_dir.iterdir() if image.is_file()}
+                    if images != expected_tweet_images:
+                        print(f'Unexpected images in {tweet_images_dir}: {images - expected_tweet_images}')
+                elif tweet_images_dir.name != 'metadata.json':
+                    print(f'Unexpected file {tweet_images_dir} in {dataset}')
+
+            with (open(dataset / 'metadata.json', 'r') as metadata_file):
+                metadata = json.load(metadata_file)
+                for tweet_metadata in metadata:
+
+                    if set(tweet_metadata.keys()) != expected_metadata_fields:
+                        print(f'Unexpected metadata fields: {set(tweet_metadata.keys()) - expected_metadata_fields}')
+                    if set(tweet_metadata['results'].keys()) == expected_metadata_results:
+                        print(f'Unexpected metadata results fields: {set(tweet_metadata["results"].keys()) - expected_metadata_results}')

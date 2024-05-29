@@ -9,17 +9,18 @@ from pymongo import MongoClient
 from components.dashboard import RemissState
 from components.propagation import PropagationComponent
 from figures.propagation import PropagationPlotFactory
+from tests.conftest import populate_test_database, delete_test_database
 
 
 class PropagationComponentTest(unittest.TestCase):
 
-    # @classmethod
-    # def setUpClass(cls):
-    #     populate_test_database('test_dataset')
+    @classmethod
+    def setUpClass(cls):
+        populate_test_database('test_dataset')
 
-    # @classmethod
-    # def tearDownClass(cls):
-    #     delete_test_database('test_dataset')
+    @classmethod
+    def tearDownClass(cls):
+        delete_test_database('test_dataset')
 
     def setUp(self):
         self.plot_factory = PropagationPlotFactory()
