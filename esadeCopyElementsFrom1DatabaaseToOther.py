@@ -20,15 +20,17 @@ def connect_to_mongo(uri, db_name, collection_name):
 def transfer_documents(source_uri, source_db, source_col, dest_uri, dest_db, dest_col):
     source_collection = connect_to_mongo(source_uri, source_db, source_col)
     if source_collection is None:
+        print("No source collection found")
         return
 
     try:
         result_source = source_collection.find()
+        result_source = list(result_source)
     except PyMongoError as e:
-        print(f"Error finding documents: {e}")
+        print(f"Error retrieving documents: {e}")
         return
 
-    print("Elements Loaded")
+    print(f"Transferring {len(result_source)} documents")
     dest_collection = connect_to_mongo(dest_uri, dest_db, dest_col)
     if dest_collection is None:
         return
