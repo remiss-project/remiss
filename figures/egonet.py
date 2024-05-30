@@ -302,7 +302,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         g.vs['is_usual_suspect'] = authors['is_usual_suspect']
         g.vs['party'] = authors['party']
         g['reputation'] = reputation
-        g.vs['legitimacy'] = legitimacy
+        g.vs['legitimacy'] = legitimacy.to_list()
         g.add_edges(references[['source', 'target']].to_records(index=False).tolist())
         g.es['weight'] = references['weight']
         g.es['weight_inv'] = references['weight_inv']

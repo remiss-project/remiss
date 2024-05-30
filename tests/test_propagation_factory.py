@@ -13,9 +13,9 @@ import igraph as ig
 
 
 class PropagationTestCase(unittest.TestCase):
-    # @classmethod
-    # def setUpClass(cls):
-    #     populate_test_database('test_dataset')
+    @classmethod
+    def setUpClass(cls):
+        populate_test_database('test_dataset')
 
     # @classmethod
     # def tearDownClass(cls):
@@ -265,11 +265,17 @@ class PropagationTestCase(unittest.TestCase):
         self.assertEqual(len(components), 8485)
 
     def test_depth_cascade_ccdf_plot(self):
+        start_time = Timestamp.now()
         fig = self.plot_factory.plot_depth_cascade_ccdf('test_dataset')
+        end_time = Timestamp.now()
+        print(f'Time taken: {end_time - start_time}')
         fig.show()
 
     def test_size_cascade_ccdf_plot(self):
+        start_time = Timestamp.now()
         fig = self.plot_factory.plot_size_cascade_ccdf('test_dataset')
+        end_time = Timestamp.now()
+        print(f'Time taken: {end_time - start_time}')
         fig.show()
 
     def test_cascade_count_over_time_plot(self):

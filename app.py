@@ -71,14 +71,12 @@ def create_app(config):
     print('Creating plot factories...')
     start_time = time.time()
     tweet_user_plot_factory = TimeSeriesFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                                database=config['mongodb']['database'],
                                                 available_datasets=config['available_datasets'])
     tweet_table_factory = TweetTableFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                            database=config['mongodb']['database'],
                                             available_datasets=config['available_datasets'])
 
     egonet_plot_factory = EgonetPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                            database=config['mongodb']['database'], cache_dir=config['cache_dir'],
+                                            cache_dir=config['cache_dir'],
                                             layout=config['graph_layout'],
                                             simplification=config['graph_simplification']['method'],
                                             threshold=config['graph_simplification']['threshold'],
