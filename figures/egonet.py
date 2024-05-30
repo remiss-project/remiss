@@ -276,8 +276,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         """
         authors = self._get_authors(dataset)
         references = self._get_references(dataset)
-        available_reputation = self.get_reputation(dataset)
-        available_legitimacy = self.get_legitimacy(dataset)
+
         if len(authors) == 0:
             # in case of no authors we return an empty graph
             return ig.Graph(directed=True)
@@ -290,10 +289,16 @@ class EgonetPlotFactory(MongoPlotFactory):
         references['source'] = author_to_id.loc[references['source']].reset_index(drop=True)
         references['target'] = author_to_id.loc[references['target']].reset_index(drop=True)
         # we only have reputation and legitimacy for a subset of the authors, so the others will be set to nan
+        available_legitimacy = self.get_legitimacy(dataset)
+        available_reputation = self.get_reputation(dataset)
+        available_status = self.get_status(dataset)
         reputation = pd.DataFrame(np.nan, index=author_to_id.index, columns=available_reputation.columns)
         reputation.loc[available_reputation.index] = available_reputation
         legitimacy = pd.Series(np.nan, index=author_to_id.index)
         legitimacy[available_legitimacy.index] = available_legitimacy['legitimacy']
+        status = pd.DataFrame(np.nan, index=author_to_id.index, columns=available_status.columns)
+        status.loc[available_status.index] = available_status
+
 
         g = ig.Graph(directed=True)
         g.add_vertices(len(authors))
@@ -302,6 +307,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         g.vs['is_usual_suspect'] = authors['is_usual_suspect']
         g.vs['party'] = authors['party']
         g['reputation'] = reputation
+        g['status'] = status
         g.vs['legitimacy'] = legitimacy.to_list()
         g.add_edges(references[['source', 'target']].to_records(index=False).tolist())
         g.es['weight'] = references['weight']
@@ -312,6 +318,7 @@ class EgonetPlotFactory(MongoPlotFactory):
 
         layout = self.compute_layout(g)
         g['layout'] = layout
+        self.persist_hidden_network(dataset, g)
 
         return g
 
@@ -451,6 +458,21 @@ class EgonetPlotFactory(MongoPlotFactory):
         fig.update_layout(scene_camera=camera)
         print(f'Plot computed in {time.time() - start_time} seconds')
         return fig
+
+    def persist_hidden_network(self, dataset, graph):
+        # Get legitimacy, reputation, and status from the graph vertices
+        legitimacy = pd.Series(graph.vs['legitimacy'], index=graph.vs['author_id'])
+        reputation = graph['reputation']
+        status = graph['status']
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('user_propagation')
+        collection.drop()
+        collection.insert_many([{'author_id': author_id,
+                                 'legitimacy': legitimacy.get(author_id),
+                                 'reputation': reputation.loc[author_id].to_json(),
+                                 'status': status.loc[author_id].to_json()} for author_id in graph.vs['author_id']])
+
 
 
 def compute_backbone(graph, alpha=0.05, delete_vertices=True):
