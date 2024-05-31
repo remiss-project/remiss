@@ -20,7 +20,7 @@ class EgonetPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, cache_dir=None,
                  reference_types=('replied_to', 'quoted', 'retweeted'), layout='fruchterman_reingold',
                  simplification=None, threshold=0.2, delete_vertices=True, k_cores=4, frequency='1D',
-                 available_datasets=None, prepopulate=False, small_size_multiplier=50, big_size_multiplier=10):
+                 available_datasets=None, small_size_multiplier=50, big_size_multiplier=10):
         super().__init__(host, port, available_datasets)
         self.big_size_multiplier = big_size_multiplier
         self.small_size_multiplier = small_size_multiplier
@@ -37,9 +37,6 @@ class EgonetPlotFactory(MongoPlotFactory):
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.simplification = simplification
         self.k_cores = k_cores
-        self.prepopulate = prepopulate
-        if self.prepopulate:
-            self.prepopulate_cache()
 
     def plot_egonet(self, collection, user, depth, start_date=None, end_date=None):
         network = self.get_egonet(collection, user, depth)
@@ -116,14 +113,16 @@ class EgonetPlotFactory(MongoPlotFactory):
         hn_graph_file = dataset_dir / f'{stem}.graphmlz'
         network.write_graphmlz(str(hn_graph_file))
 
-    def prepopulate_cache(self):
+    def prepopulate(self):
         if not self.cache_dir:
-            raise ValueError('Cache directory not set')
+            print('WARNING: Cache directory not set')
 
-        for dataset in (pbar := tqdm(self.available_datasets, desc='Prepopulating cache')):
+        for dataset in (pbar := tqdm(self.available_datasets, desc='Prepopulating egonet')):
             pbar.set_postfix_str(dataset)
-            self.get_hidden_network(dataset)
-
+            network = self._compute_hidden_network(dataset)
+            if self.cache_dir:
+                stem = f'hidden_network'
+                self.save_to_cache(dataset, network, stem)
     def get_legitimacy(self, dataset):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
@@ -299,7 +298,6 @@ class EgonetPlotFactory(MongoPlotFactory):
         status = pd.DataFrame(np.nan, index=author_to_id.index, columns=available_status.columns)
         status.loc[available_status.index] = available_status
 
-
         g = ig.Graph(directed=True)
         g.add_vertices(len(authors))
         g.vs['author_id'] = authors['author_id']
@@ -471,7 +469,8 @@ class EgonetPlotFactory(MongoPlotFactory):
         collection.insert_many([{'author_id': author_id,
                                  'legitimacy': legitimacy.get(author_id),
                                  'reputation': reputation.loc[author_id].to_json(date_format='iso'),
-                                 'status': status.loc[author_id].to_json(date_format='iso')} for author_id in graph.vs['author_id']])
+                                 'status': status.loc[author_id].to_json(date_format='iso')} for author_id in
+                                graph.vs['author_id']])
 
     def load_graph_metrics_from_db(self, dataset):
         client = MongoClient(self.host, self.port)

@@ -8,6 +8,7 @@ from pyaml_env import parse_config
 
 from components import RemissDashboard
 from figures import TimeSeriesFactory, EgonetPlotFactory, TweetTableFactory
+from figures.propagation import PropagationPlotFactory
 from figures.universitat_valencia import UVAPIFactory
 
 available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
@@ -41,16 +42,19 @@ available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
 
 def prepopulate(config):
     egonet_plot_factory = EgonetPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                            database=config['mongodb']['database'], cache_dir=config['cache_dir'],
+                                            cache_dir=config['cache_dir'],
                                             layout=config['graph_layout'],
                                             simplification=config['graph_simplification']['method'],
                                             threshold=config['graph_simplification']['threshold'],
                                             frequency=config['frequency'],
-                                            available_datasets=config['available_datasets'],
-                                            prepopulate=False)
+                                            available_datasets=config['available_datasets'])
+    propagation_plot_factory = PropagationPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                                      available_datasets=config['available_datasets'])
     print('Prepopulating...')
     start_time = time.time()
-    egonet_plot_factory.prepopulate_cache()
+    egonet_plot_factory.prepopulate()
+    propagation_plot_factory.prepopulate()
+
     print(f'Prepopulated in {time.time() - start_time} seconds.')
 
 
@@ -82,10 +86,9 @@ def create_app(config):
                                             threshold=config['graph_simplification']['threshold'],
                                             frequency=config['frequency'],
                                             available_datasets=config['available_datasets'],
-                                            prepopulate=config['prepopulate']
+
                                             )
     uv_factory = UVAPIFactory(api_url=config['uv']['api_url'])
-
 
     dashboard = RemissDashboard(tweet_user_plot_factory,
                                 tweet_table_factory,

@@ -11,6 +11,5 @@ available_datasets:
 theme: PULSE
 debug: True
 frequency: 1D
-prepopulate: False
 uv:
   api_url: 'http://srvinv02.esade.es:5005/api'

@@ -11,6 +11,7 @@ import pymongo
 import pymongoarrow
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
+from tqdm import tqdm
 
 from figures.figures import MongoPlotFactory
 
@@ -617,6 +618,14 @@ class PropagationPlotFactory(MongoPlotFactory):
         structural_virality['timespan'] = pd.to_timedelta(structural_virality['timespan'], unit='s')
         client.close()
         return structural_virality[['conversation_id', 'structured_virality', 'timespan']].set_index('conversation_id')
+
+    def prepopulate(self):
+        if not self.cache_dir:
+            print('WARNING: Cache directory not set')
+
+        for dataset in (pbar := tqdm(self.available_datasets, desc='Prepopulating propagation')):
+            pbar.set_postfix_str(dataset)
+            self.persist_propagation_metrics(dataset)
 
 
 def transform_user_type(x):
