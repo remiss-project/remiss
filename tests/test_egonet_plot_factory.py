@@ -402,7 +402,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.assertTrue('user_propagation' in database.list_collection_names())
         collection = database.get_collection('user_propagation')
         self.assertTrue(collection.count_documents({}) > 0)
-        actual_legitimacy, actual_reputation, actual_status = self.egonet_plot.load_hidden_network_from_db(self.dataset)
+        actual_legitimacy, actual_reputation, actual_status = self.egonet_plot.load_graph_metrics_from_db(self.dataset)
 
         expected_legitimacy = pd.Series(graph.vs['legitimacy'], index=graph.vs['author_id'], name='legitimacy')
         expected_reputation = graph['reputation']

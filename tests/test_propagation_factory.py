@@ -240,19 +240,19 @@ class PropagationTestCase(unittest.TestCase):
 
 
     def test_depth_plot(self):
-        fig = self.plot_factory.plot_depth('test_dataset', '1160842257647493120')
+        fig = self.plot_factory.plot_depth_over_time('test_dataset', '1160842257647493120')
         fig.show()
 
     def test_size_plot(self):
-        fig = self.plot_factory.plot_size('test_dataset', '1160842257647493120')
+        fig = self.plot_factory.plot_size_over_time('test_dataset', '1160842257647493120')
         fig.show()
 
     def test_max_breadth_plot(self):
-        fig = self.plot_factory.plot_max_breadth('test_dataset', '1160842257647493120')
+        fig = self.plot_factory.plot_max_breadth_over_time('test_dataset', '1160842257647493120')
         fig.show()
 
     def test_structured_virality_plot(self):
-        fig = self.plot_factory.plot_structural_virality('test_dataset', '1160842257647493120')
+        fig = self.plot_factory.plot_structural_virality_over_time('test_dataset', '1160842257647493120')
         fig.show()
 
     def test_plot_propagation_tree(self):
@@ -281,6 +281,12 @@ class PropagationTestCase(unittest.TestCase):
     def test_cascade_count_over_time_plot(self):
         fig = self.plot_factory.plot_cascade_count_over_time('test_dataset')
         fig.show()
+
+    def test_persist_propagation_metrics(self):
+        self.plot_factory.persist_propagation_metrics('test_dataset')
+        expected = self.plot_factory.get_structural_viralities('test_dataset')
+        actual = self.plot_factory.load_propagation_metrics_from_db('test_dataset')
+        pd.testing.assert_frame_equal(expected, actual)
 
 
 if __name__ == '__main__':

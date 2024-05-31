@@ -305,12 +305,16 @@ class PropagationPlotFactory(MongoPlotFactory):
         shortest_paths = shortest_paths.replace(float('inf'), pd.NA)
         return shortest_paths
 
-    def plot_size(self, dataset, tweet_id):
+    def get_size_over_time(self, dataset, tweet_id):
         graph = self.get_propagation_tree(dataset, tweet_id)
         # get the difference between the first tweet and the rest in minutes
         size = pd.Series(graph.vs['created_at'], index=graph.vs['label'])
         size = size - graph.vs.find(tweet_id=graph['conversation_id'])['created_at']
         size = size.dt.total_seconds() / 60
+        return size
+
+    def plot_size_over_time(self, dataset, tweet_id):
+        size = self.get_size_over_time(dataset, tweet_id)
         # temporal cumulative histogram over time. the x axis is in minutes
         fig = px.histogram(size, x=size, nbins=100, cumulative=True)
         # set the x axis to be in minutes
@@ -319,7 +323,7 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         return fig
 
-    def plot_depth(self, dataset, tweet_id):
+    def get_depth_over_time(self, dataset, tweet_id):
         graph = self.get_propagation_tree(dataset, tweet_id)
         shortest_paths = self.get_shortest_paths_to_conversation_id(graph)
         created_at = pd.Series(graph.vs['created_at'])
@@ -331,13 +335,17 @@ class PropagationPlotFactory(MongoPlotFactory):
             depths[time] = shortest_paths.iloc[:i + 1].max()
 
         depths = pd.Series(depths, name='Depth')
+        return depths
+
+    def plot_depth_over_time(self, dataset, tweet_id):
+        depths = self.get_depth_over_time(dataset, tweet_id)
         fig = px.line(depths, x=depths.index, y=depths.values)
         fig.update_xaxes(title_text='Time')
         fig.update_yaxes(title_text='Depth')
 
         return fig
 
-    def plot_max_breadth(self, dataset, tweet_id):
+    def get_max_breadth_over_time(self, dataset, tweet_id):
         graph = self.get_propagation_tree(dataset, tweet_id)
         shortest_paths = self.get_shortest_paths_to_conversation_id(graph)
         created_at = pd.Series(graph.vs['created_at'])
@@ -349,13 +357,56 @@ class PropagationPlotFactory(MongoPlotFactory):
             max_breadth[time] = shortest_paths.iloc[:i + 1].value_counts().max()
 
         max_breadth = pd.Series(max_breadth, name='Max Breadth')
+        return max_breadth
+
+    def plot_max_breadth_over_time(self, dataset, tweet_id):
+        max_breadth = self.get_max_breadth_over_time(dataset, tweet_id)
+
         fig = px.line(max_breadth, x=max_breadth.index, y=max_breadth.values)
         fig.update_xaxes(title_text='Time')
         fig.update_yaxes(title_text='Max Breadth')
 
         return fig
 
-    def plot_structural_virality(self, dataset, tweet_id):
+    def get_structural_virality(self, dataset, tweet_id):
+        graph = self.get_propagation_tree(dataset, tweet_id)
+        # Specifically, we define structural
+        # virality as the average distance between all pairs
+        # of nodes in a diffusion tree
+        shortests_paths = pd.DataFrame(graph.as_undirected().shortest_paths_dijkstra())
+        shortests_paths = shortests_paths.replace(float('inf'), pd.NA)
+        structured_virality = shortests_paths.mean().mean()
+        return structured_virality
+
+    def get_structural_virality_and_timespan(self, dataset, tweet_id):
+        graph = self.get_propagation_tree(dataset, tweet_id)
+        # Specifically, we define structural
+        # virality as the average distance between all pairs
+        # of nodes in a diffusion tree
+        shortests_paths = pd.DataFrame(graph.as_undirected().shortest_paths_dijkstra())
+        shortests_paths = shortests_paths.replace(float('inf'), pd.NA)
+        created_at = pd.Series(graph.vs['created_at'])
+        structured_virality = shortests_paths.mean().mean()
+        timespan = created_at.max() - created_at.min()
+        return structured_virality, timespan
+
+    def get_structural_viralities(self, dataset):
+        conversation_ids = self.get_conversation_ids(dataset)
+        structured_viralities = []
+        timespans = []
+        for conversation_id in conversation_ids['conversation_id']:
+            structured_virality, timespan = self.get_structural_virality_and_timespan(dataset, conversation_id)
+            structured_viralities.append(structured_virality)
+            timespans.append(timespan)
+        # Cast to pandas
+        structured_viralities = pd.DataFrame({'conversation_id': conversation_ids['conversation_id'],
+                                              'structured_virality': structured_viralities,
+                                              'timespan': timespans})
+        structured_viralities = structured_viralities.set_index('conversation_id')
+
+        return structured_viralities
+
+    def get_structural_virality_over_time(self, dataset, tweet_id):
         graph = self.get_propagation_tree(dataset, tweet_id)
         # Specifically, we define structural
         # virality as the average distance between all pairs
@@ -372,6 +423,11 @@ class PropagationPlotFactory(MongoPlotFactory):
             structured_virality[time] = current_shortests_paths.mean().mean()
 
         structured_virality = pd.Series(structured_virality, name='Structured Virality')
+        return structured_virality
+
+    def plot_structural_virality_over_time(self, dataset, tweet_id):
+        structured_virality = self.get_structural_virality_over_time(dataset, tweet_id)
+
         fig = px.line(structured_virality, x=structured_virality.index, y=structured_virality.values)
         fig.update_xaxes(title_text='Time')
         fig.update_yaxes(title_text='Structured Virality')
@@ -449,7 +505,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         fig = self.plot_network(graph)
         return fig
 
-    def plot_depth_cascade_ccdf(self, dataset):
+    def get_depth_cascade_ccdf(self, dataset):
         conversation_ids = self.get_conversation_ids(dataset)
         depths = []
         for conversation_id in conversation_ids['conversation_id']:
@@ -465,13 +521,17 @@ class PropagationPlotFactory(MongoPlotFactory):
             ccdf[user_type] = df['depth'].value_counts(normalize=True).sort_index(ascending=False).cumsum()
 
         ccdf = pd.DataFrame(ccdf)
+        ccdf = ccdf * 100
+        return ccdf
+
+    def plot_depth_cascade_ccdf(self, dataset):
+        ccdf = self.get_depth_cascade_ccdf(dataset)
         fig = px.line(ccdf, x=ccdf.index, y=ccdf.columns, log_y=True)
 
         return fig
 
-    def plot_size_cascade_ccdf(self, dataset):
+    def get_size_cascade_ccdf(self, dataset):
         conversation_sizes = self.get_conversation_sizes(dataset)
-
         conversation_sizes['user_type'] = conversation_sizes.apply(transform_user_type, axis=1)
         conversation_sizes = conversation_sizes.drop(columns=['is_usual_suspect', 'party'])
         ccdf = {}
@@ -480,28 +540,28 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         ccdf = pd.DataFrame(ccdf)
         ccdf = ccdf * 100
+        return ccdf
+
+    def plot_size_cascade_ccdf(self, dataset):
+        ccdf = self.get_size_cascade_ccdf(dataset)
         fig = px.line(ccdf, x=ccdf.index, y=ccdf.columns, log_y=True)
 
         return fig
 
-    def plot_cascade_count_over_time(self, dataset):
+    def get_cascade_count_over_time(self, dataset):
         conversation_ids = self.get_conversation_ids(dataset)
-        # conversation_ids['user_type'] = conversation_ids.apply(transform_user_type, axis=1)
-        # conversation_ids = conversation_ids.drop(columns=['is_usual_suspect', 'party'])
-        conversation_ids = conversation_ids.set_index('created_at')
-        conversation_ids['is_politician'] = conversation_ids['party'].notnull()
-        conversation_ids['is_suspect_politician'] = conversation_ids['is_usual_suspect'] & conversation_ids['is_politician']
-        conversation_ids['is_normal'] = ~conversation_ids['is_usual_suspect'] & ~conversation_ids['is_politician']
-        conversation_ids['is_suspect'] = conversation_ids['is_usual_suspect'] & ~conversation_ids['is_politician']
-        conversation_ids['is_politician'] = conversation_ids['is_politician'] & ~conversation_ids['is_usual_suspect']
-        conversation_ids = conversation_ids.drop(columns=['conversation_id', 'is_usual_suspect', 'party'])
+        conversation_ids['user_type'] = conversation_ids.apply(transform_user_type, axis=1)
+        conversation_ids = conversation_ids.drop(columns=['is_usual_suspect', 'party'])
         conversation_ids = conversation_ids.rename(columns={'is_normal': 'Normal', 'is_suspect': 'Suspect',
                                                             'is_politician': 'Politician',
                                                             'is_suspect_politician': 'Suspect politician'})
-
-        # Resample by month
-        conversation_ids = conversation_ids.resample('M').sum()
+        conversation_ids = conversation_ids.set_index('created_at')
+        conversation_ids = conversation_ids.resample('M').count()
         conversation_ids = conversation_ids.fillna(0)
+        return conversation_ids
+
+    def plot_cascade_count_over_time(self, dataset):
+        conversation_ids = self.get_cascade_count_over_time(dataset)
         fig = px.line(conversation_ids, x=conversation_ids.index, y=conversation_ids.columns, log_y=True,
                       title='Number of cascades over time', labels={'value': 'Number of cascades (log scale)'},
                       category_orders={'variable': ['Normal', 'Suspect', 'Politician', 'Suspect politician']}
@@ -531,6 +591,32 @@ class PropagationPlotFactory(MongoPlotFactory):
         df = collection.aggregate_pandas_all(pipeline, schema=schema)
         client.close()
         return df
+
+    def persist_propagation_metrics(self, dataset):
+        # Get
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('conversation_propagation')
+        collection.drop()
+        # Get structural virality and time span per conversation
+        structural_virality = self.get_structural_viralities(dataset)
+        # Cast timespan to seconds
+        structural_virality['timespan'] = structural_virality['timespan'].dt.total_seconds()
+        # Persist
+        collection.insert_many(structural_virality.reset_index().to_dict('records'))
+
+        client.close()
+
+    def load_propagation_metrics_from_db(self, dataset):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('conversation_propagation')
+        data = collection.find()
+        structural_virality = pd.DataFrame(data)
+        # Cast seconds to timedelta
+        structural_virality['timespan'] = pd.to_timedelta(structural_virality['timespan'], unit='s')
+        client.close()
+        return structural_virality[['conversation_id', 'structured_virality', 'timespan']].set_index('conversation_id')
 
 
 def transform_user_type(x):

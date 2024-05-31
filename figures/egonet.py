@@ -318,7 +318,7 @@ class EgonetPlotFactory(MongoPlotFactory):
 
         layout = self.compute_layout(g)
         g['layout'] = layout
-        self.persist_hidden_network(dataset, g)
+        self.persist_graph_metrics(dataset, g)
 
         return g
 
@@ -459,7 +459,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         print(f'Plot computed in {time.time() - start_time} seconds')
         return fig
 
-    def persist_hidden_network(self, dataset, graph):
+    def persist_graph_metrics(self, dataset, graph):
         # Get legitimacy, reputation, and status from the graph vertices
         legitimacy = pd.Series(graph.vs['legitimacy'], index=graph.vs['author_id'])
         reputation = graph['reputation']
@@ -473,7 +473,7 @@ class EgonetPlotFactory(MongoPlotFactory):
                                  'reputation': reputation.loc[author_id].to_json(date_format='iso'),
                                  'status': status.loc[author_id].to_json(date_format='iso')} for author_id in graph.vs['author_id']])
 
-    def load_hidden_network_from_db(self, dataset):
+    def load_graph_metrics_from_db(self, dataset):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         collection = database.get_collection('user_propagation')

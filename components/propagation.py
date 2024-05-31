@@ -94,10 +94,10 @@ class PropagationComponent(RemissComponent):
 
     def update_tweet(self, dataset, tweet_id):
         return self.plot_factory.plot_propagation_tree(dataset, tweet_id), \
-            self.plot_factory.plot_depth(dataset, tweet_id), \
-            self.plot_factory.plot_size(dataset, tweet_id), \
-            self.plot_factory.plot_max_breadth(dataset, tweet_id), \
-            self.plot_factory.plot_structural_virality(dataset, tweet_id)
+            self.plot_factory.plot_depth_over_time(dataset, tweet_id), \
+            self.plot_factory.plot_size_over_time(dataset, tweet_id), \
+            self.plot_factory.plot_max_breadth_over_time(dataset, tweet_id), \
+            self.plot_factory.plot_structural_virality_over_time(dataset, tweet_id)
 
     def update_cascade(self, dataset):
         return self.plot_factory.plot_size_cascade_ccdf(dataset), \
