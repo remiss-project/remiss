@@ -1,7 +1,6 @@
 mongodb:
   host: localhost
   port: 27017
-  database: test
 cache_dir:
 graph_layout: fruchterman_reingold
 graph_simplification:

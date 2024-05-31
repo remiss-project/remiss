@@ -19,13 +19,16 @@ class MyTestCase(unittest.TestCase):
         shutil.rmtree('/tmp/test_cache')
 
     def test_prepopulate(self):
-        prepopulate({'mongodb': {'host': 'localhost', 'port': 27017},
+        config = {'mongodb': {'host': 'localhost', 'port': 27017},
                      'cache_dir': '/tmp/test_cache',
                      'graph_layout': 'fruchterman_reingold',
                      'graph_simplification': {'method': 'backbone', 'threshold': 0.5},
                      'frequency': '1D',
                      'available_datasets': None,
-                     'prepopulate': False})
+                     'prepopulate': False}
+        with open('/tmp/test_config.yaml', 'w') as f:
+            f.write(str(config).replace('None', ''))
+        prepopulate('/tmp/test_config.yaml')
         # Check that data has been actually populated
         client = MongoClient('localhost', 27017)
         db = client['test_dataset']
