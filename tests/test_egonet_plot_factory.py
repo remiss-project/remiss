@@ -383,6 +383,35 @@ class TestEgonetPlotFactory(unittest.TestCase):
                             f'/tmp/remiss_cache/{self.dataset}/hidden_network.graphmlz').get_edgelist())
         self.assertEquals(len(actual['layout'].coords), actual.vcount())
 
+    def test_db_persistence(self):
+        user = 'test_user'
+        depth = 1
+        test_data = create_test_data_db(self.dataset)
+        print('computing egonet')
+        self.egonet_plot.host = 'localhost'
+        self.egonet_plot.port = 27017
+        start_time = time.time()
+        graph = self.egonet_plot.get_egonet(self.dataset, user, depth)
+        end_time = time.time()
+        total_time_no_cache = end_time - start_time
+        print(f'took {total_time_no_cache} no cache')
+        # Check that the database contains a collection named 'user_propagation' with
+        # legitimacy, reputation and status data
+        client = MongoClient('localhost', 27017)
+        database = client.get_database(self.dataset)
+        self.assertTrue('user_propagation' in database.list_collection_names())
+        collection = database.get_collection('user_propagation')
+        self.assertTrue(collection.count_documents({}) > 0)
+        actual_legitimacy, actual_reputation, actual_status = self.egonet_plot.load_hidden_network_from_db(self.dataset)
+
+        expected_legitimacy = pd.Series(graph.vs['legitimacy'], index=graph.vs['author_id'], name='legitimacy')
+        expected_reputation = graph['reputation']
+        expected_status = graph['status']
+
+        pd.testing.assert_series_equal(expected_legitimacy, actual_legitimacy)
+        pd.testing.assert_frame_equal(expected_reputation, actual_reputation, check_column_type=False, check_dtype=False)
+        pd.testing.assert_frame_equal(expected_status, actual_status, check_column_type=False, check_dtype=False)
+
     def test_backbone(self):
         test_data = []
         expected_edges = pd.DataFrame({'source': [1, 2, 2, 1, 1, 1, 1, 1],

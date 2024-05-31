@@ -470,9 +470,35 @@ class EgonetPlotFactory(MongoPlotFactory):
         collection.drop()
         collection.insert_many([{'author_id': author_id,
                                  'legitimacy': legitimacy.get(author_id),
-                                 'reputation': reputation.loc[author_id].to_json(),
-                                 'status': status.loc[author_id].to_json()} for author_id in graph.vs['author_id']])
+                                 'reputation': reputation.loc[author_id].to_json(date_format='iso'),
+                                 'status': status.loc[author_id].to_json(date_format='iso')} for author_id in graph.vs['author_id']])
 
+    def load_hidden_network_from_db(self, dataset):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('user_propagation')
+        data = collection.find()
+        legitimacy = {}
+        reputation = {}
+        status = {}
+        for user in data:
+            author_id = user['author_id']
+            legitimacy[author_id] = user['legitimacy']
+            # Load reputation as Series
+            reputation[author_id] = pd.read_json(user['reputation'], typ='series')
+            reputation[author_id].index = pd.to_datetime(reputation[author_id].index, unit='s')
+            # Load status as Series
+            status[author_id] = pd.read_json(user['status'], typ='series')
+            status[author_id].index = pd.to_datetime(status[author_id].index, unit='s')
+
+        legitimacy = pd.Series(legitimacy, name='legitimacy')
+        reputation = pd.DataFrame(reputation).T
+        reputation.index.name = 'author_id'
+        reputation.columns.name = 'date'
+        status = pd.DataFrame(status).T
+        status.index.name = 'author_id'
+        status.columns.name = 'date'
+        return legitimacy, reputation, status
 
 
 def compute_backbone(graph, alpha=0.05, delete_vertices=True):
