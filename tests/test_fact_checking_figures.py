@@ -41,6 +41,11 @@ class TestTimeSeriesFactory(unittest.TestCase):
         self.client.drop_database('test_dataset')
         self.client.close()
 
+    def tearDown(self) -> None:
+        self.client = MongoClient('localhost', 27017)
+        self.client.drop_database('test_dataset')
+        self.client.close()
+
     def test_claim_image(self):
         plot = self.plot_factory.plot_claim_image('test_dataset', '100485425')
         plot.show()

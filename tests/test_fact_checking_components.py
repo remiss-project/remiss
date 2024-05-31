@@ -44,6 +44,11 @@ class FactCheckingComponentTest(TestCase):
         self.state = RemissState(name='state')
         self.component = FactCheckingComponent(self.plot_factory, self.state, name='fact_checking')
 
+    def tearDown(self) -> None:
+        self.client = MongoClient('localhost', 27017)
+        self.client.drop_database('fact_checking')
+        self.client.close()
+
     def test_layout_ids(self):
         layout = self.component.layout()
 
