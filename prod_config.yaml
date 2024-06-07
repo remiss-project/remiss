@@ -1,7 +1,7 @@
 mongodb:
   host: localhost
   port: 27017
-cache_dir: /shared/data/remiss/Twitter/.cache
+cache_dir: /shared/remiss/data/Twitter/.cache/
 graph_layout: fruchterman_reingold
 graph_simplification:
   method: backbone
