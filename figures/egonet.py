@@ -42,7 +42,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         network = self.get_egonet(collection, user, depth)
         network = network.as_undirected(mode='collapse')
 
-        return self.plot_network(network, start_date, end_date)
+        return self.get_egonet_figure(network, start_date, end_date)
 
     def get_egonet(self, dataset, user, depth):
         """
@@ -346,7 +346,7 @@ class EgonetPlotFactory(MongoPlotFactory):
         print(f'Layout computed in {time.time() - start_time} seconds')
         return layout
 
-    def plot_network(self, network, start_date=None, end_date=None):
+    def get_egonet_figure(self, network, start_date=None, end_date=None):
         if 'layout' not in network.attributes():
             layout = self.compute_layout(network)
         else:

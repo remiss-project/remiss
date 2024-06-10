@@ -13,10 +13,10 @@ import igraph as ig
 
 
 class PropagationTestCase(unittest.TestCase):
-    # @classmethod
-    # def setUpClass(cls):
-    #     populate_test_database('test_dataset')
-    #     populate_test_database('test_dataset_small', small=True)
+    @classmethod
+    def setUpClass(cls):
+        populate_test_database('test_dataset')
+        populate_test_database('test_dataset_small', small=True)
 
     # @classmethod
     # def tearDownClass(cls):
@@ -236,7 +236,7 @@ class PropagationTestCase(unittest.TestCase):
 
     def test_propagation_tree_plot(self):
         graph = self.plot_factory.get_propagation_tree(self.dataset, '1160842257647493120')
-        fig = self.plot_factory.plot_network(graph)
+        fig = self.plot_factory.get_propagation_figure(graph)
         fig.show()
 
     def test_conversation_no_nat(self):
