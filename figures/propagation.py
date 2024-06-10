@@ -619,13 +619,22 @@ class PropagationPlotFactory(MongoPlotFactory):
         client.close()
         return structural_virality[['conversation_id', 'structured_virality', 'timespan']].set_index('conversation_id')
 
-    def prepopulate(self):
+    def prepopulate(self, force=False):
         if not self.cache_dir:
             print('WARNING: Cache directory not set')
 
         for dataset in (pbar := tqdm(self.available_datasets, desc='Prepopulating propagation')):
             pbar.set_postfix_str(dataset)
+            if not force:
+                try:
+                    self.load_propagation_metrics_from_db(dataset)
+                    print(f'{dataset} already prepopulated, skipping...')
+                    continue
+                except pymongo.errors.PyMongoError as e:
+                    pass
+
             self.persist_propagation_metrics(dataset)
+
 
 
 def transform_user_type(x):

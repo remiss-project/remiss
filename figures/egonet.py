@@ -96,6 +96,8 @@ class EgonetPlotFactory(MongoPlotFactory):
         return self._simplified_hidden_networks[dataset]
 
     def is_cached(self, dataset, stem):
+        if not self.cache_dir:
+            return False
         dataset_dir = self.cache_dir / dataset
         hn_graph_file = dataset_dir / f'{stem}.graphmlz'
         return hn_graph_file.exists()
@@ -113,16 +115,20 @@ class EgonetPlotFactory(MongoPlotFactory):
         hn_graph_file = dataset_dir / f'{stem}.graphmlz'
         network.write_graphmlz(str(hn_graph_file))
 
-    def prepopulate(self):
+    def prepopulate(self, force=False):
         if not self.cache_dir:
             print('WARNING: Cache directory not set')
 
         for dataset in (pbar := tqdm(self.available_datasets, desc='Prepopulating egonet')):
             pbar.set_postfix_str(dataset)
-            network = self._compute_hidden_network(dataset)
-            if self.cache_dir:
-                stem = f'hidden_network'
-                self.save_to_cache(dataset, network, stem)
+            if force or not self.is_cached(dataset, 'hidden_network'):
+                network = self._compute_hidden_network(dataset)
+                if self.cache_dir:
+                    stem = f'hidden_network'
+                    self.save_to_cache(dataset, network, stem)
+            else:
+                print(f'Hidden network for {dataset} already cached')
+
     def get_legitimacy(self, dataset):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
