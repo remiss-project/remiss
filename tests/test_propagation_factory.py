@@ -70,9 +70,10 @@ class PropagationTestCase(unittest.TestCase):
         plt.show()
 
     def test_tweets_with_references(self):
-        tweets, references = self.plot_factory.get_conversation(self.dataset, '1160842257647493120')
-        self.assertEqual(tweets.columns.tolist(), ['author_id', 'username', 'is_usual_suspect', 'party'])
-        self.assertEqual(len(references), 67)
+        conversation_id, tweets, references = self.plot_factory.get_conversation(self.dataset, '1160842257647493120')
+        self.assertEqual(tweets.columns.tolist(),
+                         ['tweet_id', 'author_id', 'username', 'is_usual_suspect', 'party', 'created_at'])
+        self.assertEqual(len(references), 61)
         self.assertEqual(len(tweets), 76)
 
     def test_propagation_tree_simple(self):
@@ -219,7 +220,9 @@ class PropagationTestCase(unittest.TestCase):
         layout = graph.layout(self.plot_factory.layout)
         ig.plot(graph, layout=layout, target=ax)
         plt.show()
-        actual_edges = pd.DataFrame([(graph.vs['label'][edge.source], graph.vs['label'][edge.target]) for edge in graph.es], columns=['source', 'target'])
+        actual_edges = pd.DataFrame(
+            [(graph.vs['label'][edge.source], graph.vs['label'][edge.target]) for edge in graph.es],
+            columns=['source', 'target'])
         actual_edges['source'] = actual_edges['source'].str.replace('-', 'username_0').astype(str)
         actual_edges['target'] = actual_edges['target'].str.replace('-', 'username_0').astype(str)
         actual_edges = set(actual_edges.itertuples(index=False, name=None))
@@ -241,7 +244,6 @@ class PropagationTestCase(unittest.TestCase):
         tweets = tweets.drop(columns=['party'])
         self.assertFalse(tweets.isna().any().any())
         self.assertFalse(references.isna().any().any())
-
 
     def test_depth_plot(self):
         fig = self.plot_factory.plot_depth_over_time(self.dataset, '1160842257647493120')
@@ -292,11 +294,11 @@ class PropagationTestCase(unittest.TestCase):
         actual = self.plot_factory.load_propagation_metrics_from_db(self.dataset_small)
         pd.testing.assert_frame_equal(expected, actual)
 
-
     def test_prepare_propagation_dataset(self):
         dataset = self.dataset
         X, y = self.plot_factory.prepare_propagation_dataset(dataset)
-        user_columns = ['is_usual_suspect', 'is_politician', 'legitimacy', 't-closeness', 'num_connections', 'num_tweets',
+        user_columns = ['is_usual_suspect', 'is_politician', 'legitimacy', 't-closeness', 'num_connections',
+                        'num_tweets',
                         'num_followers', 'num_following']
         tweet_columns = ['num_hashtags', 'num_mentions', 'num_urls', 'num_media', 'num_interactions', 'num_replies',
                          'num_words', 'num_chars', 'num_emojis']
