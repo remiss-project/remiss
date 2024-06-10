@@ -638,6 +638,52 @@ class PropagationPlotFactory(MongoPlotFactory):
             except Exception as e:
                 print(f'Error prepopulating propagation metrics for {dataset}: {e}')
 
+    def prepare_propagation_dataset(self, dataset, num_negative_samples=0.1):
+        """
+        Prepare the dataset for propagation analysis by adding a 'retweeted_status' field to the tweets that are retweets
+        and a 'quoted_status' field to the tweets that are quotes.
+
+        It contains for each tweet and user the following fields for each user and tweet:
+
+        user_features = ['is_usual_suspect', 'is_politician', 'legitimacy', 't-closeness', 'num_connections', 'num_tweets',
+                            'num_followers', 'num_following']
+        tweet_feature = ['num_hashtags', 'num_mentions', 'num_urls', 'num_media', 'num_interactions', 'num_replies',
+                             'num_words', 'num_chars', 'num_emojis']
+
+        Each sample consists of:
+
+        - user features for the op user of the tweet
+        - tweet features for the tweet
+        - user features for the user that retweeted the tweet before the present user
+
+        :param dataset: Name of the mongodb database containing the tweets
+        :return: X, y matrices ready to be used for propagation analysis
+        """
+        plot_factory = PropagationPlotFactory()
+
+        X, y = [], []
+        conversations = plot_factory.get_conversation_ids(dataset)
+        for conversation_id in conversations:
+            propagation_tree = plot_factory.get_propagation_tree(dataset, conversation_id)
+            op_tweet = propagation_tree.vs.find(tweet_id=conversation_id)
+            op_tweet_features = self.get_tweet_features(dataset, conversation_id)
+            op_author = op_tweet['author_id']
+            op_author_feature = self.get_author_features(dataset, op_author)
+            for tweet in propagation_tree.vs:
+                if tweet['tweet_id'] != conversation_id:
+                    previous_user = tweet['author_id']
+                    previous_user_features = self.get_author_features(dataset, previous_user)
+                    for next_user in propagation_tree.successors(tweet):
+                        next_user_features = self.get_author_features(dataset, next_user['author_id'])
+                        # Create sample
+                        sample = [*op_author_feature, *op_tweet_features, *previous_user_features, *next_user_features]
+                        X.append(sample)
+                        # Add label
+                        y.append(1)
+
+                    # Add negative samples
+
+
 
 
 def transform_user_type(x):

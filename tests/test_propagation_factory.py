@@ -289,5 +289,24 @@ class PropagationTestCase(unittest.TestCase):
         pd.testing.assert_frame_equal(expected, actual)
 
 
+    def test_prepare_propagation_dataset(self):
+        dataset = 'test_dataset'
+        X, y = self.plot_factory.prepare_propagation_dataset(dataset)
+        user_columns = ['is_usual_suspect', 'is_politician', 'legitimacy', 't-closeness', 'num_connections', 'num_tweets',
+                        'num_followers', 'num_following']
+        tweet_columns = ['num_hashtags', 'num_mentions', 'num_urls', 'num_media', 'num_interactions', 'num_replies',
+                         'num_words', 'num_chars', 'num_emojis']
+
+        op_author_columns = [f'op_author_{col}' for col in user_columns]
+        previous_author_columns = [f'previous_author_{col}' for col in user_columns]
+        expected_columns = tweet_columns + op_author_columns + previous_author_columns
+
+        self.assertEqual(X.shape[0], y.shape[0])
+        self.assertEqual(X.shape[1], 3)
+        self.assertEqual(y.shape[1], 1)
+        self.assertEqual(y.columns[0], 'label')
+        self.assertEqual(X.columns, expected_columns)
+
+
 if __name__ == '__main__':
     unittest.main()
