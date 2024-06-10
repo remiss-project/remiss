@@ -625,15 +625,18 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         for dataset in (pbar := tqdm(self.available_datasets, desc='Prepopulating propagation')):
             pbar.set_postfix_str(dataset)
-            if not force:
-                try:
-                    self.load_propagation_metrics_from_db(dataset)
-                    print(f'{dataset} already prepopulated, skipping...')
-                    continue
-                except pymongo.errors.PyMongoError as e:
-                    pass
+            try:
+                if not force:
+                    try:
+                        self.load_propagation_metrics_from_db(dataset)
+                        print(f'{dataset} already prepopulated, skipping...')
+                        continue
+                    except pymongo.errors.PyMongoError as e:
+                        pass
 
-            self.persist_propagation_metrics(dataset)
+                self.persist_propagation_metrics(dataset)
+            except Exception as e:
+                print(f'Error prepopulating propagation metrics for {dataset}: {e}')
 
 
 
