@@ -6,12 +6,13 @@ from pymongo import MongoClient
 from preprocess import unfix_timestamps
 
 
-def populate_test_database(database_name):
+def populate_test_database(database_name, small=False):
     client = MongoClient('localhost', 27017)
     client.drop_database(database_name)
     db = client[database_name]
     collection = db.get_collection('raw')
-    with open('test_resources/Openarms.mongoimport.jsonl') as f:
+    path = 'test_resources/Openarms.mongoimport.jsonl' if not small else 'test_resources/Openarms.mongoimport.subset.jsonl'
+    with open(path) as f:
         test_data = []
         for line in f:
             tweet = json.loads(line)

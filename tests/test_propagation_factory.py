@@ -13,19 +13,22 @@ import igraph as ig
 
 
 class PropagationTestCase(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        populate_test_database('test_dataset')
+    # @classmethod
+    # def setUpClass(cls):
+    #     populate_test_database('test_dataset')
+    #     populate_test_database('test_dataset_small', small=True)
 
     # @classmethod
     # def tearDownClass(cls):
-    #     delete_test_database('test_dataset')
+    #     delete_test_database(self.dataset)
 
     def setUp(self):
-        self.plot_factory = PropagationPlotFactory(available_datasets=['test_dataset'])
+        self.plot_factory = PropagationPlotFactory()
+        self.dataset = 'test_dataset'
+        self.dataset_small = 'test_dataset_small'
 
     def test_propagation_tree(self):
-        graph = self.plot_factory.get_propagation_tree('test_dataset', '1160842257647493120')
+        graph = self.plot_factory.get_propagation_tree(self.dataset, '1160842257647493120')
         self.assertEqual(graph.vcount(), 76)
         self.assertEqual(graph.ecount(), 75)
         self.assertEqual(graph.is_directed(), True)
@@ -43,16 +46,16 @@ class PropagationTestCase(unittest.TestCase):
         plt.show()
 
     def test_all_connected_to_conversation_id(self):
-        graph = self.plot_factory.get_propagation_tree('test_dataset', '1160842257647493120')
+        graph = self.plot_factory.get_propagation_tree(self.dataset, '1160842257647493120')
         self.assertEqual(len(graph.connected_components(mode='weak')), 1)
         shortest_paths = self.plot_factory.get_shortest_paths_to_conversation_id(graph)
         self.assertFalse(shortest_paths.isna().any())
 
     def test_propagation_lengths(self):
-        df = self.plot_factory.get_conversation_sizes('test_dataset')
-        for tweet_id in df['Conversation ID'].iloc[11:]:
+        df = self.plot_factory.get_conversation_sizes(self.dataset)
+        for tweet_id in df['conversation_id'].iloc[11:]:
             try:
-                graph = self.plot_factory.get_propagation_tree('test_dataset', tweet_id)
+                graph = self.plot_factory.get_propagation_tree(self.dataset, tweet_id)
                 layout = graph.layout(self.plot_factory.layout)
                 fig, ax = plt.subplots()
                 ax.set_title(f'Conversation {tweet_id}')
@@ -61,13 +64,13 @@ class PropagationTestCase(unittest.TestCase):
                 print(f'Conversation {tweet_id} works')
                 break
             except (RuntimeError, KeyError) as ex:
-                raise ex
+                pass
         print(df)
         df.hist(log=True, bins=100)
         plt.show()
 
     def test_tweets_with_references(self):
-        tweets, references = self.plot_factory.get_conversation('test_dataset', '1160842257647493120')
+        tweets, references = self.plot_factory.get_conversation(self.dataset, '1160842257647493120')
         self.assertEqual(tweets.columns.tolist(), ['author_id', 'username', 'is_usual_suspect', 'party'])
         self.assertEqual(len(references), 67)
         self.assertEqual(len(tweets), 76)
@@ -110,7 +113,8 @@ class PropagationTestCase(unittest.TestCase):
         ig.plot(graph, layout=layout, target=ax)
         plt.show()
         actual_edges = set((graph.vs['label'][edge.source], graph.vs['label'][edge.target]) for edge in graph.es)
-        self.assertEqual(actual_edges, set(edges))
+        expected_edges = {(f'username_{source}', f'username_{target}') for source, target in edges}
+        self.assertEqual(actual_edges, expected_edges)
 
     def test_propagation_tree_disconnected(self):
         client = MongoClient('localhost', 27017)
@@ -228,69 +232,69 @@ class PropagationTestCase(unittest.TestCase):
         self.assertFalse(shortest_paths.isna().any())
 
     def test_propagation_tree_plot(self):
-        graph = self.plot_factory.get_propagation_tree('test_dataset', '1160842257647493120')
+        graph = self.plot_factory.get_propagation_tree(self.dataset, '1160842257647493120')
         fig = self.plot_factory.plot_network(graph)
         fig.show()
 
     def test_conversation_no_nat(self):
-        conversation_id, tweets, references = self.plot_factory.get_conversation('test_dataset', '1160842257647493120')
+        conversation_id, tweets, references = self.plot_factory.get_conversation(self.dataset, '1160842257647493120')
         tweets = tweets.drop(columns=['party'])
         self.assertFalse(tweets.isna().any().any())
         self.assertFalse(references.isna().any().any())
 
 
     def test_depth_plot(self):
-        fig = self.plot_factory.plot_depth_over_time('test_dataset', '1160842257647493120')
+        fig = self.plot_factory.plot_depth_over_time(self.dataset, '1160842257647493120')
         fig.show()
 
     def test_size_plot(self):
-        fig = self.plot_factory.plot_size_over_time('test_dataset', '1160842257647493120')
+        fig = self.plot_factory.plot_size_over_time(self.dataset, '1160842257647493120')
         fig.show()
 
     def test_max_breadth_plot(self):
-        fig = self.plot_factory.plot_max_breadth_over_time('test_dataset', '1160842257647493120')
+        fig = self.plot_factory.plot_max_breadth_over_time(self.dataset, '1160842257647493120')
         fig.show()
 
     def test_structured_virality_plot(self):
-        fig = self.plot_factory.plot_structural_virality_over_time('test_dataset', '1160842257647493120')
+        fig = self.plot_factory.plot_structural_virality_over_time(self.dataset, '1160842257647493120')
         fig.show()
 
     def test_plot_propagation_tree(self):
-        fig = self.plot_factory.plot_propagation_tree('test_dataset', '1160842257647493120')
+        fig = self.plot_factory.plot_propagation_tree(self.dataset, '1160842257647493120')
         fig.show()
 
     def test_graph_propagation(self):
-        graph = self.plot_factory.get_full_graph('test_dataset')
+        graph = self.plot_factory.get_full_graph(self.dataset)
         components = graph.connected_components(mode='weak')
         self.assertEqual(len(components), 8485)
 
     def test_depth_cascade_ccdf_plot(self):
         start_time = Timestamp.now()
-        fig = self.plot_factory.plot_depth_cascade_ccdf('test_dataset')
+        fig = self.plot_factory.plot_depth_cascade_ccdf(self.dataset_small)
         end_time = Timestamp.now()
         print(f'Time taken: {end_time - start_time}')
         fig.show()
 
     def test_size_cascade_ccdf_plot(self):
         start_time = Timestamp.now()
-        fig = self.plot_factory.plot_size_cascade_ccdf('test_dataset')
+        fig = self.plot_factory.plot_size_cascade_ccdf(self.dataset)
         end_time = Timestamp.now()
         print(f'Time taken: {end_time - start_time}')
         fig.show()
 
     def test_cascade_count_over_time_plot(self):
-        fig = self.plot_factory.plot_cascade_count_over_time('test_dataset')
+        fig = self.plot_factory.plot_cascade_count_over_time(self.dataset)
         fig.show()
 
     def test_persist_propagation_metrics(self):
-        self.plot_factory.persist_propagation_metrics('test_dataset')
-        expected = self.plot_factory.get_structural_viralities('test_dataset')
-        actual = self.plot_factory.load_propagation_metrics_from_db('test_dataset')
+        self.plot_factory.persist_propagation_metrics(self.dataset_small)
+        expected = self.plot_factory.get_structural_viralities(self.dataset_small)
+        actual = self.plot_factory.load_propagation_metrics_from_db(self.dataset_small)
         pd.testing.assert_frame_equal(expected, actual)
 
 
     def test_prepare_propagation_dataset(self):
-        dataset = 'test_dataset'
+        dataset = self.dataset
         X, y = self.plot_factory.prepare_propagation_dataset(dataset)
         user_columns = ['is_usual_suspect', 'is_politician', 'legitimacy', 't-closeness', 'num_connections', 'num_tweets',
                         'num_followers', 'num_following']

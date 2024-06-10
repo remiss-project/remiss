@@ -49,8 +49,13 @@ class PropagationPlotFactory(MongoPlotFactory):
         return df
 
     def get_conversation(self, dataset, tweet_id):
-        tweet = self.get_tweet(dataset, tweet_id)
-        conversation_id = tweet['conversation_id']
+        try:
+            tweet = self.get_tweet(dataset, tweet_id)
+            conversation_id = tweet['conversation_id']
+        except Exception as e:
+            if 'not found' in str(e):
+                # if the tweet is not found, try to get the conversation by using the tweet_id as conversation_id
+                conversation_id = tweet_id
         # get all tweets belonging to the conversation
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
@@ -143,13 +148,13 @@ class PropagationPlotFactory(MongoPlotFactory):
 
     def get_propagation_tree(self, dataset, tweet_id):
         conversation_id, conversation_tweets, references = self.get_conversation(dataset, tweet_id)
-        graph = self._get_graph(conversation_id, conversation_tweets, references)
+        graph = self._get_graph(conversation_tweets, references)
+        self.ensure_conversation_id(conversation_id, graph)
 
         return graph
 
-    def _get_graph(self, conversation_id, vertices, edges):
+    def _get_graph(self, vertices, edges):
         graph = ig.Graph(directed=True)
-        graph['conversation_id'] = conversation_id
 
         graph.add_vertices(len(vertices))
         graph.vs['label'] = vertices['username'].tolist()
@@ -165,7 +170,12 @@ class PropagationPlotFactory(MongoPlotFactory):
 
             graph.add_edges(edges[['source', 'target']].to_records(index=False).tolist())
 
+        return graph
+
+    def ensure_conversation_id(self, conversation_id, graph):
         # link connected components to the conversation id vertex
+        graph['conversation_id'] = conversation_id
+
         components = graph.connected_components(mode='weak')
         if len(components) > 1:
             conversation_id_index = graph.vs.find(tweet_id=conversation_id).index
@@ -176,8 +186,6 @@ class PropagationPlotFactory(MongoPlotFactory):
                     first = created_at.iloc[component].idxmin()
                     # link it to the conversation id
                     graph.add_edge(conversation_id_index, first)
-
-        return graph
 
     def get_tweet(self, dataset, tweet_id):
         client = MongoClient(self.host, self.port)
@@ -498,7 +506,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         tweets = collection.aggregate_pandas_all(tweet_ids_pipeline, schema=schema)
         client.close()
         tweets['created_at'] = pd.to_datetime(tweets['created_at'])
-        graph = self._get_graph(None, tweets, edges)
+        graph = self._get_graph(tweets, edges)
         return graph
 
     def plot_propagation(self, dataset):
@@ -682,8 +690,6 @@ class PropagationPlotFactory(MongoPlotFactory):
                         y.append(1)
 
                     # Add negative samples
-
-
 
 
 def transform_user_type(x):
