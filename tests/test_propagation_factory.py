@@ -1,11 +1,13 @@
 import random
 import unittest
+from pathlib import Path
 
 import igraph as ig
 import matplotlib.pyplot as plt
 import pandas as pd
 from pandas import Timestamp
 from pymongo import MongoClient
+from tqdm import tqdm
 
 from figures.propagation import PropagationPlotFactory
 from tests.conftest import populate_test_database, delete_test_database
@@ -13,10 +15,10 @@ import igraph as ig
 
 
 class PropagationTestCase(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        populate_test_database('test_dataset')
-        populate_test_database('test_dataset_small', small=True)
+    # @classmethod
+    # def setUpClass(cls):
+    #     populate_test_database('test_dataset')
+    #     populate_test_database('test_dataset_small', small=True)
 
     # @classmethod
     # def tearDownClass(cls):
@@ -295,23 +297,33 @@ class PropagationTestCase(unittest.TestCase):
         pd.testing.assert_frame_equal(expected, actual)
 
     def test_prepare_propagation_dataset(self):
-        dataset = self.dataset
+        dataset = self.dataset_small
+        # self.plot_factory.cache_dir = Path('tmp/cache_propagation')
         X, y = self.plot_factory.prepare_propagation_dataset(dataset)
-        user_columns = ['is_usual_suspect', 'is_politician', 'legitimacy', 't-closeness', 'num_connections',
-                        'num_tweets',
-                        'num_followers', 'num_following']
-        tweet_columns = ['num_hashtags', 'num_mentions', 'num_urls', 'num_media', 'num_interactions', 'num_replies',
-                         'num_words', 'num_chars', 'num_emojis']
-
-        op_author_columns = [f'op_author_{col}' for col in user_columns]
-        previous_author_columns = [f'previous_author_{col}' for col in user_columns]
-        expected_columns = tweet_columns + op_author_columns + previous_author_columns
+        expected_columns = ['op_is_usual_suspect', 'op_legitimacy', 'op_t-closeness', 'op_num_connections',
+                            'op_num_tweets', 'op_num_followers', 'op_num_following', 'op_is_politician', 'num_hashtags',
+                            'num_mentions', 'num_urls', 'num_media', 'num_interactions', 'num_replies', 'num_words',
+                            'num_chars', 'previous_is_usual_suspect', 'previous_legitimacy', 'previous_t-closeness',
+                            'previous_num_connections', 'previous_num_tweets', 'previous_num_followers',
+                            'previous_num_following', 'previous_is_politician', 'current_is_usual_suspect',
+                            'current_legitimacy', 'current_t-closeness', 'current_num_connections',
+                            'current_num_tweets', 'current_num_followers', 'current_num_following',
+                            'current_is_politician']
 
         self.assertEqual(X.shape[0], y.shape[0])
-        self.assertEqual(X.shape[1], 3)
-        self.assertEqual(y.shape[1], 1)
-        self.assertEqual(y.columns[0], 'label')
-        self.assertEqual(X.columns, expected_columns)
+        self.assertEqual(X.shape[1], 32)
+        self.assertEqual(y.ndim, 1)
+        self.assertEqual(y.name, 'label')
+        self.assertEqual(X.columns.to_list(), expected_columns)
+
+    def test_conversation_ids(self):
+        conversation_ids = self.plot_factory.get_conversation_ids(self.dataset_small)
+        # All the conversation ids should exist in the database, thus retrieving their graph should not raise an error
+        for conversation_id in tqdm(conversation_ids['conversation_id']):
+            try:
+                self.plot_factory.get_propagation_tree(self.dataset_small, conversation_id)
+            except Exception as ex:
+                self.fail(f'Conversation id {conversation_id} raised an exception: {ex}')
 
 
 if __name__ == '__main__':

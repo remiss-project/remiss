@@ -12,9 +12,7 @@ import numpy as np
 import pandas as pd
 from pymongo import MongoClient
 
-from figures import EgonetPlotFactory
-from figures.egonet import compute_backbone
-from figures.propagation import PropagationPlotFactory
+from figures.propagation import PropagationPlotFactory, compute_backbone
 
 
 class TestEgonetPlotFactory(unittest.TestCase):

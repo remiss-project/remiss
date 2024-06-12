@@ -66,13 +66,9 @@ class PropagationPlotFactory(MongoPlotFactory):
         return df
 
     def get_conversation(self, dataset, tweet_id):
-        try:
-            tweet = self.get_tweet(dataset, tweet_id)
-            conversation_id = tweet['conversation_id']
-        except Exception as e:
-            if 'not found' in str(e):
-                # if the tweet is not found, try to get the conversation by using the tweet_id as conversation_id
-                conversation_id = tweet_id
+        tweet = self.get_tweet(dataset, tweet_id)
+        conversation_id = tweet['conversation_id']
+
         # get all tweets belonging to the conversation
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
@@ -684,7 +680,7 @@ class PropagationPlotFactory(MongoPlotFactory):
             except Exception as e:
                 print(f'Error prepopulating propagation metrics for {dataset}: {e}')
 
-    def prepare_propagation_dataset(self, dataset, num_negative_samples=0.1):
+    def prepare_propagation_dataset(self, dataset, negative_sample_ratio=0.1):
         """
         Prepare the dataset for propagation analysis by adding a 'retweeted_status' field to the tweets that are retweets
         and a 'quoted_status' field to the tweets that are quotes.
@@ -705,29 +701,96 @@ class PropagationPlotFactory(MongoPlotFactory):
         :param dataset: Name of the mongodb database containing the tweets
         :return: X, y matrices ready to be used for propagation analysis
         """
-        plot_factory = PropagationPlotFactory()
 
         X, y = [], []
-        conversations = plot_factory.get_conversation_ids(dataset)
-        for conversation_id in conversations:
-            propagation_tree = plot_factory.get_propagation_tree(dataset, conversation_id)
+        conversations = self.get_conversation_ids(dataset)
+        hidden_network = self.get_hidden_network(dataset)
+
+        for conversation_id in tqdm(conversations['conversation_id'],
+                                    desc=f'Preparing propagation dataset for {dataset}'):
+            propagation_tree = self.get_propagation_tree(dataset, conversation_id)
             op_tweet = propagation_tree.vs.find(tweet_id=conversation_id)
             op_tweet_features = self.get_tweet_features(dataset, conversation_id)
             op_author = op_tweet['author_id']
-            op_author_feature = self.get_author_features(dataset, op_author)
+            op_author_features = self.get_author_features(hidden_network, op_author)
             for tweet in propagation_tree.vs:
                 if tweet['tweet_id'] != conversation_id:
                     previous_user = tweet['author_id']
-                    previous_user_features = self.get_author_features(dataset, previous_user)
+                    previous_user_features = self.get_author_features(hidden_network, previous_user)
                     for next_user in propagation_tree.successors(tweet):
-                        next_user_features = self.get_author_features(dataset, next_user['author_id'])
+                        next_user_features = self.get_author_features(hidden_network, next_user['author_id'])
                         # Create sample
-                        sample = [*op_author_feature, *op_tweet_features, *previous_user_features, *next_user_features]
+                        sample = [*op_author_features, *op_tweet_features, *previous_user_features, *next_user_features]
                         X.append(sample)
                         # Add label
                         y.append(1)
 
-                    # Add negative samples
+                    # Add negative samples from the hidden network
+                    if negative_sample_ratio > 0:
+                        negative_samples = self.get_negative_samples(hidden_network, previous_user,
+                                                                     negative_sample_ratio)
+                        for negative_sample in negative_samples:
+                            sample = [*op_author_features, *op_tweet_features, *previous_user_features, *negative_sample]
+                            X.append(sample)
+                            y.append(0)
+        tweet_columns = op_tweet_features.index
+        author_columns = op_author_features.index
+        op_columns = ('op_' + author_columns).to_list()
+        previous_columns = ('previous_' + author_columns).to_list()
+        current_columns = ('current_' + author_columns).to_list()
+
+        X = pd.DataFrame(X, columns=[*op_columns, *tweet_columns, *previous_columns, *current_columns])
+        y = pd.Series(y, name='label')
+
+        return X, y
+
+    def get_tweet_features(self, dataset, tweet_id):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
+        tweet_features = ['num_hashtags', 'num_mentions', 'num_urls', 'num_media', 'num_interactions', 'num_replies',
+                          'num_words', 'num_chars']
+        tweet_pipeline = [
+            {'$match': {'id': tweet_id}},
+            {'$project': {'_id': 0,
+                          'num_hashtags': {'$size': {'$ifNull': ['$entities.hashtags', []]}},
+                          'num_mentions': {'$size': {'$ifNull': ['$entities.mentions', []]}},
+                          'num_urls': {'$size': {'$ifNull': ['$entities.urls', []]}},
+                          'num_media': {'$size': {'$ifNull': ['$entities.media', []]}},
+                          'num_interactions': {'$size': {'$ifNull': ['$referenced_tweets', []]}},
+                          'num_words': {'$size': {'$split': ['$text', ' ']}},
+                          'num_chars': {'$strLenCP': '$text'},
+                          }}
+        ]
+        schema = Schema({**{feature: int for feature in tweet_features}})
+        tweet_features = collection.aggregate_pandas_all(tweet_pipeline, schema=schema)
+        client.close()
+        return tweet_features.iloc[0]
+
+    def get_author_features(self, graph, user_id):
+        author_columns = ['is_usual_suspect', 'legitimacy',
+                          't-closeness', 'num_connections', 'num_tweets', 'num_followers', 'num_following']
+
+        node = graph.vs.find(author_id=user_id)
+        author_features = [node[feature] for feature in author_columns]
+        author_features.append(node['party'] is not None)
+        author_columns.append('is_politician')
+        author_features = pd.Series(author_features, index=author_columns)
+
+        return author_features
+
+    def get_negative_samples(self, graph, user_id, ratio):
+        num_samples = int(len(graph.vs) * ratio)
+        negative_samples = []
+        # get neighbours of the user
+        neighbours = graph.neighborhood(graph.vs.find(author_id=user_id), order=1)
+        neighbours = [graph.vs[neighbour]['author_id'] for neighbour in neighbours]
+        # sample
+        for node in np.random.choice(neighbours, num_samples):
+            author_features = self.get_author_features(graph, node)
+            negative_samples.append(author_features)
+
+        return negative_samples
 
     def plot_egonet(self, collection, user, depth, start_date=None, end_date=None):
         network = self.get_egonet(collection, user, depth)
@@ -829,6 +892,11 @@ class PropagationPlotFactory(MongoPlotFactory):
         print(f'Legitimacy computed in {time.time() - start_time} seconds')
         return legitimacy
 
+    def get_t_closeness(self, graph):
+        closeness = graph.closeness(mode='out', )
+        closeness = pd.Series(closeness, index=graph.vs['author_id']).fillna(0)
+        return closeness
+
     def _get_legitimacy_per_time(self, dataset):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
@@ -888,7 +956,12 @@ class PropagationPlotFactory(MongoPlotFactory):
             {'$project': {'author_id': '$author.id',
                           'username': '$author.username',
                           'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
-                          'party': '$author.remiss_metadata.party'}}]
+                          'party': '$author.remiss_metadata.party',
+                          'num_tweets': '$author.public_metrics.tweet_count',
+                          'num_followers': '$author.public_metrics.followers_count',
+                          'num_following': '$author.public_metrics.following_count',
+                          }
+             }]
         self._add_date_filters(nested_pipeline, start_date, end_date)
 
         node_pipeline = [
@@ -898,22 +971,37 @@ class PropagationPlotFactory(MongoPlotFactory):
             {'$project': {'_id': 0, 'author_id': '$referenced_tweets.author.id',
                           'username': '$referenced_tweets.author.username',
                           'is_usual_suspect': '$referenced_tweets.author.remiss_metadata.is_usual_suspect',
-                          'party': '$referenced_tweets.author.remiss_metadata.party'}},
+                          'party': '$referenced_tweets.author.remiss_metadata.party',
+                          'num_tweets': '$referenced_tweets.author.public_metrics.tweet_count',
+                          'num_followers': '$referenced_tweets.author.public_metrics.followers_count',
+                          'num_following': '$referenced_tweets.author.public_metrics.following_count'
+                          }},
             {'$unionWith': {'coll': 'raw', 'pipeline': nested_pipeline}},  # Fetch missing authors
             {'$group': {'_id': '$author_id',
                         'username': {'$first': '$username'},
                         'is_usual_suspect': {'$addToSet': '$is_usual_suspect'},
-                        'party': {'$addToSet': '$party'}}},
+                        'party': {'$addToSet': '$party'},
+                        'num_tweets': {'$last': '$num_tweets'},
+                        'num_followers': {'$last': '$num_followers'},
+                        'num_following': {'$last': '$num_following'}
+
+                        }},
+
             {'$project': {'_id': 0,
                           'author_id': '$_id',
                           'username': 1,
                           'is_usual_suspect': {'$anyElementTrue': '$is_usual_suspect'},
-                          'party': {'$arrayElemAt': ['$party', 0]}}}
+                          'party': {'$arrayElemAt': ['$party', 0]},
+                          'num_tweets': 1,
+                          'num_followers': 1,
+                          'num_following': 1},
+             }
         ]
         self._add_date_filters(node_pipeline, start_date, end_date)
         print('Computing authors')
         start_time = time.time()
-        schema = Schema({'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str})
+        schema = Schema({'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str,
+                         'num_tweets': int, 'num_followers': int, 'num_following': int})
         authors = collection.aggregate_pandas_all(node_pipeline, schema=schema)
         print(f'Authors computed in {time.time() - start_time} seconds')
         client.close()
@@ -990,6 +1078,13 @@ class PropagationPlotFactory(MongoPlotFactory):
         g['reputation'] = reputation
         g['status'] = status
         g.vs['legitimacy'] = legitimacy.to_list()
+        available_t_closeness = self.get_t_closeness(g)
+        g.vs['t-closeness'] = available_t_closeness.to_list()
+        g.vs['num_connections'] = g.degree()
+        g.vs['num_tweets'] = authors['num_tweets']
+        g.vs['num_followers'] = authors['num_followers']
+        g.vs['num_following'] = authors['num_following']
+
         g.add_edges(references[['source', 'target']].to_records(index=False).tolist())
         g.es['weight'] = references['weight']
         g.es['weight_inv'] = references['weight_inv']
@@ -1013,13 +1108,6 @@ class PropagationPlotFactory(MongoPlotFactory):
         else:
             raise ValueError(f'Unknown simplification {self.simplification}')
         return network
-
-    def compute_layout(self, network):
-        print(f'Computing {self.layout} layout')
-        start_time = time.time()
-        layout = network.layout(self.layout, dim=3)
-        print(f'Layout computed in {time.time() - start_time} seconds')
-        return layout
 
     def get_egonet_figure(self, network, start_date=None, end_date=None):
         if 'layout' not in network.attributes():
@@ -1143,6 +1231,7 @@ class PropagationPlotFactory(MongoPlotFactory):
     def persist_graph_metrics(self, dataset, graph):
         # Get legitimacy, reputation, and status from the graph vertices
         legitimacy = pd.Series(graph.vs['legitimacy'], index=graph.vs['author_id'])
+        t_closeness = pd.Series(graph.vs['t-closeness'], index=graph.vs['author_id'])
         reputation = graph['reputation']
         status = graph['status']
         client = MongoClient(self.host, self.port)
@@ -1151,6 +1240,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         collection.drop()
         collection.insert_many([{'author_id': author_id,
                                  'legitimacy': legitimacy.get(author_id),
+                                 't-closeness': t_closeness.get(author_id),
                                  'reputation': reputation.loc[author_id].to_json(date_format='iso'),
                                  'status': status.loc[author_id].to_json(date_format='iso')} for author_id in
                                 graph.vs['author_id']])
