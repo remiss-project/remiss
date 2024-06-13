@@ -298,8 +298,8 @@ class PropagationTestCase(unittest.TestCase):
 
     def test_prepare_propagation_dataset(self):
         dataset = self.dataset_small
-        # self.plot_factory.cache_dir = Path('tmp/cache_propagation')
-        X, y = self.plot_factory.prepare_propagation_dataset(dataset)
+        self.plot_factory.cache_dir = Path('tmp/cache_propagation_2')
+        X, y = self.plot_factory.generate_propagation_dataset(dataset)
         expected_columns = ['op_is_usual_suspect', 'op_legitimacy', 'op_t-closeness', 'op_num_connections',
                             'op_num_tweets', 'op_num_followers', 'op_num_following', 'op_is_politician', 'num_hashtags',
                             'num_mentions', 'num_urls', 'num_media', 'num_interactions', 'num_replies', 'num_words',
@@ -315,6 +315,16 @@ class PropagationTestCase(unittest.TestCase):
         self.assertEqual(y.ndim, 1)
         self.assertEqual(y.name, 'label')
         self.assertEqual(X.columns.to_list(), expected_columns)
+        # Save the dataset to disk
+        X.to_csv(self.plot_factory.cache_dir / 'X.csv', index=False)
+        y.to_csv(self.plot_factory.cache_dir / 'y.csv', index=False)
+
+
+
+    def test_fit_propagation_model(self):
+        dataset = self.dataset
+        model = self.plot_factory.fit_propagation_model(dataset)
+        self.assertIsNotNone(model)
 
     def test_conversation_ids(self):
         conversation_ids = self.plot_factory.get_conversation_ids(self.dataset_small)

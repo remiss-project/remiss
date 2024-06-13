@@ -14,7 +14,10 @@ import pymongoarrow
 from igraph import Layout
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
+from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
 from tqdm import tqdm
+from xgboost import XGBClassifier
 
 from figures.figures import MongoPlotFactory
 
@@ -680,7 +683,7 @@ class PropagationPlotFactory(MongoPlotFactory):
             except Exception as e:
                 print(f'Error prepopulating propagation metrics for {dataset}: {e}')
 
-    def prepare_propagation_dataset(self, dataset, negative_sample_ratio=0.1):
+    def generate_propagation_dataset(self, dataset, negative_sample_ratio=0.1):
         """
         Prepare the dataset for propagation analysis by adding a 'retweeted_status' field to the tweets that are retweets
         and a 'quoted_status' field to the tweets that are quotes.
@@ -703,9 +706,20 @@ class PropagationPlotFactory(MongoPlotFactory):
         """
 
         X, y = [], []
+        print(f'Generating propagation dataset for {dataset}')
+        start_time = time.time()
+        print('Getting conversations')
         conversations = self.get_conversation_ids(dataset)
-        hidden_network = self.get_hidden_network(dataset)
+        end_time = time.time()
+        print(f'Conversations fetched in {end_time - start_time} seconds')
 
+        start_time = time.time()
+        print('Getting hidden network')
+        hidden_network = self._compute_hidden_network(dataset)
+        end_time = time.time()
+        print(f'Hidden network fetched in {end_time - start_time} seconds')
+
+        print('Preparing dataset')
         for conversation_id in tqdm(conversations['conversation_id'],
                                     desc=f'Preparing propagation dataset for {dataset}'):
             propagation_tree = self.get_propagation_tree(dataset, conversation_id)
@@ -730,7 +744,8 @@ class PropagationPlotFactory(MongoPlotFactory):
                         negative_samples = self.get_negative_samples(hidden_network, previous_user,
                                                                      negative_sample_ratio)
                         for negative_sample in negative_samples:
-                            sample = [*op_author_features, *op_tweet_features, *previous_user_features, *negative_sample]
+                            sample = [*op_author_features, *op_tweet_features, *previous_user_features,
+                                      *negative_sample]
                             X.append(sample)
                             y.append(0)
         tweet_columns = op_tweet_features.index
@@ -743,6 +758,21 @@ class PropagationPlotFactory(MongoPlotFactory):
         y = pd.Series(y, name='label')
 
         return X, y
+
+    def fit_propagation_model(self, dataset):
+        print('Fitting propagation model')
+        X, y = self.generate_propagation_dataset(dataset)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        model = XGBClassifier()
+        model.fit(X_train, y_train)
+        # show plotly histogram for y_train
+        fig = px.histogram(y_train, title='Distribution of labels in the training set')
+        fig.update_xaxes(title_text='Label')
+        fig.update_yaxes(title_text='Count')
+        fig.show()
+        y_pred = model.predict(X_test)
+        print(classification_report(y_test, y_pred))
+        return model
 
     def get_tweet_features(self, dataset, tweet_id):
         client = MongoClient(self.host, self.port)
@@ -829,6 +859,8 @@ class PropagationPlotFactory(MongoPlotFactory):
                 network = self.load_from_cache(dataset, stem)
             else:
                 network = self._compute_hidden_network(dataset)
+                layout = self.compute_layout(network)
+                network['layout'] = layout
                 if self.cache_dir:
                     self.save_to_cache(dataset, network, stem)
             self._hidden_networks[dataset] = network
@@ -1092,8 +1124,6 @@ class PropagationPlotFactory(MongoPlotFactory):
         print(g.summary())
         print(f'Graph computed in {time.time() - start_time} seconds')
 
-        layout = self.compute_layout(g)
-        g['layout'] = layout
         self.persist_graph_metrics(dataset, g)
 
         return g

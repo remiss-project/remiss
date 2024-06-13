@@ -1,4 +1,5 @@
 import time
+from pathlib import Path
 
 import dash
 import dash_bootstrap_components as dbc
@@ -7,7 +8,7 @@ from dash_bootstrap_templates import load_figure_template
 from pyaml_env import parse_config
 
 from components import RemissDashboard
-from figures import TimeSeriesFactory, EgonetPlotFactory, TweetTableFactory
+from figures import TimeSeriesFactory, TweetTableFactory
 from figures.propagation import PropagationPlotFactory
 from figures.universitat_valencia import UVAPIFactory
 
@@ -59,6 +60,22 @@ def prepopulate(config_file='dev_config.yaml', force=False):
     print(f'Prepopulated in {time.time() - start_time} seconds.')
 
 
+def generate_propagation_dataset(dataset, config_file='dev_config.yaml', output_dir='data/propagation_dataset',
+                                 negative_sample_ratio=0.1):
+    output_dir = Path(output_dir)
+    config = load_config(config_file)
+    propagation_plot_factory = PropagationPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                                      available_datasets=config['available_datasets'])
+    print('Generating propagation dataset...')
+    start_time = time.time()
+    X, y = propagation_plot_factory.generate_propagation_dataset(dataset, negative_sample_ratio)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    X.to_csv(output_dir / f'{dataset}_X.csv', index=False)
+    y.to_csv(output_dir / f'{dataset}_y.csv', index=False)
+
+    print(f'Generated propagation dataset in {time.time() - start_time} seconds.')
+
+
 def create_app(config):
     load_figure_template(config['theme'])
 
@@ -80,15 +97,15 @@ def create_app(config):
     tweet_table_factory = TweetTableFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                             available_datasets=config['available_datasets'])
 
-    egonet_plot_factory = EgonetPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                            cache_dir=config['cache_dir'],
-                                            layout=config['graph_layout'],
-                                            simplification=config['graph_simplification']['method'],
-                                            threshold=config['graph_simplification']['threshold'],
-                                            frequency=config['frequency'],
-                                            available_datasets=config['available_datasets'],
+    egonet_plot_factory = PropagationPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                                 cache_dir=config['cache_dir'],
+                                                 layout=config['graph_layout'],
+                                                 simplification=config['graph_simplification']['method'],
+                                                 threshold=config['graph_simplification']['threshold'],
+                                                 frequency=config['frequency'],
+                                                 available_datasets=config['available_datasets'],
 
-                                            )
+                                                 )
     uv_factory = UVAPIFactory(api_url=config['uv']['api_url'])
 
     dashboard = RemissDashboard(tweet_user_plot_factory,
