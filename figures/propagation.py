@@ -12,16 +12,25 @@ import pyarrow
 import pymongo
 import pymongoarrow
 from igraph import Layout
+from matplotlib import pyplot as plt
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
+from sklearn import set_config
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from tqdm import tqdm
 from xgboost import XGBClassifier
 
 from figures.figures import MongoPlotFactory
 
 pymongoarrow.monkey.patch_all()
+
+
+set_config(transform_output="pandas")
 
 
 class PropagationPlotFactory(MongoPlotFactory):
@@ -683,106 +692,17 @@ class PropagationPlotFactory(MongoPlotFactory):
             except Exception as e:
                 print(f'Error prepopulating propagation metrics for {dataset}: {e}')
 
-    def generate_propagation_dataset(self, dataset, negative_sample_ratio=0.1):
-        """
-        Prepare the dataset for propagation analysis by adding a 'retweeted_status' field to the tweets that are retweets
-        and a 'quoted_status' field to the tweets that are quotes.
-
-        It contains for each tweet and user the following fields for each user and tweet:
-
-        user_features = ['is_usual_suspect', 'is_politician', 'legitimacy', 't-closeness', 'num_connections', 'num_tweets',
-                            'num_followers', 'num_following']
-        tweet_feature = ['num_hashtags', 'num_mentions', 'num_urls', 'num_media', 'num_interactions', 'num_replies',
-                             'num_words', 'num_chars', 'num_emojis']
-
-        Each sample consists of:
-
-        - user features for the op user of the tweet
-        - tweet features for the tweet
-        - user features for the user that retweeted the tweet before the present user
-
-        :param dataset: Name of the mongodb database containing the tweets
-        :return: X, y matrices ready to be used for propagation analysis
-        """
-
-        X, y = [], []
-        print(f'Generating propagation dataset for {dataset}')
-        start_time = time.time()
-        print('Getting conversations')
-        conversations = self.get_conversation_ids(dataset)
-        end_time = time.time()
-        print(f'Conversations fetched in {end_time - start_time} seconds')
-
-        start_time = time.time()
-        print('Getting hidden network')
-        hidden_network = self._compute_hidden_network(dataset)
-        end_time = time.time()
-        print(f'Hidden network fetched in {end_time - start_time} seconds')
-
-        print('Preparing dataset')
-        for conversation_id in tqdm(conversations['conversation_id'],
-                                    desc=f'Preparing propagation dataset for {dataset}'):
-            propagation_tree = self.get_propagation_tree(dataset, conversation_id)
-            op_tweet = propagation_tree.vs.find(tweet_id=conversation_id)
-            op_tweet_features = self.get_tweet_features(dataset, conversation_id)
-            op_author = op_tweet['author_id']
-            op_author_features = self.get_author_features(hidden_network, op_author)
-            for tweet in propagation_tree.vs:
-                if tweet['tweet_id'] != conversation_id:
-                    previous_user = tweet['author_id']
-                    previous_user_features = self.get_author_features(hidden_network, previous_user)
-                    for next_user in propagation_tree.successors(tweet):
-                        next_user_features = self.get_author_features(hidden_network, next_user['author_id'])
-                        # Create sample
-                        sample = [*op_author_features, *op_tweet_features, *previous_user_features, *next_user_features]
-                        X.append(sample)
-                        # Add label
-                        y.append(1)
-
-                    # Add negative samples from the hidden network
-                    if negative_sample_ratio > 0:
-                        negative_samples = self.get_negative_samples(hidden_network, previous_user,
-                                                                     negative_sample_ratio)
-                        for negative_sample in negative_samples:
-                            sample = [*op_author_features, *op_tweet_features, *previous_user_features,
-                                      *negative_sample]
-                            X.append(sample)
-                            y.append(0)
-        tweet_columns = op_tweet_features.index
-        author_columns = op_author_features.index
-        op_columns = ('op_' + author_columns).to_list()
-        previous_columns = ('previous_' + author_columns).to_list()
-        current_columns = ('current_' + author_columns).to_list()
-
-        X = pd.DataFrame(X, columns=[*op_columns, *tweet_columns, *previous_columns, *current_columns])
-        y = pd.Series(y, name='label')
-
-        return X, y
-
-    def fit_propagation_model(self, dataset):
-        print('Fitting propagation model')
-        X, y = self.generate_propagation_dataset(dataset)
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        model = XGBClassifier()
-        model.fit(X_train, y_train)
-        # show plotly histogram for y_train
-        fig = px.histogram(y_train, title='Distribution of labels in the training set')
-        fig.update_xaxes(title_text='Label')
-        fig.update_yaxes(title_text='Count')
-        fig.show()
-        y_pred = model.predict(X_test)
-        print(classification_report(y_test, y_pred))
-        return model
-
-    def get_tweet_features(self, dataset, tweet_id):
+    def generate_propagation_dataset(self, dataset, negative_sample_ratio=1):
         client = MongoClient(self.host, self.port)
+        self._validate_dataset(client, dataset)
         database = client.get_database(dataset)
         collection = database.get_collection('raw')
-        tweet_features = ['num_hashtags', 'num_mentions', 'num_urls', 'num_media', 'num_interactions', 'num_replies',
-                          'num_words', 'num_chars']
-        tweet_pipeline = [
-            {'$match': {'id': tweet_id}},
+        # get tweets that are the start of the conversation, so its conversation_id is the tweet_id
+        pipeline = [
+            {'$match': {'$expr': {'$eq': ['$id', '$conversation_id']}}},
             {'$project': {'_id': 0,
+                          'author_id': '$author.id',
+                          'conversation_id': 1,
                           'num_hashtags': {'$size': {'$ifNull': ['$entities.hashtags', []]}},
                           'num_mentions': {'$size': {'$ifNull': ['$entities.mentions', []]}},
                           'num_urls': {'$size': {'$ifNull': ['$entities.urls', []]}},
@@ -790,37 +710,118 @@ class PropagationPlotFactory(MongoPlotFactory):
                           'num_interactions': {'$size': {'$ifNull': ['$referenced_tweets', []]}},
                           'num_words': {'$size': {'$split': ['$text', ' ']}},
                           'num_chars': {'$strLenCP': '$text'},
-                          }}
+                          'is_usual_suspect_op': '$author.remiss_metadata.is_usual_suspect',
+                          'party_op': '$author.remiss_metadata.party',
+                          'num_tweets_op': '$author.public_metrics.tweet_count',
+                          'num_followers_op': '$author.public_metrics.followers_count',
+                          'num_following_op': '$author.public_metrics.following_count',
+                          }},
         ]
-        schema = Schema({**{feature: int for feature in tweet_features}})
-        tweet_features = collection.aggregate_pandas_all(tweet_pipeline, schema=schema)
+        tweet_features = collection.aggregate_pandas_all(pipeline)
+
+        propagation_metrics_pipeline = [
+            {'$project': {'_id': 0, 'author_id': 1, 'legitimacy': 1, 't-closeness': 1}}
+        ]
+        collection = database.get_collection('user_propagation')
+        propagation_metrics = collection.aggregate_pandas_all(propagation_metrics_pipeline)
+
+        collection = database.get_collection('raw')
+        user_features_pipeline = [
+            {'$project': {'_id': 0,
+                          'author_id': '$author.id',
+                          'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
+                          'party': '$author.remiss_metadata.party',
+                          'num_tweets': '$author.public_metrics.tweet_count',
+                          'num_followers': '$author.public_metrics.followers_count',
+                          'num_following': '$author.public_metrics.following_count', }}
+        ]
+        user_features = collection.aggregate_pandas_all(user_features_pipeline)
+        user_features = user_features.drop_duplicates(subset='author_id')
+        user_features = user_features.merge(propagation_metrics, on='author_id', how='left').set_index('author_id')
+
+        collection = database.get_collection('raw')
+        edge_pipeline = [
+            {'$unwind': '$referenced_tweets'},
+            {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
+                        'referenced_tweets.author': {'$exists': True}
+                        }},
+            {'$project': {'_id': 0, 'source': '$referenced_tweets.author.id', 'target': '$author.id',
+                          'conversation_id': '$conversation_id'}}
+        ]
+        edges = collection.aggregate_pandas_all(edge_pipeline)
+
+        features = edges.merge(tweet_features, left_on='conversation_id', right_on='conversation_id', how='inner')
+        features = features.merge(user_features.rename(columns=lambda x: f'{x}_prev'), left_on='source',
+                                  right_index=True,
+                                  how='inner')
+        features = features.merge(user_features.rename(columns=lambda x: f'{x}_curr'), left_on='target',
+                                  right_on='author_id', how='inner')
+        # Drop superflous columns
+        features = features.drop(columns=['conversation_id', 'source', 'target', 'author_id'])
+
+        # get negatives: for each source, target and conversation id, find another target from a different conversation
+        # that is not the source
+        negatives = []
+        for source, interactions in edges.groupby('source'):
+            if len(interactions) > 1:
+                interactions['target'] = interactions['target'].sample(frac=1)
+                negatives.append(interactions.sample(frac=negative_sample_ratio))
+
+
+        negatives = pd.concat(negatives)
+        negatives = negatives.merge(tweet_features, left_on='conversation_id', right_on='conversation_id', how='inner')
+        negatives = negatives.merge(user_features.rename(columns=lambda x: f'{x}_prev'), left_on='source',
+                                    right_index=True,
+                                    how='inner')
+        negatives = negatives.merge(user_features.rename(columns=lambda x: f'{x}_curr'), left_on='target',
+                                    right_on='author_id', how='inner')
+
+        print('Features generated')
+        print(f'Num positives: {len(features)}')
+        print(f'Num negatives: {len(negatives)}')
+        df = negatives.groupby('source').size().reset_index(name='count')
+        print(f'Negatives per source: {df["count"].mean()}')
+        df.plot.hist(title='Distribution of negatives per source', logy=True, bins=20)
+        plt.show()
+
+        negatives = negatives.drop(columns=['conversation_id', 'source', 'target', 'author_id'])
+
+
+
+        features['propagated'] = 1
+        negatives['propagated'] = 0
+        features = pd.concat([features, negatives])
+
+
         client.close()
-        return tweet_features.iloc[0]
+        return features
 
-    def get_author_features(self, graph, user_id):
-        author_columns = ['is_usual_suspect', 'legitimacy',
-                          't-closeness', 'num_connections', 'num_tweets', 'num_followers', 'num_following']
-
-        node = graph.vs.find(author_id=user_id)
-        author_features = [node[feature] for feature in author_columns]
-        author_features.append(node['party'] is not None)
-        author_columns.append('is_politician')
-        author_features = pd.Series(author_features, index=author_columns)
-
-        return author_features
-
-    def get_negative_samples(self, graph, user_id, ratio):
-        num_samples = int(len(graph.vs) * ratio)
-        negative_samples = []
-        # get neighbours of the user
-        neighbours = graph.neighborhood(graph.vs.find(author_id=user_id), order=1)
-        neighbours = [graph.vs[neighbour]['author_id'] for neighbour in neighbours]
-        # sample
-        for node in np.random.choice(neighbours, num_samples):
-            author_features = self.get_author_features(graph, node)
-            negative_samples.append(author_features)
-
-        return negative_samples
+    def fit_propagation_model(self, dataset):
+        print('Fitting propagation model')
+        df = self.generate_propagation_dataset(dataset)
+        X, y = df.drop(columns='propagated'), df['propagated']
+        pipeline = Pipeline([
+            ('imputer', SimpleImputer(strategy='most_frequent')),
+            ('transformer', ColumnTransformer([
+                ('one_hot', OneHotEncoder(handle_unknown='ignore', sparse_output=False), X.select_dtypes(include='object').columns),
+            ], remainder='passthrough')),
+            ('scaler', StandardScaler()),
+            ('classifier', XGBClassifier())
+        ])
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        pipeline.fit(X_train, y_train)
+        # # show plotly histogram for y_train
+        # fig = px.histogram(y_train, title='Distribution of labels in the training set')
+        # fig.update_xaxes(title_text='Label')
+        # fig.update_yaxes(title_text='Count')
+        # fig.show()
+        y_train_pred = pipeline.predict(X_train)
+        y_test_pred = pipeline.predict(X_test)
+        print('Training set metrics')
+        print(classification_report(y_train, y_train_pred))
+        print('Test set metrics')
+        print(classification_report(y_test, y_test_pred))
+        return pipeline
 
     def plot_egonet(self, collection, user, depth, start_date=None, end_date=None):
         network = self.get_egonet(collection, user, depth)

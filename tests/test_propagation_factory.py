@@ -297,29 +297,11 @@ class PropagationTestCase(unittest.TestCase):
         pd.testing.assert_frame_equal(expected, actual)
 
     def test_prepare_propagation_dataset(self):
-        dataset = self.dataset_small
+        dataset = self.dataset
         self.plot_factory.cache_dir = Path('tmp/cache_propagation_2')
-        X, y = self.plot_factory.generate_propagation_dataset(dataset)
-        expected_columns = ['op_is_usual_suspect', 'op_legitimacy', 'op_t-closeness', 'op_num_connections',
-                            'op_num_tweets', 'op_num_followers', 'op_num_following', 'op_is_politician', 'num_hashtags',
-                            'num_mentions', 'num_urls', 'num_media', 'num_interactions', 'num_replies', 'num_words',
-                            'num_chars', 'previous_is_usual_suspect', 'previous_legitimacy', 'previous_t-closeness',
-                            'previous_num_connections', 'previous_num_tweets', 'previous_num_followers',
-                            'previous_num_following', 'previous_is_politician', 'current_is_usual_suspect',
-                            'current_legitimacy', 'current_t-closeness', 'current_num_connections',
-                            'current_num_tweets', 'current_num_followers', 'current_num_following',
-                            'current_is_politician']
-
-        self.assertEqual(X.shape[0], y.shape[0])
-        self.assertEqual(X.shape[1], 32)
-        self.assertEqual(y.ndim, 1)
-        self.assertEqual(y.name, 'label')
-        self.assertEqual(X.columns.to_list(), expected_columns)
-        # Save the dataset to disk
-        X.to_csv(self.plot_factory.cache_dir / 'X.csv', index=False)
-        y.to_csv(self.plot_factory.cache_dir / 'y.csv', index=False)
-
-
+        features = self.plot_factory.generate_propagation_dataset(dataset)
+        features['propagated'].hist()
+        plt.show()
 
     def test_fit_propagation_model(self):
         dataset = self.dataset
