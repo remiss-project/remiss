@@ -29,7 +29,6 @@ from figures.figures import MongoPlotFactory
 
 pymongoarrow.monkey.patch_all()
 
-
 set_config(transform_output="pandas")
 
 
@@ -692,7 +691,7 @@ class PropagationPlotFactory(MongoPlotFactory):
             except Exception as e:
                 print(f'Error prepopulating propagation metrics for {dataset}: {e}')
 
-    def generate_propagation_dataset(self, dataset, negative_sample_ratio=1):
+    def generate_propagation_dataset(self, dataset, negative_sample_ratio=0.1):
         client = MongoClient(self.host, self.port)
         self._validate_dataset(client, dataset)
         database = client.get_database(dataset)
@@ -764,8 +763,14 @@ class PropagationPlotFactory(MongoPlotFactory):
         negatives = []
         for source, interactions in edges.groupby('source'):
             if len(interactions) > 1:
-                interactions['target'] = interactions['target'].sample(frac=1)
-                negatives.append(interactions.sample(frac=negative_sample_ratio))
+                targets = set(interactions['target'].unique())
+                for conversation_id, conversation in interactions.groupby('conversation_id'):
+                    other_targets = pd.DataFrame(targets - set(conversation['target']), columns=['target'])
+                    other_targets = other_targets.sample(frac=negative_sample_ratio)
+                    if len(other_targets) > 0:
+                        other_targets['source'] = source
+                        other_targets['conversation_id'] = conversation_id
+                        negatives.append(other_targets)
 
 
         negatives = pd.concat(negatives)
@@ -786,12 +791,9 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         negatives = negatives.drop(columns=['conversation_id', 'source', 'target', 'author_id'])
 
-
-
         features['propagated'] = 1
         negatives['propagated'] = 0
         features = pd.concat([features, negatives])
-
 
         client.close()
         return features
@@ -803,7 +805,8 @@ class PropagationPlotFactory(MongoPlotFactory):
         pipeline = Pipeline([
             ('imputer', SimpleImputer(strategy='most_frequent')),
             ('transformer', ColumnTransformer([
-                ('one_hot', OneHotEncoder(handle_unknown='ignore', sparse_output=False), X.select_dtypes(include='object').columns),
+                ('one_hot', OneHotEncoder(handle_unknown='ignore', sparse_output=False),
+                 X.select_dtypes(include='object').columns),
             ], remainder='passthrough')),
             ('scaler', StandardScaler()),
             ('classifier', XGBClassifier())
