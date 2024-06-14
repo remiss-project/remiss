@@ -748,6 +748,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                           'conversation_id': '$conversation_id'}}
         ]
         edges = collection.aggregate_pandas_all(edge_pipeline)
+        client.close()
 
         features = edges.merge(tweet_features, left_on='conversation_id', right_on='conversation_id', how='inner')
         features = features.merge(user_features.rename(columns=lambda x: f'{x}_prev'), left_on='source',
@@ -766,8 +767,9 @@ class PropagationPlotFactory(MongoPlotFactory):
                 targets = set(interactions['target'].unique())
                 for conversation_id, conversation in interactions.groupby('conversation_id'):
                     other_targets = pd.DataFrame(targets - set(conversation['target']), columns=['target'])
-                    other_targets = other_targets.sample(frac=negative_sample_ratio)
                     if len(other_targets) > 0:
+                        other_targets = other_targets.sample(n=min([len(conversation), len(other_targets)]))
+
                         other_targets['source'] = source
                         other_targets['conversation_id'] = conversation_id
                         negatives.append(other_targets)
@@ -795,7 +797,6 @@ class PropagationPlotFactory(MongoPlotFactory):
         negatives['propagated'] = 0
         features = pd.concat([features, negatives])
 
-        client.close()
         return features
 
     def fit_propagation_model(self, dataset):
@@ -813,11 +814,11 @@ class PropagationPlotFactory(MongoPlotFactory):
         ])
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         pipeline.fit(X_train, y_train)
-        # # show plotly histogram for y_train
-        # fig = px.histogram(y_train, title='Distribution of labels in the training set')
-        # fig.update_xaxes(title_text='Label')
-        # fig.update_yaxes(title_text='Count')
-        # fig.show()
+        # show plotly histogram for y_train
+        fig = px.histogram(y_train, title='Distribution of labels in the training set')
+        fig.update_xaxes(title_text='Label')
+        fig.update_yaxes(title_text='Count')
+        fig.show()
         y_train_pred = pipeline.predict(X_train)
         y_test_pred = pipeline.predict(X_test)
         print('Training set metrics')
