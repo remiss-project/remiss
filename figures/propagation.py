@@ -711,9 +711,9 @@ class PropagationPlotFactory(MongoPlotFactory):
                           'num_chars': {'$strLenCP': '$text'},
                           'is_usual_suspect_op': '$author.remiss_metadata.is_usual_suspect',
                           'party_op': '$author.remiss_metadata.party',
-                          'num_tweets_op': '$author.public_metrics.tweet_count',
-                          'num_followers_op': '$author.public_metrics.followers_count',
-                          'num_following_op': '$author.public_metrics.following_count',
+                          # 'num_tweets_op': '$author.public_metrics.tweet_count',
+                          # 'num_followers_op': '$author.public_metrics.followers_count',
+                          # 'num_following_op': '$author.public_metrics.following_count',
                           }},
         ]
         tweet_features = collection.aggregate_pandas_all(pipeline)
@@ -730,9 +730,10 @@ class PropagationPlotFactory(MongoPlotFactory):
                           'author_id': '$author.id',
                           'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
                           'party': '$author.remiss_metadata.party',
-                          'num_tweets': '$author.public_metrics.tweet_count',
-                          'num_followers': '$author.public_metrics.followers_count',
-                          'num_following': '$author.public_metrics.following_count', }}
+                          # 'num_tweets': '$author.public_metrics.tweet_count',
+                          # 'num_followers': '$author.public_metrics.followers_count',
+                          # 'num_following': '$author.public_metrics.following_count',
+                          }}
         ]
         user_features = collection.aggregate_pandas_all(user_features_pipeline)
         user_features = user_features.drop_duplicates(subset='author_id')
@@ -786,16 +787,16 @@ class PropagationPlotFactory(MongoPlotFactory):
         print('Features generated')
         print(f'Num positives: {len(features)}')
         print(f'Num negatives: {len(negatives)}')
-        df = negatives.groupby('source').size().reset_index(name='count')
-        print(f'Negatives per source: {df["count"].mean()}')
-        df.plot.hist(title='Distribution of negatives per source', logy=True, bins=20)
-        plt.show()
+        # df = negatives.groupby('source').size().reset_index(name='count')
+        # print(f'Negatives per source: {df["count"].mean()}')
+        # df.plot.hist(title='Distribution of negatives per source', logy=True, bins=20)
+        # plt.show()
 
         negatives = negatives.drop(columns=['conversation_id', 'source', 'target', 'author_id'])
 
         features['propagated'] = 1
         negatives['propagated'] = 0
-        features = pd.concat([features, negatives])
+        features = pd.concat([features, negatives]).reset_index(drop=True)
 
         return features
 

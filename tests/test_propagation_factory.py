@@ -1,17 +1,26 @@
 import random
 import unittest
 from pathlib import Path
+import plotly.express as px
 
 import igraph as ig
 import matplotlib.pyplot as plt
 import pandas as pd
 from pandas import Timestamp
 from pymongo import MongoClient
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from tqdm import tqdm
+from xgboost import XGBClassifier
 
 from figures.propagation import PropagationPlotFactory
 from tests.conftest import populate_test_database, delete_test_database
 import igraph as ig
+import seaborn as sns
 
 
 class PropagationTestCase(unittest.TestCase):
@@ -300,8 +309,54 @@ class PropagationTestCase(unittest.TestCase):
         dataset = self.dataset
         self.plot_factory.cache_dir = Path('tmp/cache_propagation_2')
         features = self.plot_factory.generate_propagation_dataset(dataset)
+        features.to_csv(self.plot_factory.cache_dir / 'features.csv')
         features['propagated'].hist()
+        # plot heatmap with seaborn
+        # sns.pairplot(features, hue='propagated', diag_kind='kde')
+
         plt.show()
+
+    def test_features_fail(self):
+        features = pd.read_csv('tmp/cache_propagation_2/features.csv', index_col=0)
+        sample = features.sample(10000)
+        sns.pairplot(sample, hue='propagated', diag_kind='kde')
+        plt.savefig('tmp/cache_propagation_2/pairplot.png')
+
+        plt.show()
+
+    def test_fit_fail(self):
+        df = pd.read_csv('tmp/cache_propagation_2/features.csv', index_col=0)
+
+        X, y = df.drop(columns='propagated'), df['propagated']
+        pipeline = Pipeline([
+            ('imputer', SimpleImputer(strategy='most_frequent')),
+            ('transformer', ColumnTransformer([
+                ('one_hot', OneHotEncoder(handle_unknown='ignore', sparse_output=False),
+                 X.select_dtypes(include='object').columns),
+            ], remainder='passthrough')),
+            ('scaler', StandardScaler()),
+            ('classifier', XGBClassifier())
+        ])
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        pipeline.fit(X_train, y_train)
+        # show plotly histogram for y_train
+        fig = px.histogram(y_train, title='Distribution of labels in the training set')
+        fig.update_xaxes(title_text='Label')
+        fig.update_yaxes(title_text='Count')
+        fig.show()
+        y_train_pred = pipeline.predict(X_train)
+        y_test_pred = pipeline.predict(X_test)
+        print('Training set metrics')
+        print(classification_report(y_train, y_train_pred))
+        print('Test set metrics')
+        print(classification_report(y_test, y_test_pred))
+        # plot feature importance
+        feature_importances = pd.Series(pipeline['classifier'].feature_importances_,
+                                        index=pipeline['classifier'].feature_names_in_).sort_values(ascending=False)
+        fig = px.bar(feature_importances, title='Feature importance')
+        fig.update_xaxes(title_text='Feature')
+        fig.update_yaxes(title_text='Importance')
+        fig.show()
 
     def test_fit_propagation_model(self):
         dataset = self.dataset
