@@ -121,16 +121,10 @@ class TestMongoPlotFactory(unittest.TestCase):
 
     def test_available_datasets(self):
         # Mock MongoClient
-        mock_client = Mock()
-        mock_client.list_database_names.return_value = ['test_dataset']
-        with patch('figures.figures.MongoClient', return_value=mock_client):
+        with patch('figures.figures.MongoClient') as mock_client:
+            mock_client.return_value.list_database_names.return_value = ['test_dataset']
             datasets = self.mongo_plot.available_datasets
             self.assertEqual(datasets, ['test_dataset'])
-
-    def test_available_datasets_2(self):
-        expected = ['test_dataset']
-        actual = self.mongo_plot.available_datasets
-        self.assertEqual(expected, actual)
 
     def test__get_hashtag_freqs(self):
         expected = [('test_hashtag', 3), ('test_hashtag2', 2)]

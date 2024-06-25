@@ -55,7 +55,10 @@ class TestEgonetPlotFactory(unittest.TestCase):
                 authors = pd.DataFrame({'author_id': ['1', '2', '3', '4'],
                                         'is_usual_suspect': [False, False, False, True],
                                         'party': ['PSOE', None, 'VOX', None],
-                                        'username': ['TEST_USER_1', 'TEST_USER_2', 'TEST_USER_3', 'TEST_USER_4']})
+                                        'username': ['TEST_USER_1', 'TEST_USER_2', 'TEST_USER_3', 'TEST_USER_4'],
+                                        'num_tweets': [1, 2, 3, 4],
+                                        'num_followers': [100, 200, 300, 400],
+                                        'num_following': [10, 20, 30, 40], })
                 return authors
 
         mock_collection.aggregate_pandas_all = aggregate_pandas_all
@@ -98,7 +101,11 @@ class TestEgonetPlotFactory(unittest.TestCase):
                 authors = pd.DataFrame({'author_id': ['1', '2', '3'],
                                         'is_usual_suspect': [False, False, False],
                                         'party': ['PSOE', None, 'VOX'],
-                                        'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682']})
+                                        'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682'],
+                                        'num_tweets': [1, 2, 3],
+                                        'num_followers': [100, 200, 300],
+                                        'num_following': [10, 20, 30],
+                                        })
                 return authors
 
         mock_collection.aggregate_pandas_all = aggregate_pandas_all
@@ -142,7 +149,11 @@ class TestEgonetPlotFactory(unittest.TestCase):
                                         'is_usual_suspect': [False, False, False, False],
                                         'party': ['PSOE', None, 'VOX', None],
                                         'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682',
-                                                     'TEST_USER_488683']})
+                                                     'TEST_USER_488683'],
+                                        'num_tweets': [1, 2, 3, 4],
+                                        'num_followers': [100, 200, 300, 400],
+                                        'num_following': [10, 20, 30, 40],
+                                        })
                 return authors
 
         mock_collection.aggregate_pandas_all = aggregate_pandas_all
@@ -188,7 +199,11 @@ class TestEgonetPlotFactory(unittest.TestCase):
                                         'is_usual_suspect': [False, False, False, False],
                                         'party': ['PSOE', None, 'VOX', None],
                                         'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682',
-                                                     'TEST_USER_488683']})
+                                                     'TEST_USER_488683'],
+                                        'num_tweets': [1, 2, 3, 4],
+                                        'num_followers': [100, 200, 300, 400],
+                                        'num_following': [10, 20, 30, 40],
+                                        })
                 return authors
 
         mock_collection.aggregate_pandas_all = aggregate_pandas_all
@@ -285,7 +300,10 @@ class TestEgonetPlotFactory(unittest.TestCase):
             expected_authors.append(
                 {'author_id': tweet['author']['id'], 'username': tweet['author']['username'],
                  'party': tweet['author']['remiss_metadata']['party'],
-                 'is_usual_suspect': tweet['author']['remiss_metadata']['is_usual_suspect']})
+                 'is_usual_suspect': tweet['author']['remiss_metadata']['is_usual_suspect'],
+                 'num_tweets': tweet['author']['public_metrics']['tweet_count'],
+                 'num_followers': tweet['author']['public_metrics']['followers_count'],
+                 'num_following': tweet['author']['public_metrics']['following_count']})
             for referenced_tweet in tweet['referenced_tweets']:
                 expected_references.append(
                     {'source': tweet['author']['id'], 'target': referenced_tweet['author']['id']})
@@ -408,7 +426,8 @@ class TestEgonetPlotFactory(unittest.TestCase):
         expected_status = graph['status']
 
         pd.testing.assert_series_equal(expected_legitimacy, actual_legitimacy)
-        pd.testing.assert_frame_equal(expected_reputation, actual_reputation, check_column_type=False, check_dtype=False)
+        pd.testing.assert_frame_equal(expected_reputation, actual_reputation, check_column_type=False,
+                                      check_dtype=False)
         pd.testing.assert_frame_equal(expected_status, actual_status, check_column_type=False, check_dtype=False)
 
     def test_backbone(self):
@@ -516,7 +535,11 @@ class TestEgonetPlotFactory(unittest.TestCase):
                                         'is_usual_suspect': [False, False, True, True],
                                         'party': [None, 'PSOE', None, 'VOX'],
                                         'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682',
-                                                     'TEST_USER_488683']})
+                                                     'TEST_USER_488683'],
+                                        'num_tweets': [1, 2, 3, 4],
+                                        'num_followers': [100, 200, 300, 400],
+                                        'num_following': [10, 20, 30, 40],
+                                        })
                 return authors
 
         mock_collection.aggregate_pandas_all = aggregate_pandas_all
@@ -564,7 +587,11 @@ class TestEgonetPlotFactory(unittest.TestCase):
                                         'is_usual_suspect': [False, False, True, True],
                                         'party': [None, None, None, 'VOX'],
                                         'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682',
-                                                     'TEST_USER_488683']})
+                                                     'TEST_USER_488683'],
+                                        'num_tweets': [1, 2, 3, 4],
+                                        'num_followers': [100, 200, 300, 400],
+                                        'num_following': [10, 20, 30, 40],
+                                        })
                 return authors
 
         mock_collection.aggregate_pandas_all = aggregate_pandas_all
@@ -613,7 +640,11 @@ class TestEgonetPlotFactory(unittest.TestCase):
                                         'is_usual_suspect': [False, True, False, True],
                                         'party': [None, None, 'PP', 'VOX'],
                                         'username': ['TEST_USER_488680', 'TEST_USER_488681', 'TEST_USER_488682',
-                                                     'TEST_USER_488683']})
+                                                     'TEST_USER_488683'],
+                                        'num_tweets': [1, 2, 3, 4],
+                                        'num_followers': [100, 200, 300, 400],
+                                        'num_following': [10, 20, 30, 40],
+                                        })
                 return authors
 
         mock_collection.aggregate_pandas_all = aggregate_pandas_all
@@ -797,12 +828,17 @@ class TestEgonetPlotFactory(unittest.TestCase):
             if tweet['created_at'] <= start_date or tweet['created_at'] < end_date:
                 expected_authors[tweet['author']['id']] = [tweet['author']['id'], tweet['author']['username'],
                                                            tweet['author']['remiss_metadata']['is_usual_suspect'],
-                                                           tweet['author']['remiss_metadata']['party']]
+                                                           tweet['author']['remiss_metadata']['party'],
+                                                           tweet['author']['public_metrics']['tweet_count'],
+                                                           tweet['author']['public_metrics']['followers_count'],
+                                                           tweet['author']['public_metrics']['following_count']]
+
                 for referenced_tweet in tweet['referenced_tweets']:
                     expected_references.append([tweet['author']['id'], referenced_tweet['author']['id']])
 
         expected_authors = pd.DataFrame(expected_authors.values(),
-                                        columns=['author_id', 'username', 'is_usual_suspect', 'party'])
+                                        columns=['author_id', 'username', 'is_usual_suspect', 'party', 'num_tweets',
+                                                 'num_followers', 'num_following'])
         expected_authors = expected_authors.drop_duplicates().sort_values('author_id').reset_index(drop=True)
         authors = authors.sort_values('author_id').reset_index(drop=True)
         pd.testing.assert_frame_equal(expected_authors, authors, check_dtype=False, check_like=True,
@@ -845,7 +881,8 @@ def create_test_data_db(dataset='unit_test_remiss', data_size=100, day_range=10,
             created_at = datetime.fromisoformat("2019-01-01T00:01:00Z") + timedelta(days=day)
             tweet = {"id": i,
                      "author": {"username": f"TEST_USER_{i // 2}", "id": f'{i // 2}',
-                                "remiss_metadata": {"party": party, "is_usual_suspect": is_usual_suspect}},
+                                "remiss_metadata": {"party": party, "is_usual_suspect": is_usual_suspect},
+                                'public_metrics': {'tweet_count': 1, 'followers_count': 100, 'following_count': 10}},
                      "entities": {"hashtags": [{"tag": "test_hashtag"}]},
                      'referenced_tweets': referenced_tweets,
                      'created_at': created_at}

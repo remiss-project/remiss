@@ -43,18 +43,16 @@ available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
 
 def prepopulate(config_file='dev_config.yaml', force=False):
     config = load_config(config_file)
-    egonet_plot_factory = EgonetPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                            cache_dir=config['cache_dir'],
-                                            layout=config['graph_layout'],
-                                            simplification=config['graph_simplification']['method'],
-                                            threshold=config['graph_simplification']['threshold'],
-                                            frequency=config['frequency'],
-                                            available_datasets=config['available_datasets'])
     propagation_plot_factory = PropagationPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                                      cache_dir=config['cache_dir'],
+                                                      layout=config['graph_layout'],
+                                                      simplification=config['graph_simplification']['method'],
+                                                      threshold=config['graph_simplification']['threshold'],
+                                                      frequency=config['frequency'],
                                                       available_datasets=config['available_datasets'])
+
     print('Prepopulating...')
     start_time = time.time()
-    egonet_plot_factory.prepopulate(force)
     propagation_plot_factory.prepopulate(force)
 
     print(f'Prepopulated in {time.time() - start_time} seconds.')

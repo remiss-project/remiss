@@ -664,6 +664,7 @@ class PropagationPlotFactory(MongoPlotFactory):
             try:
                 if force or not self.is_cached(dataset, 'hidden_network'):
                     network = self._compute_hidden_network(dataset)
+                    self.persist_graph_metrics(dataset, network)
                     if self.cache_dir:
                         stem = f'hidden_network'
                         self.save_to_cache(dataset, network, stem)
@@ -722,6 +723,9 @@ class PropagationPlotFactory(MongoPlotFactory):
         ]
         collection = database.get_collection('user_propagation')
         propagation_metrics = collection.aggregate_pandas_all(propagation_metrics_pipeline)
+
+        if len(propagation_metrics) == 0:
+            raise RuntimeError('Propagation metrics not found. Please prepopulate them first')
 
         collection = database.get_collection('raw')
         user_features_pipeline = [
@@ -862,6 +866,7 @@ class PropagationPlotFactory(MongoPlotFactory):
             else:
                 network = self._compute_hidden_network(dataset)
                 layout = self.compute_layout(network)
+
                 network['layout'] = layout
                 if self.cache_dir:
                     self.save_to_cache(dataset, network, stem)

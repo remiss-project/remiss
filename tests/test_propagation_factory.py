@@ -19,17 +19,19 @@ from tqdm import tqdm
 from xgboost import XGBClassifier
 
 from figures.propagation import PropagationPlotFactory
+from tests.conftest import populate_test_database, delete_test_database
 
 
 class PropagationTestCase(unittest.TestCase):
-    # @classmethod
-    # def setUpClass(cls):
-    #     populate_test_database('test_dataset')
-    #     populate_test_database('test_dataset_small', small=True)
+    @classmethod
+    def setUpClass(cls):
+        populate_test_database('test_dataset')
+        populate_test_database('test_dataset_small', small=True)
 
     # @classmethod
     # def tearDownClass(cls):
-    #     delete_test_database(self.dataset)
+    #     delete_test_database('test_dataset')
+    #     delete_test_database('test_dataset_small')
 
     def setUp(self):
         self.plot_factory = PropagationPlotFactory()
@@ -304,10 +306,19 @@ class PropagationTestCase(unittest.TestCase):
         pd.testing.assert_frame_equal(expected, actual)
 
     def test_prepare_propagation_dataset(self):
-        dataset = self.dataset
+        dataset = self.dataset_small
         self.plot_factory.cache_dir = Path('tmp/cache_propagation_2')
-        features = self.plot_factory.generate_propagation_dataset(dataset)
-        features.to_csv(self.plot_factory.cache_dir / 'features.csv')
+        try:
+            features = self.plot_factory.generate_propagation_dataset(dataset)
+        except RuntimeError as ex:
+            if 'Propagation metrics not found. Please prepopulate them first' in str(ex):
+                self.plot_factory.prepopulate_propagation(force=True)
+                self.plot_factory.prepopulate_egonet(force=True)
+                features = self.plot_factory.generate_propagation_dataset(dataset)
+            else:
+                raise ex
+
+        # features.to_csv(self.plot_factory.cache_dir / 'features.csv')
         sns.pairplot(features.sample(100), hue='propagated', diag_kind='kde')
         plt.savefig('tmp/cache_propagation_2/pairplot.png')
 
