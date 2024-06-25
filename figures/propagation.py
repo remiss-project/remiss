@@ -700,7 +700,6 @@ class PropagationPlotFactory(MongoPlotFactory):
         pipeline = [
             {'$match': {'$expr': {'$eq': ['$id', '$conversation_id']}}},
             {'$project': {'_id': 0,
-                          'author_id': '$author.id',
                           'conversation_id': 1,
                           'num_hashtags': {'$size': {'$ifNull': ['$entities.hashtags', []]}},
                           'num_mentions': {'$size': {'$ifNull': ['$entities.mentions', []]}},
@@ -753,12 +752,11 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         features = edges.merge(tweet_features, left_on='conversation_id', right_on='conversation_id', how='inner')
         features = features.merge(user_features.rename(columns=lambda x: f'{x}_prev'), left_on='source',
-                                  right_index=True,
-                                  how='inner')
+                                  right_index=True, how='inner')
         features = features.merge(user_features.rename(columns=lambda x: f'{x}_curr'), left_on='target',
-                                  right_on='author_id', how='inner')
+                                  right_index=True, how='inner')
         # Drop superflous columns
-        features = features.drop(columns=['conversation_id', 'source', 'target', 'author_id'])
+        features = features.drop(columns=['conversation_id', 'source', 'target'])
 
         # get negatives: for each source, target and conversation id, find another target from a different conversation
         # that is not the source
@@ -775,14 +773,12 @@ class PropagationPlotFactory(MongoPlotFactory):
                         other_targets['conversation_id'] = conversation_id
                         negatives.append(other_targets)
 
-
         negatives = pd.concat(negatives)
         negatives = negatives.merge(tweet_features, left_on='conversation_id', right_on='conversation_id', how='inner')
         negatives = negatives.merge(user_features.rename(columns=lambda x: f'{x}_prev'), left_on='source',
-                                    right_index=True,
-                                    how='inner')
+                                    right_index=True, how='inner')
         negatives = negatives.merge(user_features.rename(columns=lambda x: f'{x}_curr'), left_on='target',
-                                    right_on='author_id', how='inner')
+                                    right_index=True, how='inner')
 
         print('Features generated')
         print(f'Num positives: {len(features)}')
@@ -792,7 +788,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         # df.plot.hist(title='Distribution of negatives per source', logy=True, bins=20)
         # plt.show()
 
-        negatives = negatives.drop(columns=['conversation_id', 'source', 'target', 'author_id'])
+        negatives = negatives.drop(columns=['conversation_id', 'source', 'target'])
 
         features['propagated'] = 1
         negatives['propagated'] = 0
