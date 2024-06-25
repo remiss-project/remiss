@@ -1094,9 +1094,6 @@ class PropagationPlotFactory(MongoPlotFactory):
         start_time = time.time()
         # switch id by position (which will be the node id in the graph) and set it as index
         author_to_id = authors['author_id'].reset_index().set_index('author_id')
-        # convert references which are author id based to graph id based
-        references['source'] = author_to_id.loc[references['source']].reset_index(drop=True)
-        references['target'] = author_to_id.loc[references['target']].reset_index(drop=True)
         # we only have reputation and legitimacy for a subset of the authors, so the others will be set to nan
         available_legitimacy = self.get_legitimacy(dataset)
         available_reputation = self.get_reputation(dataset)
@@ -1124,10 +1121,16 @@ class PropagationPlotFactory(MongoPlotFactory):
         g.vs['num_followers'] = authors['num_followers']
         g.vs['num_following'] = authors['num_following']
 
-        g.add_edges(references[['source', 'target']].to_records(index=False).tolist())
-        g.es['weight'] = references['weight']
-        g.es['weight_inv'] = references['weight_inv']
-        g.es['weight_norm'] = references['weight_norm']
+        if len(references) > 0:
+            # convert references which are author id based to graph id based
+            references['source'] = author_to_id.loc[references['source']].reset_index(drop=True)
+            references['target'] = author_to_id.loc[references['target']].reset_index(drop=True)
+
+            g.add_edges(references[['source', 'target']].to_records(index=False).tolist())
+            g.es['weight'] = references['weight']
+            g.es['weight_inv'] = references['weight_inv']
+            g.es['weight_norm'] = references['weight_norm']
+
         print(g.summary())
         print(f'Graph computed in {time.time() - start_time} seconds')
 
