@@ -14,6 +14,8 @@ from components.universitat_valencia import EmotionPerHourComponent, AverageEmot
 from figures import TimeSeriesFactory
 from figures.universitat_valencia import UVAPIFactory
 
+test_dataset = ['test_dataset']
+
 
 def test_emotion_per_hour_component():
     plot_factory = UVAPIFactory()
@@ -39,7 +41,7 @@ def test_emotion_per_hour_component_run_server():
 
     plot_factory = UVAPIFactory()
     plot_factory.fetch_graph_json = Mock(return_value=expected)
-    time_series_factory = TimeSeriesFactory()
+    time_series_factory = TimeSeriesFactory(available_datasets=test_dataset)
     state = RemissState()
     component = EmotionPerHourComponent(plot_factory, state)
     control_panel = ControlPanelComponent(time_series_factory, state)
@@ -89,7 +91,7 @@ def test_average_emotion_bar_component_run_server():
 
     plot_factory = UVAPIFactory()
     plot_factory.fetch_graph_json = Mock(return_value=expected)
-    time_series_factory = TimeSeriesFactory()
+    time_series_factory = TimeSeriesFactory(available_datasets=test_dataset)
     state = RemissState()
     component = AverageEmotionBarComponent(plot_factory, state)
     control_panel = ControlPanelComponent(time_series_factory, state)
@@ -139,7 +141,7 @@ def test_top_profiles_component_run_server():
 
     plot_factory = UVAPIFactory()
     plot_factory.fetch_graph_json = Mock(return_value=expected)
-    time_series_factory = TimeSeriesFactory()
+    time_series_factory = TimeSeriesFactory(available_datasets=test_dataset)
     state = RemissState()
     component = TopProfilesComponent(plot_factory, state)
     control_panel = ControlPanelComponent(time_series_factory, state)
@@ -189,7 +191,7 @@ def test_top_hashtags_component_run_server():
 
     plot_factory = UVAPIFactory()
     plot_factory.fetch_graph_json = Mock(return_value=expected)
-    time_series_factory = TimeSeriesFactory()
+    time_series_factory = TimeSeriesFactory(available_datasets=test_dataset)
     state = RemissState()
     component = TopHashtagsComponent(plot_factory, state)
     control_panel = ControlPanelComponent(time_series_factory, state)
@@ -239,7 +241,7 @@ def test_topic_ranking_component_run_server():
 
     plot_factory = UVAPIFactory()
     plot_factory.fetch_graph_json = Mock(return_value=expected)
-    time_series_factory = TimeSeriesFactory()
+    time_series_factory = TimeSeriesFactory(available_datasets=test_dataset)
     state = RemissState()
     component = TopicRankingComponent(plot_factory, state)
     control_panel = ControlPanelComponent(time_series_factory, state)
@@ -291,7 +293,7 @@ def test_network_topics_component_run_server():
 
     plot_factory = UVAPIFactory()
     plot_factory.fetch_graph_json = Mock(return_value=expected)
-    time_series_factory = TimeSeriesFactory()
+    time_series_factory = TimeSeriesFactory(available_datasets=test_dataset)
     state = RemissState()
     component = NetworkTopicsComponent(plot_factory, state)
     control_panel = ControlPanelComponent(time_series_factory, state)
@@ -321,12 +323,15 @@ def _test_uv_render():
     # create factory
     state = RemissState()
     plot_factory = UVAPIFactory()
+
     # mock api calls so it does not take ages
     def fetch_graph_json(graph_id, dataset, start_time=None, end_time=None):
-        graphs = ['emotion_per_hour', 'average_emotion', 'top_profiles', 'top_hashtags', 'topic_ranking', 'network_topics']
+        graphs = ['emotion_per_hour', 'average_emotion', 'top_profiles', 'top_hashtags', 'topic_ranking',
+                  'network_topics']
         graph = graphs[int(graph_id[-1]) - 1]
         with open(f'test_resources/{graph}.json', 'r') as f:
             return f.read()
+
     plot_factory.fetch_graph_json = fetch_graph_json
     # create components
     emotion_per_hour = EmotionPerHourComponent(plot_factory, state)
@@ -336,7 +341,7 @@ def _test_uv_render():
     topic_ranking = TopicRankingComponent(plot_factory, state)
     # network_topics = NetworkTopicsComponent(plot_factory, state)
     # create control panel
-    time_series_factory = TimeSeriesFactory()
+    time_series_factory = TimeSeriesFactory(available_datasets=test_dataset)
     control_panel = ControlPanelComponent(time_series_factory, state)
     # create dash app
     dash_app = Dash(__name__)

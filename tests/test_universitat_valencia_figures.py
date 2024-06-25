@@ -44,8 +44,8 @@ def test_fetch_plot_average_emotion():
 
 def test_plot_average_emotion():
     plot_factory = UVAPIFactory()
-    # with open('test_resources/average_emotion.json', 'r') as f:
-    #     plot_json = f.read()
+    with open('test_resources/average_emotion.json', 'r') as f:
+        plot_json = f.read()
     plot_factory.fetch_graph_json = Mock(return_value=plot_json)
     fig = plot_factory.plot_average_emotion('madrid', 'start_time', 'end_time')
     fig.show()

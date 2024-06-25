@@ -306,24 +306,27 @@ class PropagationTestCase(unittest.TestCase):
         pd.testing.assert_frame_equal(expected, actual)
 
     def test_prepare_propagation_dataset(self):
-        dataset = self.dataset_small
+        dataset = self.dataset
         self.plot_factory.cache_dir = Path('tmp/cache_propagation_2')
         try:
             features = self.plot_factory.generate_propagation_dataset(dataset)
         except RuntimeError as ex:
             if 'Propagation metrics not found. Please prepopulate them first' in str(ex):
-                self.plot_factory.prepopulate_propagation(force=True)
-                self.plot_factory.prepopulate_egonet(force=True)
+                network = self.plot_factory._compute_hidden_network(dataset)
+                self.plot_factory.persist_graph_metrics(dataset, network)
+                if self.plot_factory.cache_dir:
+                    stem = f'hidden_network'
+                    self.plot_factory.save_to_cache(dataset, network, stem)
                 features = self.plot_factory.generate_propagation_dataset(dataset)
             else:
                 raise ex
 
-        # features.to_csv(self.plot_factory.cache_dir / 'features.csv')
+        features.to_csv(self.plot_factory.cache_dir / f'{dataset}-features.csv')
         sns.pairplot(features.sample(100), hue='propagated', diag_kind='kde')
         plt.savefig('tmp/cache_propagation_2/pairplot.png')
 
     def test_fit_fail(self):
-        df = pd.read_csv('tmp/cache_propagation_2/features.csv', index_col=0)
+        df = pd.read_csv(f'tmp/cache_propagation_2/{self.dataset}-features.csv', index_col=0)
 
         X, y = df.drop(columns='propagated'), df['propagated']
         pipeline = Pipeline([
