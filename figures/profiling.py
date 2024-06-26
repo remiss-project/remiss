@@ -11,7 +11,7 @@ from figures.utils_remiss import convert_dict_to_dataframe, get_all_values_users
 import plotly.graph_objects as go
 
 
-class CVCPlotFactory(MongoPlotFactory):
+class ProfilingPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, available_datasets=None, lang='ca',
                  data_dir='./cvc_data'):
         super().__init__(host, port, available_datasets)

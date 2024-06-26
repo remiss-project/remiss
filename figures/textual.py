@@ -5,7 +5,7 @@ import plotly
 import requests
 
 
-class UVAPIFactory:
+class TextualFactory:
     def __init__(self, api_url='http://srvinv02.esade.es:5005/api'):
         super().__init__()
         self.api_url = api_url
