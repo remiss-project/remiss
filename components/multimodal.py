@@ -5,7 +5,7 @@ from dash import dcc, html, Output, Input
 from components.components import RemissComponent
 
 
-class FactCheckingComponent(RemissComponent):
+class MultimodalComponent(RemissComponent):
     def __init__(self, plot_factory, state,
                  name=None):
         super().__init__(name=name)

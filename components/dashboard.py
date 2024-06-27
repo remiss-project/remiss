@@ -1,14 +1,16 @@
 import dash_bootstrap_components as dbc
 from dash import dcc, html, Input, Output
-from dash_holoniq_wordcloud import DashWordcloud
 
 from components.components import RemissComponent
 from components.control_panel import ControlPanelComponent
 from components.egonet import EgonetComponent
+from components.multimodal import MultimodalComponent
+from components.profiling import RadarplotEmotionsComponent, VerticalBarplotPolarity, DonutPlotBehaviour1, \
+    DonutPlotBehaviour2
+from components.propagation import PropagationComponent
+from components.textual import EmotionPerHourComponent, AverageEmotionBarComponent
 from components.time_series import TimeSeriesComponent
 from components.tweet_table import TweetTableComponent
-from components.universitat_valencia import EmotionPerHourComponent, AverageEmotionBarComponent, TopProfilesComponent, \
-    TopHashtagsComponent, TopicRankingComponent, NetworkTopicsComponent
 
 
 class RemissState(RemissComponent):
@@ -38,8 +40,10 @@ class RemissState(RemissComponent):
 class RemissDashboard(RemissComponent):
     def __init__(self, tweet_user_plot_factory,
                  tweet_table_factory,
-                 egonet_plot_factory,
-                 uv_factory,
+                 propagation_factory,
+                 textual_factory,
+                 profile_factory,
+                 multimodal_factory,
                  name=None,
                  max_wordcloud_words=100, wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=True,
 
@@ -52,9 +56,11 @@ class RemissDashboard(RemissComponent):
         self.max_wordcloud_words = max_wordcloud_words
 
         self.tweet_user_plot_factory = tweet_user_plot_factory
-        self.egonet_plot_factory = egonet_plot_factory
+        self.propagation_factory = propagation_factory
         self.top_table_factory = tweet_table_factory
-        self.uv_factory = uv_factory
+        self.textual_factory = textual_factory
+        self.profile_factory = profile_factory
+        self.multimodal_factory = multimodal_factory
 
         self.available_datasets = tweet_user_plot_factory.available_datasets
 
@@ -66,12 +72,10 @@ class RemissDashboard(RemissComponent):
         self.tweet_user_ts_component = TimeSeriesComponent(tweet_user_plot_factory,
                                                            state=self.state,
                                                            name='ts')
-
-        self.egonet_component = EgonetComponent(egonet_plot_factory,
+        self.egonet_component = EgonetComponent(propagation_factory,
                                                 state=self.state,
                                                 name='egonet',
-                                                debug=self.debug, )
-
+                                                debug=self.debug)
         self.control_panel_component = ControlPanelComponent(tweet_user_plot_factory,
                                                              state=self.state,
                                                              name='control',
@@ -80,29 +84,29 @@ class RemissDashboard(RemissComponent):
                                                              wordcloud_height=self.wordcloud_height,
                                                              match_wordcloud_width=self.match_wordcloud_width)
 
-        # self.emotion_per_hour_component = EmotionPerHourComponent(uv_factory,
-        #                                                           state=self.state,
-        #                                                           name='emotion_per_hour')
-        #
-        # self.average_emotion_component = AverageEmotionBarComponent(uv_factory,
-        #                                                             state=self.state,
-        #                                                             name='average_emotion')
-        #
-        # self.top_profiles_component = TopProfilesComponent(uv_factory,
-        #                                                    state=self.state,
-        #                                                    name='top_profiles')
-        #
-        # self.top_hashtags_component = TopHashtagsComponent(uv_factory,
-        #                                                    state=self.state,
-        #                                                    name='top_hashtags')
-        #
-        # self.topic_ranking_component = TopicRankingComponent(uv_factory,
-        #                                                      state=self.state,
-        #                                                      name='topic_ranking')
-        #
-        # self.network_topics_component = NetworkTopicsComponent(uv_factory,
-        #                                                        state=self.state,
-        #                                                        name='network_topics')
+        self.propagation_component = PropagationComponent(propagation_factory, state=self.state, name='propagation')
+
+        # Textual
+        self.emotion_per_hour_component = EmotionPerHourComponent(textual_factory,
+                                                                  state=self.state,
+                                                                  name='emotion_per_hour')
+        self.average_emotion_component = AverageEmotionBarComponent(textual_factory,
+                                                                    state=self.state,
+                                                                    name='average_emotion')
+
+        # Profiling
+        self.radar_plot_emotions_component = RadarplotEmotionsComponent(profile_factory, state=self.state,
+                                                                        name='radar_plot_emotions')
+        self.vertical_barplot_polarity_component = VerticalBarplotPolarity(profile_factory, state=self.state,
+                                                                           name='vertical_barplot_polarity')
+        self.donut_plot_behaviour_component_1 = DonutPlotBehaviour1(profile_factory, state=self.state,
+                                                                    name='donut_plot_behaviour_1')
+        self.donut_plot_behaviour_component_2 = DonutPlotBehaviour2(profile_factory, state=self.state,
+                                                                    name='donut_plot_behaviour_2')
+
+        # Multimodal
+        self.multimodal_component = MultimodalComponent(multimodal_factory, state=self.state, name='multimodal')
+
 
     def update_placeholder(self, dataset, hashtags, start_date, end_date, current_user):
         return html.H1(f'Hashtag: {hashtags}, Dataset: {dataset}, Start date: {start_date}, '
@@ -134,12 +138,15 @@ class RemissDashboard(RemissComponent):
             ], style={'margin-bottom': '1rem'}, justify='center'),
             self.tweet_table.layout(),
             self.tweet_user_ts_component.layout(),
-            # self.emotion_per_hour_component.layout(),
-            # self.average_emotion_component.layout(),
-            # self.top_profiles_component.layout(),
-            # self.top_hashtags_component.layout(),
-            # self.topic_ranking_component.layout(),
-            # self.network_topics_component.layout(),
+            self.emotion_per_hour_component.layout(),
+            self.average_emotion_component.layout(),
+            self.radar_plot_emotions_component.layout(),
+            self.vertical_barplot_polarity_component.layout(),
+            self.donut_plot_behaviour_component_1.layout(),
+            self.donut_plot_behaviour_component_2.layout(),
+            self.multimodal_component.layout(),
+            self.propagation_component.layout(),
+
         ], fluid=False)
 
     def callbacks(self, app):
@@ -156,9 +163,11 @@ class RemissDashboard(RemissComponent):
         self.tweet_user_ts_component.callbacks(app)
         self.tweet_table.callbacks(app)
         self.egonet_component.callbacks(app)
-        # self.emotion_per_hour_component.callbacks(app)
-        # self.average_emotion_component.callbacks(app)
-        # self.top_profiles_component.callbacks(app)
-        # self.top_hashtags_component.callbacks(app)
-        # self.topic_ranking_component.callbacks(app)
-        # self.network_topics_component.callbacks(app)
+        self.emotion_per_hour_component.callbacks(app)
+        self.average_emotion_component.callbacks(app)
+        self.radar_plot_emotions_component.callbacks(app)
+        self.vertical_barplot_polarity_component.callbacks(app)
+        self.donut_plot_behaviour_component_1.callbacks(app)
+        self.donut_plot_behaviour_component_2.callbacks(app)
+        self.multimodal_component.callbacks(app)
+        self.propagation_component.callbacks(app)

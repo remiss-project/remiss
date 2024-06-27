@@ -3,14 +3,14 @@ import unittest
 from plotly.graph_objs import Figure
 from pymongo import MongoClient
 
-from figures.fact_checking import FactCheckingPlotFactory
+from figures.multimodal import MultimodalPlotFactory
 
 DATA_DIR = './../fact_checking_data'
 
 
-class TestTimeSeriesFactory(unittest.TestCase):
+class TestMultimodalPlotFactory(unittest.TestCase):
     def setUp(self):
-        self.plot_factory = FactCheckingPlotFactory(data_dir=DATA_DIR)
+        self.plot_factory = MultimodalPlotFactory(data_dir=DATA_DIR)
         self.client = MongoClient('localhost', 27017)
         self.client.drop_database('test_dataset')
         self.database = self.client.get_database('test_dataset')
