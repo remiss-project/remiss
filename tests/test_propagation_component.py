@@ -7,7 +7,7 @@ from dash.dcc import Graph
 from pymongo import MongoClient
 
 from components.dashboard import RemissState
-from components.propagation import PropagationComponent
+from components.propagation import FilterablePropagationComponent
 from figures.propagation import PropagationPlotFactory
 from tests.conftest import populate_test_database, delete_test_database
 
@@ -25,7 +25,7 @@ class PropagationComponentTest(unittest.TestCase):
     def setUp(self):
         self.plot_factory = PropagationPlotFactory()
         self.state = RemissState(name='state')
-        self.component = PropagationComponent(self.plot_factory, self.state, name='propagation')
+        self.component = FilterablePropagationComponent(self.plot_factory, self.state, name='propagation')
 
     def test_layout_ids(self):
         layout = self.component.layout()

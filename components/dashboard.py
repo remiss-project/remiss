@@ -5,9 +5,10 @@ from components.components import RemissComponent
 from components.control_panel import ControlPanelComponent
 from components.egonet import EgonetComponent
 from components.multimodal import MultimodalComponent
-from components.profiling import RadarplotEmotionsComponent, VerticalBarplotPolarity, DonutPlotBehaviour1, \
-    DonutPlotBehaviour2
-from components.propagation import PropagationComponent, CascadeCcdfComponent, CascadeCountOverTimeComponent
+from components.profiling import RadarplotEmotionsComponent, VerticalBarplotPolarityComponent, \
+    DonutPlotBehaviour1Component, \
+    DonutPlotBehaviour2Component
+from components.propagation import FilterablePropagationComponent, CascadeCcdfComponent, CascadeCountOverTimeComponent
 from components.textual import EmotionPerHourComponent, AverageEmotionBarComponent
 from components.time_series import TimeSeriesComponent
 from components.tweet_table import TweetTableComponent
@@ -78,7 +79,117 @@ class GeneralPlotsComponent(RemissComponent):
 
 
 class FilterablePlotsComponent(RemissComponent):
-    pass
+    """
+    Includes all the plots that can be filtered by user, date, etc.
+    - Time series
+    - Radarplot emotions
+    - Vertical barplot polarity
+    - Donut plot behaviour 1
+    - Donut plot behaviour 2
+    - Multimodal
+    - Propagation
+    """
+
+    def __init__(self, tweet_user_plot_factory,
+                 textual_plot_factory,
+                 profile_plot_factory,
+                 multimodal_plot_factory,
+                 propagation_plot_factory,
+                 state, name=None):
+        super().__init__(name=name)
+        self.state = state
+        self.time_series = TimeSeriesComponent(tweet_user_plot_factory, state, name=f'time-series-{self.name}')
+        self.radarplot_emotions = RadarplotEmotionsComponent(textual_plot_factory, state,
+                                                             name=f'radarplot-emotions-{self.name}')
+        self.vertical_barplot_polarity = VerticalBarplotPolarityComponent(textual_plot_factory, state,
+                                                                          name=f'vertical-barplot-polarity-{self.name}')
+        self.donut_plot_behaviour1 = DonutPlotBehaviour1Component(profile_plot_factory, state,
+                                                                  name=f'donut-plot-behaviour1-{self.name}')
+        self.donut_plot_behaviour2 = DonutPlotBehaviour2Component(profile_plot_factory, state,
+                                                                  name=f'donut-plot-behaviour2-{self.name}')
+
+        self.multimodal = MultimodalComponent(multimodal_plot_factory, state, name=f'multimodal-{self.name}')
+
+        self.propagation = FilterablePropagationComponent(propagation_plot_factory, state,
+                                                          name=f'propagation-{self.name}')
+
+    def layout(self, params=None):
+        """
+        |                   Time series                    |
+        | Radarplot emotions | Vertical barplot polarity   |
+        | Donut plot behaviour 1 | Donut plot behaviour 2  |
+        |                   Multimodal                     |
+        |                   Propagation                    |
+
+        :param params:
+        :return:
+        """
+        return dbc.Container([
+            dbc.Row([
+                dbc.Col([
+                    self.time_series.layout(params)
+                ]),
+            ]),
+            dbc.Row([
+                dbc.Collapse([
+                    dbc.Col([
+                        self.radarplot_emotions.layout(params)
+                    ]),
+                    dbc.Col([
+                        self.vertical_barplot_polarity.layout(params)
+                    ]),
+                ], id=f'collapse-textual-{self.name}', is_open=False),
+            ]),
+            dbc.Row([
+                dbc.Collapse([
+                    dbc.Col([
+                        self.donut_plot_behaviour1.layout(params)
+                    ]),
+                    dbc.Col([
+                        self.donut_plot_behaviour2.layout(params)
+                    ]),
+                ], id=f'collapse-profile-{self.name}', is_open=False),
+            ]),
+            dbc.Row([
+                dbc.Col([
+                    dbc.Collapse([
+                        self.multimodal.layout(params)
+                    ], id=f'collapse-multimodal-{self.name}', is_open=False),
+                ]),
+            ]),
+            dbc.Row([
+                dbc.Col([
+                    dbc.Collapse([
+                        self.propagation.layout(params)
+                    ], id=f'collapse-propagation-{self.name}', is_open=False),
+                ]),
+            ]),
+        ])
+
+    def update_on_selected_tweet_state_change(self, tweet):
+        return tweet is not None
+
+    def update_on_selected_user_state_change(self, user):
+        return user is not None
+
+    def callbacks(self, app):
+        self.time_series.callbacks(app)
+        self.radarplot_emotions.callbacks(app)
+        self.vertical_barplot_polarity.callbacks(app)
+        self.donut_plot_behaviour1.callbacks(app)
+        self.donut_plot_behaviour2.callbacks(app)
+        self.multimodal.callbacks(app)
+        self.propagation.callbacks(app)
+
+        app.callback(
+            Output(f'collapse-textual-{self.name}', 'is_open'),
+            [Input(self.state.current_tweet, 'data')],
+        )(self.update_on_selected_tweet_state_change)
+
+        app.callback(
+            Output(f'collapse-profile-{self.name}', 'is_open'),
+            [Input(self.state.current_user, 'data')],
+        )(self.update_on_selected_user_state_change)
 
 
 class RemissDashboard(RemissComponent):
@@ -120,8 +231,12 @@ class RemissDashboard(RemissComponent):
         self.egonet_component = EgonetComponent(propagation_factory, self.state, name=f'egonet-{self.name}')
         self.tweet_table_component = TweetTableComponent(tweet_table_factory, self.state,
                                                          name=f'tweet-table-{self.name}')
-        # self.filterable_plots_component = FilterablePlotsComponent(tweet_user_plot_factory, self.state,
-        #                                                            name=f'filterable-plots-{self.name}')
+        self.filterable_plots_component = FilterablePlotsComponent(tweet_user_plot_factory,
+                                                                   textual_factory,
+                                                                   profile_factory,
+                                                                   multimodal_factory,
+                                                                   propagation_factory,
+                                                                   self.state, name=f'filterable-plots-{self.name}')
 
     def get_dataset_dropdown_component(self):
         available_datasets = {db_key: db_key.replace('_', ' ').capitalize().strip() for db_key in
@@ -172,11 +287,11 @@ class RemissDashboard(RemissComponent):
                     self.tweet_table_component.layout(params)
                 ]),
             ]),
-            # dbc.Row([
-            #     dbc.Col([
-            #         self.filterable_plots_component.layout(params)
-            #     ]),
-            # ]),
+            dbc.Row([
+                dbc.Col([
+                    self.filterable_plots_component.layout(params)
+                ]),
+            ]),
 
         ], fluid=False)
 
@@ -200,4 +315,4 @@ class RemissDashboard(RemissComponent):
         self.control_panel_component.callbacks(app)
         self.egonet_component.callbacks(app)
         self.tweet_table_component.callbacks(app)
-        # self.filterable_plots_component.callbacks(app)
+        self.filterable_plots_component.callbacks(app)

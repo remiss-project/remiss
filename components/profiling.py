@@ -77,7 +77,7 @@ class VerticalAccumulatedBarplotGenre(ProfilingComponent):
         pass
 
 # plot_vertical_barplot_polarity
-class VerticalBarplotPolarity(ProfilingComponent):
+class VerticalBarplotPolarityComponent(ProfilingComponent):
     title = 'Vertical barplot polarity'
 
     def update(self, dataset, user):
@@ -102,14 +102,14 @@ class HorizontalBarplotInteraction2(ProfilingComponent):
 
 # plot_donut_plot_behaviour
 
-class DonutPlotBehaviour1(ProfilingComponent):
+class DonutPlotBehaviour1Component(ProfilingComponent):
     title = 'Donut plot behaviour 1'
 
     def update(self, dataset, user):
         return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[0]
 
 
-class DonutPlotBehaviour2(ProfilingComponent):
+class DonutPlotBehaviour2Component(ProfilingComponent):
     title = 'Donut plot behaviour 2'
 
     def update(self, dataset, user):
