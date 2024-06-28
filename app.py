@@ -12,7 +12,7 @@ from figures import TimeSeriesFactory, TweetTableFactory
 from figures.multimodal import MultimodalPlotFactory
 from figures.profiling import ProfilingPlotFactory
 from figures.propagation import PropagationPlotFactory
-from figures.textual import TextualFactory
+from figures.textual import RemoteTextualFactory, TextualFactory
 
 available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
                        'CERULEAN': dbc.themes.CERULEAN,
@@ -106,7 +106,8 @@ def create_app(config):
                                                  available_datasets=config['available_datasets'],
 
                                                  )
-    textual_factory = TextualFactory(api_url=config['textual']['api_url'])
+    textual_factory = TextualFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                     available_datasets=config['available_datasets'])
     profiling_factory = ProfilingPlotFactory(data_dir=config['profiling']['data_dir'],
                                              available_datasets=config['available_datasets'],
                                              host=config['mongodb']['host'], port=config['mongodb']['port'])

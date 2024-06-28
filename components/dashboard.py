@@ -7,7 +7,7 @@ from components.egonet import EgonetComponent
 from components.multimodal import MultimodalComponent
 from components.profiling import RadarplotEmotionsComponent, VerticalBarplotPolarity, DonutPlotBehaviour1, \
     DonutPlotBehaviour2
-from components.propagation import PropagationComponent
+from components.propagation import PropagationComponent, CascadeCcdfComponent, CascadeCountOverTimeComponent
 from components.textual import EmotionPerHourComponent, AverageEmotionBarComponent
 from components.time_series import TimeSeriesComponent
 from components.tweet_table import TweetTableComponent
@@ -37,7 +37,62 @@ class RemissState(RemissComponent):
         pass
 
 
+class GeneralPlotsComponent(RemissComponent):
+    """
+    Includes all the plots that display static information about the dataset.
+    - Propagation ccdf and cascade count over time
+    - Average emotion barplot
+    - Emotion per hour
+    """
+
+    def __init__(self, propagation_factory, profile_factory, textual_factory, state, name=None):
+        super().__init__(name=name)
+        self.cascade_cddf = CascadeCcdfComponent(propagation_factory, state, name=f'cascade-ccdf-{self.name}')
+        self.cascade_count_over_time = CascadeCountOverTimeComponent(propagation_factory, state,
+                                                                     name=f'cascade-count-over-time-{self.name}')
+        self.average_emotion_barplot = AverageEmotionBarComponent(textual_factory, state,
+                                                                  name=f'average-emotion-{self.name}')
+        self.emotion_per_hour = EmotionPerHourComponent(textual_factory, state, name=f'emotion-per-hour-{self.name}')
+
+    def layout(self, params=None):
+        return dbc.Row([
+            dbc.Col([
+                self.cascade_cddf.layout(params)
+            ]),
+            dbc.Col([
+                self.cascade_count_over_time.layout(params)
+            ]),
+            dbc.Col([
+                self.average_emotion_barplot.layout(params)
+            ]),
+            dbc.Col([
+                self.emotion_per_hour.layout(params)
+            ]),
+        ])
+
+    def callbacks(self, app):
+        self.cascade_cddf.callbacks(app)
+        self.cascade_count_over_time.callbacks(app)
+        self.average_emotion_barplot.callbacks(app)
+        self.emotion_per_hour.callbacks(app)
+
+
+class FilterablePlotsComponent(RemissComponent):
+    pass
+
+
 class RemissDashboard(RemissComponent):
+    """
+    Main dashboard component.
+    | Dataset selector                  |
+    | General plots                     |
+    | Date range        |     Egonet    |
+    | Hashtag wordcloud |               |
+    | Tweet table                       |
+    | filterable plots                  |
+
+    """
+
     def __init__(self, tweet_user_plot_factory,
                  tweet_table_factory,
                  propagation_factory,
@@ -45,72 +100,42 @@ class RemissDashboard(RemissComponent):
                  profile_factory,
                  multimodal_factory,
                  name=None,
-                 max_wordcloud_words=100, wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=True,
+                 max_wordcloud_words=100, wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=False,
 
                  debug=False):
         super().__init__(name=name)
         self.debug = debug
-        self.match_wordcloud_width = match_wordcloud_width
-        self.wordcloud_height = wordcloud_height
-        self.wordcloud_width = wordcloud_width
-        self.max_wordcloud_words = max_wordcloud_words
-
-        self.tweet_user_plot_factory = tweet_user_plot_factory
-        self.propagation_factory = propagation_factory
-        self.top_table_factory = tweet_table_factory
-        self.textual_factory = textual_factory
-        self.profile_factory = profile_factory
-        self.multimodal_factory = multimodal_factory
-
         self.available_datasets = tweet_user_plot_factory.available_datasets
-
         self.state = RemissState(name='state')
 
-        self.tweet_table = TweetTableComponent(tweet_table_factory,
-                                               state=self.state,
-                                               name='top')
-        self.tweet_user_ts_component = TimeSeriesComponent(tweet_user_plot_factory,
-                                                           state=self.state,
-                                                           name='ts')
-        self.egonet_component = EgonetComponent(propagation_factory,
-                                                state=self.state,
-                                                name='egonet',
-                                                debug=self.debug)
-        self.control_panel_component = ControlPanelComponent(tweet_user_plot_factory,
-                                                             state=self.state,
-                                                             name='control',
-                                                             max_wordcloud_words=self.max_wordcloud_words,
-                                                             wordcloud_width=self.wordcloud_width,
-                                                             wordcloud_height=self.wordcloud_height,
-                                                             match_wordcloud_width=self.match_wordcloud_width)
+        self.dataset_dropdown = self.get_dataset_dropdown_component()
+        self.general_plots_component = GeneralPlotsComponent(propagation_factory, profile_factory, textual_factory,
+                                                             self.state, name=f'general-plots-{self.name}')
+        self.control_panel_component = ControlPanelComponent(tweet_user_plot_factory, self.state,
+                                                             name=f'control-panel-{self.name}',
+                                                             max_wordcloud_words=max_wordcloud_words,
+                                                             wordcloud_width=wordcloud_width,
+                                                             wordcloud_height=wordcloud_height,
+                                                             match_wordcloud_width=match_wordcloud_width)
+        self.egonet_component = EgonetComponent(propagation_factory, self.state, name=f'egonet-{self.name}')
+        self.tweet_table_component = TweetTableComponent(tweet_table_factory, self.state,
+                                                         name=f'tweet-table-{self.name}')
+        # self.filterable_plots_component = FilterablePlotsComponent(tweet_user_plot_factory, self.state,
+        #                                                            name=f'filterable-plots-{self.name}')
 
-        self.propagation_component = PropagationComponent(propagation_factory, state=self.state, name='propagation')
-
-        # Textual
-        self.emotion_per_hour_component = EmotionPerHourComponent(textual_factory,
-                                                                  state=self.state,
-                                                                  name='emotion_per_hour')
-        self.average_emotion_component = AverageEmotionBarComponent(textual_factory,
-                                                                    state=self.state,
-                                                                    name='average_emotion')
-
-        # Profiling
-        self.radar_plot_emotions_component = RadarplotEmotionsComponent(profile_factory, state=self.state,
-                                                                        name='radar_plot_emotions')
-        self.vertical_barplot_polarity_component = VerticalBarplotPolarity(profile_factory, state=self.state,
-                                                                           name='vertical_barplot_polarity')
-        self.donut_plot_behaviour_component_1 = DonutPlotBehaviour1(profile_factory, state=self.state,
-                                                                    name='donut_plot_behaviour_1')
-        self.donut_plot_behaviour_component_2 = DonutPlotBehaviour2(profile_factory, state=self.state,
-                                                                    name='donut_plot_behaviour_2')
-
-        # Multimodal
-        self.multimodal_component = MultimodalComponent(multimodal_factory, state=self.state, name='multimodal')
-
+    def get_dataset_dropdown_component(self):
+        available_datasets = {db_key: db_key.replace('_', ' ').capitalize().strip() for db_key in
+                              self.available_datasets}
+        return dcc.Dropdown(options=[{"label": db_key, "value": name} for name, db_key in available_datasets.items()],
+                            value=self.available_datasets[0],
+                            id=f'dataset-dropdown-{self.name}')
 
     def update_placeholder(self, dataset, hashtags, start_date, end_date, current_user):
         return html.H1(f'Hashtag: {hashtags}, Dataset: {dataset}, Start date: {start_date}, '
                        f'End date: {end_date}, Current user: {current_user}')
+
+    def update_dataset_storage(self, dropdown_dataset):
+        return dropdown_dataset
 
     def layout(self, params=None):
         return dbc.Container([
@@ -126,26 +151,32 @@ class RemissDashboard(RemissComponent):
             html.Div([], style={'margin-bottom': '1rem'}, id=f'placeholder-{self.name}') if self.debug else None,
             dbc.Row([
                 dbc.Col([
-                    self.control_panel_component.layout(),
-                ],
-                    width='auto' if self.match_wordcloud_width else 4,
-                    class_name='h-100',
-                ),
+                    self.dataset_dropdown
+                ]),
+            ]),
+            dbc.Row([
                 dbc.Col([
-                    self.egonet_component.layout(),
-                ],
-                ),
-            ], style={'margin-bottom': '1rem'}, justify='center'),
-            self.tweet_table.layout(),
-            self.tweet_user_ts_component.layout(),
-            self.emotion_per_hour_component.layout(),
-            self.average_emotion_component.layout(),
-            self.radar_plot_emotions_component.layout(),
-            self.vertical_barplot_polarity_component.layout(),
-            self.donut_plot_behaviour_component_1.layout(),
-            self.donut_plot_behaviour_component_2.layout(),
-            self.multimodal_component.layout(),
-            self.propagation_component.layout(),
+                    self.general_plots_component.layout(params)
+                ])
+            ]),
+            dbc.Row([
+                dbc.Col([
+                    self.control_panel_component.layout(params)
+                ]),
+                dbc.Col([
+                    self.egonet_component.layout(params)
+                ]),
+            ]),
+            dbc.Row([
+                dbc.Col([
+                    self.tweet_table_component.layout(params)
+                ]),
+            ]),
+            # dbc.Row([
+            #     dbc.Col([
+            #         self.filterable_plots_component.layout(params)
+            #     ]),
+            # ]),
 
         ], fluid=False)
 
@@ -159,15 +190,14 @@ class RemissDashboard(RemissComponent):
                  Input(self.state.current_end_date, 'data'),
                  Input(self.state.current_user, 'data')],
             )(self.update_placeholder)
+        # Dataset dropdown
+        app.callback(
+            Output(self.state.current_dataset, 'data'),
+            [Input(f'dataset-dropdown-{self.name}', 'value')],
+        )(self.update_dataset_storage)
+
+        self.general_plots_component.callbacks(app)
         self.control_panel_component.callbacks(app)
-        self.tweet_user_ts_component.callbacks(app)
-        self.tweet_table.callbacks(app)
         self.egonet_component.callbacks(app)
-        self.emotion_per_hour_component.callbacks(app)
-        self.average_emotion_component.callbacks(app)
-        self.radar_plot_emotions_component.callbacks(app)
-        self.vertical_barplot_polarity_component.callbacks(app)
-        self.donut_plot_behaviour_component_1.callbacks(app)
-        self.donut_plot_behaviour_component_2.callbacks(app)
-        self.multimodal_component.callbacks(app)
-        self.propagation_component.callbacks(app)
+        self.tweet_table_component.callbacks(app)
+        # self.filterable_plots_component.callbacks(app)

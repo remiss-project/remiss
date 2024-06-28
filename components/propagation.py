@@ -119,3 +119,67 @@ class PropagationComponent(RemissComponent):
             Output(self.graph_cascade_count_over_time, 'figure'),
             [Input(self.state.current_dataset, 'data')],
         )(self.update_cascade)
+
+
+class CascadeCcdfComponent(RemissComponent):
+    def __init__(self, plot_factory, state,
+                 name=None):
+        super().__init__(name=name)
+        self.plot_factory = plot_factory
+        self.graph_cascade_ccdf = dcc.Graph(figure={}, id=f'fig-cascade-ccdf-{self.name}')
+        self.state = state
+
+    def layout(self, params=None):
+        return dbc.Container([
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader('Cascade CCDF'),
+                        dbc.CardBody([
+                            self.graph_cascade_ccdf
+                        ])
+                    ]),
+                ]),
+            ]),
+        ])
+
+    def update_cascade(self, dataset):
+        return self.plot_factory.plot_size_cascade_ccdf(dataset)
+
+    def callbacks(self, app):
+        app.callback(
+            Output(self.graph_cascade_ccdf, 'figure'),
+            [Input(self.state.current_dataset, 'data')],
+        )(self.update_cascade)
+
+
+class CascadeCountOverTimeComponent(RemissComponent):
+    def __init__(self, plot_factory, state,
+                 name=None):
+        super().__init__(name=name)
+        self.plot_factory = plot_factory
+        self.graph_cascade_count_over_time = dcc.Graph(figure={}, id=f'fig-cascade-count-over-time-{self.name}')
+        self.state = state
+
+    def layout(self, params=None):
+        return dbc.Container([
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader('Cascade Count Over Time'),
+                        dbc.CardBody([
+                            self.graph_cascade_count_over_time
+                        ])
+                    ]),
+                ]),
+            ]),
+        ])
+
+    def update_cascade(self, dataset):
+        return self.plot_factory.plot_cascade_count_over_time(dataset)
+
+    def callbacks(self, app):
+        app.callback(
+            Output(self.graph_cascade_count_over_time, 'figure'),
+            [Input(self.state.current_dataset, 'data')],
+        )(self.update_cascade)
