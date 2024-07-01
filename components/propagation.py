@@ -77,11 +77,15 @@ class FilterablePropagationComponent(RemissComponent):
         ])
 
     def update_tweet(self, dataset, tweet_id):
-        return self.plot_factory.plot_propagation_tree(dataset, tweet_id), \
-            self.plot_factory.plot_depth_over_time(dataset, tweet_id), \
-            self.plot_factory.plot_size_over_time(dataset, tweet_id), \
-            self.plot_factory.plot_max_breadth_over_time(dataset, tweet_id), \
-            self.plot_factory.plot_structural_virality_over_time(dataset, tweet_id)
+        try:
+            return self.plot_factory.plot_propagation_tree(dataset, tweet_id), \
+                self.plot_factory.plot_depth_over_time(dataset, tweet_id), \
+                self.plot_factory.plot_size_over_time(dataset, tweet_id), \
+                self.plot_factory.plot_max_breadth_over_time(dataset, tweet_id), \
+                self.plot_factory.plot_structural_virality_over_time(dataset, tweet_id)
+        except Exception as e:
+            print(e)
+            return {}, {}, {}, {}, {}
 
     def update_cascade(self, dataset):
         return self.plot_factory.plot_size_cascade_ccdf(dataset), \
@@ -122,7 +126,11 @@ class CascadeCcdfComponent(RemissComponent):
         ])
 
     def update_cascade(self, dataset):
-        return self.plot_factory.plot_size_cascade_ccdf(dataset)
+        try:
+            return self.plot_factory.plot_size_cascade_ccdf(dataset)
+        except KeyError as e:
+            print(e)
+            return {}
 
     def callbacks(self, app):
         app.callback(

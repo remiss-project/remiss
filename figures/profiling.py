@@ -8,6 +8,7 @@ from figures.figures import MongoPlotFactory
 from figures.utils_plot import draw_vertical_barplot, draw_radarplot, \
     draw_vertical_acumulated_barplot_plotly, draw_horizontal_barplot, draw_donutplot
 import plotly.graph_objects as go
+import plotly.express as px
 
 
 class ProfilingPlotFactory(MongoPlotFactory):
@@ -45,8 +46,6 @@ class ProfilingPlotFactory(MongoPlotFactory):
         collection = database.get_collection('profiling')
         user_data = collection.find_one({'twitter_id': user_id})
         client.close()
-        if not user_data:
-            raise ValueError(f"User with id {user_id} not found in dataset {dataset}")
         return user_data
 
     def get_all_values_users(self, lang):

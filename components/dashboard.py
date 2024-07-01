@@ -99,9 +99,9 @@ class FilterablePlotsComponent(RemissComponent):
         super().__init__(name=name)
         self.state = state
         self.time_series = TimeSeriesComponent(tweet_user_plot_factory, state, name=f'time-series-{self.name}')
-        self.radarplot_emotions = RadarplotEmotionsComponent(textual_plot_factory, state,
+        self.radarplot_emotions = RadarplotEmotionsComponent(profile_plot_factory, state,
                                                              name=f'radarplot-emotions-{self.name}')
-        self.vertical_barplot_polarity = VerticalBarplotPolarityComponent(textual_plot_factory, state,
+        self.vertical_barplot_polarity = VerticalBarplotPolarityComponent(profile_plot_factory, state,
                                                                           name=f'vertical-barplot-polarity-{self.name}')
         self.donut_plot_behaviour1 = DonutPlotBehaviour1Component(profile_plot_factory, state,
                                                                   name=f'donut-plot-behaviour1-{self.name}')

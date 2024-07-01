@@ -54,7 +54,10 @@ class RadarplotEmotionsComponent(ProfilingComponent):
     title = 'Radarplot emotions'
 
     def update(self, dataset, user):
-        return self.plot_factory.plot_radarplot_emotions(dataset, user)
+        try:
+            return self.plot_factory.plot_radarplot_emotions(dataset, user)
+        except (RuntimeError, ValueError, TypeError, KeyError) as e:
+            return {}
 
 
 class VerticalAccumulatedBarplotAge(ProfilingComponent):
@@ -81,7 +84,10 @@ class VerticalBarplotPolarityComponent(ProfilingComponent):
     title = 'Vertical barplot polarity'
 
     def update(self, dataset, user):
-        return self.plot_factory.plot_vertical_barplot_polarity(dataset, user)
+        try:
+          return self.plot_factory.plot_vertical_barplot_polarity(dataset, user)
+        except TypeError as e:
+          return {}
 
 
 # plot_horizontal_bars_plot_interactions
@@ -106,11 +112,17 @@ class DonutPlotBehaviour1Component(ProfilingComponent):
     title = 'Donut plot behaviour 1'
 
     def update(self, dataset, user):
-        return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[0]
+        try:
+            return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[0]
+        except (RuntimeError, ValueError, TypeError, KeyError) as e:
+            return {}
 
 
 class DonutPlotBehaviour2Component(ProfilingComponent):
     title = 'Donut plot behaviour 2'
 
     def update(self, dataset, user):
-        return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[1]
+        try:
+            return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[1]
+        except (RuntimeError, ValueError, TypeError, KeyError) as e:
+            return {}
