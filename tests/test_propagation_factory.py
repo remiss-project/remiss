@@ -349,8 +349,12 @@ class PropagationTestCase(unittest.TestCase):
         y_test_pred = pipeline.predict(X_test)
         print('Training set metrics')
         print(classification_report(y_train, y_train_pred))
+        print('Confusion matrix')
+        print(pd.crosstab(y_train, y_train_pred, rownames=['Actual'], colnames=['Predicted']))
         print('Test set metrics')
         print(classification_report(y_test, y_test_pred))
+        print('Confusion matrix')
+        print(pd.crosstab(y_test, y_test_pred, rownames=['Actual'], colnames=['Predicted']))
         # plot feature importance
         feature_importances = pd.Series(pipeline['classifier'].feature_importances_,
                                         index=pipeline['classifier'].feature_names_in_).sort_values(ascending=False)
