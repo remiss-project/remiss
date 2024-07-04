@@ -7,11 +7,11 @@ from pymongo import MongoClient
 from figures.figures import MongoPlotFactory
 from figures.utils_plot import draw_vertical_barplot, draw_radarplot, \
     draw_vertical_acumulated_barplot_plotly, draw_horizontal_barplot, draw_donutplot
-from figures.utils_remiss import convert_dict_to_dataframe, get_all_values_users, get_median_values_users
 import plotly.graph_objects as go
+import plotly.express as px
 
 
-class CVCPlotFactory(MongoPlotFactory):
+class ProfilingPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, available_datasets=None, lang='ca',
                  data_dir='./cvc_data'):
         super().__init__(host, port, available_datasets)
@@ -33,7 +33,7 @@ class CVCPlotFactory(MongoPlotFactory):
             'en': [1, 1, 1, 11, 15, 0, 14, 0, 2, 9, 0]
         }[lang]
 
-        fake_spreaders_feats, fact_checkers_feats, random_feats = get_all_values_users(lang)
+        fake_spreaders_feats, fact_checkers_feats, random_feats = self.get_all_values_users(lang)
 
         # Convert feature values to dataframes
         self.fake_news_spreaders = convert_dict_to_dataframe(fake_spreaders_feats)
@@ -46,8 +46,6 @@ class CVCPlotFactory(MongoPlotFactory):
         collection = database.get_collection('profiling')
         user_data = collection.find_one({'twitter_id': user_id})
         client.close()
-        if not user_data:
-            raise ValueError(f"User with id {user_id} not found in dataset {dataset}")
         return user_data
 
     def get_all_values_users(self, lang):
@@ -64,9 +62,9 @@ class CVCPlotFactory(MongoPlotFactory):
             fact_checkers_path = "../cvc_data/results_5_fact_checkers_esp"
             random_path = "../cvc_data/results_6_random_es"
 
-        rel_fake_spreaders = get_median_values_users(fake_spreaders_path)
-        rel_fact_checkers = get_median_values_users(fact_checkers_path)
-        rel_random = get_median_values_users(random_path)
+        rel_fake_spreaders = self.get_median_values_users(fake_spreaders_path)
+        rel_fact_checkers = self.get_median_values_users(fact_checkers_path)
+        rel_random = self.get_median_values_users(random_path)
 
         return rel_fake_spreaders, rel_fact_checkers, rel_random
 
@@ -279,6 +277,107 @@ class CVCPlotFactory(MongoPlotFactory):
                                                   "Gràfic de Comportament 2")
 
         return donut_plot_py_behavior_1, donut_plot_py_behavior_2
+
+    def get_median_values_users(self, lang):
+        if lang == 'en':
+            rel_feats = load_relevant_features(
+                self.data_dir / "results_selected_features_names1_fake_spreaders_en3_random_en")
+            rel_fake_spreaders = load_medians_file(self.data_dir / "results_1_fake_spreaders_en", rel_feats)
+            rel_fact_checkers = load_medians_file(self.data_dir / "results_2_fact_checkers_eng", rel_feats)
+            rel_random = load_medians_file(self.data_dir / "results_3_random_en", rel_feats)
+        elif lang == 'es':
+            rel_feats = load_relevant_features(
+                self.data_dir / "results_selected_features_names4_fake_spreaders_esp6_random_es")
+            rel_fake_spreaders = load_medians_file(self.data_dir / "results_4_fake_spreaders_esp", rel_feats)
+            rel_fact_checkers = load_medians_file(self.data_dir / "results_5_fact_checkers_esp", rel_feats)
+            rel_random = load_medians_file(self.data_dir / "results_6_random_es", rel_feats)
+        else:  # asumiendo catalan sin que existan otros lenguajes
+            rel_feats = load_relevant_features(
+                self.data_dir / "results_selected_features_names6_random_es7_fake_spreaders_cat")
+            rel_fake_spreaders = load_medians_file(self.data_dir / "results_7_fake_spreaders_cat", rel_feats)
+            rel_fact_checkers = load_medians_file(self.data_dir / "results_5_fact_checkers_esp", rel_feats)
+            rel_random = load_medians_file(self.data_dir / "results_6_random_es", rel_feats)
+        return rel_feats, rel_fake_spreaders, rel_fact_checkers, rel_random
+
+    def get_all_values_users(self, lang):
+        if lang == 'en':
+            rel_fake_spreaders = load_medians_file_all_features(self.data_dir / "results_1_fake_spreaders_en")
+            rel_fact_checkers = load_medians_file_all_features(self.data_dir / "results_2_fact_checkers_eng")
+            rel_random = load_medians_file_all_features(self.data_dir / "results_3_random_en")
+        elif lang == 'es':
+            rel_fake_spreaders = load_medians_file_all_features(self.data_dir / "results_4_fake_spreaders_esp")
+            rel_fact_checkers = load_medians_file_all_features(self.data_dir / "results_5_fact_checkers_esp")
+            rel_random = load_medians_file_all_features(self.data_dir / "results_6_random_es")
+        else:  # asumiendo catalan sin que existan otros lenguajes
+            rel_fake_spreaders = load_medians_file_all_features(self.data_dir / "results_7_fake_spreaders_cat")
+            rel_fact_checkers = load_medians_file_all_features(self.data_dir / "results_5_fact_checkers_esp")
+            rel_random = load_medians_file_all_features(self.data_dir / "results_6_random_es")
+        return rel_fake_spreaders, rel_fact_checkers, rel_random
+
+
+def load_relevant_features(relevant_features_path):
+    relevant_features = {}
+    with open(relevant_features_path, 'r', encoding='utf-8') as f:
+        content = f.readlines()
+        for line in content:
+            feature = line.replace("\n", "")
+            if ":" in feature:
+                relevant_features[feature] = []
+                current_feat = feature
+            else:
+                relevant_features[current_feat].append(feature)
+    return (relevant_features)
+
+
+def load_medians_file(filepath, relevant_feats):
+    relevant_vals = {}
+    with open(filepath, 'r', encoding='utf-8') as f:
+        content = f.readlines()
+        for line in content:
+            line = line.split("\t")
+            feature = line[0]
+            median = line[1].replace("\n", "")
+            for feature_type in relevant_feats:
+                if feature in relevant_feats[feature_type]:
+                    if feature_type not in relevant_vals:
+                        relevant_vals[feature_type] = {}
+                    relevant_vals[feature_type][feature] = median
+    return relevant_vals
+
+
+def convert_dict_to_dataframe(relevantFeaturesDict):
+    # df = pd.DataFrame();
+    listOfKeys = [];
+    listOfValues = []
+    for dictTittle, currentDict in relevantFeaturesDict.items():
+        # print("\-------------------------DIC TITTLE:", dictTittle)
+        for key in currentDict.keys():
+            # print("	",key + ':', currentDict[key])
+            listOfKeys.append(key);
+            listOfValues.append(currentDict[key])
+    # df[str(key)]=currentDict[key];
+    #	print ("DataFrame is ", pd)
+    # print ("keys", listOfKeys)
+    #	print ("values", listOfValues)
+    #	print("lengths", len(listOfKeys),len(listOfValues));
+    tmpDict = dict(zip(listOfKeys, listOfValues))
+    df = pd.DataFrame(tmpDict, index=[0]);
+    # print("    /-/*-/*-/*-/-*/*-/-*/-*/-*/-*/-DATAFRAME IS",df.to_string());
+    # print ("Size is ", df.info())
+    return df
+
+
+def load_medians_file_all_features(filepath):
+    relevant_vals = {}
+    relevant_vals['AllValues'] = {}
+    with open(filepath, 'r', encoding='utf-8') as f:
+        content = f.readlines()
+        for line in content:
+            line = line.split("\t")
+            feature = line[0]
+            median = line[1].replace("\n", "")
+            relevant_vals['AllValues'][feature] = median
+    return relevant_vals
 
 
 def create_user_info_plot(user_name, anonymized_description, n_followers, n_followed, estimated_age,

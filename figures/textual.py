@@ -3,9 +3,13 @@ import re
 
 import plotly
 import requests
+from pymongo import MongoClient
+import plotly.express as px
+
+from figures.figures import MongoPlotFactory
 
 
-class UVAPIFactory:
+class RemoteTextualFactory:
     def __init__(self, api_url='http://srvinv02.esade.es:5005/api'):
         super().__init__()
         self.api_url = api_url
@@ -52,3 +56,42 @@ class UVAPIFactory:
 
     def visjs_json_to_figure(self, visjs_json):
         raise NotImplementedError('Method not implemented yet')
+
+
+class TextualFactory(MongoPlotFactory):
+    def __init__(self, host="localhost", port=27017, available_datasets=None):
+        super().__init__(host, port, available_datasets)
+
+    def plot_average_emotion(self, dataset, start_time, end_time):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        dataset = database.get_collection('textual')
+
+        emotions = ['Miedo', 'Disgusto', 'Sorpresa', 'Odio', 'Diversion', 'Agresividad', 'Dirigido', 'Enfado',
+                    'Tristeza', 'Toxico', 'Ironia']
+        # Take average of each of the columns
+        pipeline = [
+            {'$group': {'_id': None, **{emotion: {'$avg': f'${emotion}'} for emotion in emotions}}},
+            {'$project': {'_id': 0}}
+        ]
+        df = dataset.aggregate_pandas_all(pipeline).iloc[0]
+        fig = px.bar(x=df.index, y=df.values, labels={'x': 'Emotion', 'y': 'Average value'}, title='Average Emotion',
+                     color=df.index)
+        fig.update_layout(showlegend=False)
+        return fig
+
+    def plot_emotion_per_hour(self, dataset, start_time, end_time):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        dataset = database.get_collection('textual')
+
+        emotions = ['Agresividad', 'Enfado', 'Disgusto', 'Miedo', 'Odio', 'Ironia', 'Diversion', 'Tristeza', 'Sorpresa', 'Dirigido', 'Negativo', 'Neutro', 'Positivo']
+        # Take average of each of the columns per hour using 'date' field after casting it to date using dateToString
+        pipeline = [
+            {'$addFields': {'hour': {'$hour': {'$toDate': '$date'}}}},
+            {'$group': {'_id': '$hour', **{emotion: {'$avg': f'${emotion}'} for emotion in emotions}}},
+            {'$project': {'_id': 0}}
+        ]
+        df = dataset.aggregate_pandas_all(pipeline)
+        fig = px.line(df, x=df.index, y=df.columns, title='Emotion per hour')
+        return fig

@@ -589,7 +589,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                                                             'is_politician': 'Politician',
                                                             'is_suspect_politician': 'Suspect politician'})
         conversation_ids = conversation_ids.set_index('created_at')
-        conversation_ids = conversation_ids.resample('M').count()
+        conversation_ids = conversation_ids.resample('ME').count()
         conversation_ids = conversation_ids.fillna(0)
         return conversation_ids
 

@@ -5,17 +5,16 @@ import dash_bootstrap_components as dbc
 from dash import Dash, Output, Input
 from dash import dcc
 from dash.dcc import Graph
-from dash.html import Iframe
 from pymongo import MongoClient
 
 from components.dashboard import RemissState
-from components.fact_checking import FactCheckingComponent
-from figures.fact_checking import FactCheckingPlotFactory
+from components.multimodal import MultimodalComponent
+from figures.multimodal import MultimodalPlotFactory
 
 
-class FactCheckingComponentTest(TestCase):
+class TestMultimodalComponentComponent(TestCase):
     def setUp(self):
-        self.plot_factory = FactCheckingPlotFactory(data_dir='./../fact_checking_data')
+        self.plot_factory = MultimodalPlotFactory(data_dir='./../fact_checking_data')
         self.client = MongoClient('localhost', 27017)
         self.client.drop_database('fact_checking')
         self.database = self.client.get_database('fact_checking')
@@ -42,7 +41,7 @@ class FactCheckingComponentTest(TestCase):
         self.client.close()
 
         self.state = RemissState(name='state')
-        self.component = FactCheckingComponent(self.plot_factory, self.state, name='fact_checking')
+        self.component = MultimodalComponent(self.plot_factory, self.state, name='fact_checking')
 
     def tearDown(self) -> None:
         self.client = MongoClient('localhost', 27017)

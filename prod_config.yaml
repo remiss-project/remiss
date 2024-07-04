@@ -10,3 +10,9 @@ available_datasets:
 theme: PULSE
 debug: "True"
 frequency: 1D
+textual:
+  api_url: 'http://srvinv02.esade.es:5005/api'
+profiling:
+  data_dir: './profiling_data/'
+multimodal:
+  data_dir: './multimodal_data/'

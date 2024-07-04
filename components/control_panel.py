@@ -20,7 +20,6 @@ class ControlPanelComponent(RemissComponent):
         self.max_wordcloud_words = max_wordcloud_words
         self.date_picker = self.get_date_picker_component()
         self.wordcloud = self.get_wordcloud_component()
-        self.dataset_dropdown = self.get_dataset_dropdown_component()
 
     def get_wordcloud_component(self):
         available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(self.available_datasets[0])
@@ -43,12 +42,6 @@ class ControlPanelComponent(RemissComponent):
             id=f'wordcloud-{self.name}'
             ,
         )
-
-    def get_dataset_dropdown_component(self):
-        available_datasets = {db_key: db_key.replace('_', ' ').capitalize().strip() for db_key in self.available_datasets}
-        return dcc.Dropdown(options=[{"label": db_key, "value": name} for name, db_key in available_datasets.items()],
-                            value=self.available_datasets[0],
-                            id=f'dataset-dropdown-{self.name}')
 
     def get_date_picker_component(self):
         min_date_allowed, max_date_allowed, start_date, end_date = self.update_date_range(self.available_datasets[0])
@@ -88,13 +81,6 @@ class ControlPanelComponent(RemissComponent):
     def layout(self, params=None):
         return dbc.Stack([
             dbc.Card([
-                dbc.CardHeader('Dataset'),
-                dbc.CardBody([
-                    self.dataset_dropdown
-                ])
-            ]),
-
-            dbc.Card([
                 dbc.CardHeader('Date range'),
                 dbc.CardBody([
                     self.date_picker
@@ -118,11 +104,6 @@ class ControlPanelComponent(RemissComponent):
             Output(self.date_picker, 'end_date'),
             [Input(self.state.current_dataset, 'data')],
         )(self.update_date_range)
-
-        app.callback(
-            Output(self.state.current_dataset, 'data'),
-            [Input(self.dataset_dropdown, 'value')],
-        )(self.update_dataset_storage)
 
         app.callback(
             Output(self.state.current_hashtags, 'data'),

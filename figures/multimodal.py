@@ -10,8 +10,8 @@ from figures.figures import MongoPlotFactory
 pymongoarrow.monkey.patch_all()
 
 
-class FactCheckingPlotFactory(MongoPlotFactory):
-    def __init__(self, data_dir='fact_checking_data', host="localhost", port=27017,
+class MultimodalPlotFactory(MongoPlotFactory):
+    def __init__(self, data_dir='multimodal_data', host="localhost", port=27017,
                  multimodal_collection_name='multimodal',
                  available_datasets=None):
         super().__init__(host, port, available_datasets)

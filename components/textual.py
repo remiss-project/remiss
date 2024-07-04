@@ -2,6 +2,7 @@ from dash import dcc, Output, Input
 import dash_bootstrap_components as dbc
 
 from .components import RemissComponent
+import plotly.express as px
 
 
 class EmotionPerHourComponent(RemissComponent):
@@ -24,7 +25,10 @@ class EmotionPerHourComponent(RemissComponent):
         ], justify='center', style={'margin-bottom': '1rem'})
 
     def update(self, dataset, start_date, end_date):
-        return self.plot_factory.plot_emotion_per_hour(dataset, start_date, end_date)
+        try:
+            return self.plot_factory.plot_emotion_per_hour(dataset, start_date, end_date)
+        except (IndexError, ValueError) as e:
+            return {}
 
     def callbacks(self, app):
         app.callback(
@@ -56,7 +60,10 @@ class AverageEmotionBarComponent(RemissComponent):
         ], justify='center', style={'margin-bottom': '1rem'})
 
     def update(self, dataset, start_date, end_date):
-        return self.plot_factory.plot_average_emotion(dataset, start_date, end_date)
+        try:
+            return self.plot_factory.plot_average_emotion(dataset, start_date, end_date)
+        except (IndexError, ValueError) as e:
+            return {}
 
     def callbacks(self, app):
         app.callback(

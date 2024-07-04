@@ -4,8 +4,8 @@ from dash import dcc, Output, Input
 from components.components import RemissComponent
 
 
-class CVCComponent(RemissComponent):
-    title = 'CVC'
+class ProfilingComponent(RemissComponent):
+    title = 'Profiling component'
 
     def __init__(self, plot_factory, state, name=None):
         super().__init__(name=name)
@@ -36,28 +36,31 @@ class CVCComponent(RemissComponent):
         )(self.update)
 
 
-class UserInfoComponent(CVCComponent):
+class UserInfoComponent(ProfilingComponent):
     title = 'User info'
 
     def update(self, dataset, user):
         return self.plot_factory.plot_user_info(dataset, user)
 
 
-class TopicVerticalBarplotComponent(CVCComponent):
+class TopicVerticalBarplotComponent(ProfilingComponent):
     title = 'Topic vertical barplot'
 
     def update(self, dataset, user):
         return self.plot_factory.plot_vertical_barplot_topics(dataset, user)
 
 
-class RadarplotEmotionsComponent(CVCComponent):
+class RadarplotEmotionsComponent(ProfilingComponent):
     title = 'Radarplot emotions'
 
     def update(self, dataset, user):
-        return self.plot_factory.plot_radarplot_emotions(dataset, user)
+        try:
+            return self.plot_factory.plot_radarplot_emotions(dataset, user)
+        except (RuntimeError, ValueError, TypeError, KeyError) as e:
+            return {}
 
 
-class VerticalAccumulatedBarplotAge(CVCComponent):
+class VerticalAccumulatedBarplotAge(ProfilingComponent):
     title = 'Vertical accumulated barplot by age'
 
     def update(self):
@@ -66,8 +69,9 @@ class VerticalAccumulatedBarplotAge(CVCComponent):
     def callbacks(self, app):
         pass
 
+
 # plot_vertical_accumulated_barplot_by_genre
-class VerticalAccumulatedBarplotGenre(CVCComponent):
+class VerticalAccumulatedBarplotGenre(ProfilingComponent):
     title = 'Vertical accumulated barplot by genre'
 
     def update(self):
@@ -76,24 +80,28 @@ class VerticalAccumulatedBarplotGenre(CVCComponent):
     def callbacks(self, app):
         pass
 
+
 # plot_vertical_barplot_polarity
-class VerticalBarplotPolarity(CVCComponent):
+class VerticalBarplotPolarityComponent(ProfilingComponent):
     title = 'Vertical barplot polarity'
 
     def update(self, dataset, user):
-        return self.plot_factory.plot_vertical_barplot_polarity(dataset, user)
+        try:
+            return self.plot_factory.plot_vertical_barplot_polarity(dataset, user)
+        except TypeError as e:
+            return {}
 
 
 # plot_horizontal_bars_plot_interactions
 
-class HorizontalBarplotInteraction1(CVCComponent):
+class HorizontalBarplotInteraction1(ProfilingComponent):
     title = 'Horizontal barplot interaction 1'
 
     def update(self, dataset, user):
         return self.plot_factory.plot_horizontal_bars_plot_interactions(dataset, user)[0]
 
 
-class HorizontalBarplotInteraction2(CVCComponent):
+class HorizontalBarplotInteraction2(ProfilingComponent):
     title = 'Horizontal barplot interaction 2'
 
     def update(self, dataset, user):
@@ -102,15 +110,21 @@ class HorizontalBarplotInteraction2(CVCComponent):
 
 # plot_donut_plot_behaviour
 
-class DonutPlotBehaviour1(CVCComponent):
+class DonutPlotBehaviour1Component(ProfilingComponent):
     title = 'Donut plot behaviour 1'
 
     def update(self, dataset, user):
-        return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[0]
+        try:
+            return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[0]
+        except (RuntimeError, ValueError, TypeError, KeyError) as e:
+            return {}
 
 
-class DonutPlotBehaviour2(CVCComponent):
+class DonutPlotBehaviour2Component(ProfilingComponent):
     title = 'Donut plot behaviour 2'
 
     def update(self, dataset, user):
-        return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[1]
+        try:
+            return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[1]
+        except (RuntimeError, ValueError, TypeError, KeyError) as e:
+            return {}

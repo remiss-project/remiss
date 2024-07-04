@@ -6,11 +6,11 @@ import pytest
 from plotly.graph_objs import Figure
 from pyvis.network import Network
 
-from figures.universitat_valencia import UVAPIFactory
+from figures.textual import RemoteTextualFactory
 
 
 def test_fetch_plot_emotion_per_hour():
-    plot_factory = UVAPIFactory()
+    plot_factory = RemoteTextualFactory()
     plotly_json = plot_factory.fetch_graph_json('graph1', 'madrid', None, None)
     # with open('test_resources/emotion_per_hour.json', 'w') as f:
     #     f.write(plotly_json)
@@ -21,7 +21,7 @@ def test_fetch_plot_emotion_per_hour():
 
 
 def test_plot_emotion_per_hour():
-    plot_factory = UVAPIFactory()
+    plot_factory = RemoteTextualFactory()
     with open('test_resources/emotion_per_hour.json', 'r') as f:
         plot_json = f.read()
     plot_factory.fetch_graph_json = Mock(return_value=plot_json)
@@ -32,7 +32,7 @@ def test_plot_emotion_per_hour():
 
 
 def test_fetch_plot_average_emotion():
-    plot_factory = UVAPIFactory()
+    plot_factory = RemoteTextualFactory()
     plotly_json = plot_factory.fetch_graph_json('graph2', 'madrid', None, None)
     # with open('test_resources/average_emotion.json', 'w') as f:
     #     f.write(plotly_json)
@@ -43,7 +43,7 @@ def test_fetch_plot_average_emotion():
 
 
 def test_plot_average_emotion():
-    plot_factory = UVAPIFactory()
+    plot_factory = RemoteTextualFactory()
     with open('test_resources/average_emotion.json', 'r') as f:
         plot_json = f.read()
     plot_factory.fetch_graph_json = Mock(return_value=plot_json)
@@ -54,7 +54,7 @@ def test_plot_average_emotion():
 
 
 def test_fetch_plot_top_profiles():
-    plot_factory = UVAPIFactory()
+    plot_factory = RemoteTextualFactory()
     plotly_json = plot_factory.fetch_graph_json('graph3', 'madrid', None, None)
     # with open('test_resources/top_profiles.json', 'w') as f:
     #     f.write(plotly_json)
@@ -65,7 +65,7 @@ def test_fetch_plot_top_profiles():
 
 
 def test_plot_top_profiles():
-    plot_factory = UVAPIFactory()
+    plot_factory = RemoteTextualFactory()
     with open('test_resources/top_profiles.json', 'r') as f:
         plot_json = f.read()
     plot_factory.fetch_graph_json = Mock(return_value=plot_json)
@@ -76,7 +76,7 @@ def test_plot_top_profiles():
 
 
 def test_fetch_plot_top_hashtags():
-    plot_factory = UVAPIFactory()
+    plot_factory = RemoteTextualFactory()
     plotly_json = plot_factory.fetch_graph_json('graph4', 'madrid', None, None)
     # with open('test_resources/top_hashtags.json', 'w') as f:
     #     f.write(plotly_json)
@@ -87,7 +87,7 @@ def test_fetch_plot_top_hashtags():
 
 
 def test_plot_top_hashtags():
-    plot_factory = UVAPIFactory()
+    plot_factory = RemoteTextualFactory()
     with open('test_resources/top_hashtags.json', 'r') as f:
         plot_json = f.read()
     plot_factory.fetch_graph_json = Mock(return_value=plot_json)
@@ -98,7 +98,7 @@ def test_plot_top_hashtags():
 
 
 def test_fetch_plot_topic_ranking():
-    plot_factory = UVAPIFactory()
+    plot_factory = RemoteTextualFactory()
     plotly_json = plot_factory.fetch_graph_json('graph5', 'madrid', None, None)
     # with open('test_resources/topic_ranking.json', 'w') as f:
     #     f.write(plotly_json)
@@ -109,7 +109,7 @@ def test_fetch_plot_topic_ranking():
 
 
 def test_plot_topic_ranking():
-    plot_factory = UVAPIFactory()
+    plot_factory = RemoteTextualFactory()
     with open('test_resources/topic_ranking.json', 'r') as f:
         plot_json = f.read()
     plot_factory.fetch_graph_json = Mock(return_value=plot_json)
@@ -122,7 +122,7 @@ def test_plot_topic_ranking():
 @pytest.mark.skip(
     reason="Network retorna un graf visualitzat amb nosequin framework que no es plotly, aixi que es normal que falli")
 def test_fetch_plot_network_topics():
-    plot_factory = UVAPIFactory()
+    plot_factory = RemoteTextualFactory()
     visjs = plot_factory.fetch_graph_json('graph6', 'madrid', None, None)
     # with open('test_resources/network_topics.json', 'w') as f:
     #     f.write(visjs)
@@ -135,7 +135,7 @@ def test_fetch_plot_network_topics():
 @pytest.mark.skip(
     reason="Network retorna un graf visualitzat amb nosequin framework que no es plotly, aixi que es normal que falli")
 def test_plot_network_topics():
-    plot_factory = UVAPIFactory()
+    plot_factory = RemoteTextualFactory()
     with open('test_resources/network_topics.json', 'r') as f:
         plot_json = f.read()
     plot_factory.fetch_graph_json = Mock(return_value=plot_json)
@@ -156,7 +156,7 @@ def test_plot_network_topics():
 
 
 def test_plotly_json_to_figure():
-    plot_factory = UVAPIFactory()
+    plot_factory = RemoteTextualFactory()
     with open('test_resources/emotion_per_hour.json', 'r') as f:
         plot_json = f.read()
     fig = plot_factory.plotly_json_to_figure(plot_json)

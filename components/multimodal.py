@@ -5,7 +5,7 @@ from dash import dcc, html, Output, Input
 from components.components import RemissComponent
 
 
-class FactCheckingComponent(RemissComponent):
+class MultimodalComponent(RemissComponent):
     def __init__(self, plot_factory, state,
                  name=None):
         super().__init__(name=name)
@@ -153,28 +153,31 @@ class FactCheckingComponent(RemissComponent):
         ], justify='center', style={'margin-bottom': '1rem'})
 
     def update(self, dataset, tweet_id):
-        metadata = self.plot_factory.get_metadata(dataset, tweet_id)
-        claim_text = metadata['claim_text']
-        text_evidences = metadata['text_evidences']
-        evidence_text = metadata['evidence_text']
-        evidence_image_alt_text = metadata['evidence_image_alt_text']
-        predicted_label = metadata['results']['predicted_label']
-        actual_label = metadata['results']['actual_label']
-        num_claim_edges = metadata['results']['num_claim_edges']
-        frac_verified = metadata['results']['frac_verified']
-        explanations = metadata['results']['explanations']
-        visual_similarity_score = metadata['results']['visual_similarity_score']
+        try:
+            metadata = self.plot_factory.get_metadata(dataset, tweet_id)
+            claim_text = metadata['claim_text']
+            text_evidences = metadata['text_evidences']
+            evidence_text = metadata['evidence_text']
+            evidence_image_alt_text = metadata['evidence_image_alt_text']
+            predicted_label = metadata['results']['predicted_label']
+            actual_label = metadata['results']['actual_label']
+            num_claim_edges = metadata['results']['num_claim_edges']
+            frac_verified = metadata['results']['frac_verified']
+            explanations = metadata['results']['explanations']
+            visual_similarity_score = metadata['results']['visual_similarity_score']
 
-        claim_image = self.plot_factory.plot_claim_image(dataset, tweet_id)
-        evidence_image = self.plot_factory.plot_evidence_image(dataset, tweet_id)
-        graph_claim = self.plot_factory.plot_graph_claim(dataset, tweet_id)
-        graph_evidence_text = self.plot_factory.plot_graph_evidence_text(dataset, tweet_id)
-        graph_evidence_vis = self.plot_factory.plot_graph_evidence_vis(dataset, tweet_id)
-        visual_evidences = self.plot_factory.plot_visual_evidences(dataset, tweet_id)
+            claim_image = self.plot_factory.plot_claim_image(dataset, tweet_id)
+            evidence_image = self.plot_factory.plot_evidence_image(dataset, tweet_id)
+            graph_claim = self.plot_factory.plot_graph_claim(dataset, tweet_id)
+            graph_evidence_text = self.plot_factory.plot_graph_evidence_text(dataset, tweet_id)
+            graph_evidence_vis = self.plot_factory.plot_graph_evidence_vis(dataset, tweet_id)
+            visual_evidences = self.plot_factory.plot_visual_evidences(dataset, tweet_id)
 
-        return claim_image, evidence_image, graph_claim, graph_evidence_text, graph_evidence_vis, visual_evidences, \
-            claim_text, text_evidences, evidence_text, evidence_image_alt_text, predicted_label, actual_label, \
-            num_claim_edges, frac_verified, explanations, visual_similarity_score
+            return claim_image, evidence_image, graph_claim, graph_evidence_text, graph_evidence_vis, visual_evidences, \
+                claim_text, text_evidences, evidence_text, evidence_image_alt_text, predicted_label, actual_label, \
+                num_claim_edges, frac_verified, explanations, visual_similarity_score
+        except RuntimeError as e:
+            return {}, {}, {}, {}, {}, {}, '', '', '', '', '', '', '', '', '',''
 
     def callbacks(self, app):
         app.callback(

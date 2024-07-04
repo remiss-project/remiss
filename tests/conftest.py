@@ -1,4 +1,6 @@
 import json
+import shutil
+import subprocess
 from datetime import datetime
 
 from pymongo import MongoClient
@@ -32,6 +34,9 @@ def populate_test_database(database_name, small=False):
         data = [json.loads(line) for line in f]
 
     collection.insert_many(data)
+
+    # Use mongoimport to import the textual data inside Openarms.mongoimport.textual.jsonl
+    # subprocess.run(['/usr/bin/mongoimport', '--db', database_name, '--collection', 'textual', '--file', 'test_resources/Openarms.mongoimport.textual.jsonl', '--jsonArray'])
 
     # Add multimodal data
     collection = db.get_collection('multimodal')

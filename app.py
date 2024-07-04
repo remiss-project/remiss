@@ -9,8 +9,10 @@ from pyaml_env import parse_config
 
 from components import RemissDashboard
 from figures import TimeSeriesFactory, TweetTableFactory
+from figures.multimodal import MultimodalPlotFactory
+from figures.profiling import ProfilingPlotFactory
 from figures.propagation import PropagationPlotFactory
-from figures.universitat_valencia import UVAPIFactory
+from figures.textual import RemoteTextualFactory, TextualFactory
 
 available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
                        'CERULEAN': dbc.themes.CERULEAN,
@@ -104,12 +106,21 @@ def create_app(config):
                                                  available_datasets=config['available_datasets'],
 
                                                  )
-    uv_factory = UVAPIFactory(api_url=config['uv']['api_url'])
+    textual_factory = TextualFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                     available_datasets=config['available_datasets'])
+    profiling_factory = ProfilingPlotFactory(data_dir=config['profiling']['data_dir'],
+                                             available_datasets=config['available_datasets'],
+                                             host=config['mongodb']['host'], port=config['mongodb']['port'])
+    multimodal_factory = MultimodalPlotFactory(data_dir=config['multimodal']['data_dir'],
+                                               available_datasets=config['available_datasets'],
+                                               host=config['mongodb']['host'], port=config['mongodb']['port'])
 
     dashboard = RemissDashboard(tweet_user_plot_factory,
                                 tweet_table_factory,
                                 egonet_plot_factory,
-                                uv_factory,
+                                textual_factory,
+                                profiling_factory,
+                                multimodal_factory,
                                 name='dashboard',
                                 debug=config['debug'])
     print(f'Plot factories created in {time.time() - start_time} seconds.')
