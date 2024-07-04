@@ -692,7 +692,6 @@ class PropagationPlotFactory(MongoPlotFactory):
             except Exception as e:
                 print(f'Error prepopulating propagation metrics for {dataset}: {e}')
 
-
     def generate_propagation_dataset(self, dataset):
         client = MongoClient(self.host, self.port)
         self._validate_dataset(client, dataset)
@@ -722,8 +721,7 @@ class PropagationPlotFactory(MongoPlotFactory):
     def _fetch_tweet_features(self, database):
         raw_features = self._fetch_raw_tweet_features(database)
         textual_features = self._fetch_textual_tweet_features(database)
-        return raw_features.merge(textual_features, on='conversation_id', how='inner').set_index('conversation_id')
-
+        return raw_features.merge(textual_features, left_on='conversation_id', right_index=True)
 
     def _fetch_raw_tweet_features(self, database):
         collection = database.get_collection('raw')
@@ -750,12 +748,43 @@ class PropagationPlotFactory(MongoPlotFactory):
         pipeline = [
             {'$project': {
                 '_id': 0,
-                'conversation_id': 1,
-                'text': 1,
-                'text_vector': 1
+                'id': 1,
+                'language': 1,
+                'possibly_sensitive': 1,
+                'retweet_count': 1,
+                'reply_count': 1,
+                'like_count': 1,
+                'sentences': 1,
+                'POS_entities_1d': 1,
+                'POS_tags_1d': 1,
+                'TFIDF_1d': 1,
+                'No ironico': 1,
+                'Ironia': 1,
+                'Odio': 1,
+                'Dirigido': 1,
+                'Agresividad': 1,
+                'others': 1,
+                'Diversion': 1,
+                'Tristeza': 1,
+                'Enfado': 1,
+                'Sorpresa': 1,
+                'Disgusto': 1,
+                'Miedo': 1,
+                'Negativo': 1,
+                'Neutro': 1,
+                'Positivo': 1,
+                'REAL': 1,
+                'FAKE': 1,
+                'Toxico': 1,
+                'Muy toxico': 1,
+                'fakeness': 1,
+                'fakeness_probabilities': 1,
             }}
         ]
-        return collection.aggregate_pandas_all(pipeline).set_index('conversation_id')
+        features = collection.aggregate_pandas_all(pipeline)
+
+
+        return features.set_index('id')
 
     def _fetch_propagation_metrics(self, database):
         collection = database.get_collection('user_propagation')

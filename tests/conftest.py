@@ -35,8 +35,15 @@ def populate_test_database(database_name, small=False):
 
     collection.insert_many(data)
 
-    # Use mongoimport to import the textual data inside Openarms.mongoimport.textual.jsonl
-    # subprocess.run(['/usr/bin/mongoimport', '--db', database_name, '--collection', 'textual', '--file', 'test_resources/Openarms.mongoimport.textual.jsonl', '--jsonArray'])
+    collection = db.get_collection('textual')
+    with open('test_resources/Openarms.textual.json') as f:
+        data = json.load(f)
+        for tweet in data:
+            del tweet['_id']
+            tweet['id'] = tweet['id']['$numberLong']
+
+
+    collection.insert_many(data)
 
     # Add multimodal data
     collection = db.get_collection('multimodal')
