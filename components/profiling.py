@@ -69,6 +69,7 @@ class VerticalAccumulatedBarplotAge(ProfilingComponent):
     def callbacks(self, app):
         pass
 
+
 # plot_vertical_accumulated_barplot_by_genre
 class VerticalAccumulatedBarplotGenre(ProfilingComponent):
     title = 'Vertical accumulated barplot by genre'
@@ -79,15 +80,16 @@ class VerticalAccumulatedBarplotGenre(ProfilingComponent):
     def callbacks(self, app):
         pass
 
+
 # plot_vertical_barplot_polarity
 class VerticalBarplotPolarityComponent(ProfilingComponent):
     title = 'Vertical barplot polarity'
 
     def update(self, dataset, user):
         try:
-          return self.plot_factory.plot_vertical_barplot_polarity(dataset, user)
+            return self.plot_factory.plot_vertical_barplot_polarity(dataset, user)
         except TypeError as e:
-          return {}
+            return {}
 
 
 # plot_horizontal_bars_plot_interactions
