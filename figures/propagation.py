@@ -1,18 +1,15 @@
 import datetime
-import random
 import time
 from pathlib import Path
 
 import igraph as ig
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
 import plotly.express as px
-import pyarrow
+import plotly.graph_objects as go
 import pymongo
 import pymongoarrow
 from igraph import Layout
-from matplotlib import pyplot as plt
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
 from sklearn import set_config
@@ -692,201 +689,7 @@ class PropagationPlotFactory(MongoPlotFactory):
             except Exception as e:
                 print(f'Error prepopulating propagation metrics for {dataset}: {e}')
 
-    def generate_propagation_dataset(self, dataset):
-        client = MongoClient(self.host, self.port)
-        self._validate_dataset(client, dataset)
-        database = client.get_database(dataset)
 
-        tweet_features = self._fetch_tweet_features(database)
-        propagation_metrics = self._fetch_propagation_metrics(database)
-        user_features = self._fetch_user_features(database, propagation_metrics)
-        edges = self._fetch_edges(database)
-
-        client.close()
-
-        features = self._merge_features(edges, tweet_features, user_features)
-        negatives = self._generate_negative_samples(edges, tweet_features, user_features)
-
-        features['propagated'] = 1
-        negatives['propagated'] = 0
-
-        dataset = pd.concat([features, negatives]).reset_index(drop=True)
-
-        print('Features generated')
-        print(f'Num positives: {len(features)}')
-        print(f'Num negatives: {len(negatives)}')
-
-        return dataset
-
-    def _fetch_tweet_features(self, database):
-        raw_features = self._fetch_raw_tweet_features(database)
-        textual_features = self._fetch_textual_tweet_features(database)
-        return raw_features.merge(textual_features, left_on='conversation_id', right_index=True)
-
-    def _fetch_raw_tweet_features(self, database):
-        collection = database.get_collection('raw')
-        pipeline = [
-            {'$match': {'$expr': {'$eq': ['$id', '$conversation_id']}}},
-            {'$project': {
-                '_id': 0,
-                'conversation_id': 1,
-                'num_hashtags': {'$size': {'$ifNull': ['$entities.hashtags', []]}},
-                'num_mentions': {'$size': {'$ifNull': ['$entities.mentions', []]}},
-                'num_urls': {'$size': {'$ifNull': ['$entities.urls', []]}},
-                'num_media': {'$size': {'$ifNull': ['$entities.media', []]}},
-                'num_interactions': {'$size': {'$ifNull': ['$referenced_tweets', []]}},
-                'num_words': {'$size': {'$split': ['$text', ' ']}},
-                'num_chars': {'$strLenCP': '$text'},
-                'is_usual_suspect_op': '$author.remiss_metadata.is_usual_suspect',
-                'party_op': '$author.remiss_metadata.party'
-            }}
-        ]
-        return collection.aggregate_pandas_all(pipeline)
-
-    def _fetch_textual_tweet_features(self, database):
-        collection = database.get_collection('textual')
-        pipeline = [
-            {'$project': {
-                '_id': 0,
-                'id': 1,
-                'language': 1,
-                'possibly_sensitive': 1,
-                'retweet_count': 1,
-                'reply_count': 1,
-                'like_count': 1,
-                'sentences': 1,
-                'POS_entities_1d': 1,
-                'POS_tags_1d': 1,
-                'TFIDF_1d': 1,
-                'No ironico': 1,
-                'Ironia': 1,
-                'Odio': 1,
-                'Dirigido': 1,
-                'Agresividad': 1,
-                'others': 1,
-                'Diversion': 1,
-                'Tristeza': 1,
-                'Enfado': 1,
-                'Sorpresa': 1,
-                'Disgusto': 1,
-                'Miedo': 1,
-                'Negativo': 1,
-                'Neutro': 1,
-                'Positivo': 1,
-                'REAL': 1,
-                'FAKE': 1,
-                'Toxico': 1,
-                'Muy toxico': 1,
-                'fakeness': 1,
-                'fakeness_probabilities': 1,
-            }}
-        ]
-        features = collection.aggregate_pandas_all(pipeline)
-
-
-        return features.set_index('id')
-
-    def _fetch_propagation_metrics(self, database):
-        collection = database.get_collection('user_propagation')
-        pipeline = [
-            {'$project': {'_id': 0, 'author_id': 1, 'legitimacy': 1, 't-closeness': 1}}
-        ]
-        propagation_metrics = collection.aggregate_pandas_all(pipeline)
-        if propagation_metrics.empty:
-            raise RuntimeError('Propagation metrics not found. Please prepopulate them first')
-        return propagation_metrics
-
-    def _fetch_user_features(self, database, propagation_metrics):
-        collection = database.get_collection('raw')
-        pipeline = [
-            {'$project': {
-                '_id': 0,
-                'author_id': '$author.id',
-                'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
-                'party': '$author.remiss_metadata.party'
-            }}
-        ]
-        user_features = collection.aggregate_pandas_all(pipeline).drop_duplicates(subset='author_id')
-        user_features = user_features.merge(propagation_metrics, on='author_id', how='left').set_index('author_id')
-        return user_features
-
-    def _fetch_edges(self, database):
-        collection = database.get_collection('raw')
-        pipeline = [
-            {'$unwind': '$referenced_tweets'},
-            {'$match': {
-                'referenced_tweets.type': {'$in': self.reference_types},
-                'referenced_tweets.author': {'$exists': True}
-            }},
-            {'$project': {
-                '_id': 0,
-                'source': '$referenced_tweets.author.id',
-                'target': '$author.id',
-                'conversation_id': '$conversation_id'
-            }}
-        ]
-        return collection.aggregate_pandas_all(pipeline)
-
-    def _merge_features(self, edges, tweet_features, user_features):
-        features = edges.merge(tweet_features, on='conversation_id', how='inner')
-        features = features.merge(user_features.rename(columns=lambda x: f'{x}_prev'), left_on='source',
-                                  right_index=True, how='inner')
-        features = features.merge(user_features.rename(columns=lambda x: f'{x}_curr'), left_on='target',
-                                  right_index=True, how='inner')
-        return features.drop(columns=['conversation_id', 'source', 'target'])
-
-    def _generate_negative_samples(self, edges, tweet_features, user_features):
-        negatives = []
-        for source, interactions in edges.groupby('source'):
-            if len(interactions) > 1:
-                targets = set(interactions['target'].unique())
-                for conversation_id, conversation in interactions.groupby('conversation_id'):
-                    other_targets = pd.DataFrame(targets - set(conversation['target']), columns=['target'])
-                    if not other_targets.empty:
-                        sample_size = min(len(conversation), len(other_targets))
-                        other_targets = other_targets.sample(n=sample_size)
-                        other_targets['source'] = source
-                        other_targets['conversation_id'] = conversation_id
-                        negatives.append(other_targets)
-
-        if negatives:
-            negatives = pd.concat(negatives)
-            negatives = negatives.merge(tweet_features, on='conversation_id', how='inner')
-            negatives = negatives.merge(user_features.rename(columns=lambda x: f'{x}_prev'), left_on='source',
-                                        right_index=True, how='inner')
-            negatives = negatives.merge(user_features.rename(columns=lambda x: f'{x}_curr'), left_on='target',
-                                        right_index=True, how='inner')
-            negatives.drop(columns=['conversation_id', 'source', 'target'], inplace=True)
-
-        return negatives
-
-    def fit_propagation_model(self, dataset):
-        print('Fitting propagation model')
-        df = self.generate_propagation_dataset(dataset)
-        X, y = df.drop(columns='propagated'), df['propagated']
-        pipeline = Pipeline([
-            ('imputer', SimpleImputer(strategy='most_frequent')),
-            ('transformer', ColumnTransformer([
-                ('one_hot', OneHotEncoder(handle_unknown='ignore', sparse_output=False),
-                 X.select_dtypes(include='object').columns),
-            ], remainder='passthrough')),
-            ('scaler', StandardScaler()),
-            ('classifier', XGBClassifier())
-        ])
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        pipeline.fit(X_train, y_train)
-        # show plotly histogram for y_train
-        fig = px.histogram(y_train, title='Distribution of labels in the training set')
-        fig.update_xaxes(title_text='Label')
-        fig.update_yaxes(title_text='Count')
-        fig.show()
-        y_train_pred = pipeline.predict(X_train)
-        y_test_pred = pipeline.predict(X_test)
-        print('Training set metrics')
-        print(classification_report(y_train, y_train_pred))
-        print('Test set metrics')
-        print(classification_report(y_test, y_test_pred))
-        return pipeline
 
     def plot_egonet(self, collection, user, depth, start_date=None, end_date=None):
         network = self.get_egonet(collection, user, depth)

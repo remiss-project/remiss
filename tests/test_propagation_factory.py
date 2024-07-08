@@ -4,6 +4,7 @@ from pathlib import Path
 
 import igraph as ig
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import seaborn as sns
@@ -23,10 +24,10 @@ from tests.conftest import populate_test_database, delete_test_database
 
 
 class PropagationTestCase(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        populate_test_database('test_dataset')
-        populate_test_database('test_dataset_small', small=True)
+    # @classmethod
+    # def setUpClass(cls):
+    #     populate_test_database('test_dataset')
+    #     populate_test_database('test_dataset_small', small=True)
 
     # @classmethod
     # def tearDownClass(cls):
@@ -305,77 +306,6 @@ class PropagationTestCase(unittest.TestCase):
         actual = self.plot_factory.load_propagation_metrics_from_db(self.dataset_small)
         pd.testing.assert_frame_equal(expected, actual)
 
-    def test_prepare_propagation_dataset(self):
-        dataset = self.dataset
-        self.plot_factory.cache_dir = Path('tmp/cache_propagation_2')
-        try:
-            features = self.plot_factory.generate_propagation_dataset(dataset)
-        except RuntimeError as ex:
-            if 'Propagation metrics not found. Please prepopulate them first' in str(ex):
-                network = self.plot_factory._compute_hidden_network(dataset)
-                self.plot_factory.persist_graph_metrics(dataset, network)
-                if self.plot_factory.cache_dir:
-                    stem = f'hidden_network'
-                    self.plot_factory.save_to_cache(dataset, network, stem)
-                features = self.plot_factory.generate_propagation_dataset(dataset)
-            else:
-                raise ex
-
-        features.to_csv(self.plot_factory.cache_dir / f'{dataset}-features.csv')
-        sns.pairplot(features.sample(100), hue='propagated', diag_kind='kde')
-        plt.savefig('tmp/cache_propagation_2/pairplot.png')
-
-    def test_fit_fail(self):
-        df = pd.read_csv(f'tmp/cache_propagation_2/{self.dataset}-features.csv', index_col=0)
-
-        X, y = df.drop(columns='propagated'), df['propagated']
-        pipeline = Pipeline([
-            ('imputer', SimpleImputer(strategy='most_frequent')),
-            ('transformer', ColumnTransformer([
-                ('one_hot', OneHotEncoder(handle_unknown='ignore', sparse_output=False),
-                 X.select_dtypes(include='object').columns),
-            ], remainder='passthrough', verbose_feature_names_out=False)),
-            ('scaler', StandardScaler()),
-            ('classifier', XGBClassifier())
-        ])
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        pipeline.fit(X_train, y_train)
-        # show plotly histogram for y_train
-        fig = px.histogram(y_train, title='Distribution of labels in the training set')
-        fig.update_xaxes(title_text='Label')
-        fig.update_yaxes(title_text='Count')
-        fig.show()
-        y_train_pred = pipeline.predict(X_train)
-        y_test_pred = pipeline.predict(X_test)
-        print('Training set metrics')
-        print(classification_report(y_train, y_train_pred))
-        print('Confusion matrix')
-        print(pd.crosstab(y_train, y_train_pred, rownames=['Actual'], colnames=['Predicted']))
-        print('Test set metrics')
-        print(classification_report(y_test, y_test_pred))
-        print('Confusion matrix')
-        print(pd.crosstab(y_test, y_test_pred, rownames=['Actual'], colnames=['Predicted']))
-        # plot feature importance
-        feature_importances = pd.Series(pipeline['classifier'].feature_importances_,
-                                        index=pipeline['classifier'].feature_names_in_).sort_values(ascending=False)
-        fig = px.bar(feature_importances, title='Feature importance')
-        fig.update_xaxes(title_text='Feature')
-        fig.update_yaxes(title_text='Importance')
-        fig.show()
-
-    def test_fit_propagation_model(self):
-        dataset = self.dataset
-        model = self.plot_factory.fit_propagation_model(dataset)
-        self.assertIsNotNone(model)
-
-    def test_conversation_ids(self):
-        conversation_ids = self.plot_factory.get_conversation_ids(self.dataset_small)
-        # All the conversation ids should exist in the database, thus retrieving their graph should not raise an error
-        for conversation_id in tqdm(conversation_ids['conversation_id']):
-            try:
-                self.plot_factory.get_propagation_tree(self.dataset_small, conversation_id)
-            except Exception as ex:
-                self.fail(f'Conversation id {conversation_id} raised an exception: {ex}')
 
 
 if __name__ == '__main__':
