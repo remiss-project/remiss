@@ -83,10 +83,14 @@ class PropagationModelsTestCase(unittest.TestCase):
         X = features.drop(columns=['propagated'])
         with open(self.cache_dir / f'{dataset}-model.pkl', 'rb') as f:
             model = pickle.load(f)
-        sample = X.iloc[0]
+        sample = {'conversation_id': '1298573780961370112', 'author_id': '18202143'}
         model.dataset_generator = self.dataset_generator
         cascade = model.generate_cascade(sample)
-        print(cascade)
+        fig, ax = plt.subplots()
+
+        ig.plot(cascade, target=ax)
+        plt.show()
+
 
     def test_get_cascade(self):
         cascade = self.dataset_generator.get_cascade('1298573780961370112', None)

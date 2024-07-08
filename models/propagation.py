@@ -110,6 +110,8 @@ class PropagationDatasetGenerator:
 
             graph.add_edges(edges[['source', 'target']].to_records(index=False).tolist())
 
+        graph['conversation_id'] = conversation_id
+
         return graph
 
     def get_neighbours(self, user_id):
@@ -482,22 +484,26 @@ class PropagationCascadeModel(BaseEstimator, ClassifierMixin):
         return self.pipeline.score(X, y)
 
     def generate_cascade(self, x):
+        # Get the conversation id and user id from x
+        conversation_id = x['conversation_id']
+        user_id = x['author_id']
         # Get the cascade of a given tweet
-        cascade = self.dataset_generator.get_cascade(x)
+        cascade = self.dataset_generator.get_cascade(conversation_id, user_id)
         cascade.vs['original'] = [True] * len(cascade.vs)
-        self._process_neighbour_propagation(x, cascade)
+        self._process_neighbour_propagation(x['author_id'], cascade)
         return cascade
 
-    def _process_neighbour_propagation(self, x, cascade):
-        for neighbour in self.dataset_generator.get_neighbours(x['author_id']):
+    def _process_neighbour_propagation(self, author_id, cascade):
+        for neighbour in self.dataset_generator.get_neighbours(author_id):
             # get features for neighbour
-            neighbour_features = self.dataset_generator.get_features_for(neighbour)
+            neighbour_features = self.dataset_generator.get_features_for(cascade['conversation_id'], author_id,
+                                                                        neighbour)
             # get the prediction on whether the neighbour will propagate the tweet
             prediction = self.predict(neighbour_features)
             # add the neighbour to the cascade
             if prediction:
                 cascade.add_vertex(neighbour)
-                cascade.add_edge(x['author_id'], neighbour)
+                cascade.add_edge(author_id, neighbour)
                 cascade.vs['original'] += [False]
                 # if propagation is predicted, recursively process the next neighbours
                 self._process_neighbour_propagation(neighbour, cascade)
