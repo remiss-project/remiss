@@ -23,6 +23,7 @@ from tqdm import tqdm
 from xgboost import XGBClassifier
 
 from figures.figures import MongoPlotFactory
+from propagation import Egonet, NetworkMetrics, DiffusionMetrics
 
 pymongoarrow.monkey.patch_all()
 
@@ -30,6 +31,75 @@ set_config(transform_output="pandas")
 
 
 class PropagationPlotFactory(MongoPlotFactory):
+    def __init__(self, host="localhost", port=27017, cache_dir=None,
+                 reference_types=('quoted', 'retweeted'), layout='fruchterman_reingold',
+                 simplification=None, threshold=0.2, delete_vertices=True, frequency='1D',
+                 available_datasets=None, small_size_multiplier=50, big_size_multiplier=10):
+
+        super().__init__(host, port, available_datasets)
+        self.layout = layout
+        self.egonet = Egonet(reference_types=reference_types, simplification=simplification,
+                             threshold=threshold, delete_vertices=delete_vertices)
+
+        self.network_metrics = NetworkMetrics()
+        self.diffusion_metrics = DiffusionMetrics()
+        self.cache_dir = Path(cache_dir) if cache_dir else None
+
+    def plot_egonet(self, collection, user, depth, start_date=None, end_date=None):
+        if start_date is None:
+            start_date = datetime.datetime(2000, 1, 1)
+        if end_date is None:
+            end_date = datetime.datetime.now()
+        pipeline = [
+            {'$match': {'author.username': user, 'created_at': {'$gte': start_date, '$lte': end_date}}},
+            {'$graphLookup': {
+                'from': collection,
+                'startWith': '$id',
+                'connectFromField': 'id',
+                'connectToField': 'referenced_tweets.id',
+                'as': 'egonet',
+                'maxDepth': depth,
+                'depthField': 'depth'
+            }},
+            {'$unwind': '$egonet'},
+            {'$replaceRoot': {'newRoot': '$egonet'}}
+        ]
+        df = collection.aggregate_pandas_all(pipeline)
+        return df
+    def plot_propagation_tree(self, dataset, tweet_id):
+        propagation_tree = self.diffusion_metrics.get_propagation_tree(dataset, tweet_id)
+        return self.plot_graph(propagation_tree)
+
+    def plot_size_over_time(self, dataset, tweet_id):
+        size_over_time = self.diffusion_metrics.get_size_over_time(dataset, tweet_id)
+        return self.plot_time_series(size_over_time, 'Size over time', 'Time', 'Size')
+
+    def plot_depth_over_time(self, dataset, tweet_id):
+        depth_over_time = self.diffusion_metrics.get_depth_over_time(dataset, tweet_id)
+        return self.plot_time_series(depth_over_time, 'Depth over time', 'Time', 'Depth')
+
+    def plot_max_breadth_over_time(self, dataset, tweet_id):
+        max_breadth_over_time = self.diffusion_metrics.get_max_breadth_over_time(dataset, tweet_id)
+        return self.plot_time_series(max_breadth_over_time, 'Max breadth over time', 'Time', 'Max breadth')
+
+    def plot_structural_virality_over_time(self, dataset, tweet_id):
+        structural_virality_over_time = self.diffusion_metrics.get_structural_virality_over_time(dataset, tweet_id)
+        return self.plot_time_series(structural_virality_over_time, 'Structural virality over time', 'Time',
+
+    def plot_depth_cascade_ccdf(self, dataset):
+        depth_cascade = self.network_metrics.get_depth_cascade(dataset)
+        return self.plot_ccdf(depth_cascade, 'Depth cascade CCDF', 'Depth', 'CCDF')
+
+    def plot_size_cascade_ccdf(self, dataset):
+        size_cascade = self.network_metrics.get_size_cascade(dataset)
+        return self.plot_ccdf(size_cascade, 'Size cascade CCDF', 'Size', 'CCDF')
+
+    def plot_cascade_count_over_time(self, dataset):
+        cascade_count_over_time = self.network_metrics.get_cascade_count_over_time(dataset)
+        return self.plot_time_series(cascade_count_over_time, 'Cascade count over time', 'Time', 'Cascade count')
+
+
+class PropagationPlotFactoryOld(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, cache_dir=None,
                  reference_types=('replied_to', 'quoted', 'retweeted'), layout='fruchterman_reingold',
                  simplification=None, threshold=0.2, delete_vertices=True, k_cores=4, frequency='1D',
