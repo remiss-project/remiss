@@ -204,8 +204,6 @@ class TestEgonetCase(unittest.TestCase):
 
         collection.insert_many(test_data)
 
-        user = 'test_user'
-        depth = 1
         print('computing egonet')
         self.egonet.host = 'localhost'
         self.egonet.port = 27017
@@ -251,7 +249,7 @@ class TestEgonetCase(unittest.TestCase):
             edge_alpha = (1 - weight) ** (degree - 1)
             self.assertGreater(edge_alpha, alpha)
 
-   
+
 def create_test_data_from_edges(expected_edges):
     test_data = []
     for source, target in expected_edges.itertuples(index=False):
