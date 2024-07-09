@@ -3,9 +3,62 @@ import shutil
 import subprocess
 from datetime import datetime
 
+import pandas as pd
 from pymongo import MongoClient
 
 from preprocess import unfix_timestamps
+
+
+def create_test_database(source_dataset, database_name):
+    # Connect to prod mongodb at mongodb://srvinv02.esade.es:27017/
+    prod = MongoClient(host='srvinv02.esade.es', port=27017)
+    prod_db = prod[source_dataset]
+    # for each collection, sample the first week and insert into the test database at the local database_name
+    client = MongoClient('localhost', 27017)
+    client.drop_database(database_name)
+    db = client[database_name]
+    raw = prod_db.get_collection('raw')
+    first_raw_tweet = raw.find_one(sort=[('created_at', 1)])
+    last_raw_tweet = raw.find_one(sort=[('created_at', -1)])
+
+    textual = prod_db.get_collection('textual')
+    textual_dates = textual.aggregate_pandas_all([
+        {'$project': {'date': 1}},
+    ])
+    textual_dates = pd.to_datetime(textual_dates['date'])
+    first_textual_tweet = textual_dates.min()
+    last_textual_tweet = textual_dates.max()
+
+    first_tweet = max(first_raw_tweet['created_at'], first_textual_tweet)
+    last_tweet = min(last_raw_tweet['created_at'], last_textual_tweet)
+
+    middle_tweet = first_tweet + (last_tweet - first_tweet) / 2
+    middle_plus_week = middle_tweet + pd.Timedelta(days=7)
+
+    # Add all profiling data with their associated tweets, plus a week from the middle
+    profiling = prod_db.get_collection('profiling')
+    profiling_data = list(profiling.find())
+    db.get_collection('profiling').insert_many(profiling_data)
+
+    profiling_user_ids = [profiling['user_id'] for profiling in profiling_data]
+    profiling_ids = raw.find({'author.id': {'$in': profiling_user_ids}}).distinct('id')
+    raw_ids = raw.find({'created_at': {'$gte': first_tweet, '$lt': middle_plus_week}}).distinct('id')
+    tweet_ids = profiling_ids + raw_ids
+    raw_data = list(raw.find({'id': {'$in': tweet_ids}}))
+    db.get_collection('raw').insert_many(raw_data)
+
+    textual_data = textual.find({'id': {'$in': [int(tweet_id) for tweet_id in tweet_ids]}})
+    db.get_collection('textual').insert_many(textual_data)
+
+    # Add all multimodal data
+    multimodal = prod_db.get_collection('multimodal')
+    multimodal_data = list(multimodal.find())
+    if len(multimodal_data) > 0:
+        db.get_collection('multimodal').insert_many(multimodal_data)
+    else:
+        print('No multimodal data found')
+
+    print('Done!')
 
 
 def populate_test_database(database_name, small=False):
@@ -41,7 +94,6 @@ def populate_test_database(database_name, small=False):
         for tweet in data:
             del tweet['_id']
             tweet['id'] = tweet['id']['$numberLong']
-
 
     collection.insert_many(data)
 
@@ -87,4 +139,8 @@ def delete_test_database(database_name):
     client = MongoClient('localhost', 27017)
     client.drop_database(database_name)
 
+
 # populate_test_database('test_dataset')
+
+if __name__ == '__main__':
+    create_test_database('Openarms', 'test_dataset_2')
