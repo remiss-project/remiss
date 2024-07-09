@@ -1,3 +1,5 @@
+import time
+
 import pandas as pd
 import plotly.express as px
 import sklearn
@@ -13,6 +15,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from xgboost import XGBClassifier
 import igraph as ig
 import pymongoarrow
+import plotly.graph_objects as go
 
 pymongoarrow.monkey.patch_all()
 
@@ -29,6 +32,18 @@ class PropagationDatasetGenerator:
         self.use_textual = use_textual
         self._features = None
         self.dataset = dataset
+        self.user_features = {}
+        self.tweet_features = {}
+
+    def fetch_tweet_features(self, database):
+        if database.name not in self.tweet_features:
+            self.tweet_features[database.name] = self._fetch_tweet_features(database)
+        return self.tweet_features[database.name]
+
+    def fetch_user_features(self, database):
+        if database.name not in self.user_features:
+            self.user_features[database.name] = self._fetch_user_features(database)
+        return self.user_features[database.name]
 
     def generate_propagation_dataset(self):
         if self._features is None:
@@ -100,7 +115,8 @@ class PropagationDatasetGenerator:
         graph.vs['party'] = authors['party']
         graph.vs['original'] = ['ground_truth'] * len(authors)
         if user_id is not None:
-            graph.vs.find(author_id=user_id)['original'] = 'current_user'
+            user_vertex = graph.vs.find(author_id=user_id)
+            user_vertex['original'] = 'seed'
 
         if not edges.empty:
             author_to_id = authors['author_id'].reset_index().set_index('author_id')
@@ -120,28 +136,35 @@ class PropagationDatasetGenerator:
 
         collection = database.get_collection('raw')
         pipeline = [
-            {'$match': {'author.id': user_id}},
             {'$unwind': '$referenced_tweets'},
             {'$match': {
                 'referenced_tweets.type': {'$in': self.reference_types},
                 'referenced_tweets.author': {'$exists': True}
             }},
+            {'$match': {'$or': [{'author.id': user_id}, {'referenced_tweets.author.id': user_id}]}},
             {'$project': {
                 '_id': 0,
-                'author_id': '$referenced_tweets.author.id'
+                'source': '$referenced_tweets.author.id',
+                'target': '$author.id'
             }}
         ]
-        neighbours = collection.aggregate_pandas_all(pipeline)['author_id'].unique()
+        neighbours = collection.aggregate_pandas_all(pipeline)
         client.close()
+
+        if neighbours.empty:
+            return set()
+
+        neighbours = set(neighbours['source'].unique()) | set(neighbours['target'].unique())
+        neighbours.remove(user_id)
         return neighbours
 
-    def get_features_for(self, conversation_id, source, target):
+    def get_features_for(self, conversation_id, sources, targets):
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.dataset)
 
-        tweet_features = self._fetch_tweet_features(database)
-        user_features = self._fetch_user_features(database)
-        edges = pd.DataFrame({'source': [source], 'target': [target], 'conversation_id': [conversation_id]})
+        tweet_features = self.fetch_tweet_features(database)
+        user_features = self.fetch_user_features(database)
+        edges = pd.DataFrame({'source': sources, 'target': targets, 'conversation_id': conversation_id})
         features = self._merge_features(edges, tweet_features, user_features)
         features = features.drop(columns=['source', 'target', 'conversation_id', 'Unnamed: 0'], errors='ignore')
         client.close()
@@ -489,23 +512,111 @@ class PropagationCascadeModel(BaseEstimator, ClassifierMixin):
         user_id = x['author_id']
         # Get the cascade of a given tweet
         cascade = self.dataset_generator.get_cascade(conversation_id, user_id)
-        cascade.vs['original'] = [True] * len(cascade.vs)
-        self._process_neighbour_propagation(x['author_id'], cascade)
+        visited_nodes = set(cascade.vs['author_id'])
+        self._process_neighbour_propagation(x['author_id'], cascade, visited_nodes)
         return cascade
 
-    def _process_neighbour_propagation(self, author_id, cascade):
-        for neighbour in self.dataset_generator.get_neighbours(author_id):
-            # get features for neighbour
-            neighbour_features = self.dataset_generator.get_features_for(cascade['conversation_id'], author_id,
-                                                                        neighbour)
-            # get the prediction on whether the neighbour will propagate the tweet
-            prediction = self.predict(neighbour_features)
-            # add the neighbour to the cascade
-            if prediction:
-                cascade.add_vertex(neighbour)
-                cascade.add_edge(author_id, neighbour)
-                cascade.vs['original'] += [False]
-                # if propagation is predicted, recursively process the next neighbours
-                self._process_neighbour_propagation(neighbour, cascade)
-
+    def _process_neighbour_propagation(self, author_id, cascade, visited_nodes):
+        neighbours = self.dataset_generator.get_neighbours(author_id)
+        available_neighbours = set(neighbours) - visited_nodes
+        visited_nodes.update(available_neighbours)
+        sources = [author_id] * len(available_neighbours)
+        targets = list(available_neighbours)
+        features = self.dataset_generator.get_features_for(cascade['conversation_id'], sources, targets)
+        predictions = self.predict(features)
+        predictions = pd.Series(predictions, index=targets)
+        author_index = cascade.vs.find(author_id=author_id).index
+        for target, prediction in predictions[predictions == 1].items():
+            if target not in cascade.vs['author_id']:
+                cascade.add_vertex(author_id=target, username=target, original='predicted')
+            target_index = cascade.vs.find(author_id=target).index
+            cascade.add_edge(author_index, target_index)
+            self._process_neighbour_propagation(target, cascade, visited_nodes)
         return cascade
+
+    def plot_cascade(self, cascade):
+        layout = cascade.layout('kk', dim=3)
+        layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
+        print('Computing plot for network')
+        print(cascade.summary())
+        start_time = time.time()
+        edges = pd.DataFrame(cascade.get_edgelist(), columns=['source', 'target'])
+        edge_positions = layout.iloc[edges.values.flatten()].reset_index(drop=True)
+        nones = edge_positions[1::2].assign(x=None, y=None, z=None)
+        edge_positions = pd.concat([edge_positions, nones]).sort_index().reset_index(drop=True)
+
+        color_map = {'ground_truth': 'rgb(255, 234, 208)', 'seed': 'rgb(247, 111, 142)',
+                     'predicted': 'rgb(111, 247, 142)'}
+        original = pd.Series(cascade.vs['original'])
+        color = original.map(color_map)
+        size = original.map({'ground_truth': 10, 'seed': 15, 'predicted': 10})
+
+        # metadata = pd.DataFrame({'is_usual_suspect': network.vs['is_usual_suspect'], 'party': network.vs['party']})
+
+        edge_trace = go.Scatter3d(x=edge_positions['x'],
+                                  y=edge_positions['y'],
+                                  z=edge_positions['z'],
+                                  mode='lines',
+                                  line=dict(color='rgb(125,125,125)', width=1),
+                                  hoverinfo='none',
+                                  name='Interactions',
+                                  showlegend=False
+                                  )
+
+        text = []
+        for node in cascade.vs:
+            node_text = f'Author: {node["username"]}'
+            text.append(node_text)
+
+        node_trace = go.Scatter3d(x=layout['x'],
+                                  y=layout['y'],
+                                  z=layout['z'],
+                                  mode='markers',
+                                  marker=dict(
+                                      # symbol=markers,
+                                      size=size,
+                                      color=color,
+                                      # coloscale set to $champagne: #ffead0ff;
+                                      # to $bright-pink-crayola: #f76f8eff;
+                                      # colorscale=[[0, 'rgb(255, 234, 208)'], [1, 'rgb(247, 111, 142)']],
+                                      # colorbar=dict(thickness=20, title='Legitimacy'),
+                                      line=dict(color='rgb(50,50,50)', width=0.5),
+                                  ),
+                                  text=text,
+                                  hovertemplate='%{text}',
+                                  name='',
+                                  )
+
+        axis = dict(showbackground=False,
+                    showline=False,
+                    zeroline=False,
+                    showgrid=False,
+                    showticklabels=False,
+                    title=''
+                    )
+
+        layout = go.Layout(
+            showlegend=False,
+            scene=dict(
+                xaxis=dict(axis),
+                yaxis=dict(axis),
+                zaxis=dict(axis),
+            ),
+            # margin=dict(
+            #     t=100
+            # ),
+            hovermode='closest',
+
+        )
+
+        data = [edge_trace, node_trace]
+        fig = go.Figure(data=data, layout=layout)
+
+        camera = dict(
+            up=dict(x=0, y=0, z=1),
+            center=dict(x=0, y=0, z=0),
+            eye=dict(x=1.25, y=1.25, z=1.25)
+        )
+        fig.update_layout(scene_camera=camera)
+        print(f'Plot computed in {time.time() - start_time} seconds')
+        return fig
