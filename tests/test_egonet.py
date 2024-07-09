@@ -283,14 +283,19 @@ class TestEgonetCase(unittest.TestCase):
         collection.insert_many(test_data)
 
         self.egonet.persist([self.tmp_dataset])
+        start_time = time.time()
         self.egonet.load_from_mongodb([self.tmp_dataset])
+        end_time = time.time()
+        print(f'loaded in {end_time - start_time} seconds')
 
         expected_hidden_network = self.egonet._compute_hidden_network(self.tmp_dataset)
         expected_hidden_network_backbone = self.egonet.compute_backbone(expected_hidden_network,
                                                                         alpha=self.egonet.threshold)
-
+        start_time = time.time()
         actual_hidden_network = self.egonet._hidden_networks[self.tmp_dataset]
         actual_hidden_network_backbone = self.egonet._hidden_network_backbones[self.tmp_dataset]
+        end_time = time.time()
+        print(f'computed in {end_time - start_time} seconds')
 
         self.assertEqual(expected_hidden_network.vcount(), actual_hidden_network.vcount())
         self.assertEqual(expected_hidden_network.ecount(), actual_hidden_network.ecount())
