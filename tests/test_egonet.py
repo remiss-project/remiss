@@ -50,7 +50,7 @@ class TestEgonetCase(unittest.TestCase):
         mock_database.get_collection.return_value = mock_collection
         mock_mongo_client.return_value.get_database.return_value = mock_database
 
-        actual = self.egonet.get_hidden_network(self.dataset)
+        actual = self.egonet.get_hidden_network(self.test_dataset)
 
         self.assertEqual({'1', '2', '3'}, set(actual.vs['author_id']))
         edges = {frozenset((actual.vs[s]['author_id'], actual.vs[t]['author_id'])) for s, t in actual.get_edgelist()}
@@ -248,6 +248,39 @@ class TestEgonetCase(unittest.TestCase):
             degree = backbone.degree(edge[0])
             edge_alpha = (1 - weight) ** (degree - 1)
             self.assertGreater(edge_alpha, alpha)
+
+    @patch('propagation.egonet.MongoClient')
+    def test_compute_hidden_network_backbone(self, mock_mongo_client):
+        # Mock MongoClient and database
+        mock_collection = Mock()
+
+        def aggregate_pandas_all(pipeline, schema=None):
+            if 'source' in pipeline[-1]['$project']:
+                # its edges
+                edges = pd.DataFrame({'source': ['1', '2', '3'],
+                                      'target': ['2', '3', '1'],
+                                      'weight': [1, 2, 3],
+                                      'weight_inv': [1, 0.5, 0.33],
+                                      'weight_norm': [1, 0.5, 0.5]})
+                return edges
+
+            else:
+                # its authors
+                authors = pd.DataFrame({'author_id': ['1', '2', '3']})
+                return authors
+
+        mock_collection.aggregate_pandas_all = aggregate_pandas_all
+        mock_database = Mock()
+        mock_database.get_collection.return_value = mock_collection
+        mock_mongo_client.return_value.get_database.return_value = mock_database
+
+        actual = self.egonet.get_hidden_network_backbone(self.test_dataset)
+
+        self.assertEqual({'1', '2', '3'}, set(actual.vs['author_id']))
+        edges = {frozenset((actual.vs[s]['author_id'], actual.vs[t]['author_id'])) for s, t in actual.get_edgelist()}
+        expected = {('2', '3'), ('1', '3')}
+        expected = {frozenset(x) for x in expected}
+        self.assertEqual(expected, edges)
 
 
 def create_test_data_from_edges(expected_edges):

@@ -61,6 +61,12 @@ class Egonet:
 
         return self._hidden_network_backbones[dataset]
 
+    def _compute_hidden_network_backbone(self, dataset):
+        hidden_network = self.get_hidden_network(dataset)
+        backbone = self._simplify_graph(hidden_network)
+
+        return backbone
+
     def _get_authors(self, dataset, start_date=None, end_date=None):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
