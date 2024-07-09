@@ -13,14 +13,7 @@ from igraph import Layout
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
 from sklearn import set_config
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer
-from sklearn.metrics import classification_report
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from tqdm import tqdm
-from xgboost import XGBClassifier
 
 from figures.figures import MongoPlotFactory
 from propagation import Egonet, NetworkMetrics, DiffusionMetrics
@@ -35,7 +28,6 @@ class PropagationPlotFactory(MongoPlotFactory):
                  reference_types=('quoted', 'retweeted'), layout='fruchterman_reingold',
                  simplification=None, threshold=0.2, delete_vertices=True, frequency='1D',
                  available_datasets=None, small_size_multiplier=50, big_size_multiplier=10):
-
         super().__init__(host, port, available_datasets)
         self.layout = layout
         self.egonet = Egonet(reference_types=reference_types, simplification=simplification,
@@ -46,26 +38,9 @@ class PropagationPlotFactory(MongoPlotFactory):
         self.cache_dir = Path(cache_dir) if cache_dir else None
 
     def plot_egonet(self, collection, user, depth, start_date=None, end_date=None):
-        if start_date is None:
-            start_date = datetime.datetime(2000, 1, 1)
-        if end_date is None:
-            end_date = datetime.datetime.now()
-        pipeline = [
-            {'$match': {'author.username': user, 'created_at': {'$gte': start_date, '$lte': end_date}}},
-            {'$graphLookup': {
-                'from': collection,
-                'startWith': '$id',
-                'connectFromField': 'id',
-                'connectToField': 'referenced_tweets.id',
-                'as': 'egonet',
-                'maxDepth': depth,
-                'depthField': 'depth'
-            }},
-            {'$unwind': '$egonet'},
-            {'$replaceRoot': {'newRoot': '$egonet'}}
-        ]
-        df = collection.aggregate_pandas_all(pipeline)
-        return df
+        egonet = self.egonet.get_egonet(collection, user, depth, start_date, end_date)
+        return self.plot_graph(egonet)
+
     def plot_propagation_tree(self, dataset, tweet_id):
         propagation_tree = self.diffusion_metrics.get_propagation_tree(dataset, tweet_id)
         return self.plot_graph(propagation_tree)
@@ -85,6 +60,7 @@ class PropagationPlotFactory(MongoPlotFactory):
     def plot_structural_virality_over_time(self, dataset, tweet_id):
         structural_virality_over_time = self.diffusion_metrics.get_structural_virality_over_time(dataset, tweet_id)
         return self.plot_time_series(structural_virality_over_time, 'Structural virality over time', 'Time',
+                                     'Structural virality')
 
     def plot_depth_cascade_ccdf(self, dataset):
         depth_cascade = self.network_metrics.get_depth_cascade(dataset)
@@ -101,7 +77,7 @@ class PropagationPlotFactory(MongoPlotFactory):
 
 class PropagationPlotFactoryOld(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, cache_dir=None,
-                 reference_types=('replied_to', 'quoted', 'retweeted'), layout='fruchterman_reingold',
+                 reference_types=('quoted', 'retweeted'), layout='fruchterman_reingold',
                  simplification=None, threshold=0.2, delete_vertices=True, k_cores=4, frequency='1D',
                  available_datasets=None, small_size_multiplier=50, big_size_multiplier=10):
         super().__init__(host, port, available_datasets)
@@ -758,8 +734,6 @@ class PropagationPlotFactoryOld(MongoPlotFactory):
                 self.persist_propagation_metrics(dataset)
             except Exception as e:
                 print(f'Error prepopulating propagation metrics for {dataset}: {e}')
-
-
 
     def plot_egonet(self, collection, user, depth, start_date=None, end_date=None):
         network = self.get_egonet(collection, user, depth)
