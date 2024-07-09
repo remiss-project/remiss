@@ -67,33 +67,6 @@ class Egonet:
 
         return backbone
 
-    def _get_authors(self, dataset, start_date=None, end_date=None):
-        client = MongoClient(self.host, self.port)
-        database = client.get_database(dataset)
-        collection = database.get_collection('raw')
-        nested_pipeline = [
-            {'$project': {'_id': 0, 'author_id': '$author.id'}
-             }]
-        self._add_date_filters(nested_pipeline, start_date, end_date)
-
-        node_pipeline = [
-            {'$unwind': '$referenced_tweets'},
-            {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
-                        'referenced_tweets.author': {'$exists': True}}},
-            {'$project': {'_id': 0, 'author_id': '$referenced_tweets.author.id'}},
-            {'$unionWith': {'coll': 'raw', 'pipeline': nested_pipeline}},  # Fetch missing authors
-            {'$group': {'_id': '$author_id'}},
-            {'$project': {'_id': 0, 'author_id': '$_id'}}
-        ]
-        self._add_date_filters(node_pipeline, start_date, end_date)
-        logger.info('Computing authors')
-        start_time = time.time()
-        schema = Schema({'author_id': str})
-        authors = collection.aggregate_pandas_all(node_pipeline, schema=schema)
-        logger.info(f'Authors computed in {time.time() - start_time} seconds')
-        client.close()
-        return authors
-
     def _get_references(self, dataset, start_date=None, end_date=None):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
@@ -132,10 +105,10 @@ class Egonet:
         :param dataset: collection name within the database where the tweets are stored
         :return: a networkx graph with the users as nodes and the edges representing interactions between users
         """
-        authors = self._get_authors(dataset)
         references = self._get_references(dataset)
+        authors = pd.DataFrame({'author_id': np.unique(references[['source', 'target']].values)})
 
-        if len(authors) == 0:
+        if len(references) == 0:
             # in case of no authors we return an empty graph
             return ig.Graph(directed=True)
 
@@ -166,6 +139,52 @@ class Egonet:
         network = self.compute_backbone(network, self.threshold, self.delete_vertices)
 
         return network
+
+    def persist(self, datasets):
+        # Save to mongodb
+        for dataset in datasets:
+            hidden_network = self.get_hidden_network(dataset)
+            hidden_network_backbone = self.get_hidden_network_backbone(dataset)
+            self._persist_graph_to_mongodb(hidden_network, dataset, 'hidden_network')
+            self._persist_graph_to_mongodb(hidden_network_backbone, dataset, 'hidden_network_backbone')
+
+    def load_from_mongodb(self, datasets):
+        for dataset in datasets:
+            try:
+                hidden_network = self._load_graph_from_mongodb(dataset, 'hidden_network')
+                hidden_network_backbone = self._load_graph_from_mongodb(dataset, 'hidden_network_backbone')
+                self._hidden_networks[dataset] = hidden_network
+                self._hidden_network_backbones[dataset] = hidden_network_backbone
+            except Exception as ex:
+                logger.error(f'Error loading hidden network for dataset {dataset} with error {ex}')
+
+    def _persist_graph_to_mongodb(self, graph, dataset, collection_name):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection(collection_name)
+        collection.drop()
+        collection.insert_many([{'source': e.source,
+                                 'target': e.target,
+                                 'weight': int(e['weight']),
+                                 'weight_inv': float(e['weight_inv']),
+                                 'weight_norm': float(e['weight_norm'])}
+                                for e in graph.es])
+        client.close()
+
+    def _load_graph_from_mongodb(self, dataset, collection_name):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection(collection_name)
+        references = collection.aggregate_pandas_all([])
+        client.close()
+        g = ig.Graph(directed=True)
+        g.add_vertices(np.unique(references[['source', 'target']].values))
+        g.add_edges(references[['source', 'target']].to_records(index=False).tolist())
+        g.es['weight'] = references['weight']
+        g.es['weight_inv'] = references['weight_inv']
+        g.es['weight_norm'] = references['weight_norm']
+
+        return g
 
     @staticmethod
     def compute_backbone(graph, alpha=0.05, delete_vertices=True):

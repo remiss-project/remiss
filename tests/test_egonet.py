@@ -180,20 +180,6 @@ class TestEgonetCase(unittest.TestCase):
         self.assertEqual(actual['source'].to_list(), ['1', '1', '2', '3'])
         self.assertEqual(actual['target'].to_list(), ['2', '4', '3', '4'])
 
-    def test_get_authors_and_references(self):
-        # Checks it returns the whole thing if the user is not present
-        data_size = 100
-        expected_edges = pd.DataFrame({'source': ['1', '2', '3', '2', '1'],
-                                       'target': ['2', '3', '4', '3', '4']})
-        test_data = create_test_data_from_edges(expected_edges)
-        client = MongoClient('localhost', 27017)
-        client.drop_database(self.tmp_dataset)
-        database = client.get_database(self.tmp_dataset)
-        collection = database.get_collection('raw')
-        collection.insert_many(test_data)
-        authors = self.egonet._get_authors(self.tmp_dataset)
-        self.assertEqual({'1', '2', '3', '4'}, set(authors['author_id']))
-
     def test_compute_hidden_network_speed(self):
         # Checks it returns the whole thing if the user is not present
         test_data = create_test_data(1000)
@@ -281,6 +267,35 @@ class TestEgonetCase(unittest.TestCase):
         expected = {('2', '3'), ('1', '3')}
         expected = {frozenset(x) for x in expected}
         self.assertEqual(expected, edges)
+
+    def test_persistence_and_loading(self):
+        # Test the persistence and loading of the graph
+        self.egonet.host = 'localhost'
+        self.egonet.port = 27017
+        expected_edges = pd.DataFrame({'source': ['1', '2', '2', '1', '1', '1', '1', '1'],
+                                       'target': ['2', '3', '3', '2', '2', '2', '2', '4']})
+        test_data = create_test_data_from_edges(expected_edges)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database(self.tmp_dataset)
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        collection.insert_many(test_data)
+
+        self.egonet.persist([self.tmp_dataset])
+        self.egonet.load_from_mongodb([self.tmp_dataset])
+
+        expected_hidden_network = self.egonet._compute_hidden_network(self.tmp_dataset)
+        expected_hidden_network_backbone = self.egonet.compute_backbone(expected_hidden_network,
+                                                                        alpha=self.egonet.threshold)
+
+        actual_hidden_network = self.egonet._hidden_networks[self.tmp_dataset]
+        actual_hidden_network_backbone = self.egonet._hidden_network_backbones[self.tmp_dataset]
+
+        self.assertEqual(expected_hidden_network.vcount(), actual_hidden_network.vcount())
+        self.assertEqual(expected_hidden_network.ecount(), actual_hidden_network.ecount())
+        self.assertEqual(expected_hidden_network_backbone.vcount(), actual_hidden_network_backbone.vcount())
+        self.assertEqual(expected_hidden_network_backbone.ecount(), actual_hidden_network_backbone.ecount())
 
 
 def create_test_data_from_edges(expected_edges):
