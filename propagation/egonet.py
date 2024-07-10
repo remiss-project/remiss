@@ -5,18 +5,18 @@ import numpy as np
 import pandas as pd
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
+import plotly.express as px
 
 logger = logging.getLogger(__name__)
 import igraph as ig
 
 
 class Egonet:
-    def __init__(self, host='localhost', port=27017, simplification=None, threshold=0.05,
+    def __init__(self, host='localhost', port=27017, threshold=0,
                  delete_vertices=True, reference_types=('retweeted', 'quoted')):
         self.reference_types = reference_types
         self.host = host
         self.port = port
-        self.simplification = simplification
         self.threshold = threshold
         self.delete_vertices = delete_vertices
         self._hidden_networks = {}
@@ -42,7 +42,7 @@ class Egonet:
                 return egonet
             except (RuntimeError, ValueError) as ex:
                 logger.debug(f'Computing neighbourhood for user {author_id} failed with error {ex}')
-        if self.simplification:
+        if self.threshold > 0:
             return self.get_hidden_network_backbone(dataset)
         else:
             return hidden_network
@@ -187,11 +187,16 @@ class Egonet:
         return g
 
     @staticmethod
-    def compute_backbone(graph, alpha=0.05, delete_vertices=True):
+    def compute_alphas(graph):
         # Compute alpha for all edges (1 - weight_norm)^(degree_of_source_node - 1)
         weights = np.array(graph.es['weight_norm'])
         degrees = np.array([graph.degree(e[0]) for e in graph.get_edgelist()])
         alphas = (1 - weights) ** (degrees - 1)
+        return alphas
+
+    @staticmethod
+    def compute_backbone(graph, alpha=0.05, delete_vertices=True):
+        alphas = Egonet.compute_alphas(graph)
         good = np.nonzero(alphas > alpha)[0]
         backbone = graph.subgraph_edges(graph.es.select(good), delete_vertices=delete_vertices)
 

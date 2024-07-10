@@ -8,6 +8,7 @@ from unittest.mock import patch, Mock
 import igraph as ig
 import numpy as np
 import pandas as pd
+import plotly.express as px
 from pymongo import MongoClient
 
 from figures.propagation import compute_backbone
@@ -283,19 +284,152 @@ class TestEgonetCase(unittest.TestCase):
         collection.insert_many(test_data)
 
         self.egonet.persist([self.tmp_dataset])
+
         start_time = time.time()
         self.egonet.load_from_mongodb([self.tmp_dataset])
         end_time = time.time()
         print(f'loaded in {end_time - start_time} seconds')
+        start_time = time.time()
 
         expected_hidden_network = self.egonet._compute_hidden_network(self.tmp_dataset)
         expected_hidden_network_backbone = self.egonet.compute_backbone(expected_hidden_network,
                                                                         alpha=self.egonet.threshold)
-        start_time = time.time()
-        actual_hidden_network = self.egonet._hidden_networks[self.tmp_dataset]
-        actual_hidden_network_backbone = self.egonet._hidden_network_backbones[self.tmp_dataset]
+
         end_time = time.time()
         print(f'computed in {end_time - start_time} seconds')
+
+        actual_hidden_network = self.egonet._hidden_networks[self.tmp_dataset]
+        actual_hidden_network_backbone = self.egonet._hidden_network_backbones[self.tmp_dataset]
+
+        self.assertEqual(expected_hidden_network.vcount(), actual_hidden_network.vcount())
+        self.assertEqual(expected_hidden_network.ecount(), actual_hidden_network.ecount())
+        self.assertEqual(expected_hidden_network_backbone.vcount(), actual_hidden_network_backbone.vcount())
+        self.assertEqual(expected_hidden_network_backbone.ecount(), actual_hidden_network_backbone.ecount())
+
+    # Test dataset
+
+    def test_compute_hidden_network_full(self):
+        actual = self.egonet.get_hidden_network(self.test_dataset)
+
+        self.assertEqual(actual.vcount(), 3315)
+        self.assertEqual(actual.ecount(), 5844)
+
+    def test_compute_hidden_network_weight_full(self):
+        graph = self.egonet.get_hidden_network(self.test_dataset)
+
+        actual = pd.Series(graph.es['weight']).value_counts()[:5].to_list()
+        expected = [4932, 430, 136, 99, 49]
+        self.assertEqual(expected, actual)
+
+        actual = pd.Series(graph.es['weight_inv']).value_counts().to_list()[:5]
+        expected = [4932, 430, 136, 99, 49]
+        self.assertEqual(expected, actual)
+
+        actual = pd.Series(graph.es['weight_norm']).value_counts().to_list()[:5]
+        expected = [2401, 157, 139, 121, 88]
+        self.assertEqual(expected, actual)
+
+    def test_get_egonet_full(self):
+        user_id = '999321854'
+        depth = 1
+
+        actual = self.egonet.get_egonet(self.test_dataset, user_id, depth)
+
+        actual_nodes = set(actual.vs['author_id'])
+        expected_nodes = {'270839361', '999321854'}
+
+        self.assertEqual(expected_nodes, actual_nodes)
+
+        actual_edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}
+        expected_edges = {('999321854', '270839361')}
+
+        self.assertEqual(expected_edges, actual_edges)
+
+    def test_get_egonet_missing_user_full(self):
+        user_id = '1'
+        depth = 2
+
+        actual = self.egonet.get_egonet(self.test_dataset, user_id, depth)
+
+        # check it returns the full hidden network
+        self.assertEqual(actual.vcount(), 3315)
+        self.assertEqual(actual.ecount(), 5844)
+
+    def test_get_egonet_missing_user_backbone(self):
+        user_id = '1'
+        depth = 2
+        self.egonet.threshold = 0.4
+
+        actual = self.egonet.get_egonet(self.test_dataset, user_id, depth)
+
+        # check it returns the hidden network backbone
+        self.assertEqual(actual.vcount(), 3224)
+        self.assertEqual(actual.ecount(), 4801)
+
+    def test__get_references_full(self):
+        actual = self.egonet._get_references(self.test_dataset)
+        actual = actual.sort_values(['source', 'target']).reset_index(drop=True)
+        expected = [4932, 430, 136, 99, 49, 30, 28, 19, 15, 15, 14, 12, 10, 9, 7, 7, 7, 6, 5, 4, 3, 3, 2, 1, 1]
+        expected_weight_norm = [2401, 157, 139, 121, 88, 87, 78, 77, 74, 72]
+        self.assertEqual(actual['weight'].value_counts().to_list(), expected)
+        self.assertEqual(actual['weight_inv'].value_counts().to_list(), expected)
+        self.assertEqual(actual['weight_norm'].value_counts().to_list()[:10], expected_weight_norm)
+        self.assertEqual(actual['source'].to_list()[:2], ['1000010057743065089', '1000300778190528512'])
+        self.assertEqual(actual['target'].to_list()[:2], ['270839361', '420374996'])
+
+    def test_compute_hidden_network_speed_full(self):
+        print('computing hidden network')
+        self.egonet.host = 'localhost'
+        self.egonet.port = 27017
+        # time computation of get_egonet
+        start_time = time.time()
+        actual = self.egonet._compute_hidden_network(self.test_dataset)
+        end_time = time.time()
+        total_time = end_time - start_time
+        print(f'took {total_time}')
+        self.assertLessEqual(total_time, 10)
+
+    def test_backbone_full(self):
+        network = self.egonet._compute_hidden_network(self.test_dataset)
+        backbone = self.egonet.compute_backbone(network, alpha=0.95)
+        self.assertEqual(backbone.vcount(), 2522)
+        self.assertEqual(backbone.ecount(), 2366)
+
+    def test_backbone_full_nothing(self):
+        network = self.egonet._compute_hidden_network(self.test_dataset)
+        backbone = self.egonet.compute_backbone(network, alpha=1)
+        self.assertEqual(backbone.vcount(), 0)
+        self.assertEqual(backbone.ecount(), 0)
+
+    def test_show_alpha_distribution(self):
+        network = self.egonet._compute_hidden_network(self.test_dataset)
+
+        alphas = self.egonet.compute_alphas(network)
+        # plot alphas histogram with plotly
+        fig = px.histogram(alphas, nbins=1000)
+        fig.update_xaxes(title_text='Alpha')
+        fig.update_yaxes(title_text='Count')
+        fig.show()
+
+    def test_persistence_and_loading_full(self):
+        # Test the persistence and loading of the graph
+        self.egonet.persist([self.test_dataset])
+
+        start_time = time.time()
+        self.egonet.load_from_mongodb([self.test_dataset])
+        end_time = time.time()
+        print(f'loaded in {end_time - start_time} seconds')
+        start_time = time.time()
+
+        expected_hidden_network = self.egonet._compute_hidden_network(self.test_dataset)
+        expected_hidden_network_backbone = self.egonet.compute_backbone(expected_hidden_network,
+                                                                        alpha=self.egonet.threshold)
+
+        end_time = time.time()
+        print(f'computed in {end_time - start_time} seconds')
+
+        actual_hidden_network = self.egonet._hidden_networks[self.test_dataset]
+        actual_hidden_network_backbone = self.egonet._hidden_network_backbones[self.test_dataset]
 
         self.assertEqual(expected_hidden_network.vcount(), actual_hidden_network.vcount())
         self.assertEqual(expected_hidden_network.ecount(), actual_hidden_network.ecount())
