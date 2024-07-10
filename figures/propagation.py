@@ -29,12 +29,13 @@ logger = logging.getLogger(__name__)
 class PropagationPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017,
                  reference_types=('quoted', 'retweeted'), layout='fruchterman_reingold',
-                 simplification=None, threshold=0.2, delete_vertices=True, frequency='1D',
+                 threshold=0.2, delete_vertices=True, frequency='1D',
                  available_datasets=None, small_size_multiplier=50, big_size_multiplier=10):
         super().__init__(host, port, available_datasets)
         self.big_size_multiplier = big_size_multiplier
         self.small_size_multiplier = small_size_multiplier
         self.layout = layout
+        self.frequency = frequency
         self.egonet = Egonet(reference_types=reference_types, host=host, port=port,
                              threshold=threshold, delete_vertices=delete_vertices)
 

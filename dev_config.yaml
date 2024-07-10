@@ -4,7 +4,6 @@ mongodb:
 cache_dir:
 graph_layout: fruchterman_reingold
 graph_simplification:
-  method: backbone
   threshold: 0.95
 available_datasets:
 theme: PULSE

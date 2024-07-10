@@ -87,8 +87,7 @@ def create_app(config):
         print('Not using cache...')
 
     if config['graph_simplification']:
-        print(f'Using graph simplification method {config["graph_simplification"]["method"]} with threshold '
-              f'{config["graph_simplification"]["threshold"]}...')
+        print(f'Using graph simplification threshold {config["graph_simplification"]["threshold"]}...')
 
     print('Creating plot factories...')
     start_time = time.time()
@@ -98,9 +97,7 @@ def create_app(config):
                                             available_datasets=config['available_datasets'])
 
     egonet_plot_factory = PropagationPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                                 cache_dir=config['cache_dir'],
                                                  layout=config['graph_layout'],
-                                                 simplification=config['graph_simplification']['method'],
                                                  threshold=config['graph_simplification']['threshold'],
                                                  frequency=config['frequency'],
                                                  available_datasets=config['available_datasets'],
