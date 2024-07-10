@@ -245,9 +245,9 @@ class RemissDashboard(RemissComponent):
                             value=self.available_datasets[0],
                             id=f'dataset-dropdown-{self.name}')
 
-    def update_placeholder(self, dataset, hashtags, start_date, end_date, current_user):
+    def update_placeholder(self, dataset, hashtags, start_date, end_date, current_user, current_tweet):
         return html.H1(f'Hashtag: {hashtags}, Dataset: {dataset}, Start date: {start_date}, '
-                       f'End date: {end_date}, Current user: {current_user}')
+                       f'End date: {end_date}, Current user: {current_user}, Current tweet: {current_user}')
 
     def update_dataset_storage(self, dropdown_dataset):
         return dropdown_dataset
@@ -303,7 +303,9 @@ class RemissDashboard(RemissComponent):
                  Input(self.state.current_hashtags, 'data'),
                  Input(self.state.current_start_date, 'data'),
                  Input(self.state.current_end_date, 'data'),
-                 Input(self.state.current_user, 'data')],
+                 Input(self.state.current_user, 'data'),
+                 Input(self.state.current_tweet, 'data')
+                 ],
             )(self.update_placeholder)
         # Dataset dropdown
         app.callback(

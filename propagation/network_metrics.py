@@ -1,5 +1,6 @@
 import logging
 import time
+from io import StringIO
 
 import pandas as pd
 from pymongo import MongoClient
@@ -139,10 +140,10 @@ class NetworkMetrics(BasePropagationMetrics):
             author_id = user['author_id']
             legitimacy[author_id] = user['legitimacy']
             # Load reputation as Series
-            reputation[author_id] = pd.read_json(user['reputation'], typ='series')
+            reputation[author_id] = pd.read_json(StringIO(user['reputation']), typ='series')
             reputation[author_id].index = pd.to_datetime(reputation[author_id].index, unit='s')
             # Load status as Series
-            status[author_id] = pd.read_json(user['status'], typ='series')
+            status[author_id] = pd.read_json(StringIO(user['status']), typ='series')
             status[author_id].index = pd.to_datetime(status[author_id].index, unit='s')
 
         legitimacy = pd.Series(legitimacy, name='legitimacy')

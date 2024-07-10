@@ -38,11 +38,17 @@ class PropagationPlotFactory(MongoPlotFactory):
         self.frequency = frequency
         self.egonet = Egonet(reference_types=reference_types, host=host, port=port,
                              threshold=threshold, delete_vertices=delete_vertices)
+        self.egonet.load_from_mongodb(available_datasets)
 
         self.network_metrics = NetworkMetrics(host=host, port=port, reference_types=reference_types,
                                               frequency=frequency)
+        self.network_metrics.load_from_mongodb(available_datasets)
+
         self.diffusion_metrics = DiffusionMetrics(host=host, port=port, reference_types=reference_types)
+        self.diffusion_metrics.load_from_mongodb(available_datasets)
+
         self._hidden_network_layouts = {}
+        self.load_from_mongodb(available_datasets)
 
     def plot_egonet(self, collection, user, depth, start_date=None, end_date=None):
         try:
@@ -94,7 +100,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         color = metadata['legitimacy']
 
         # Available markers ['circle', 'circle-open', 'cross', 'diamond', 'diamond-open', 'square', 'square-open', 'x']
-        marker_map = {'Normal': 'circle', 'Suspect': 'cross', 'Politician': 'diamond', 'Suspect Politician':
+        marker_map = {'Normal': 'circle', 'Suspect': 'cross', 'Politician': 'diamond', 'Suspect politician':
             'square', 'Unknown': 'x'}
         symbol = metadata.apply(lambda x: marker_map[x['User type']], axis=1)
         # layout = self.get_hidden_network_layout(collection)
@@ -309,8 +315,13 @@ class PropagationPlotFactory(MongoPlotFactory):
         collection = database.get_collection(collection_name)
         layout = collection.aggregate_pandas_all([])
         client.close()
-        layout = layout.set_index('author_id')
         return layout
+
+    def prepopulate(self):
+        self.persist(self.available_datasets)
+        self.egonet.persist(self.available_datasets)
+        self.network_metrics.persist(self.available_datasets)
+        self.diffusion_metrics.persist(self.available_datasets)
 
 
 def transform_user_type(x):

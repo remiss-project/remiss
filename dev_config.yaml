@@ -6,8 +6,9 @@ graph_layout: fruchterman_reingold
 graph_simplification:
   threshold: 0.95
 available_datasets:
-  - test_dataset
   - test_dataset_2
+#  - test_dataset
+
 theme: PULSE
 debug: True
 frequency: 1D
@@ -21,4 +22,4 @@ wordcloud:
   max_words: 50
   width: 400
   height: 400
-  match_width: False
+  match_width: True

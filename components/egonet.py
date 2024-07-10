@@ -22,7 +22,7 @@ class EgonetComponent(RemissComponent):
         self.graph_egonet = dcc.Graph(figure={}, id=f'fig-{self.name}',
                                       config={'displayModeBar': False},
                                       responsive=True,
-                                      style={'height': '100%', 'width': '100%'},
+                                      # style={'height': '100%', 'width': '100%'},
                                       )
         available_users = self.plot_factory.get_users(self.available_datasets[0])
         self.user_dropdown = dcc.Dropdown(options=[{"label": x, "value": x} for x in available_users],
@@ -75,132 +75,132 @@ class EgonetComponent(RemissComponent):
         ])
 
 
-def update(self, dataset, user, depth, date_index, user_disabled, depth_disabled, date_disabled):
-    if user_disabled:
-        user = None
-    if depth_disabled:
-        depth = None
-    if date_disabled:
-        start_date = None
-        end_date = None
-    else:
-        start_date = self.dates[date_index]
-        end_date = self.dates[date_index + 1]
+    def update(self, dataset, user, depth, date_index, user_disabled, depth_disabled, date_disabled):
+        if user_disabled:
+            user = None
+        if depth_disabled:
+            depth = None
+        if date_disabled:
+            start_date = None
+            end_date = None
+        else:
+            start_date = self.dates[date_index]
+            end_date = self.dates[date_index + 1]
 
-    fig = self.plot_factory.plot_egonet(dataset, user, depth, start_date, end_date)
-    # remove margin
-    fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-    return fig
-
-
-def update_user(self, user):
-    return user
+        fig = self.plot_factory.plot_egonet(dataset, user, depth, start_date, end_date)
+        # remove margin
+        # fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
+        return fig
 
 
-def update_current_date(self, date):
-    return date
+    def update_user(self, user):
+        return user
 
 
-def update_date_slider(self, start_date, end_date):
-    days = pd.date_range(start_date, end_date, freq=self.frequency)
-    style = {'transform': 'rotate(45deg)', "white-space": "nowrap", 'text-align': 'center', 'font-size': '12px',
-             'margin-top': '1rem'}
-    marks = {i: {'label': str(days[i].date()), 'style': style} for i in
-             range(0, len(days))}
-    self.dates = days
-
-    return 0, len(days) - 1, 0, marks
+    def update_current_date(self, date):
+        return date
 
 
-def update_user_checkbox(self, checkbox_value):
-    return not checkbox_value, not checkbox_value
+    def update_date_slider(self, start_date, end_date):
+        days = pd.date_range(start_date, end_date, freq=self.frequency)
+        style = {'transform': 'rotate(45deg)', "white-space": "nowrap", 'text-align': 'center', 'font-size': '12px',
+                 'margin-top': '1rem'}
+        marks = {i: {'label': str(days[i].date()), 'style': style} for i in
+                 range(0, len(days))}
+        self.dates = days
+
+        return 0, len(days) - 1, 0, marks
 
 
-def update_date_checkbox(self, checkbox_value):
-    return not checkbox_value
+    def update_user_checkbox(self, checkbox_value):
+        return not checkbox_value, not checkbox_value
 
 
-def update_user_collapse(self, checkbox_value):
-    return bool(checkbox_value)
+    def update_date_checkbox(self, checkbox_value):
+        return not checkbox_value
 
 
-def update_date_collapse(self, checkbox_value):
-    return bool(checkbox_value)
+    def update_user_collapse(self, checkbox_value):
+        return bool(checkbox_value)
 
 
-def update_user_list(self, dataset):
-    available_users = self.plot_factory.get_users(dataset)
-    return [{"label": x, "value": x} for x in available_users]
+    def update_date_collapse(self, checkbox_value):
+        return bool(checkbox_value)
 
 
-def update_debug(self, dataset, user, depth, date_index, user_checkbox, date_checkbox,
-                 user_dropdown_disabled, depth_slider_disabled, date_slider_disabled):
-    return f'Dataset: {dataset}, User: {user}, Depth: {depth}, Date index: {date_index}, ' \
-           f'User checkbox: {user_checkbox}, Date checkbox: {date_checkbox}, ' \
-           f'User dropdown disabled: {user_dropdown_disabled}, Depth slider disabled: {depth_slider_disabled}, ' \
-           f'Date slider disabled: {date_slider_disabled}'
+    def update_user_list(self, dataset):
+        available_users = self.plot_factory.get_users(dataset)
+        return [{"label": x, "value": x} for x in available_users]
 
 
-def callbacks(self, app):
-    app.callback(
-        Output(self.graph_egonet, 'figure'),
-        [Input(self.state.current_dataset, 'data'),
-         Input(self.state.current_user, 'data'),
-         Input(self.depth_slider, 'value'),
-         Input(self.date_slider, 'value'),
-         Input(self.user_dropdown, 'disabled'),
-         Input(self.depth_slider, 'disabled'),
-         Input(self.date_slider, 'disabled')],
-    )(self.update)
-    app.callback(
-        Output(self.state.current_user, 'data', allow_duplicate=True),
-        [Input(self.user_dropdown, 'value')],
-    )(self.update_user)
-    app.callback(
-        Output(self.user_dropdown, 'value'),
-        [Input(self.state.current_user, 'data')],
-    )(self.update_user)
-    app.callback(
-        Output(self.date_slider, 'min'),
-        Output(self.date_slider, 'max'),
-        Output(self.date_slider, 'value'),
-        Output(self.date_slider, 'marks'),
-        [Input(self.state.current_start_date, 'data'),
-         Input(self.state.current_end_date, 'data')],
-    )(self.update_date_slider)
-    app.callback(
-        Output(self.user_dropdown, 'options'),
-        [Input(self.state.current_dataset, 'data')],
-    )(self.update_user_list)
-    app.callback(
-        Output(self.user_dropdown, 'disabled'),
-        Output(self.depth_slider, 'disabled'),
-        Input(self.user_checkbox, 'value'),
-    )(self.update_user_checkbox)
-    app.callback(
-        Output(self.date_slider, 'disabled'),
-        Input(self.date_checkbox, 'value'),
-    )(self.update_date_checkbox)
-    app.callback(
-        Output(f'collapse-user-{self.name}', 'is_open'),
-        Input(self.user_checkbox, 'value'),
-    )(self.update_user_collapse)
-    app.callback(
-        Output(f'collapse-date-{self.name}', 'is_open'),
-        Input(self.date_checkbox, 'value'),
-    )(self.update_date_collapse)
+    def update_debug(self, dataset, user, depth, date_index, user_checkbox, date_checkbox,
+                     user_dropdown_disabled, depth_slider_disabled, date_slider_disabled):
+        return f'Dataset: {dataset}, User: {user}, Depth: {depth}, Date index: {date_index}, ' \
+               f'User checkbox: {user_checkbox}, Date checkbox: {date_checkbox}, ' \
+               f'User dropdown disabled: {user_dropdown_disabled}, Depth slider disabled: {depth_slider_disabled}, ' \
+               f'Date slider disabled: {date_slider_disabled}'
 
-    if self.debug:
+
+    def callbacks(self, app):
         app.callback(
-            Output(f'placeholder-{self.name}', 'children'),
+            Output(self.graph_egonet, 'figure'),
             [Input(self.state.current_dataset, 'data'),
              Input(self.state.current_user, 'data'),
              Input(self.depth_slider, 'value'),
              Input(self.date_slider, 'value'),
-             Input(self.user_checkbox, 'value'),
-             Input(self.date_checkbox, 'value'),
              Input(self.user_dropdown, 'disabled'),
              Input(self.depth_slider, 'disabled'),
-             Input(self.date_slider, 'disabled'),
-             ]
-        )(self.update_debug)
+             Input(self.date_slider, 'disabled')],
+        )(self.update)
+        app.callback(
+            Output(self.state.current_user, 'data', allow_duplicate=True),
+            [Input(self.user_dropdown, 'value')],
+        )(self.update_user)
+        app.callback(
+            Output(self.user_dropdown, 'value'),
+            [Input(self.state.current_user, 'data')],
+        )(self.update_user)
+        app.callback(
+            Output(self.date_slider, 'min'),
+            Output(self.date_slider, 'max'),
+            Output(self.date_slider, 'value'),
+            Output(self.date_slider, 'marks'),
+            [Input(self.state.current_start_date, 'data'),
+             Input(self.state.current_end_date, 'data')],
+        )(self.update_date_slider)
+        app.callback(
+            Output(self.user_dropdown, 'options'),
+            [Input(self.state.current_dataset, 'data')],
+        )(self.update_user_list)
+        app.callback(
+            Output(self.user_dropdown, 'disabled'),
+            Output(self.depth_slider, 'disabled'),
+            Input(self.user_checkbox, 'value'),
+        )(self.update_user_checkbox)
+        app.callback(
+            Output(self.date_slider, 'disabled'),
+            Input(self.date_checkbox, 'value'),
+        )(self.update_date_checkbox)
+        app.callback(
+            Output(f'collapse-user-{self.name}', 'is_open'),
+            Input(self.user_checkbox, 'value'),
+        )(self.update_user_collapse)
+        app.callback(
+            Output(f'collapse-date-{self.name}', 'is_open'),
+            Input(self.date_checkbox, 'value'),
+        )(self.update_date_collapse)
+
+        if self.debug:
+            app.callback(
+                Output(f'placeholder-{self.name}', 'children'),
+                [Input(self.state.current_dataset, 'data'),
+                 Input(self.state.current_user, 'data'),
+                 Input(self.depth_slider, 'value'),
+                 Input(self.date_slider, 'value'),
+                 Input(self.user_checkbox, 'value'),
+                 Input(self.date_checkbox, 'value'),
+                 Input(self.user_dropdown, 'disabled'),
+                 Input(self.depth_slider, 'disabled'),
+                 Input(self.date_slider, 'disabled'),
+                 ]
+            )(self.update_debug)
