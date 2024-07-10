@@ -14,6 +14,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
         self.test_dataset = 'test_dataset_2'
         self.tmp_dataset = 'tmp_dataset'
         self.test_user_id = '999321854'
+        self.test_tweet_id = '1167078759280889856'
 
     def tearDown(self):
         client = MongoClient('localhost', 27017)
@@ -123,10 +124,6 @@ class PropagationFactoryTestCase(unittest.TestCase):
         pd.testing.assert_series_equal(expected_Ze, actual_Ze, check_dtype=False, check_index_type=False,
                                        check_names=False)
 
-    def test_plot_egonet(self):
-        fig = self.propagation_factory.plot_egonet(self.test_dataset, self.test_user_id, 1)
-        fig.show()
-
     def test_plot_graph_vanilla(self):
         graph = ig.Graph()
         graph.add_vertices(10)
@@ -179,7 +176,40 @@ class PropagationFactoryTestCase(unittest.TestCase):
         self.assertFalse(metadata['User type'].isna().sum())
 
     def test_plot_hidden_network(self):
-        fig = self.propagation_factory.plot_hidden_network(self.test_dataset)
+        hidden_network = self.propagation_factory.egonet.get_hidden_network(self.test_dataset)
+        fig = self.propagation_factory.plot_user_graph(hidden_network, self.test_dataset)
+        fig.show()
+
+    def test_plot_egonet(self):
+        fig = self.propagation_factory.plot_egonet(self.test_dataset, self.test_user_id, 2)
+        fig.show()
+
+    def test_plot_size_over_time(self):
+        fig = self.propagation_factory.plot_size_over_time(self.test_dataset, self.test_tweet_id)
+        fig.show()
+
+    def test_plot_depth_over_time(self):
+        fig = self.propagation_factory.plot_depth_over_time(self.test_dataset, self.test_tweet_id)
+        fig.show()
+
+    def test_plot_max_breadth_over_time(self):
+        fig = self.propagation_factory.plot_max_breadth_over_time(self.test_dataset, self.test_tweet_id)
+        fig.show()
+
+    def test_structural_virality_over_time(self):
+        fig = self.propagation_factory.plot_structural_virality_over_time(self.test_dataset, self.test_tweet_id)
+        fig.show()
+
+    def _test_plot_depth_cascade_ccdf(self):
+        fig = self.propagation_factory.plot_depth_cascade_ccdf(self.test_dataset)
+        fig.show()
+
+    def test_plot_size_cascade_ccdf(self):
+        fig = self.propagation_factory.plot_size_cascade_ccdf(self.test_dataset)
+        fig.show()
+
+    def test_cascade_count_over_time(self):
+        fig = self.propagation_factory.plot_cascade_count_over_time(self.test_dataset)
         fig.show()
 
 

@@ -44,18 +44,16 @@ class PropagationPlotFactory(MongoPlotFactory):
 
     def plot_egonet(self, collection, user, depth, start_date=None, end_date=None):
         try:
-            egonet = self.egonet.get_egonet(collection, user, depth)
+            network = self.egonet.get_egonet(collection, user, depth)
         except (RuntimeError, ValueError) as ex:
             logger.debug(f'Computing egonet for user {user} failed with error {ex}')
-            return self.plot_hidden_network(collection)
+            network = self.egonet.get_hidden_network(collection)
 
-        metadata = self.get_user_metadata(collection, egonet.vs['author_id'])
-        return self.plot_graph(egonet, metadata)
+        return self.plot_user_graph(network, collection)
 
-    def plot_hidden_network(self, collection):
-        hidden_network = self.egonet.get_hidden_network(collection)
+    def plot_user_graph(self, user_graph, collection):
         metadata = self.get_user_metadata(collection)
-        metadata = metadata.reindex(hidden_network.vs['author_id'])
+        metadata = metadata.reindex(user_graph.vs['author_id'])
         metadata['User type'] = metadata['User type'].fillna('Unknown')
 
         def format_user_string(x):
@@ -70,7 +68,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         # Add 1 offset and set 1 as minimum size
         size = size + 1
         size = size.fillna(1)
-        if len(hidden_network.vs) > 100:
+        if len(user_graph.vs) > 100:
             size = size / size.max() * self.small_size_multiplier
         else:
             size = size / size.max() * self.big_size_multiplier
@@ -83,7 +81,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         symbol = metadata.apply(lambda x: marker_map[x['User type']], axis=1)
         # layout = self.get_hidden_network_layout(collection)
 
-        return self.plot_graph(hidden_network, text=text, size=size, color=color, symbol=symbol)
+        return self.plot_graph(user_graph, text=text, size=size, color=color, symbol=symbol)
 
     def plot_propagation_tree(self, dataset, tweet_id):
         propagation_tree = self.diffusion_metrics.get_propagation_tree(dataset, tweet_id)
@@ -107,12 +105,12 @@ class PropagationPlotFactory(MongoPlotFactory):
                                      'Structural virality')
 
     def plot_depth_cascade_ccdf(self, dataset):
-        depth_cascade = self.diffusion_metrics.get_depth_cascade(dataset)
-        return self.plot_ccdf(depth_cascade, 'Depth cascade CCDF', 'Depth', 'CCDF')
+        depth_cascade = self.diffusion_metrics.get_depth_cascade_ccdf(dataset)
+        return self.plot_time_series(depth_cascade, 'Depth cascade CCDF', 'Depth', 'CCDF')
 
     def plot_size_cascade_ccdf(self, dataset):
-        size_cascade = self.diffusion_metrics.get_size_cascade(dataset)
-        return self.plot_ccdf(size_cascade, 'Size cascade CCDF', 'Size', 'CCDF')
+        size_cascade = self.diffusion_metrics.get_size_cascade_ccdf(dataset)
+        return self.plot_time_series(size_cascade, 'Size cascade CCDF', 'Size', 'CCDF')
 
     def plot_cascade_count_over_time(self, dataset):
         cascade_count_over_time = self.diffusion_metrics.get_cascade_count_over_time(dataset)
@@ -200,7 +198,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                                               line=dict(color='rgb(50,50,50)', width=0.5),
                                               ),
                                   text=text,
-                                  hovertemplate='text' if text is not None else None,
+                                  hovertemplate='%{text}' if text is not None else None,
                                   name='',
                                   )
 
@@ -254,6 +252,15 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         edge_positions = pd.DataFrame({'x': x, 'y': y, 'z': z})
         return edge_positions
+
+    def plot_time_series(self, data, title, x_label, y_label):
+        if isinstance(data, pd.Series):
+            data = data.to_frame()
+        fig = px.line(data, x=data.index, y=data.columns)
+        fig.update_xaxes(title_text=x_label)
+        fig.update_yaxes(title_text=y_label)
+        fig.update_layout(title=title)
+        return fig
 
 
 class PropagationPlotFactoryOld(MongoPlotFactory):
