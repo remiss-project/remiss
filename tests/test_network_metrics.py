@@ -36,9 +36,7 @@ class NetworkMetricsTestCase(unittest.TestCase):
 
         expected = expected.groupby(['author_id'])['legitimacy'].sum()
 
-        expected = expected.to_frame()
-        expected.columns = actual.columns
-        pd.testing.assert_frame_equal(expected, actual, check_dtype=False, check_like=True, check_index_type=False)
+        pd.testing.assert_series_equal(expected, actual, check_dtype=False, check_like=True, check_index_type=False)
 
     def test_reputation(self):
         # compute reputation as the amount of referenced tweets attained by each user
@@ -132,7 +130,7 @@ class NetworkMetricsTestCase(unittest.TestCase):
 
     def test_legitimacy_full(self):
         actual = self.network_metrics.compute_legitimacy(self.test_dataset)
-        actual = actual['legitimacy'].to_list()[:5]
+        actual = actual.to_list()[:5]
         expected = [238, 233, 202, 195, 148]
         self.assertEqual(actual, expected)
 
