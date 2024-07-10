@@ -211,7 +211,7 @@ class RemissDashboard(RemissComponent):
                  profile_factory,
                  multimodal_factory,
                  name=None,
-                 max_wordcloud_words=100, wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=False,
+                 max_wordcloud_words=50, wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=False,
 
                  debug=False):
         super().__init__(name=name)

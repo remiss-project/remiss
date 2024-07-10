@@ -118,6 +118,10 @@ def create_app(config):
                                 textual_factory,
                                 profiling_factory,
                                 multimodal_factory,
+                                max_wordcloud_words=config['wordcloud']['max_words'],
+                                wordcloud_width=config['wordcloud']['width'],
+                                wordcloud_height=config['wordcloud']['height'],
+                                match_wordcloud_width=config['wordcloud']['match_width'],
                                 name='dashboard',
                                 debug=config['debug'])
     print(f'Plot factories created in {time.time() - start_time} seconds.')

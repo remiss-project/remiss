@@ -9,7 +9,7 @@ from components.components import RemissComponent
 
 class ControlPanelComponent(RemissComponent):
     def __init__(self, plot_factory, state, name=None,
-                 max_wordcloud_words=100, wordcloud_width=800, wordcloud_height=400, match_wordcloud_width=False):
+                 max_wordcloud_words=50, wordcloud_width=800, wordcloud_height=400, match_wordcloud_width=False):
         super().__init__(name)
         self.state = state
         self.wordcloud_height = wordcloud_height
