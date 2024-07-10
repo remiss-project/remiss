@@ -1,7 +1,8 @@
 import json
+import random
 import shutil
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 from pymongo import MongoClient
@@ -138,6 +139,60 @@ def populate_test_database(database_name, small=False):
 def delete_test_database(database_name):
     client = MongoClient('localhost', 27017)
     client.drop_database(database_name)
+
+
+def create_test_data_from_edges(expected_edges):
+    test_data = []
+    for source, target in expected_edges.itertuples(index=False):
+        party = random.choice(['PSOE', 'PP', 'VOX', 'UP', None])
+        is_usual_suspect = random.choice([True, False])
+        referenced_tweets = [
+            {"id": f'{source}->{target}', "author": {"id": str(target), "username": f"TEST_USER_{target}"},
+             "type": "retweeted"}]
+        tweet = {"id": f'{source}->{target}', "created_at": datetime.fromisoformat("2019-01-01T23:20:00Z"),
+                 "author": {"username": f"TEST_USER_{source}", "id": source,
+                            "remiss_metadata": {"party": party, "is_usual_suspect": is_usual_suspect}},
+                 "entities": {"hashtags": [{"tag": "test_hashtag"}]},
+                 'referenced_tweets': referenced_tweets}
+        test_data.append(tweet)
+    return test_data
+
+
+def create_test_data(data_size=100, day_range=10,
+                     max_num_references=20):
+    test_data = []
+    total_referenced_tweets = 0
+    usual_suspects = {}
+    parties = {}
+    for i in range(data_size):
+        for day in range(day_range):
+            if i // 2 not in usual_suspects:
+                usual_suspects[i // 2] = random.choice([True, False])
+            if i // 2 not in parties:
+                parties[i // 2] = random.choice(['PSOE', 'PP', 'VOX', 'UP', None])
+
+            num_referenced_tweets = random.randint(0, max_num_references)
+            total_referenced_tweets += num_referenced_tweets
+            referenced_tweets = []
+            for j in range(num_referenced_tweets):
+                author_id = random.randint(0, data_size // 2 - 1)
+                referenced_tweets.append(
+                    {'id': i + 1, 'author': {'id': f'{author_id}', 'username': f'TEST_USER_{author_id}'},
+                     'type': 'retweeted'})
+
+            is_usual_suspect = usual_suspects[i // 2]
+            party = parties[i // 2]
+            created_at = datetime.fromisoformat("2019-01-01T00:01:00Z") + timedelta(days=day)
+            tweet = {"id": str(i),
+                     "author": {"username": f"TEST_USER_{i // 2}", "id": f'{i // 2}',
+                                "remiss_metadata": {"party": party, "is_usual_suspect": is_usual_suspect},
+                                'public_metrics': {'tweet_count': 1, 'followers_count': 100, 'following_count': 10}},
+                     "entities": {"hashtags": [{"tag": "test_hashtag"}]},
+                     'referenced_tweets': referenced_tweets,
+                     'created_at': created_at}
+            test_data.append(tweet)
+
+    return test_data
 
 
 # populate_test_database('test_dataset')

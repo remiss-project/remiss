@@ -97,6 +97,7 @@ class PropagationPlotFactoryOld(MongoPlotFactory):
         self.simplification = simplification
         self.k_cores = k_cores
 
+
     def get_conversation_sizes(self, dataset):
         client = MongoClient(self.host, self.port)
         self._validate_dataset(client, dataset)
@@ -1218,6 +1219,7 @@ class PropagationPlotFactoryOld(MongoPlotFactory):
         status.index.name = 'author_id'
         status.columns.name = 'date'
         return legitimacy, reputation, status
+
 
 
 def compute_backbone(graph, alpha=0.05, delete_vertices=True):

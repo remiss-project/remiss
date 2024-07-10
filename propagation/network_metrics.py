@@ -1,6 +1,20 @@
+import logging
+import time
+
+import pandas as pd
+from pymongo import MongoClient
+
+logger = logging.getLogger(__name__)
 
 
 class NetworkMetrics:
+    def __init__(self, host='localhost', port=27017, reference_types=('retweeted', 'quoted'), frequency='1D'):
+        self.reference_types = reference_types
+        self.host = host
+        self.port = port
+        self.bin_size = int(frequency[:-1])
+        pd_units = {'D': 'day', 'W': 'week', 'M': 'month', 'Y': 'year'}
+        self.unit = pd_units[frequency[-1]]
 
     def get_legitimacy(self, dataset):
         client = MongoClient(self.host, self.port)
@@ -17,20 +31,15 @@ class NetworkMetrics:
                           'author_id': '$_id',
                           'legitimacy': 1}},
         ]
-        print('Computing legitimacy')
+        logging.info('Computing legitimacy')
         start_time = time.time()
         legitimacy = collection.aggregate_pandas_all(node_pipeline)
         legitimacy = legitimacy.set_index('author_id')
         legitimacy = legitimacy.sort_values('legitimacy', ascending=False)
-        print(f'Legitimacy computed in {time.time() - start_time} seconds')
+        logging.info(f'Legitimacy computed in {time.time() - start_time} seconds')
         return legitimacy
 
-    def get_t_closeness(self, graph):
-        closeness = graph.closeness(mode='out', )
-        closeness = pd.Series(closeness, index=graph.vs['author_id']).fillna(0)
-        return closeness
-
-    def _get_legitimacy_per_time(self, dataset):
+    def _get_legitimacy_over_time(self, dataset):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         collection = database.get_collection('raw')
@@ -49,7 +58,7 @@ class NetworkMetrics:
                           'date': '$_id.date',
                           'legitimacy': 1}},
         ]
-        print('Computing reputation')
+        logging.info('Computing reputation')
 
         legitimacy = collection.aggregate_pandas_all(node_pipeline)
         if len(legitimacy) == 0:
@@ -61,16 +70,16 @@ class NetworkMetrics:
 
     def get_reputation(self, dataset):
         start_time = time.time()
-        legitimacy = self._get_legitimacy_per_time(dataset)
+        legitimacy = self._get_legitimacy_over_time(dataset)
         reputation = legitimacy.cumsum(axis=1)
 
-        print(f'Reputation computed in {time.time() - start_time} seconds')
+        logging.info(f'Reputation computed in {time.time() - start_time} seconds')
         return reputation
 
     def get_status(self, dataset):
         start_time = time.time()
-        legitimacy = self._get_legitimacy_per_time(dataset)
+        legitimacy = self._get_legitimacy_over_time(dataset)
         reputation = legitimacy.cumsum(axis=1)
         status = reputation.apply(lambda x: x.argsort())
-        print(f'Status computed in {time.time() - start_time} seconds')
+        logging.info(f'Status computed in {time.time() - start_time} seconds')
         return status

@@ -1,14 +1,13 @@
 import logging
 import time
 
+import igraph as ig
 import numpy as np
 import pandas as pd
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
-import plotly.express as px
 
 logger = logging.getLogger(__name__)
-import igraph as ig
 
 
 class Egonet:
@@ -21,7 +20,6 @@ class Egonet:
         self.delete_vertices = delete_vertices
         self._hidden_networks = {}
         self._hidden_network_backbones = {}
-        self._layouts = {}
 
     def get_egonet(self, dataset, author_id, depth):
         """
