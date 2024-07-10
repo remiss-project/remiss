@@ -7,14 +7,12 @@ import pymongoarrow
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
 
+from propagation.base import BasePropagationMetrics
+
 pymongoarrow.monkey.patch_all()
 
 
-class DiffusionMetrics:
-    def __init__(self, host='localhost', port=27017, reference_types=('retweeted', 'quoted')):
-        self.reference_types = reference_types
-        self.host = host
-        self.port = port
+class DiffusionMetrics(BasePropagationMetrics):
 
     def get_propagation_tree(self, dataset, tweet_id):
         conversation_id, conversation_tweets, references = self.get_conversation(dataset, tweet_id)

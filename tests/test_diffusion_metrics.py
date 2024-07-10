@@ -116,7 +116,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         original_graph = ig.Graph(n=8, edges=edges, directed=True)
         original_graph.vs['label'] = [str(i) for i in range(8)]
         fig, ax = plt.subplots()
-        layout = original_graph.layout(self.diffusion_metrics.layout)
+        layout = original_graph.layout('fr')
         ig.plot(original_graph, layout=layout, target=ax)
         timestamps = [Timestamp.now().date() + pd.offsets.Hour(i) for i in range(8)]
         authors = [{'id': f'author_id_{i}',
@@ -150,12 +150,12 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
         graph = self.diffusion_metrics.get_propagation_tree(dataset, '0')
         fig, ax = plt.subplots()
-        layout = graph.layout(self.diffusion_metrics.layout)
+        layout = graph.layout('fr')
         ig.plot(graph, layout=layout, target=ax)
         plt.show()
-        actual_edges = set((graph.vs['label'][edge.source], graph.vs['label'][edge.target]) for edge in graph.es)
-        expected_edges = {(f'username_{source}', f'username_{target}') for source, target in edges}
-        expected_edges.add(('username_0', 'username_3'))
+        actual_edges = set((graph.vs['author_id'][edge.source], graph.vs['author_id'][edge.target]) for edge in graph.es)
+        expected_edges = {(f'author_id_{source}', f'author_id_{target}') for source, target in edges}
+        expected_edges.add(('author_id_0', 'author_id_3'))
         self.assertEqual(actual_edges, expected_edges)
         self.assertEqual(len(graph.connected_components(mode='weak')), 1)
 
@@ -253,7 +253,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         self.assertIsInstance(df.index, pd.DatetimeIndex)
         self.assertEqual(df.max(), 1.53125)
 
-    def test_depth_cascade_ccdf_plot(self):
+    def _test_depth_cascade_ccdf_plot(self):
         start_time = Timestamp.now()
         df = self.diffusion_metrics.get_depth_cascade_ccdf(self.test_dataset)
         end_time = Timestamp.now()

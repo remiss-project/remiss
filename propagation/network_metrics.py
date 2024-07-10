@@ -4,14 +4,14 @@ import time
 import pandas as pd
 from pymongo import MongoClient
 
+from propagation.base import BasePropagationMetrics
+
 logger = logging.getLogger(__name__)
 
 
-class NetworkMetrics:
+class NetworkMetrics(BasePropagationMetrics):
     def __init__(self, host='localhost', port=27017, reference_types=('retweeted', 'quoted'), frequency='1D'):
-        self.reference_types = reference_types
-        self.host = host
-        self.port = port
+        super().__init__(host, port, reference_types)
         self.bin_size = int(frequency[:-1])
         pd_units = {'D': 'day', 'W': 'week', 'M': 'month', 'Y': 'year'}
         self.unit = pd_units[frequency[-1]]
@@ -156,4 +156,3 @@ class NetworkMetrics:
         self._legitimacy[dataset] = legitimacy
         self._reputation[dataset] = reputation
         self._status[dataset] = status
-

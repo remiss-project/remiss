@@ -7,15 +7,15 @@ import pandas as pd
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
 
+from propagation.base import BasePropagationMetrics
+
 logger = logging.getLogger(__name__)
 
 
-class Egonet:
-    def __init__(self, host='localhost', port=27017, threshold=0,
-                 delete_vertices=True, reference_types=('retweeted', 'quoted')):
-        self.reference_types = reference_types
-        self.host = host
-        self.port = port
+class Egonet(BasePropagationMetrics):
+    def __init__(self, host='localhost', port=27017, threshold=0, delete_vertices=True,
+                 reference_types=('retweeted', 'quoted')):
+        super().__init__(host, port, reference_types)
         self.threshold = threshold
         self.delete_vertices = delete_vertices
         self._hidden_networks = {}
