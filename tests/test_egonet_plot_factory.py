@@ -54,6 +54,7 @@ class TestEgonetPlotFactory(unittest.TestCase):
         self.assertEqual(len(actual['data'][1]['x']), network.vcount())
         self.assertEqual(len(actual['data'][1]['y']), network.vcount())
         self.assertEqual(len(actual['data'][1]['z']), network.vcount())
+
     @patch('figures.propagation.MongoClient')
     def test_check_color_coding(self, mock_mongo_client):
 

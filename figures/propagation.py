@@ -222,7 +222,7 @@ class PropagationPlotFactory(MongoPlotFactory):
     def _get_edge_positions(self, graph, layout):
         # edges = pd.DataFrame(graph.get_edgelist(), columns=['source', 'target'])
         # edge_positions = layout.iloc[edges.values.flatten()].reset_index(drop=True)
-        # nones = edge_positions[1::2].assign(x=None, y=None, z=None)
+        # nones = edge_positions[2::3].assign(x=None, y=None, z=None)
         # edge_positions = pd.concat([edge_positions, nones]).sort_index().reset_index(drop=True)
         layout = list(layout.to_records(index=False))
         x = []
