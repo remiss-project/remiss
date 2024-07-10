@@ -41,17 +41,34 @@ class PropagationPlotFactory(MongoPlotFactory):
         self.network_metrics = NetworkMetrics(host=host, port=port, reference_types=reference_types,
                                               frequency=frequency)
         self.diffusion_metrics = DiffusionMetrics(host=host, port=port, reference_types=reference_types)
+        self._hidden_network_layouts = {}
 
     def plot_egonet(self, collection, user, depth, start_date=None, end_date=None):
         try:
             network = self.egonet.get_egonet(collection, user, depth)
+            layout = None
         except (RuntimeError, ValueError) as ex:
             logger.debug(f'Computing egonet for user {user} failed with error {ex}')
             network = self.egonet.get_hidden_network(collection)
+            layout = self.get_hidden_network_layout(network, collection)
 
-        return self.plot_user_graph(network, collection)
+        return self.plot_user_graph(network, collection, layout=layout)
 
-    def plot_user_graph(self, user_graph, collection):
+    def get_hidden_network_layout(self, hidden_network, collection):
+        if collection not in self._hidden_network_layouts:
+            layout = self.compute_layout(hidden_network)
+            layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
+            self._hidden_network_layouts[collection] = layout
+        return self._hidden_network_layouts[collection]
+
+    def compute_layout(self, network):
+        logger.info(f'Computing {self.layout} layout')
+        start_time = time.time()
+        layout = network.layout(self.layout, dim=3)
+        logger.info(f'Layout computed in {time.time() - start_time} seconds')
+        return layout
+
+    def plot_user_graph(self, user_graph, collection, layout=None):
         metadata = self.get_user_metadata(collection)
         metadata = metadata.reindex(user_graph.vs['author_id'])
         metadata['User type'] = metadata['User type'].fillna('Unknown')
@@ -81,7 +98,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         symbol = metadata.apply(lambda x: marker_map[x['User type']], axis=1)
         # layout = self.get_hidden_network_layout(collection)
 
-        return self.plot_graph(user_graph, text=text, size=size, color=color, symbol=symbol)
+        return self.plot_graph(user_graph, layout=layout, text=text, size=size, color=color, symbol=symbol)
 
     def plot_propagation_tree(self, dataset, tweet_id):
         propagation_tree = self.diffusion_metrics.get_propagation_tree(dataset, tweet_id)
@@ -261,6 +278,38 @@ class PropagationPlotFactory(MongoPlotFactory):
         fig.update_yaxes(title_text=y_label)
         fig.update_layout(title=title)
         return fig
+
+    def persist(self, datasets):
+        # Save layouts to mongodb
+        for dataset in datasets:
+            hidden_network = self.egonet.get_hidden_network(dataset)
+            layout = self.get_hidden_network_layout(hidden_network, dataset)
+            self._persist_layout_to_mongodb(layout, dataset, 'hidden_network_layout')
+
+    def _persist_layout_to_mongodb(self, layout, dataset, collection_name):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection(collection_name)
+        collection.drop()
+        collection.insert_many(layout.to_dict(orient='records'))
+        client.close()
+
+    def load_from_mongodb(self, datasets):
+        for dataset in datasets:
+            try:
+                layout = self._load_layout_from_mongodb(dataset, 'hidden_network_layout')
+                self._hidden_network_layouts[dataset] = layout
+            except Exception as ex:
+                logger.error(f'Error loading hidden network layout for dataset {dataset} with error {ex}')
+
+    def _load_layout_from_mongodb(self, dataset, collection_name):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection(collection_name)
+        layout = collection.aggregate_pandas_all([])
+        client.close()
+        layout = layout.set_index('author_id')
+        return layout
 
 
 class PropagationPlotFactoryOld(MongoPlotFactory):

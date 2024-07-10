@@ -1,4 +1,5 @@
 import random
+import time
 import unittest
 
 import igraph as ig
@@ -177,11 +178,16 @@ class PropagationFactoryTestCase(unittest.TestCase):
 
     def test_plot_hidden_network(self):
         hidden_network = self.propagation_factory.egonet.get_hidden_network(self.test_dataset)
-        fig = self.propagation_factory.plot_user_graph(hidden_network, self.test_dataset)
+        layout = self.propagation_factory.get_hidden_network_layout(hidden_network, self.test_dataset)
+        fig = self.propagation_factory.plot_user_graph(hidden_network, self.test_dataset, layout=layout)
         fig.show()
 
     def test_plot_egonet(self):
         fig = self.propagation_factory.plot_egonet(self.test_dataset, self.test_user_id, 2)
+        fig.show()
+
+    def test_plot_egonet_missing(self):
+        fig = self.propagation_factory.plot_egonet(self.test_dataset, 'potato', 2)
         fig.show()
 
     def test_plot_size_over_time(self):
@@ -211,6 +217,27 @@ class PropagationFactoryTestCase(unittest.TestCase):
     def test_cascade_count_over_time(self):
         fig = self.propagation_factory.plot_cascade_count_over_time(self.test_dataset)
         fig.show()
+
+    def test_persistence_and_loading(self):
+        start_time = time.time()
+
+        expected_hidden_network = self.propagation_factory.egonet.get_hidden_network(self.test_dataset)
+        expected_layout = self.propagation_factory.get_hidden_network_layout(expected_hidden_network, self.test_dataset)
+
+        end_time = time.time()
+        print(f'computed in {end_time - start_time} seconds')
+        # Test the persistence and loading of the graph
+        self.propagation_factory.persist([self.test_dataset])
+
+        start_time = time.time()
+        self.propagation_factory.load_from_mongodb([self.test_dataset])
+        end_time = time.time()
+        print(f'loaded in {end_time - start_time} seconds')
+
+        actual_layout = self.propagation_factory._hidden_network_layouts[self.test_dataset]
+
+        pd.testing.assert_frame_equal(expected_layout, actual_layout, check_dtype=False, check_index_type=False,
+                                      check_column_type=False, check_frame_type=False)
 
 
 if __name__ == '__main__':
