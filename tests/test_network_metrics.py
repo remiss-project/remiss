@@ -1,3 +1,4 @@
+import time
 import unittest
 import uuid
 
@@ -29,7 +30,7 @@ class NetworkMetricsTestCase(unittest.TestCase):
 
         self.network_metrics.unit = 'day'
         self.network_metrics.bin_size = 20 + day_range
-        actual = self.network_metrics.get_legitimacy(self.tmp_dataset)
+        actual = self.network_metrics.compute_legitimacy(self.tmp_dataset)
         expected = pd.DataFrame({'author_id': [t['author']['id'] for t in test_data],
                                  'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
 
@@ -52,7 +53,7 @@ class NetworkMetricsTestCase(unittest.TestCase):
 
         self.network_metrics.host = 'localhost'
         self.network_metrics.port = 27017
-        actual = self.network_metrics.get_reputation(self.tmp_dataset)
+        actual = self.network_metrics.compute_reputation(self.tmp_dataset)
         expected = pd.DataFrame({'author_id': [t['author']['id'] for t in test_data],
                                  'date': [t['created_at'].date() for t in test_data],
                                  'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
@@ -116,7 +117,7 @@ class NetworkMetricsTestCase(unittest.TestCase):
         collection = database.get_collection('raw')
         collection.insert_many(test_data)
 
-        actual = self.network_metrics.get_status(self.tmp_dataset)
+        actual = self.network_metrics.compute_status(self.tmp_dataset)
         expected = pd.DataFrame({'author_id': [t['author']['id'] for t in test_data],
                                  'date': [t['created_at'].date() for t in test_data],
                                  'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
@@ -130,13 +131,13 @@ class NetworkMetricsTestCase(unittest.TestCase):
                                       check_column_type=False)
 
     def test_legitimacy_full(self):
-        actual = self.network_metrics.get_legitimacy(self.test_dataset)
+        actual = self.network_metrics.compute_legitimacy(self.test_dataset)
         actual = actual['legitimacy'].to_list()[:5]
         expected = [238, 233, 202, 195, 148]
         self.assertEqual(actual, expected)
 
     def test_reputation_full(self):
-        actual = self.network_metrics.get_reputation(self.test_dataset)
+        actual = self.network_metrics.compute_reputation(self.test_dataset)
         self.assertEqual(actual.shape[1], 272)
         self.assertEqual(actual.shape[0], 2578)
 
@@ -146,9 +147,37 @@ class NetworkMetricsTestCase(unittest.TestCase):
         self.assertEqual(actual.shape[0], 2578)
 
     def test_status_full(self):
-        actual = self.network_metrics.get_status(self.test_dataset)
+        actual = self.network_metrics.compute_status(self.test_dataset)
         self.assertEqual(actual.shape[1], 272)
         self.assertEqual(actual.shape[0], 2578)
+
+    def test_persistence_and_loading_full(self):
+        # Test the persistence and loading of the graph
+        self.network_metrics.persist([self.test_dataset])
+
+        start_time = time.time()
+        self.network_metrics.load_from_mongodb([self.test_dataset])
+        end_time = time.time()
+        print(f'loaded in {end_time - start_time} seconds')
+
+        start_time = time.time()
+        expected_legitimacy = self.network_metrics.compute_legitimacy(self.test_dataset)
+        expected_reputation = self.network_metrics.compute_reputation(self.test_dataset)
+        expected_status = self.network_metrics.compute_status(self.test_dataset)
+
+        end_time = time.time()
+        print(f'computed in {end_time - start_time} seconds')
+
+        actual_legitimacy = self.network_metrics.get_legitimacy(self.test_dataset)
+        actual_reputation = self.network_metrics.get_reputation(self.test_dataset)
+        actual_status = self.network_metrics.get_status(self.test_dataset)
+
+        pd.testing.assert_series_equal(expected_legitimacy, actual_legitimacy, check_dtype=False, check_like=True,
+                                       check_index_type=False)
+        pd.testing.assert_frame_equal(expected_reputation, actual_reputation, check_dtype=False, check_like=True,
+                                      check_index_type=False, check_column_type=False)
+        pd.testing.assert_frame_equal(expected_status, actual_status, check_dtype=False, check_like=True,
+                                      check_index_type=False, check_column_type=False)
 
 
 if __name__ == '__main__':
