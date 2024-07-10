@@ -154,7 +154,7 @@ class MultimodalComponent(RemissComponent):
 
     def update(self, dataset, tweet_id):
         try:
-            metadata = self.plot_factory.get_metadata(dataset, tweet_id)
+            metadata = self.plot_factory.get_user_metadata(dataset, tweet_id)
             claim_text = metadata['claim_text']
             text_evidences = metadata['text_evidences']
             evidence_text = metadata['evidence_text']

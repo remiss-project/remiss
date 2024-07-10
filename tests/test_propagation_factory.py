@@ -1,27 +1,11 @@
 import random
 import unittest
-from pathlib import Path
 
 import igraph as ig
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import plotly.express as px
-import seaborn as sns
-from pandas import Timestamp
 from pymongo import MongoClient
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer
-from sklearn.metrics import classification_report
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from tqdm import tqdm
-from xgboost import XGBClassifier
 
 from figures.propagation import PropagationPlotFactory
-from tests.conftest import populate_test_database, delete_test_database
-import igraph as ig
 
 
 class PropagationFactoryTestCase(unittest.TestCase):
@@ -34,25 +18,6 @@ class PropagationFactoryTestCase(unittest.TestCase):
     def tearDown(self):
         client = MongoClient('localhost', 27017)
         client.drop_database(self.tmp_dataset)
-
-    def test_plot_egonet(self):
-        fig = self.propagation_factory.plot_egonet(self.test_dataset, self.test_user_id, 1)
-        fig.show()
-
-    def test_plot_graph_vanilla(self):
-        graph = ig.Graph()
-        graph.add_vertices(10)
-        graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
-        fig = self.propagation_factory.plot_graph(graph)
-        fig.show()
-
-    def test_plot_graph_text(self):
-        graph = ig.Graph()
-        graph.add_vertices(10)
-        graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
-        text = [str(i) for i in range(10)]
-        fig = self.propagation_factory.plot_graph(graph, text=text)
-        fig.show()
 
     def _test_original_plot(self):
         graph = ig.Graph()
@@ -157,6 +122,65 @@ class PropagationFactoryTestCase(unittest.TestCase):
                                        check_names=False)
         pd.testing.assert_series_equal(expected_Ze, actual_Ze, check_dtype=False, check_index_type=False,
                                        check_names=False)
+
+    def test_plot_egonet(self):
+        fig = self.propagation_factory.plot_egonet(self.test_dataset, self.test_user_id, 1)
+        fig.show()
+
+    def test_plot_graph_vanilla(self):
+        graph = ig.Graph()
+        graph.add_vertices(10)
+        graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
+        fig = self.propagation_factory.plot_graph(graph)
+        fig.show()
+
+    def test_plot_graph_text(self):
+        graph = ig.Graph()
+        graph.add_vertices(10)
+        graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
+        text = [str(i) for i in range(10)]
+        fig = self.propagation_factory.plot_graph(graph, text=text)
+        fig.show()
+
+    def test_plot_graph_color(self):
+        graph = ig.Graph()
+        graph.add_vertices(10)
+        graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
+        color = [random.randint(0, 100) for _ in range(10)]
+        fig = self.propagation_factory.plot_graph(graph, color=color)
+        fig.show()
+
+    def test_plot_graph_size(self):
+        graph = ig.Graph()
+        graph.add_vertices(10)
+        graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
+        size = [random.randint(0, 100) for _ in range(10)]
+        fig = self.propagation_factory.plot_graph(graph, size=size)
+        fig.show()
+
+    def test_plot_graph_symbol(self):
+        graph = ig.Graph()
+        graph.add_vertices(10)
+        graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
+        symbol = [random.choice(['circle', 'square', 'diamond', 'cross', 'x']) for _ in range(10)]
+        fig = self.propagation_factory.plot_graph(graph, symbol=symbol)
+        fig.show()
+
+    def test_get_metadata(self):
+        metadata = self.propagation_factory.get_user_metadata(self.test_dataset)
+        self.assertEqual(metadata.duplicated().sum(), 0)
+        self.assertEqual(['username',
+                          'is_usual_suspect',
+                          'party',
+                          'legitimacy',
+                          'reputation',
+                          'User type'],
+                         metadata.columns.tolist())
+        self.assertFalse(metadata['User type'].isna().sum())
+
+    def test_plot_hidden_network(self):
+        fig = self.propagation_factory.plot_hidden_network(self.test_dataset)
+        fig.show()
 
 
 if __name__ == '__main__':

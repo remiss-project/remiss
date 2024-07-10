@@ -91,6 +91,7 @@ class NetworkMetrics(BasePropagationMetrics):
         start_time = time.time()
         legitimacy = self._get_legitimacy_over_time(dataset)
         reputation = legitimacy.cumsum(axis=1)
+        reputation.name = 'reputation'
 
         logging.info(f'Reputation computed in {time.time() - start_time} seconds')
         return reputation

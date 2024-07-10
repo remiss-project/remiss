@@ -49,50 +49,41 @@ class PropagationPlotFactory(MongoPlotFactory):
             logger.debug(f'Computing egonet for user {user} failed with error {ex}')
             return self.plot_hidden_network(collection)
 
-        metadata = self.get_metadata(collection, egonet.vs['author_id'])
+        metadata = self.get_user_metadata(collection, egonet.vs['author_id'])
         return self.plot_graph(egonet, metadata)
 
     def plot_hidden_network(self, collection):
         hidden_network = self.egonet.get_hidden_network(collection)
-        metadata = self.get_metadata(collection, hidden_network.vs['author_id'])
-        metadata = pd.DataFrame({'is_usual_suspect': graph.vs['is_usual_suspect'], 'party': graph.vs['party']})
-        marker_map = {(False, False): 'circle',
-                      (False, True): 'square',
-                      (True, False): 'diamond',
-                      (True, True): 'cross'}
+        metadata = self.get_user_metadata(collection)
+        metadata = metadata.reindex(hidden_network.vs['author_id'])
+        metadata['User type'] = metadata['User type'].fillna('Unknown')
 
-        for node in graph.vs:
-            is_usual_suspect = 'Yes' if node['is_usual_suspect'] else 'No'
-            party = f'Party: {node["party"]}' if node['party'] else '-'
-            legitimacy_value = node["legitimacy"] if not np.isnan(node["legitimacy"]) else '-'
-            reputation_value = graph["reputation"].loc[node['author_id']]
-            reputation_value = reputation_value[start_date] if start_date else reputation_value.mean()
-            reputation_value = f'{reputation_value:.2f}' if not np.isnan(reputation_value) else '-'
+        def format_user_string(x):
+            username = x['username']
+            user_type = x['User type']
+            return f'Username: {username}<br>' \
+                   f'User type: {user_type}'
 
-            node_text = f'Username: {node["username"]}<br>' \
-                        f'Is usual suspect: {is_usual_suspect}<br>' \
-                        f'Party: {party}<br>' \
-                        f'Legitimacy: {legitimacy_value}<br>' \
-                        f'Reputation: {reputation_value}'
-            text.append(node_text)
+        text = metadata.apply(format_user_string, axis=1)
 
-        if start_date:
-            size = graph['reputation'][start_date]
-        else:
-            size = graph['reputation'].mean(axis=1)
+        size = metadata['reputation']
         # Add 1 offset and set 1 as minimum size
         size = size + 1
         size = size.fillna(1)
-        if len(graph.vs) > 100:
+        if len(hidden_network.vs) > 100:
             size = size / size.max() * self.small_size_multiplier
         else:
             size = size / size.max() * self.big_size_multiplier
 
-        color = pd.Series(graph.vs['legitimacy'])
+        color = metadata['legitimacy']
 
-        markers = metadata.apply(lambda x: marker_map[(x['is_usual_suspect'], x['party'] is not None)], axis=1)
-        layout = self.get_hidden_network_layout(collection)
-        return self.plot_graph(hidden_network, layout, metadata)
+        # Available markers ['circle', 'circle-open', 'cross', 'diamond', 'diamond-open', 'square', 'square-open', 'x']
+        marker_map = {'Normal': 'circle', 'Suspect': 'cross', 'Politician': 'diamond', 'Suspect Politician':
+            'square', 'Unknown': 'x'}
+        symbol = metadata.apply(lambda x: marker_map[x['User type']], axis=1)
+        # layout = self.get_hidden_network_layout(collection)
+
+        return self.plot_graph(hidden_network, text=text, size=size, color=color, symbol=symbol)
 
     def plot_propagation_tree(self, dataset, tweet_id):
         propagation_tree = self.diffusion_metrics.get_propagation_tree(dataset, tweet_id)
@@ -127,21 +118,49 @@ class PropagationPlotFactory(MongoPlotFactory):
         cascade_count_over_time = self.diffusion_metrics.get_cascade_count_over_time(dataset)
         return self.plot_time_series(cascade_count_over_time, 'Cascade count over time', 'Time', 'Cascade count')
 
-    def get_metadata(self, dataset, author_ids=None):
+    def get_user_metadata(self, dataset, author_ids=None):
+        metadata = self.get_verificat_user_metadata(dataset, author_ids)
+        legitimacy = self.network_metrics.get_legitimacy(dataset)
+        metadata = metadata.merge(legitimacy, right_index=True, left_index=True, how='left')
+        reputation = self.network_metrics.get_reputation(dataset)
+        reputation_mean = reputation.mean(axis=1)
+        reputation_mean.name = 'reputation'
+        metadata = metadata.merge(reputation_mean, right_index=True, left_index=True, how='left')
+        metadata['User type'] = metadata.apply(transform_user_type, axis=1).fillna('Unknown')
+
+        return metadata
+
+    def get_verificat_user_metadata(self, dataset, author_ids=None):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
 
         pipeline = [
-            {'$match': {'author.id': {'$in': author_ids}}} if author_ids else {},
-            {'$project': {'_id': 0, 'author_id': '$author.id',
+            {'$project': {'_id': 0,
+                          'author_id': '$author.id',
                           'username': '$author.username',
                           'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
                           'party': '$author.remiss_metadata.party'
+                          }},
+            {'$group': {'_id': '$author_id',
+                        'username': {'$first': '$username'},
+                        'is_usual_suspect': {'$addToSet': '$is_usual_suspect'},
+                        'party': {'$addToSet': '$party'},
+                        }
+             },
+            {'$project': {'_id': 0,
+                          'author_id': '$_id',
+                          'username': 1,
+                          'is_usual_suspect': {'$anyElementTrue': '$is_usual_suspect'},
+                          'party': {'$arrayElemAt': ['$party', 0]}
                           }}
+
         ]
-        schema = Schema({'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str})
-        metadata = database.get_collection('raw').aggregate_pandas_all(pipeline, schema=schema)
+        # if author_ids:
+        #     pipeline.insert(0, {'$match': {'author.id': {'$in': author_ids}}})
+        # schema = Schema({'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str})
+        metadata = database.get_collection('raw').aggregate_pandas_all(pipeline)  # , schema=schema)
         client.close()
+        metadata = metadata.set_index('author_id')
         return metadata
 
     def plot_graph(self, graph, layout=None, symbol=None, size=None, color=None, text=None):
@@ -180,8 +199,8 @@ class PropagationPlotFactory(MongoPlotFactory):
                                               colorbar=dict(thickness=20, title='Legitimacy'),
                                               line=dict(color='rgb(50,50,50)', width=0.5),
                                               ),
-                                  text=text if text else None,
-                                  hovertemplate='%{text}' if text else None,
+                                  text=text,
+                                  hovertemplate='text' if text is not None else None,
                                   name='',
                                   )
 
@@ -235,6 +254,7 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         edge_positions = pd.DataFrame({'x': x, 'y': y, 'z': z})
         return edge_positions
+
 
 class PropagationPlotFactoryOld(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, cache_dir=None,
