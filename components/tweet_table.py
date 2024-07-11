@@ -6,25 +6,28 @@ from components.components import RemissComponent
 
 
 class TweetTableComponent(RemissComponent):
-    def __init__(self, plot_factory, state, name=None):
+    def __init__(self, plot_factory, state, name=None,
+                 top_table_columns=('ID', 'User', 'Text', 'Retweets', 'Is usual suspect', 'Party', 'Multimodal', 'Profiling')):
         super().__init__(name=name)
         self.plot_factory = plot_factory
         self.data = None
         self.state = state
+        self.top_table_columns = top_table_columns
+
         self.table = DataTable(data=[], id=f'table-{self.name}',
-                               columns=[{"name": i, "id": i} for i in self.plot_factory.top_table_columns],
+                               columns=[{"name": i, "id": i} for i in self.top_table_columns],
                                editable=False,
                                filter_action="native",
                                sort_action="native",
                                sort_mode="multi",
-                               # column_selectable="multi",
+                               # # column_selectable="multi",
                                # row_selectable="single",
-                               row_deletable=False,
-                               selected_columns=[],
-                               selected_rows=[],
+                               # row_deletable=False,
+                               # selected_columns=[],
+                               # selected_rows=[],
                                page_action="native",
                                page_current=0,
-                               page_size=10,
+                               page_size=20,
                                style_cell={
                                    'overflow': 'hidden',
                                    'textOverflow': 'ellipsis',
@@ -34,7 +37,6 @@ class TweetTableComponent(RemissComponent):
                                    {'if': {'column_id': 'Text'},
                                     'width': '60%'},
                                ]
-
                                )
 
     def layout(self, params=None):
@@ -46,6 +48,8 @@ class TweetTableComponent(RemissComponent):
 
     def update(self, dataset, start_date, end_date):
         self.data = self.plot_factory.get_top_table_data(dataset, start_date, end_date)
+        self.data['Multimodal'] = self.data['Multimodal'].apply(lambda x: '✓' if x else '✗')
+        self.data['Profiling'] = self.data['Profiling'].apply(lambda x: '✓' if x else '✗')
         return self.data.to_dict('records')
 
     def update_hashtags(self, active_cell):
@@ -55,9 +59,15 @@ class TweetTableComponent(RemissComponent):
                 return hashtags
         return None
 
+    def update_tweet(self, active_cell):
+        if active_cell:
+            tweet = self.data['ID'].iloc[active_cell['row']]
+            return tweet
+        return None
+
     def update_user(self, active_cell):
         if active_cell:
-            user = self.data['User'].iloc[active_cell['row']]
+            user = self.data['Author ID'].iloc[active_cell['row']]
             return user
         return None
 
@@ -81,3 +91,7 @@ class TweetTableComponent(RemissComponent):
             Output(self.state.current_user, 'data'),
             [Input(self.table, 'active_cell')],
         )(self.update_user)
+        app.callback(
+            Output(self.state.current_tweet, 'data'),
+            [Input(self.table, 'active_cell')],
+        )(self.update_tweet)

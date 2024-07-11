@@ -10,9 +10,6 @@ pymongoarrow.monkey.patch_all()
 
 
 class TweetTableFactory(MongoPlotFactory):
-    def __init__(self, host="localhost", port=27017, available_datasets=None):
-        super().__init__(host, port, available_datasets)
-        self.top_table_columns = ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party']
 
     def get_top_table_data(self, dataset, start_time=None, end_time=None):
         client = MongoClient(self.host, self.port)
@@ -38,7 +35,7 @@ class TweetTableFactory(MongoPlotFactory):
                                                    'else': True}},
                           'Profiling': {'$cond': {'if': {'$eq': [{'$size': '$profiling'}, 0]}, 'then': False,
                                                   'else': True}},
-                          'tweet_id': '$tweet_id', 'author_id': '$author_id'}},
+                          'ID': '$tweet_id', 'Author ID': '$author_id'}},
             {'$sort': {'Retweets': -1}},
 
         ]
@@ -51,8 +48,8 @@ class TweetTableFactory(MongoPlotFactory):
             'Party': str,
             'Multimodal': bool,
             'Profiling': bool,
-            'tweet_id': str,
-            'author_id': str
+            'ID': str,
+            'Author ID': str
         })
         # df = list(dataset.aggregate(pipeline))
         df = dataset.aggregate_pandas_all(pipeline, schema=schema)

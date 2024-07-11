@@ -247,7 +247,7 @@ class RemissDashboard(RemissComponent):
 
     def update_placeholder(self, dataset, hashtags, start_date, end_date, current_user, current_tweet):
         return html.H1(f'Hashtag: {hashtags}, Dataset: {dataset}, Start date: {start_date}, '
-                       f'End date: {end_date}, Current user: {current_user}, Current tweet: {current_user}')
+                       f'End date: {end_date}, Current user: {current_user}, Current tweet: {current_tweet}')
 
     def update_dataset_storage(self, dropdown_dataset):
         return dropdown_dataset
