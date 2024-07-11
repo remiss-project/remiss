@@ -19,7 +19,11 @@ class ProfilingComponent(RemissComponent):
                 dbc.Card([
                     dbc.CardHeader(self.title),
                     dbc.CardBody([
-                        self.graph
+                        dcc.Loading(
+                            id=f'loading-{self.name}',
+                            type='default',
+                            children=self.graph
+                        )
                     ])
                 ]),
             ]),
@@ -114,17 +118,13 @@ class DonutPlotBehaviour1Component(ProfilingComponent):
     title = 'Donut plot behaviour 1'
 
     def update(self, dataset, user):
-        try:
-            return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[0]
-        except (RuntimeError, ValueError, TypeError, KeyError) as e:
-            return {}
+        return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[0]
+
 
 
 class DonutPlotBehaviour2Component(ProfilingComponent):
     title = 'Donut plot behaviour 2'
 
     def update(self, dataset, user):
-        try:
-            return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[1]
-        except (RuntimeError, ValueError, TypeError, KeyError) as e:
-            return {}
+        return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[1]
+

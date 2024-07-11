@@ -244,6 +244,8 @@ class ProfilingPlotFactory(MongoPlotFactory):
 
     def plot_donut_plot_behaviour(self, dataset, user_id):
         user_data = self.load_data_for_user(dataset, user_id)
+        if user_data is None:
+            return {}, {}
         category_features = self.features.loc[
             self.features["category"] == 'comportamiento']
         features_names = category_features["feature_name"].tolist()

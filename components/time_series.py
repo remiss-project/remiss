@@ -19,7 +19,10 @@ class TimeSeriesComponent(RemissComponent):
                 dbc.Card([
                     dbc.CardHeader('Tweet frequency'),
                     dbc.CardBody([
-                        self.graph_tweet
+                        dcc.Loading(id=f'loading-tweet-{self.name}',
+                                    type='default',
+                                    children=self.graph_tweet)
+
                     ])
                 ]),
             ]),
@@ -27,7 +30,9 @@ class TimeSeriesComponent(RemissComponent):
                 dbc.Card([
                     dbc.CardHeader('User frequency'),
                     dbc.CardBody([
-                        self.graph_users
+                        dcc.Loading(id=f'loading-users-{self.name}',
+                                    type='default',
+                                    children=self.graph_users)
                     ])
                 ]),
             ]),

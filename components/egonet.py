@@ -39,7 +39,9 @@ class EgonetComponent(RemissComponent):
         return dbc.Card([
             dbc.CardHeader('Egonet'),
             dbc.CardBody([
-                self.graph_egonet
+                dcc.Loading(id=f'loading-{self.name}',
+                            type='default',
+                            children=self.graph_egonet)
             ]),
             dbc.CardFooter([
                 dbc.Row([

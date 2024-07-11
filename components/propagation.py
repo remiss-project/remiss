@@ -118,7 +118,9 @@ class CascadeCcdfComponent(RemissComponent):
                     dbc.Card([
                         dbc.CardHeader('Cascade CCDF'),
                         dbc.CardBody([
-                            self.graph_cascade_ccdf
+                            dcc.Loading(id=f'loading-cascade-ccdf-{self.name}',
+                                        type='default',
+                                        children=self.graph_cascade_ccdf)
                         ])
                     ]),
                 ]),
@@ -154,7 +156,9 @@ class CascadeCountOverTimeComponent(RemissComponent):
                     dbc.Card([
                         dbc.CardHeader('Cascade Count Over Time'),
                         dbc.CardBody([
-                            self.graph_cascade_count_over_time
+                            dcc.Loading(id=f'loading-cascade-count-over-time-{self.name}',
+                                        type='default',
+                                        children=self.graph_cascade_count_over_time)
                         ])
                     ]),
                 ]),
@@ -186,7 +190,9 @@ class PropagationTreeComponent(RemissComponent):
                     dbc.Card([
                         dbc.CardHeader('Propagation Tree'),
                         dbc.CardBody([
-                            self.graph_propagation_tree
+                            dcc.Loading(id=f'loading-propagation-tree-{self.name}',
+                                        type='default',
+                                        children=self.graph_propagation_tree)
                         ])
                     ]),
                 ]),
@@ -219,7 +225,9 @@ class PropagationDepthComponent(RemissComponent):
                     dbc.Card([
                         dbc.CardHeader('Propagation Depth'),
                         dbc.CardBody([
-                            self.graph_propagation_depth
+                            dcc.Loading(id=f'loading-propagation-depth-{self.name}',
+                                        type='default',
+                                        children=self.graph_propagation_depth)
                         ])
                     ]),
                 ]),
@@ -252,7 +260,9 @@ class PropagationSizeComponent(RemissComponent):
                     dbc.Card([
                         dbc.CardHeader('Propagation Size'),
                         dbc.CardBody([
-                            self.graph_propagation_size
+                            dcc.Loading(id=f'loading-propagation-size-{self.name}',
+                                        type='default',
+                                        children=self.graph_propagation_size)
                         ])
                     ]),
                 ]),
@@ -285,7 +295,10 @@ class PropagationMaxBreadthComponent(RemissComponent):
                     dbc.Card([
                         dbc.CardHeader('Propagation Max Breadth'),
                         dbc.CardBody([
-                            self.graph_propagation_max_breadth
+                            dcc.Loading(id=f'loading-propagation-max-breadth-{self.name}',
+                                        type='default',
+                                        children=self.graph_propagation_max_breadth)
+
                         ])
                     ]),
                 ]),
@@ -319,7 +332,9 @@ class PropagationStructuralViralityComponent(RemissComponent):
                     dbc.Card([
                         dbc.CardHeader('Propagation Structural Virality'),
                         dbc.CardBody([
-                            self.graph_propagation_structural_virality
+                            dcc.Loading(id=f'loading-propagation-structural-virality-{self.name}',
+                                        type='default',
+                                        children=self.graph_propagation_structural_virality)
                         ])
                     ]),
                 ]),
