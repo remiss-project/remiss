@@ -19,6 +19,8 @@ class TweetTableFactory(MongoPlotFactory):
         database = client.get_database(dataset)
         dataset = database.get_collection('raw')
         pipeline = [
+            # Exclude RTs
+            {'$match': {'referenced_tweets': {'$exists': False}}},
             {'$project': {'username': '$author.username',
                           'author_id': '$author.id',
                           'tweet_id': '$id',
