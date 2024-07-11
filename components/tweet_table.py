@@ -7,7 +7,8 @@ from components.components import RemissComponent
 
 class TweetTableComponent(RemissComponent):
     def __init__(self, plot_factory, state, name=None,
-                 top_table_columns=('ID', 'User', 'Text', 'Retweets', 'Is usual suspect', 'Party', 'Multimodal', 'Profiling')):
+                 top_table_columns=(
+                         'ID', 'User', 'Text', 'Retweets', 'Is usual suspect', 'Party', 'Multimodal', 'Profiling')):
         super().__init__(name=name)
         self.plot_factory = plot_factory
         self.data = None
@@ -20,8 +21,9 @@ class TweetTableComponent(RemissComponent):
                                filter_action="native",
                                sort_action="native",
                                sort_mode="multi",
+                               cell_selectable=False,
                                # # column_selectable="multi",
-                               # row_selectable="single",
+                               row_selectable="single",
                                # row_deletable=False,
                                # selected_columns=[],
                                # selected_rows=[],
@@ -52,29 +54,37 @@ class TweetTableComponent(RemissComponent):
         self.data['Profiling'] = self.data['Profiling'].apply(lambda x: '✓' if x else '✗')
         return self.data.to_dict('records')
 
-    def update_hashtags(self, active_cell):
-        if active_cell:
-            hashtags = self.extract_hashtag_from_top_table(active_cell)
+    def update_hashtags(self, selected_rows):
+        if selected_rows:
+            hashtags = self.extract_hashtag_from_top_table(selected_rows[0])
             if hashtags:
                 return hashtags
         return None
 
-    def update_tweet(self, active_cell):
-        if active_cell:
-            tweet = self.data['ID'].iloc[active_cell['row']]
+    def update_tweet(self, selected_rows):
+        if selected_rows:
+            tweet = self.data['ID'].iloc[selected_rows[0]]
             return tweet
         return None
 
-    def update_user(self, active_cell):
-        if active_cell:
-            user = self.data['Author ID'].iloc[active_cell['row']]
+    def update_user(self, selected_rows):
+        if selected_rows:
+            user = self.data['Author ID'].iloc[selected_rows[0]]
             return user
         return None
 
-    def extract_hashtag_from_top_table(self, active_cell):
-        text = self.data['Text'].iloc[active_cell['row']]
+    def extract_hashtag_from_top_table(self, selected_row):
+        text = self.data['Text'].iloc[selected_row]
         hashtags = [x[1:] for x in text.split() if x.startswith('#')]
         return hashtags if hashtags else None
+
+    def highlight_row(self, active_cell):
+        if active_cell:
+            return [{
+                'if': {'row_index': active_cell['row']},
+                'backgroundColor': 'rgba(0, 0, 0, 0.1)'
+            }]
+        return []
 
     def callbacks(self, app):
         app.callback(
@@ -85,13 +95,17 @@ class TweetTableComponent(RemissComponent):
         )(self.update)
         app.callback(
             Output(self.state.current_hashtags, 'data', allow_duplicate=True),
-            [Input(self.table, 'active_cell')],
+            [Input(self.table, 'selected_rows')],
         )(self.update_hashtags)
         app.callback(
             Output(self.state.current_user, 'data'),
-            [Input(self.table, 'active_cell')],
+            [Input(self.table, 'selected_rows')],
         )(self.update_user)
         app.callback(
             Output(self.state.current_tweet, 'data'),
-            [Input(self.table, 'active_cell')],
+            [Input(self.table, 'selected_rows')],
         )(self.update_tweet)
+        app.callback(
+            Output(self.table, 'style_data_conditional'),
+            [Input(self.table, 'active_cell')],
+        )(self.highlight_row)
