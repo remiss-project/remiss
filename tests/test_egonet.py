@@ -11,7 +11,6 @@ import pandas as pd
 import plotly.express as px
 from pymongo import MongoClient
 
-from figures.propagation import compute_backbone
 from propagation import Egonet
 from tests.conftest import create_test_data_from_edges, create_test_data
 
@@ -228,7 +227,7 @@ class TestEgonetCase(unittest.TestCase):
         network.es["weight_norm"] = np.random.uniform(0, 0.5, network.ecount())
 
         # Test the backbone filter
-        backbone = compute_backbone(network, alpha=alpha)
+        backbone = self.egonet.compute_backbone(network, alpha=alpha)
 
         # Ensure that all edge weights are below alpha
         for edge in backbone.get_edgelist():
