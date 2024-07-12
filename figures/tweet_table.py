@@ -29,13 +29,16 @@ class TweetTableFactory(MongoPlotFactory):
                          'as': 'multimodal'}},
             {'$lookup': {'from': 'profiling', 'localField': 'author_id', 'foreignField': 'user_id',
                          'as': 'profiling'}},
+            {'$lookup': {'from': 'textual', 'localField': 'tweet_id', 'foreignField': 'tweet_id',
+                         'as': 'textual'}},
             {'$project': {'User': '$username', 'Text': '$text', 'Retweets': '$retweets',
                           'Is usual suspect': '$suspect', 'Party': '$party',
                           'Multimodal': {'$cond': {'if': {'$eq': [{'$size': '$multimodal'}, 0]}, 'then': False,
                                                    'else': True}},
                           'Profiling': {'$cond': {'if': {'$eq': [{'$size': '$profiling'}, 0]}, 'then': False,
                                                   'else': True}},
-                          'ID': '$tweet_id', 'Author ID': '$author_id'}},
+                          'ID': '$tweet_id', 'Author ID': '$author_id',
+                          'Fakeness': {'$arrayElemAt': ['$textual.fakeness_probabilities', 0]}}},
             {'$sort': {'Retweets': -1}},
 
         ]
@@ -49,7 +52,8 @@ class TweetTableFactory(MongoPlotFactory):
             'Multimodal': bool,
             'Profiling': bool,
             'ID': str,
-            'Author ID': str
+            'Author ID': str,
+            'Fakeness': float
         })
         # df = list(dataset.aggregate(pipeline))
         df = dataset.aggregate_pandas_all(pipeline, schema=schema)

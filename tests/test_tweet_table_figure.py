@@ -25,8 +25,7 @@ class TestTopTableFactory(TestCase):
                                  "remiss_metadata": {"party": "PSOE", "is_usual_suspect": False,
                                                      'has_multimodal_fact-checking': False,
                                                      'has_profiling': False}},
-                      "entities": {"hashtags": [{"tag": "test_hashtag"}]},
-                      "referenced_tweets": []},
+                      "entities": {"hashtags": [{"tag": "test_hashtag"}]}, },
                      {"id": '1', "created_at": datetime.fromisoformat("2019-01-02T23:20:00Z"),
                       'text': 'test_text2',
                       'public_metrics': {'retweet_count': 2, 'reply_count': 2, 'like_count': 3, 'quote_count': 4},
@@ -35,16 +34,15 @@ class TestTopTableFactory(TestCase):
                                                      'has_multimodal_fact-checking': True,
                                                      'has_profiling': False
                                                      }},
-                      "entities": {"hashtags": []},
-                      "referenced_tweets": [{"id": '1', "type": "quoted"}]},
+                      "entities": {"hashtags": []}, },
                      {"id": '2', "created_at": datetime.fromisoformat("2019-01-03T23:20:00Z"),
                       'text': 'test_text3',
                       'public_metrics': {'retweet_count': 3, 'reply_count': 2, 'like_count': 3, 'quote_count': 4},
                       "author": {"username": "TEST_USER_2", "id": '2',
                                  "remiss_metadata": {"party": "VOX", "is_usual_suspect": True,
                                                      }},
-                      "entities": {"hashtags": []},
-                      "referenced_tweets": [{"id": '1', "type": "retweeted"}]}]
+                      "entities": {"hashtags": []}
+                      }]
         self.collection.insert_many(test_data)
 
         multimodal_collection = self.database.get_collection('multimodal')
@@ -54,6 +52,12 @@ class TestTopTableFactory(TestCase):
         profiling_collection = self.database.get_collection('profiling')
         profiling_data = [{'user_id': '0'}, {'user_id': '1'}]
         profiling_collection.insert_many(profiling_data)
+
+        textual = self.database.get_collection('textual')
+        textual_data = [{'tweet_id': '0', 'fakeness_probabilities': 0.1},
+                        {'tweet_id': '1', 'fakeness_probabilities': 0.2},
+                        {'tweet_id': '2', 'fakeness_probabilities': 0.3}]
+        textual.insert_many(textual_data)
 
     def tearDown(self):
         client = MongoClient('localhost', 27017)
@@ -69,13 +73,15 @@ class TestTopTableFactory(TestCase):
                     'User': {0: 'TEST_USER_0', 1: 'TEST_USER_1', 2: 'TEST_USER_2'},
                     'Multimodal': {0: True, 1: False, 2: True},
                     'Profiling': {0: True, 1: True, 2: False},
-                    'tweet_id': {0: '0', 1: '1', 2: '2'},
-                    'author_id': {0: '0', 1: '1', 2: '2'}
+                    'ID': {0: '0', 1: '1', 2: '2'},
+                    'Author ID': {0: '0', 1: '1', 2: '2'},
+                    'Fakeness': {0: 0.1, 1: 0.2, 2: 0.3}
                     }
         expected = pd.DataFrame(expected)
         expected = expected.iloc[[2, 1, 0]].reset_index(drop=True)
         expected = expected[['User', 'Text', 'Retweets', 'Is usual suspect', 'Party',
-                             'Multimodal', 'Profiling', 'tweet_id', 'author_id']]
+                             'Multimodal', 'Profiling', 'ID', 'Author ID',
+                             'Fakeness']]
 
         pd.testing.assert_frame_equal(actual, expected)
 
@@ -89,16 +95,16 @@ class TestTopTableFactory(TestCase):
         # fig.show()
 
         self.assertEqual(actual.columns.to_list(), ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party',
-                                                    'Multimodal', 'Profiling', 'tweet_id', 'author_id'])
+                                                    'Multimodal', 'Profiling', 'ID', 'Author ID', 'Fakeness'])
         client = MongoClient('localhost', 27017)
         raw = client.get_database(dataset).get_collection('raw')
-        document_count = raw.count_documents({})
+        document_count = raw.count_documents({'referenced_tweets': {'$exists': False}})
         self.assertEqual(actual.shape[0], document_count)
         multimodal = client.get_database(dataset).get_collection('multimodal')
         multimodal_expected_ids = {x['tweet_id'] for x in multimodal.find({})}
-        multimodal_actual_ids = set(actual[actual['Multimodal']]['tweet_id'].to_list())
-        self.assertTrue(multimodal_expected_ids.issubset(multimodal_actual_ids))
+        multimodal_actual_ids = set(actual[actual['Multimodal']]['ID'].to_list())
+        self.assertTrue(multimodal_actual_ids.issubset(multimodal_expected_ids))
         profiling = client.get_database(dataset).get_collection('profiling')
         profiling_expected_ids = {x['user_id'] for x in profiling.find({})}
-        profiling_actual_ids = set(actual[actual['Profiling']]['author_id'].to_list())
-        self.assertTrue(profiling_expected_ids.issubset(profiling_actual_ids))
+        profiling_actual_ids = set(actual[actual['Profiling']]['Author ID'].to_list())
+        self.assertTrue(profiling_actual_ids.issubset(profiling_expected_ids))

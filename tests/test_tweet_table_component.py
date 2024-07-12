@@ -61,6 +61,12 @@ class TestTopTableComponent(TestCase):
         profiling_data = [{'user_id': '0'}, {'user_id': '1'}]
         profiling_collection.insert_many(profiling_data)
 
+        textual = self.database.get_collection('textual')
+        textual_data = [{'tweet_id': '0', 'fakeness_probabilities': 0.1},
+                        {'tweet_id': '1', 'fakeness_probabilities': 0.2},
+                        {'tweet_id': '2', 'fakeness_probabilities': 0.3}]
+        textual.insert_many(textual_data)
+
         self.state = RemissState(name='state')
 
         self.component = TweetTableComponent(self.top_table_factory, self.state, name='table_test')
