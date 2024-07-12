@@ -142,22 +142,9 @@ class FilterablePlotsComponent(RemissComponent):
 
     def callbacks(self, app):
         self.time_series.callbacks(app)
-        self.radarplot_emotions.callbacks(app)
-        self.vertical_barplot_polarity.callbacks(app)
-        self.donut_plot_behaviour1.callbacks(app)
-        self.donut_plot_behaviour2.callbacks(app)
+        self.profiling_component.callbacks(app)
         self.multimodal.callbacks(app)
         self.propagation.callbacks(app)
-
-        app.callback(
-            Output(f'collapse-textual-{self.name}', 'is_open'),
-            [Input(self.state.current_tweet, 'data')],
-        )(self.update_on_selected_tweet_state_change)
-
-        app.callback(
-            Output(f'collapse-profile-{self.name}', 'is_open'),
-            [Input(self.state.current_user, 'data')],
-        )(self.update_on_selected_user_state_change)
 
 
 class RemissDashboard(RemissComponent):
