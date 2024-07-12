@@ -100,11 +100,8 @@ class FilterablePlotsComponent(RemissComponent):
         self.state = state
         self.time_series = TimeSeriesComponent(tweet_user_plot_factory, state, name=f'time-series-{self.name}')
         self.profiling_component = ProfilingComponent(profile_plot_factory, state, name=f'profiling-{self.name}')
-
         self.multimodal = MultimodalComponent(multimodal_plot_factory, state, name=f'multimodal-{self.name}')
-
-        self.propagation = PropagationComponent(propagation_plot_factory, state,
-                                                name=f'propagation-{self.name}')
+        self.propagation = PropagationComponent(propagation_plot_factory, state, name=f'propagation-{self.name}')
 
     def layout(self, params=None):
         """

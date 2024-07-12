@@ -32,7 +32,7 @@ class MultimodalComponent(RemissComponent):
         self.state = state
 
     def layout(self, params=None):
-        return dbc.Row([
+        return dbc.Collapse([dbc.Row([
             dbc.Col([
                 html.H3('Claim'),
                 dbc.Card([
@@ -150,7 +150,7 @@ class MultimodalComponent(RemissComponent):
                     ])
                 ]),
             ])
-        ], justify='center', style={'margin-bottom': '1rem'})
+        ], justify='center', style={'margin-bottom': '1rem'})], id=f'collapse-{self.name}', is_open=False)
 
     def update(self, dataset, tweet_id):
         try:
@@ -175,9 +175,9 @@ class MultimodalComponent(RemissComponent):
 
             return claim_image, evidence_image, graph_claim, graph_evidence_text, graph_evidence_vis, visual_evidences, \
                 claim_text, text_evidences, evidence_text, evidence_image_alt_text, predicted_label, actual_label, \
-                num_claim_edges, frac_verified, explanations, visual_similarity_score
+                num_claim_edges, frac_verified, explanations, visual_similarity_score, True
         except RuntimeError as e:
-            return {}, {}, {}, {}, {}, {}, '', '', '', '', '', '', '', '', '',''
+            return {}, {}, {}, {}, {}, {}, '', '', '', '', '', '', '', '', '', '', False
 
     def callbacks(self, app):
         app.callback(
@@ -197,6 +197,7 @@ class MultimodalComponent(RemissComponent):
             Output(self.frac_verified, 'children'),
             Output(self.explanations, 'children'),
             Output(self.visual_similarity_score, 'children'),
+            Output(f'collapse-{self.name}', 'is_open'),
             [Input(self.state.current_dataset, 'data'),
              Input(self.state.current_tweet, 'data')],
         )(self.update)
