@@ -1,5 +1,7 @@
 import json
+import shutil
 import zipfile
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
@@ -234,3 +236,43 @@ def validate_fact_checking_dataset_data(data_dir):
                         print(f'Unexpected metadata fields: {set(tweet_metadata.keys()) - expected_metadata_fields}')
                     if set(tweet_metadata['results'].keys()) == expected_metadata_results:
                         print(f'Unexpected metadata results fields: {set(tweet_metadata["results"].keys()) - expected_metadata_results}')
+
+def preprocess_multimodal_dataset_data(source_dir, output_dir):
+    source_dir = Path(source_dir)
+    output_dir = Path(output_dir)
+    outputs_dir = source_dir / 'outputs'
+    found_images = {}
+    dataset_ids = {}
+    for dataset in outputs_dir.iterdir():
+        if dataset.is_dir():
+            for tweet_images_dir in dataset.iterdir():
+                if tweet_images_dir.is_dir():
+                    images = {image.stem for image in tweet_images_dir.iterdir() if image.is_file()}
+                    if images:
+                        found_images[(dataset.name, tweet_images_dir.name)] = images
+                        dataset_ids[tweet_images_dir.name] = dataset.name
+
+    dataset_metadata = defaultdict(list)
+    with open(source_dir / 'combined_metadata.json') as metadata_file:
+        metadata = json.load(metadata_file)
+        for tweet_metadata in metadata:
+            expected_images = {Path(image).stem for image in tweet_metadata['image_paths']}
+            # assert expected_images == found_images[(dataset_ids[tweet_metadata['id_in_json']], tweet_metadata['tweet_id'])]
+            try:
+                dataset_metadata[dataset_ids[str(tweet_metadata['id_in_json'])]].append(tweet_metadata)
+            except KeyError:
+                print(f'Unexpected dataset {tweet_metadata["id_in_json"]} from {tweet_metadata["image_paths"]}')
+
+    for dataset, metadata in dataset_metadata.items():
+        dataset_dir = output_dir / dataset
+        dataset_dir.mkdir(exist_ok=True, parents=True)
+        images_dir = dataset_dir / 'images'
+        images_dir.mkdir(exist_ok=True, parents=True)
+        for image in found_images[(dataset, metadata[0]['id_in_json'])]:
+            shutil.copyfile(outputs_dir / dataset / metadata[0]['id_in_json'] / f'{image}.png',
+                            images_dir / f'{image}.png')
+
+
+
+
+

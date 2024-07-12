@@ -4,19 +4,19 @@ from pathlib import Path
 
 from pymongo import MongoClient
 
-from app import prepopulate
+from preprocess import preprocess_multimodal_dataset_data
 from tests.conftest import populate_test_database, delete_test_database
 
 
 class MyTestCase(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        populate_test_database('test_dataset')
-
-    @classmethod
-    def tearDownClass(cls):
-        delete_test_database('test_dataset')
-        shutil.rmtree('/tmp/test_cache')
+    # @classmethod
+    # def setUpClass(cls):
+    #     populate_test_database('test_dataset')
+    #
+    # @classmethod
+    # def tearDownClass(cls):
+    #     delete_test_database('test_dataset')
+    #     shutil.rmtree('/tmp/test_cache')
 
     def test_prepopulate(self):
         config = {'mongodb': {'host': 'localhost', 'port': 27017},
@@ -37,6 +37,9 @@ class MyTestCase(unittest.TestCase):
 
         # Check that the cache has been populated
         self.assertTrue(list(Path('/tmp/test_cache/test_dataset').glob('*.graphmlz'))[0].exists())
+
+    def test_preprocess_multimodal(self):
+        preprocess_multimodal_dataset_data('../remiss_data_share', 'multimodal_data')
 
 
 if __name__ == '__main__':
