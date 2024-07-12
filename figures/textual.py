@@ -80,18 +80,28 @@ class TextualFactory(MongoPlotFactory):
         fig.update_layout(showlegend=False)
         return fig
 
-    def plot_emotion_per_hour(self, dataset, start_time, end_time):
+    def get_emotion_per_hour(self, dataset, start_time, end_time):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         dataset = database.get_collection('textual')
 
-        emotions = ['Agresividad', 'Enfado', 'Disgusto', 'Miedo', 'Odio', 'Ironia', 'Diversion', 'Tristeza', 'Sorpresa', 'Dirigido', 'Negativo', 'Neutro', 'Positivo']
-        # Take average of each of the columns per hour using 'date' field after casting it to date using dateToString
+        emotions = ['Agresividad', 'Enfado', 'Disgusto', 'Miedo', 'Odio', 'Ironia', 'Diversion', 'Tristeza', 'Sorpresa',
+                    'Dirigido', 'Negativo', 'Neutro', 'Positivo']
+
         pipeline = [
-            {'$addFields': {'hour': {'$hour': {'$toDate': '$date'}}}},
+            {'$addFields': {'date': {'$toDate': '$date'}}},
+            {'$addFields': {'hour': {'$hour': '$date'}}},
             {'$group': {'_id': '$hour', **{emotion: {'$avg': f'${emotion}'} for emotion in emotions}}},
             {'$project': {'_id': 0}}
         ]
+        if start_time:
+            pipeline.insert(2, {'$match': {'date': {'$gte': start_time}}})
+        if end_time:
+            pipeline.insert(2, {'$match': {'date': {'$lte': end_time}}})
         df = dataset.aggregate_pandas_all(pipeline)
+        return df
+
+    def plot_emotion_per_hour(self, dataset, start_time, end_time):
+        df = self.get_emotion_per_hour(dataset, start_time, end_time)
         fig = px.line(df, x=df.index, y=df.columns, title='Emotion per hour')
         return fig
