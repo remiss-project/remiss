@@ -7,8 +7,8 @@ from components.egonet import EgonetComponent
 from components.multimodal import MultimodalComponent
 from components.profiling import RadarplotEmotionsComponent, VerticalBarplotPolarityComponent, \
     DonutPlotBehaviour1Component, \
-    DonutPlotBehaviour2Component
-from components.propagation import FilterablePropagationComponent, CascadeCcdfComponent, CascadeCountOverTimeComponent
+    DonutPlotBehaviour2Component, ProfilingComponent
+from components.propagation import PropagationComponent, CascadeCcdfComponent, CascadeCountOverTimeComponent
 from components.textual import EmotionPerHourComponent, AverageEmotionBarComponent
 from components.time_series import TimeSeriesComponent
 from components.tweet_table import TweetTableComponent
@@ -99,19 +99,12 @@ class FilterablePlotsComponent(RemissComponent):
         super().__init__(name=name)
         self.state = state
         self.time_series = TimeSeriesComponent(tweet_user_plot_factory, state, name=f'time-series-{self.name}')
-        self.radarplot_emotions = RadarplotEmotionsComponent(profile_plot_factory, state,
-                                                             name=f'radarplot-emotions-{self.name}')
-        self.vertical_barplot_polarity = VerticalBarplotPolarityComponent(profile_plot_factory, state,
-                                                                          name=f'vertical-barplot-polarity-{self.name}')
-        self.donut_plot_behaviour1 = DonutPlotBehaviour1Component(profile_plot_factory, state,
-                                                                  name=f'donut-plot-behaviour1-{self.name}')
-        self.donut_plot_behaviour2 = DonutPlotBehaviour2Component(profile_plot_factory, state,
-                                                                  name=f'donut-plot-behaviour2-{self.name}')
+        self.profiling_component = ProfilingComponent(profile_plot_factory, state, name=f'profiling-{self.name}')
 
         self.multimodal = MultimodalComponent(multimodal_plot_factory, state, name=f'multimodal-{self.name}')
 
-        self.propagation = FilterablePropagationComponent(propagation_plot_factory, state,
-                                                          name=f'propagation-{self.name}')
+        self.propagation = PropagationComponent(propagation_plot_factory, state,
+                                                name=f'propagation-{self.name}')
 
     def layout(self, params=None):
         """
@@ -131,46 +124,21 @@ class FilterablePlotsComponent(RemissComponent):
                 ]),
             ]),
             dbc.Row([
-                dbc.Collapse([
-                    dbc.Col([
-                        self.radarplot_emotions.layout(params)
-                    ]),
-                    dbc.Col([
-                        self.vertical_barplot_polarity.layout(params)
-                    ]),
-                ], id=f'collapse-textual-{self.name}', is_open=False),
-            ]),
-            dbc.Row([
-                dbc.Collapse([
-                    dbc.Col([
-                        self.donut_plot_behaviour1.layout(params)
-                    ]),
-                    dbc.Col([
-                        self.donut_plot_behaviour2.layout(params)
-                    ]),
-                ], id=f'collapse-profile-{self.name}', is_open=False),
-            ]),
-            dbc.Row([
                 dbc.Col([
-                    dbc.Collapse([
-                        self.multimodal.layout(params)
-                    ], id=f'collapse-multimodal-{self.name}', is_open=False),
+                    self.profiling_component.layout(params)
                 ]),
             ]),
             dbc.Row([
                 dbc.Col([
-                    dbc.Collapse([
-                        self.propagation.layout(params)
-                    ], id=f'collapse-propagation-{self.name}', is_open=False),
+                    self.multimodal.layout(params)
+                ]),
+            ]),
+            dbc.Row([
+                dbc.Col([
+                    self.propagation.layout(params)
                 ]),
             ]),
         ])
-
-    def update_on_selected_tweet_state_change(self, tweet):
-        return tweet is not None
-
-    def update_on_selected_user_state_change(self, user):
-        return user is not None
 
     def callbacks(self, app):
         self.time_series.callbacks(app)

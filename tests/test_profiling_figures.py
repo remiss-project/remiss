@@ -1,9 +1,9 @@
-from figures.cvc import CVCPlotFactory
+from figures.profiling import ProfilingPlotFactory
 from figures.utils_remiss import get_all_values_users, convert_dict_to_dataframe
 
 
 def test_init():
-    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    cvc_plot_factory = ProfilingPlotFactory(data_dir='./../cvc_data')
     fake_spreaders_feats, fact_checkers_feats, random_feats = get_all_values_users('ca')
 
     # Convert feature values to dataframes
@@ -19,56 +19,56 @@ def test_init():
 
 
 def test_load_data_for_user():
-    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    cvc_plot_factory = ProfilingPlotFactory(data_dir='./../cvc_data')
     user_data = cvc_plot_factory.load_data_for_user('test_dataset', '100485425')
     assert user_data['twitter_id'] == '100485425'
     assert user_data['description'] == 'basado y sin complejos. Publi al DM CONTRATACIÓN: mas.sabor.estudios@gmail.com'
 
 
 def test_plot_user_info():
-    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    cvc_plot_factory = ProfilingPlotFactory(data_dir='./../cvc_data')
     plot_user_info = cvc_plot_factory.plot_user_info('test_dataset', '100485425')
     plot_user_info.show()
     assert len(plot_user_info.layout.annotations) == 7
 
 
 def test_plot_vertical_barplot_topics():
-    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    cvc_plot_factory = ProfilingPlotFactory(data_dir='./../cvc_data')
     plot_vertical_barplot_topics = cvc_plot_factory.plot_vertical_barplot_topics('test_dataset', '100485425')
     plot_vertical_barplot_topics.show()
     assert len(plot_vertical_barplot_topics.data) == 4
 
 
 def test_plot_radarplot_emotions():
-    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    cvc_plot_factory = ProfilingPlotFactory(data_dir='./../cvc_data')
     plot_radarplot_emotions = cvc_plot_factory.plot_radarplot_emotions('test_dataset', '100485425')
     plot_radarplot_emotions.show()
     assert len(plot_radarplot_emotions.data) == 4
 
 
 def test_plot_vertical_accumulated_barplot_by_genre():
-    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    cvc_plot_factory = ProfilingPlotFactory(data_dir='./../cvc_data')
     plot_vertical_accumulated_barplot_by_genre = cvc_plot_factory.plot_vertical_accumulated_barplot_by_genre()
     plot_vertical_accumulated_barplot_by_genre.show()
     assert len(plot_vertical_accumulated_barplot_by_genre.data) == 3
 
 
 def test_plot_vertical_accumulated_barplot_by_age():
-    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    cvc_plot_factory = ProfilingPlotFactory(data_dir='./../cvc_data')
     plot_vertical_accumulated_barplot_by_age = cvc_plot_factory.plot_vertical_accumulated_barplot_by_age()
     plot_vertical_accumulated_barplot_by_age.show()
     assert len(plot_vertical_accumulated_barplot_by_age.data) == 4
 
 
 def test_plot_vertical_barplot_polarity():
-    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    cvc_plot_factory = ProfilingPlotFactory(data_dir='./../cvc_data')
     plot_vertical_barplot_polarity = cvc_plot_factory.plot_vertical_barplot_polarity('test_dataset', '100485425')
     plot_vertical_barplot_polarity.show()
     assert len(plot_vertical_barplot_polarity.data) == 4
 
 
 def test_plot_horizontal_bars_plot_interactions():
-    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    cvc_plot_factory = ProfilingPlotFactory(data_dir='./../cvc_data')
     horizontal_bars_plot_1_py_interactions_1, horizontal_bars_plot_2_py_interactions_2 = cvc_plot_factory.plot_horizontal_bars_plot_interactions(
         'test_dataset', '100485425')
     horizontal_bars_plot_1_py_interactions_1.show()
@@ -78,7 +78,7 @@ def test_plot_horizontal_bars_plot_interactions():
 
 
 def test_plot_donut_plot_behaviour():
-    cvc_plot_factory = CVCPlotFactory(data_dir='./../cvc_data')
+    cvc_plot_factory = ProfilingPlotFactory(data_dir='./../cvc_data')
     donut_plot_py_behavior_1, donut_plot_py_behavior_2 = cvc_plot_factory.plot_donut_plot_behaviour('test_dataset',
                                                                                                     '100485425')
     donut_plot_py_behavior_1.show()

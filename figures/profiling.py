@@ -13,7 +13,7 @@ import plotly.express as px
 
 class ProfilingPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, available_datasets=None, lang='ca',
-                 data_dir='./cvc_data'):
+                 data_dir='./profiling_data'):
         super().__init__(host, port, available_datasets)
         self.lang = lang
         self.data_dir = Path(data_dir)
@@ -39,6 +39,14 @@ class ProfilingPlotFactory(MongoPlotFactory):
         self.fake_news_spreaders = convert_dict_to_dataframe(fake_spreaders_feats)
         self.fact_checkers = convert_dict_to_dataframe(fact_checkers_feats)
         self.control_cases = convert_dict_to_dataframe(random_feats)
+
+    def is_user_profiled(self, dataset, user_id):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('profiling')
+        user_data = collection.find_one({'twitter_id': user_id})
+        client.close()
+        return user_data is not None
 
     def load_data_for_user(self, dataset, user_id):
         client = MongoClient(self.host, self.port)

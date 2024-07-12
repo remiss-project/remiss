@@ -4,7 +4,7 @@ from dash import dcc, Input, Output
 from components.components import RemissComponent
 
 
-class FilterablePropagationComponent(RemissComponent):
+class PropagationComponent(RemissComponent):
     def __init__(self, plot_factory, state,
                  name=None):
         super().__init__(name=name)

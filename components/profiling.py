@@ -5,6 +5,44 @@ from components.components import RemissComponent
 
 
 class ProfilingComponent(RemissComponent):
+
+    def __init__(self, profile_plot_factory, state, name=None):
+        super().__init__(name=name)
+        self.profile_plot_factory = profile_plot_factory
+        self.state = state
+        self.radarplot_emotions = RadarplotEmotionsComponent(profile_plot_factory, state,
+                                                             name=f'radarplot-emotions-{self.name}')
+        self.vertical_barplot_polarity = VerticalBarplotPolarityComponent(profile_plot_factory, state,
+                                                                          name=f'vertical-barplot-polarity-{self.name}')
+        self.donut_plot_behaviour1 = DonutPlotBehaviour1Component(profile_plot_factory, state,
+                                                                  name=f'donut-plot-behaviour1-{self.name}')
+        self.donut_plot_behaviour2 = DonutPlotBehaviour2Component(profile_plot_factory, state,
+                                                                  name=f'donut-plot-behaviour2-{self.name}')
+
+    def layout(self, params=None):
+        return dbc.Collapse([
+            self.radarplot_emotions.layout(),
+            self.vertical_barplot_polarity.layout(),
+            self.donut_plot_behaviour1.layout(),
+            self.donut_plot_behaviour2.layout(),
+        ], id=f'collapse-{self.name}', is_open=False)
+
+    def update_collapse(self, dataset, user_id):
+        return self.profile_plot_factory.is_user_profiled(dataset, user_id)
+
+    def callbacks(self, app):
+        self.radarplot_emotions.callbacks(app)
+        self.vertical_barplot_polarity.callbacks(app)
+        self.donut_plot_behaviour1.callbacks(app)
+        self.donut_plot_behaviour2.callbacks(app)
+        app.callback(
+            Output(f'collapse-{self.name}', 'is_open'),
+            [Input(self.state.current_dataset, 'data'),
+             Input(self.state.current_user, 'data')]
+        )(self.update_collapse)
+
+
+class BaseProfilingComponent(RemissComponent):
     title = 'Profiling component'
 
     def __init__(self, plot_factory, state, name=None):
@@ -40,21 +78,21 @@ class ProfilingComponent(RemissComponent):
         )(self.update)
 
 
-class UserInfoComponent(ProfilingComponent):
+class UserInfoComponent(BaseProfilingComponent):
     title = 'User info'
 
     def update(self, dataset, user):
         return self.plot_factory.plot_user_info(dataset, user)
 
 
-class TopicVerticalBarplotComponent(ProfilingComponent):
+class TopicVerticalBarplotComponent(BaseProfilingComponent):
     title = 'Topic vertical barplot'
 
     def update(self, dataset, user):
         return self.plot_factory.plot_vertical_barplot_topics(dataset, user)
 
 
-class RadarplotEmotionsComponent(ProfilingComponent):
+class RadarplotEmotionsComponent(BaseProfilingComponent):
     title = 'Radarplot emotions'
 
     def update(self, dataset, user):
@@ -64,7 +102,7 @@ class RadarplotEmotionsComponent(ProfilingComponent):
             return {}
 
 
-class VerticalAccumulatedBarplotAge(ProfilingComponent):
+class VerticalAccumulatedBarplotAge(BaseProfilingComponent):
     title = 'Vertical accumulated barplot by age'
 
     def update(self):
@@ -75,7 +113,7 @@ class VerticalAccumulatedBarplotAge(ProfilingComponent):
 
 
 # plot_vertical_accumulated_barplot_by_genre
-class VerticalAccumulatedBarplotGenre(ProfilingComponent):
+class VerticalAccumulatedBarplotGenre(BaseProfilingComponent):
     title = 'Vertical accumulated barplot by genre'
 
     def update(self):
@@ -86,7 +124,7 @@ class VerticalAccumulatedBarplotGenre(ProfilingComponent):
 
 
 # plot_vertical_barplot_polarity
-class VerticalBarplotPolarityComponent(ProfilingComponent):
+class VerticalBarplotPolarityComponent(BaseProfilingComponent):
     title = 'Vertical barplot polarity'
 
     def update(self, dataset, user):
@@ -98,14 +136,14 @@ class VerticalBarplotPolarityComponent(ProfilingComponent):
 
 # plot_horizontal_bars_plot_interactions
 
-class HorizontalBarplotInteraction1(ProfilingComponent):
+class HorizontalBarplotInteraction1(BaseProfilingComponent):
     title = 'Horizontal barplot interaction 1'
 
     def update(self, dataset, user):
         return self.plot_factory.plot_horizontal_bars_plot_interactions(dataset, user)[0]
 
 
-class HorizontalBarplotInteraction2(ProfilingComponent):
+class HorizontalBarplotInteraction2(BaseProfilingComponent):
     title = 'Horizontal barplot interaction 2'
 
     def update(self, dataset, user):
@@ -114,17 +152,15 @@ class HorizontalBarplotInteraction2(ProfilingComponent):
 
 # plot_donut_plot_behaviour
 
-class DonutPlotBehaviour1Component(ProfilingComponent):
+class DonutPlotBehaviour1Component(BaseProfilingComponent):
     title = 'Donut plot behaviour 1'
 
     def update(self, dataset, user):
         return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[0]
 
 
-
-class DonutPlotBehaviour2Component(ProfilingComponent):
+class DonutPlotBehaviour2Component(BaseProfilingComponent):
     title = 'Donut plot behaviour 2'
 
     def update(self, dataset, user):
         return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[1]
-
