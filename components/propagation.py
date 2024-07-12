@@ -27,7 +27,7 @@ class PropagationComponent(RemissComponent):
         :return:
         """
 
-        return dbc.Container([
+        return dbc.Collapse([
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
@@ -74,7 +74,7 @@ class PropagationComponent(RemissComponent):
                     ]),
                 ]),
             ]),
-        ])
+        ], id=f'collapse-{self.name}', is_open=False)
 
     def update_tweet(self, dataset, tweet_id):
         try:
@@ -82,14 +82,11 @@ class PropagationComponent(RemissComponent):
                 self.plot_factory.plot_depth_over_time(dataset, tweet_id), \
                 self.plot_factory.plot_size_over_time(dataset, tweet_id), \
                 self.plot_factory.plot_max_breadth_over_time(dataset, tweet_id), \
-                self.plot_factory.plot_structural_virality_over_time(dataset, tweet_id)
+                self.plot_factory.plot_structural_virality_over_time(dataset, tweet_id), \
+                True
         except Exception as e:
             print(e)
-            return {}, {}, {}, {}, {}
-
-    def update_cascade(self, dataset):
-        return self.plot_factory.plot_size_cascade_ccdf(dataset), \
-            self.plot_factory.plot_cascade_count_over_time(dataset)
+            return {}, {}, {}, {}, {}, False
 
     def callbacks(self, app):
         app.callback(
@@ -98,6 +95,7 @@ class PropagationComponent(RemissComponent):
             Output(self.graph_propagation_size, 'figure'),
             Output(self.graph_propagation_max_breadth, 'figure'),
             Output(self.graph_propagation_structural_virality, 'figure'),
+            Output(f'collapse-{self.name}', 'is_open'),
             [Input(self.state.current_dataset, 'data'),
              Input(self.state.current_tweet, 'data')],
         )(self.update_tweet)
