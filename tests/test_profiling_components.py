@@ -18,7 +18,7 @@ from figures.profiling import ProfilingPlotFactory
 from tests.conftest import populate_test_database, delete_test_database
 
 
-class TestCVCComponents(TestCase):
+class TestProfilingComponents(TestCase):
     def setUp(self):
         self.propagation_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
         self.test_dataset = 'test_dataset_2'
