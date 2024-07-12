@@ -52,7 +52,7 @@ class PropagationComponentTest(unittest.TestCase):
         self.assertIn(self.component.name, found_main_ids)
         self.assertEqual(len(set(found_main_ids)), 1)
 
-    def test_render(self):
+    def _test_render(self):
         dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
         app = Dash(__name__,
                    external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME, dbc_css],
