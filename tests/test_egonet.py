@@ -311,8 +311,6 @@ class TestEgonetCase(unittest.TestCase):
         edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}
         self.assertEqual({('1', '2')}, edges)
 
-
-
     def test_compute_hidden_network_speed(self):
         # Checks it returns the whole thing if the user is not present
         test_data = create_test_data(1000)

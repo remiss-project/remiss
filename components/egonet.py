@@ -76,7 +76,6 @@ class EgonetComponent(RemissComponent):
             ])
         ])
 
-
     def update(self, dataset, user, depth, date_index, user_disabled, depth_disabled, date_disabled):
         if user_disabled:
             user = None
@@ -94,14 +93,11 @@ class EgonetComponent(RemissComponent):
         # fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
         return fig
 
-
     def update_user(self, user):
         return user
 
-
     def update_current_date(self, date):
         return date
-
 
     def update_date_slider(self, start_date, end_date):
         days = pd.date_range(start_date, end_date, freq=self.frequency)
@@ -113,27 +109,21 @@ class EgonetComponent(RemissComponent):
 
         return 0, len(days) - 1, 0, marks
 
-
     def update_user_checkbox(self, checkbox_value):
         return not checkbox_value, not checkbox_value
-
 
     def update_date_checkbox(self, checkbox_value):
         return not checkbox_value
 
-
     def update_user_collapse(self, checkbox_value):
         return bool(checkbox_value)
-
 
     def update_date_collapse(self, checkbox_value):
         return bool(checkbox_value)
 
-
     def update_user_list(self, dataset):
         available_users = self.plot_factory.get_users(dataset)
         return [{"label": x, "value": x} for x in available_users]
-
 
     def update_debug(self, dataset, user, depth, date_index, user_checkbox, date_checkbox,
                      user_dropdown_disabled, depth_slider_disabled, date_slider_disabled):
@@ -141,7 +131,6 @@ class EgonetComponent(RemissComponent):
                f'User checkbox: {user_checkbox}, Date checkbox: {date_checkbox}, ' \
                f'User dropdown disabled: {user_dropdown_disabled}, Depth slider disabled: {depth_slider_disabled}, ' \
                f'Date slider disabled: {date_slider_disabled}'
-
 
     def callbacks(self, app):
         app.callback(
