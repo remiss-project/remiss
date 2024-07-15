@@ -33,8 +33,11 @@ class EgonetComponentTest(TestCase):
         # find components recursively
         def find_components(component, found_components):
             if hasattr(component, 'children'):
-                for child in component.children:
-                    find_components(child, found_components)
+                if len(component.children) == 0:
+                    find_components(component.children, found_components)
+                else:
+                    for child in component.children:
+                        find_components(child, found_components)
             if isinstance(component, Dropdown):
                 found_components.append(component)
             if isinstance(component, Slider):
@@ -56,8 +59,11 @@ class EgonetComponentTest(TestCase):
         # find components recursively
         def find_components(component, found_components):
             if hasattr(component, 'children'):
-                for child in component.children:
-                    find_components(child, found_components)
+                if len(component.children) == 0:
+                    find_components(component.children, found_components)
+                else:
+                    for child in component.children:
+                        find_components(child, found_components)
             if isinstance(component, Dropdown):
                 found_components.append(component)
             if isinstance(component, Slider):
@@ -91,6 +97,9 @@ class EgonetComponentTest(TestCase):
         callback = app.callback_map[plots_key]
         expected = [{'id': 'current-dataset-state', 'property': 'data'},
                     {'id': 'current-user-state', 'property': 'data'},
+                    {'id': 'current-start-date-state', 'property': 'data'},
+                    {'id': 'current-end-date-state', 'property': 'data'},
+                    {'id': 'current-hashtags-state', 'property': 'data'},
                     {'id': 'slider-egonet', 'property': 'value'},
                     {'id': 'date-slider-egonet', 'property': 'value'},
                     {'id': 'user-dropdown-egonet', 'property': 'disabled'},
@@ -99,6 +108,7 @@ class EgonetComponentTest(TestCase):
         self.assertEqual(expected, callback['inputs'])
         self.assertEqual(callback['output'].component_id, f'fig-{self.component.name}')
         self.assertEqual(callback['output'].component_property, 'figure')
+
 
 if __name__ == '__main__':
     unittest.main()

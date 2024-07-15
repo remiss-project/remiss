@@ -12,7 +12,8 @@ import plotly.express as px
 from pymongo import MongoClient
 
 from propagation import Egonet
-from tests.conftest import create_test_data_from_edges, create_test_data, create_test_data_from_edges_with_dates
+from tests.conftest import create_test_data_from_edges, create_test_data, create_test_data_from_edges_with_dates, \
+    create_test_data_from_edges_with_hashtags
 
 
 class TestEgonetCase(unittest.TestCase):
@@ -226,8 +227,8 @@ class TestEgonetCase(unittest.TestCase):
         collection.insert_many(test_data)
 
         actual = self.egonet._compute_hidden_network(self.tmp_dataset,
-                                                    start_date=datetime.now() - timedelta(days=3),
-                                                    end_date=datetime.now() - timedelta(days=1))
+                                                     start_date=datetime.now() - timedelta(days=3),
+                                                     end_date=datetime.now() - timedelta(days=1))
 
         self.assertEqual({'1', '2', '3'}, set(actual.vs['author_id']))
         edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}
@@ -306,6 +307,148 @@ class TestEgonetCase(unittest.TestCase):
         actual = self.egonet.get_hidden_network_backbone(self.tmp_dataset,
                                                          start_date=datetime.now() - timedelta(days=3),
                                                          end_date=datetime.now() - timedelta(days=1))
+
+        self.assertEqual({'1', '2'}, set(actual.vs['author_id']))
+        edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}
+        self.assertEqual({('1', '2')}, edges)
+
+    def test__get_references_hashtag_filtering(self):
+        expected_edges = pd.DataFrame({'source': ['1', '2', '3', '2', '1'],
+                                       'target': ['2', '3', '4', '3', '4'],
+                                       'hashtags': [['#a', '#b'], ['#a', '#c'], ['#a', '#d'], ['#b', '#c'],
+                                                    ['#b', '#d']]})
+        test_data = create_test_data_from_edges_with_hashtags(expected_edges)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database(self.tmp_dataset)
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        collection.insert_many(test_data)
+
+        actual = self.egonet._get_references(self.tmp_dataset, hashtags=['#a'])
+        actual = actual.sort_values(['source', 'target']).reset_index(drop=True)
+        self.assertEqual(actual['weight'].to_list(), [1, 1, 1])
+        self.assertEqual(actual['weight_inv'].to_list(), [1, 1, 1])
+        self.assertEqual(actual['weight_norm'].to_list(), [1.0, 1.0, 1.0])
+        self.assertEqual(actual['source'].to_list(), ['1', '2', '3'])
+        self.assertEqual(actual['target'].to_list(), ['2', '3', '4'])
+
+    def test__compute_hidden_network_hashtags_filtering(self):
+        expected_edges = pd.DataFrame({'source': ['1', '2', '3', '2', '1'],
+                                       'target': ['2', '3', '4', '3', '4'],
+                                       'hashtags': [['#a', '#b'], ['#a', '#c'], ['#a', '#d'], ['#b', '#c'],
+                                                    ['#b', '#d']]})
+        test_data = create_test_data_from_edges_with_hashtags(expected_edges)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database(self.tmp_dataset)
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        collection.insert_many(test_data)
+
+        actual = self.egonet._compute_hidden_network(self.tmp_dataset, hashtags=['#a'])
+
+        self.assertEqual({'1', '2', '3', '4'}, set(actual.vs['author_id']))
+        edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}
+        self.assertEqual({('1', '2'), ('2', '3'), ('3', '4')}, edges)
+
+    def test_get_hidden_network_hashtags_filtering(self):
+        expected_edges = pd.DataFrame({'source': ['1', '2', '3', '2', '1'],
+                                       'target': ['2', '3', '4', '3', '4'],
+                                       'hashtags': [['#a', '#b'], ['#a', '#c'], ['#a', '#d'], ['#b', '#c'],
+                                                    ['#b', '#d']]})
+        test_data = create_test_data_from_edges_with_hashtags(expected_edges)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database(self.tmp_dataset)
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        collection.insert_many(test_data)
+
+        actual = self.egonet.get_hidden_network(self.tmp_dataset, hashtags=['#a'])
+
+        self.assertEqual({'1', '2', '3', '4'}, set(actual.vs['author_id']))
+        edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}
+        self.assertEqual({('1', '2'), ('2', '3'), ('3', '4')}, edges)
+
+    def test_get_egonet_hashtags_filtering(self):
+        expected_edges = pd.DataFrame({'source': ['1', '2', '3', '2', '1'],
+                                       'target': ['2', '3', '4', '3', '4'],
+                                       'hashtags': [['#a', '#b'], ['#a', '#c'], ['#a', '#d'], ['#b', '#c'],
+                                                    ['#b', '#d']]})
+        test_data = create_test_data_from_edges_with_hashtags(expected_edges)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database(self.tmp_dataset)
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        collection.insert_many(test_data)
+
+        user_id = '1'
+        depth = 1
+
+        actual = self.egonet.get_egonet(self.tmp_dataset, user_id, depth, hashtags=['#a'])
+
+        self.assertEqual({'1', '2'}, set(actual.vs['author_id']))
+        edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}
+        self.assertEqual({('1', '2')}, edges)
+
+    def test_get_egonet_hashtags_filtering_missing(self):
+        # Test the case where the hashtag is not present in the dataset
+        expected_edges = pd.DataFrame({'source': ['1', '2', '3', '2', '1'],
+                                       'target': ['2', '3', '4', '3', '4'],
+                                       'hashtags': [['#a', '#b'], ['#a', '#c'], ['#a', '#d'], ['#b', '#c'],
+                                                    ['#b', '#d']]})
+        test_data = create_test_data_from_edges_with_hashtags(expected_edges)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database(self.tmp_dataset)
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        collection.insert_many(test_data)
+
+        user_id = '1'
+        depth = 1
+
+        actual = self.egonet.get_egonet(self.tmp_dataset, user_id, depth, hashtags=['#e'])
+
+        self.assertEqual(actual.vcount(), 0)
+
+    def test_get_egonet_hashtags_filtering_missing_2(self):
+        # Test the case where the hashtag is not present in the dataset
+        expected_edges = pd.DataFrame({'source': ['1', '2', '3', '2', '1'],
+                                       'target': ['2', '3', '4', '3', '4'],
+                                       'hashtags': [['#a', '#b'], ['#a', '#c'], ['#a', '#d'], ['#b', '#c'],
+                                                    ['#b', '#d']]})
+        test_data = create_test_data_from_edges_with_hashtags(expected_edges)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database(self.tmp_dataset)
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        collection.insert_many(test_data)
+
+        user_id = '1'
+        depth = 1
+
+        actual = self.egonet.get_egonet(self.tmp_dataset, user_id, depth, hashtags=['#c'])
+
+        self.assertEqual({'2', '3'}, set(actual.vs['author_id']))
+
+    def test_get_hidden_network_hashtags_filtering_backbone(self):
+        expected_edges = pd.DataFrame({'source': ['1', '2', '3', '2', '1'],
+                                       'target': ['2', '3', '4', '3', '4'],
+                                       'hashtags': [['#a', '#b'], ['#a', '#c'], ['#a', '#d'], ['#b', '#c'],
+                                                    ['#b', '#d']]})
+        test_data = create_test_data_from_edges_with_hashtags(expected_edges)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database(self.tmp_dataset)
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        collection.insert_many(test_data)
+
+        actual = self.egonet.get_hidden_network_backbone(self.tmp_dataset, hashtags=['#a'])
 
         self.assertEqual({'1', '2'}, set(actual.vs['author_id']))
         edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}

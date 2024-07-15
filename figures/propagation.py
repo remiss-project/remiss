@@ -50,18 +50,24 @@ class PropagationPlotFactory(MongoPlotFactory):
         self._hidden_network_layouts = {}
         self.load_from_mongodb(available_datasets)
 
-    def plot_egonet(self, collection, user, depth, start_date=None, end_date=None):
+    def plot_egonet(self, collection, user, depth, start_date=None, end_date=None, hashtag=None):
         try:
-            network = self.egonet.get_egonet(collection, user, depth, start_date, end_date)
+            network = self.egonet.get_egonet(collection, user, depth, start_date, end_date, hashtag)
             layout = None
         except (RuntimeError, ValueError) as ex:
             logger.debug(f'Computing egonet for user {user} failed with error {ex}')
-            network = self.egonet.get_hidden_network(collection, start_date, end_date)
-            layout = self.get_hidden_network_layout(network, collection, start_date, end_date)
+            network = self.egonet.get_hidden_network(collection, start_date, end_date, hashtag)
+            layout = self.get_hidden_network_layout(network, collection, start_date, end_date, hashtag)
 
         return self.plot_user_graph(network, collection, layout=layout)
 
-    def get_hidden_network_layout(self, hidden_network, collection):
+    def get_hidden_network_layout(self, hidden_network, collection, start_date=None, end_date=None, hashtag=None):
+        # if start_date, end_date or hashtag are not none we need to recompute the layout
+        if start_date is not None or end_date is not None or hashtag is not None:
+            hidden_network = self.egonet.get_hidden_network(collection, start_date, end_date, hashtag)
+            layout = self.compute_layout(hidden_network)
+            layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
+            return layout
         if collection not in self._hidden_network_layouts:
             layout = self.compute_layout(hidden_network)
             layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])

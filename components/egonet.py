@@ -1,11 +1,6 @@
-from abc import ABC
-
 import dash_bootstrap_components as dbc
 import pandas as pd
-import shortuuid
-from dash import dcc, html, Input, Output, State
-from dash.dash_table import DataTable
-from dash_holoniq_wordcloud import DashWordcloud
+from dash import dcc, html, Input, Output
 
 from components.components import RemissComponent
 
@@ -76,19 +71,22 @@ class EgonetComponent(RemissComponent):
             ])
         ])
 
-    def update(self, dataset, user, depth, date_index, user_disabled, depth_disabled, date_disabled):
+    def update(self, dataset, user, state_start_date, state_end_date, hashtag, depth, date_index, user_disabled,
+               depth_disabled, date_disabled):
         if user_disabled:
             user = None
         if depth_disabled:
             depth = None
+
         if date_disabled:
-            start_date = None
-            end_date = None
+            # if the date slider is disabled then pick the one from the main date picker
+            start_date = state_start_date
+            end_date = state_end_date
         else:
             start_date = self.dates[date_index]
             end_date = self.dates[date_index + 1]
 
-        fig = self.plot_factory.plot_egonet(dataset, user, depth, start_date, end_date)
+        fig = self.plot_factory.plot_egonet(dataset, user, depth, start_date, end_date, hashtag)
         # remove margin
         # fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
         return fig
@@ -137,11 +135,15 @@ class EgonetComponent(RemissComponent):
             Output(self.graph_egonet, 'figure'),
             [Input(self.state.current_dataset, 'data'),
              Input(self.state.current_user, 'data'),
+             Input(self.state.current_start_date, 'data'),
+             Input(self.state.current_end_date, 'data'),
+             Input(self.state.current_hashtags, 'data'),
              Input(self.depth_slider, 'value'),
              Input(self.date_slider, 'value'),
              Input(self.user_dropdown, 'disabled'),
              Input(self.depth_slider, 'disabled'),
-             Input(self.date_slider, 'disabled')],
+             Input(self.date_slider, 'disabled'),
+             ],
         )(self.update)
         app.callback(
             Output(self.state.current_user, 'data', allow_duplicate=True),

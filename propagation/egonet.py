@@ -21,7 +21,7 @@ class Egonet(BasePropagationMetrics):
         self._hidden_networks = {}
         self._hidden_network_backbones = {}
 
-    def get_egonet(self, dataset, author_id, depth, start_date=None, end_date=None):
+    def get_egonet(self, dataset, author_id, depth, start_date=None, end_date=None, hashtags=None):
         """
         Returns the egonet of a user of a certain date and depth if present,
         otherwise returns the simplified hidden network
@@ -30,7 +30,7 @@ class Egonet(BasePropagationMetrics):
         :param depth:
         :return:
         """
-        hidden_network = self.get_hidden_network(dataset, start_date=start_date, end_date=end_date)
+        hidden_network = self.get_hidden_network(dataset, start_date=start_date, end_date=end_date, hashtags=hashtags)
         # check if the user is in the hidden network
         if author_id:
             try:
@@ -38,40 +38,42 @@ class Egonet(BasePropagationMetrics):
                 neighbours = hidden_network.neighborhood(node, order=depth)
                 egonet = hidden_network.induced_subgraph(neighbours)
                 return egonet
-            except (RuntimeError, ValueError) as ex:
+            except (RuntimeError, ValueError, KeyError) as ex:
                 logger.debug(f'Computing neighbourhood for user {author_id} failed with error {ex}')
         if self.threshold > 0:
-            return self.get_hidden_network_backbone(dataset)
+            return self.get_hidden_network_backbone(dataset, start_date=start_date, end_date=end_date,
+                                                    hashtags=hashtags)
         else:
             return hidden_network
 
-    def get_hidden_network(self, dataset, start_date=None, end_date=None):
-        if start_date or end_date:
-            # no caching for date filtered hidden networks
-            return self._compute_hidden_network(dataset, start_date=start_date, end_date=end_date)
+    def get_hidden_network(self, dataset, start_date=None, end_date=None, hashtags=None):
+        if start_date or end_date or hashtags:
+            # no caching for date or hashtag filtered hidden networks
+            return self._compute_hidden_network(dataset, start_date=start_date, end_date=end_date, hashtags=hashtags)
         if dataset not in self._hidden_networks:
             network = self._compute_hidden_network(dataset)
             self._hidden_networks[dataset] = network
 
         return self._hidden_networks[dataset]
 
-    def get_hidden_network_backbone(self, dataset, start_date=None, end_date=None):
-        if start_date or end_date:
+    def get_hidden_network_backbone(self, dataset, start_date=None, end_date=None, hashtags=None):
+        if start_date or end_date or hashtags:
             # no caching for date filtered hidden networks
-            return self._compute_hidden_network_backbone(dataset, start_date=start_date, end_date=end_date)
+            return self._compute_hidden_network_backbone(dataset, start_date=start_date, end_date=end_date,
+                                                         hashtags=hashtags)
         if dataset not in self._hidden_network_backbones:
             network = self._compute_hidden_network_backbone(dataset)
             self._hidden_network_backbones[dataset] = network
 
         return self._hidden_network_backbones[dataset]
 
-    def _compute_hidden_network_backbone(self, dataset, start_date=None, end_date=None):
-        hidden_network = self.get_hidden_network(dataset, start_date=start_date, end_date=end_date)
+    def _compute_hidden_network_backbone(self, dataset, start_date=None, end_date=None, hashtags=None):
+        hidden_network = self.get_hidden_network(dataset, start_date=start_date, end_date=end_date, hashtags=hashtags)
         backbone = self._simplify_graph(hidden_network)
 
         return backbone
 
-    def _get_references(self, dataset, start_date=None, end_date=None):
+    def _get_references(self, dataset, start_date=None, end_date=None, hashtags=None):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         collection = database.get_collection('raw')
@@ -94,7 +96,7 @@ class Egonet(BasePropagationMetrics):
                           'weight_norm': {'$divide': ['$references.weight', '$node_weight']},
                           }},
         ]
-        self._add_date_filters(references_pipeline, start_date, end_date)
+        self._add_filters(references_pipeline, start_date, end_date, hashtags)
         logger.info('Computing references')
         start_time = time.time()
         schema = Schema({'source': str, 'target': str, 'weight': int, 'weight_inv': float, 'weight_norm': float})
@@ -103,13 +105,13 @@ class Egonet(BasePropagationMetrics):
         client.close()
         return references
 
-    def _compute_hidden_network(self, dataset, start_date=None, end_date=None):
+    def _compute_hidden_network(self, dataset, start_date=None, end_date=None, hashtags=None):
         """
         Computes the hidden graph, this is, the graph of users that have interacted with each other.
         :param dataset: collection name within the database where the tweets are stored
         :return: a networkx graph with the users as nodes and the edges representing interactions between users
         """
-        references = self._get_references(dataset, start_date=start_date, end_date=end_date)
+        references = self._get_references(dataset, start_date=start_date, end_date=end_date, hashtags=hashtags)
         authors = pd.DataFrame({'author_id': np.unique(references[['source', 'target']].values)})
 
         if len(references) == 0:
@@ -213,8 +215,11 @@ class Egonet(BasePropagationMetrics):
         return backbone
 
     @staticmethod
-    def _add_date_filters(pipeline, start_date, end_date):
+    def _add_filters(pipeline, start_date, end_date, hashtags):
         if start_date:
             pipeline.insert(0, {'$match': {'created_at': {'$gte': pd.to_datetime(start_date)}}})
         if end_date:
             pipeline.insert(0, {'$match': {'created_at': {'$lt': pd.to_datetime(end_date)}}})
+        if hashtags:
+            # filter if it has at least a hashtag in the list
+            pipeline.insert(0, {'$match': {'entities.hashtags.tag': {'$in': hashtags}}})
