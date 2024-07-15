@@ -108,3 +108,47 @@ class TestTopTableFactory(TestCase):
         profiling_expected_ids = {x['user_id'] for x in profiling.find({})}
         profiling_actual_ids = set(actual[actual['Profiling']]['Author ID'].to_list())
         self.assertTrue(profiling_actual_ids.issubset(profiling_expected_ids))
+
+    def test_get_top_table_date_filtering(self):
+        dataset = self.tmp_dataset
+        actual = self.top_table_factory.get_top_table_data(dataset,
+                                                           start_time=datetime.fromisoformat('2019-01-01T00:00:00Z'),
+                                                           end_time=datetime.fromisoformat('2019-01-02T00:00:00Z'))
+        expected = {'Is usual suspect': {0: False, 1: False, 2: True},
+                    'Party': {0: 'PSOE', 1: None, 2: 'VOX'},
+                    'Retweets': {0: 1, 1: 2, 2: 3},
+                    'Text': {0: 'test_text', 1: 'test_text2', 2: 'test_text3'},
+                    'User': {0: 'TEST_USER_0', 1: 'TEST_USER_1', 2: 'TEST_USER_2'},
+                    'Multimodal': {0: True, 1: False, 2: True},
+                    'Profiling': {0: True, 1: True, 2: False},
+                    'ID': {0: '0', 1: '1', 2: '2'},
+                    'Author ID': {0: '0', 1: '1', 2: '2'},
+                    'Fakeness': {0: 0.1, 1: 0.2, 2: 0.3}
+                    }
+        expected = pd.DataFrame(expected)
+        expected = expected.iloc[[1, 0]].reset_index(drop=True)
+        expected = expected[['User', 'Text', 'Retweets', 'Is usual suspect', 'Party',
+                             'Multimodal', 'Profiling', 'ID', 'Author ID',
+                             'Fakeness']]
+
+        pd.testing.assert_frame_equal(actual, expected)
+
+    def test_get_top_table_full_date_filtering(self):
+        dataset = self.test_dataset
+        actual = self.top_table_factory.get_top_table_data(dataset,
+                                                           start_time=datetime.fromisoformat('2019-01-01T00:00:00Z'),
+                                                           end_time=datetime.fromisoformat('2019-01-02T00:00:00Z'))
+        # plot plotly histogram of how many times each tweet is repeated
+        # hist = actual.groupby('tweet_id').size().reset_index(name='counts')
+        # hist = hist.sort_values(by='counts', ascending=False)
+        # fig = px.bar(hist, x='tweet_id', y='counts')
+        # fig.show()
+
+        self.assertEqual(actual.columns.to_list(), ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party',
+                                                    'Multimodal', 'Profiling', 'ID', 'Author ID', 'Fakeness'])
+        client = MongoClient('localhost', 27017)
+        raw = client.get_database(dataset).get_collection('raw')
+        document_count = raw.count_documents({'referenced_tweets': {'$exists': False},
+                                              'created_at': {'$gte': datetime.fromisoformat('2019-01-01T00:00:00Z'),
+                                                             '$lt': datetime.fromisoformat('2019-01-02T00:00:00Z')}})
+        self.assertEqual(actual.shape[0], document_count)

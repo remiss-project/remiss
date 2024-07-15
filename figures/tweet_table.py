@@ -70,5 +70,5 @@ class TweetTableFactory(MongoPlotFactory):
             end_time = pd.to_datetime(end_time)
             # Add a day to account for all the tweets published in that day
             end_time = end_time + pd.Timedelta(days=1)
-            pipeline.insert(0, {'$match': {'created_at': {'$lte': end_time}}})
+            pipeline.insert(0, {'$match': {'created_at': {'$lt': end_time}}})
         return pipeline
