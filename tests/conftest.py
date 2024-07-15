@@ -158,6 +158,23 @@ def create_test_data_from_edges(expected_edges):
     return test_data
 
 
+def create_test_data_from_edges_with_dates(expected_edges):
+    test_data = []
+    for source, target, date in expected_edges.itertuples(index=False):
+        party = random.choice(['PSOE', 'PP', 'VOX', 'UP', None])
+        is_usual_suspect = random.choice([True, False])
+        referenced_tweets = [
+            {"id": f'{source}->{target}', "author": {"id": str(target), "username": f"TEST_USER_{target}"},
+             "type": "retweeted"}]
+        tweet = {"id": f'{source}->{target}', "created_at": date,
+                 "author": {"username": f"TEST_USER_{source}", "id": source,
+                            "remiss_metadata": {"party": party, "is_usual_suspect": is_usual_suspect}},
+                 "entities": {"hashtags": [{"tag": "test_hashtag"}]},
+                 'referenced_tweets': referenced_tweets}
+        test_data.append(tweet)
+    return test_data
+
+
 def create_test_data(data_size=100, day_range=10,
                      max_num_references=20):
     test_data = []

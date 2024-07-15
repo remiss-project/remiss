@@ -52,12 +52,12 @@ class PropagationPlotFactory(MongoPlotFactory):
 
     def plot_egonet(self, collection, user, depth, start_date=None, end_date=None):
         try:
-            network = self.egonet.get_egonet(collection, user, depth)
+            network = self.egonet.get_egonet(collection, user, depth, start_date, end_date)
             layout = None
         except (RuntimeError, ValueError) as ex:
             logger.debug(f'Computing egonet for user {user} failed with error {ex}')
-            network = self.egonet.get_hidden_network(collection)
-            layout = self.get_hidden_network_layout(network, collection)
+            network = self.egonet.get_hidden_network(collection, start_date, end_date)
+            layout = self.get_hidden_network_layout(network, collection, start_date, end_date)
 
         return self.plot_user_graph(network, collection, layout=layout)
 

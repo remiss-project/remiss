@@ -21,7 +21,7 @@ class Egonet(BasePropagationMetrics):
         self._hidden_networks = {}
         self._hidden_network_backbones = {}
 
-    def get_egonet(self, dataset, author_id, depth):
+    def get_egonet(self, dataset, author_id, depth, start_date=None, end_date=None):
         """
         Returns the egonet of a user of a certain date and depth if present,
         otherwise returns the simplified hidden network
@@ -30,7 +30,7 @@ class Egonet(BasePropagationMetrics):
         :param depth:
         :return:
         """
-        hidden_network = self.get_hidden_network(dataset)
+        hidden_network = self.get_hidden_network(dataset, start_date=start_date, end_date=end_date)
         # check if the user is in the hidden network
         if author_id:
             try:
@@ -45,22 +45,28 @@ class Egonet(BasePropagationMetrics):
         else:
             return hidden_network
 
-    def get_hidden_network(self, dataset):
+    def get_hidden_network(self, dataset, start_date=None, end_date=None):
+        if start_date or end_date:
+            # no caching for date filtered hidden networks
+            return self._compute_hidden_network(dataset, start_date=start_date, end_date=end_date)
         if dataset not in self._hidden_networks:
             network = self._compute_hidden_network(dataset)
             self._hidden_networks[dataset] = network
 
         return self._hidden_networks[dataset]
 
-    def get_hidden_network_backbone(self, dataset):
+    def get_hidden_network_backbone(self, dataset, start_date=None, end_date=None):
+        if start_date or end_date:
+            # no caching for date filtered hidden networks
+            return self._compute_hidden_network_backbone(dataset, start_date=start_date, end_date=end_date)
         if dataset not in self._hidden_network_backbones:
             network = self._compute_hidden_network_backbone(dataset)
             self._hidden_network_backbones[dataset] = network
 
         return self._hidden_network_backbones[dataset]
 
-    def _compute_hidden_network_backbone(self, dataset):
-        hidden_network = self.get_hidden_network(dataset)
+    def _compute_hidden_network_backbone(self, dataset, start_date=None, end_date=None):
+        hidden_network = self.get_hidden_network(dataset, start_date=start_date, end_date=end_date)
         backbone = self._simplify_graph(hidden_network)
 
         return backbone
@@ -97,13 +103,13 @@ class Egonet(BasePropagationMetrics):
         client.close()
         return references
 
-    def _compute_hidden_network(self, dataset):
+    def _compute_hidden_network(self, dataset, start_date=None, end_date=None):
         """
         Computes the hidden graph, this is, the graph of users that have interacted with each other.
         :param dataset: collection name within the database where the tweets are stored
         :return: a networkx graph with the users as nodes and the edges representing interactions between users
         """
-        references = self._get_references(dataset)
+        references = self._get_references(dataset, start_date=start_date, end_date=end_date)
         authors = pd.DataFrame({'author_id': np.unique(references[['source', 'target']].values)})
 
         if len(references) == 0:

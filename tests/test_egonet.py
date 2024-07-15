@@ -12,7 +12,7 @@ import plotly.express as px
 from pymongo import MongoClient
 
 from propagation import Egonet
-from tests.conftest import create_test_data_from_edges, create_test_data
+from tests.conftest import create_test_data_from_edges, create_test_data, create_test_data_from_edges_with_dates
 
 
 class TestEgonetCase(unittest.TestCase):
@@ -180,6 +180,138 @@ class TestEgonetCase(unittest.TestCase):
         self.assertEqual(actual['weight_norm'].to_list(), [0.5, 0.5, 1, 1])
         self.assertEqual(actual['source'].to_list(), ['1', '1', '2', '3'])
         self.assertEqual(actual['target'].to_list(), ['2', '4', '3', '4'])
+
+    def test__get_references_date_filtinering(self):
+        expected_edges = pd.DataFrame({'source': ['1', '2', '3', '2', '1'],
+                                       'target': ['2', '3', '4', '3', '4'],
+                                       'created_at': [datetime.now() - timedelta(days=1),
+                                                      datetime.now() - timedelta(days=2),
+                                                      datetime.now() - timedelta(days=3),
+                                                      datetime.now() - timedelta(days=4),
+                                                      datetime.now() - timedelta(days=5)]})
+        test_data = create_test_data_from_edges_with_dates(expected_edges)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database(self.tmp_dataset)
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        collection.insert_many(test_data)
+
+        actual = self.egonet._get_references(self.tmp_dataset,
+                                             start_date=datetime.now() - timedelta(days=3),
+                                             end_date=datetime.now() - timedelta(days=1))
+
+        actual = actual.sort_values(['source', 'target']).reset_index(drop=True)
+        self.assertEqual(actual['weight'].to_list(), [1, 1])
+        self.assertEqual(actual['weight_inv'].to_list(), [1, 1])
+        self.assertEqual(actual['weight_norm'].to_list(), [1.0, 1.0])
+        self.assertEqual(actual['source'].to_list(), ['1', '2'])
+        self.assertEqual(actual['target'].to_list(), ['2', '3'])
+
+    def test__compute_hidden_network_date_filtering(self):
+        expected_edges = pd.DataFrame({'source': ['1', '2', '3', '2', '1'],
+                                       'target': ['2', '3', '4', '3', '4'],
+                                       'created_at': [datetime.now() - timedelta(days=1),
+                                                      datetime.now() - timedelta(days=2),
+                                                      datetime.now() - timedelta(days=3),
+                                                      datetime.now() - timedelta(days=4),
+                                                      datetime.now() - timedelta(days=5)]})
+
+        test_data = create_test_data_from_edges_with_dates(expected_edges)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database(self.tmp_dataset)
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        collection.insert_many(test_data)
+
+        actual = self.egonet._compute_hidden_network(self.tmp_dataset,
+                                                    start_date=datetime.now() - timedelta(days=3),
+                                                    end_date=datetime.now() - timedelta(days=1))
+
+        self.assertEqual({'1', '2', '3'}, set(actual.vs['author_id']))
+        edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}
+        self.assertEqual({('1', '2'), ('2', '3')}, edges)
+
+    def test_get_hidden_network_date_filtering(self):
+        expected_edges = pd.DataFrame({'source': ['1', '2', '3', '2', '1'],
+                                       'target': ['2', '3', '4', '3', '4'],
+                                       'created_at': [datetime.now() - timedelta(days=1),
+                                                      datetime.now() - timedelta(days=2),
+                                                      datetime.now() - timedelta(days=3),
+                                                      datetime.now() - timedelta(days=4),
+                                                      datetime.now() - timedelta(days=5)]})
+
+        test_data = create_test_data_from_edges_with_dates(expected_edges)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database(self.tmp_dataset)
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        collection.insert_many(test_data)
+
+        actual = self.egonet.get_hidden_network(self.tmp_dataset,
+                                                start_date=datetime.now() - timedelta(days=3),
+                                                end_date=datetime.now() - timedelta(days=1))
+
+        self.assertEqual({'1', '2', '3'}, set(actual.vs['author_id']))
+        edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}
+        self.assertEqual({('1', '2'), ('2', '3')}, edges)
+
+    def test_get_egonet_date_filtering(self):
+        expected_edges = pd.DataFrame({'source': ['1', '2', '3', '2', '1'],
+                                       'target': ['2', '3', '4', '3', '4'],
+                                       'created_at': [datetime.now() - timedelta(days=1),
+                                                      datetime.now() - timedelta(days=2),
+                                                      datetime.now() - timedelta(days=3),
+                                                      datetime.now() - timedelta(days=4),
+                                                      datetime.now() - timedelta(days=5)]})
+
+        test_data = create_test_data_from_edges_with_dates(expected_edges)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database(self.tmp_dataset)
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        collection.insert_many(test_data)
+
+        user_id = '1'
+        depth = 1
+
+        actual = self.egonet.get_egonet(self.tmp_dataset, user_id, depth,
+                                        start_date=datetime.now() - timedelta(days=3),
+                                        end_date=datetime.now() - timedelta(days=1))
+
+        self.assertEqual({'1', '2'}, set(actual.vs['author_id']))
+        edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}
+        self.assertEqual({('1', '2')}, edges)
+
+    def test_get_hidden_network_date_filtering_backbone(self):
+        expected_edges = pd.DataFrame({'source': ['1', '2', '3', '2', '1'],
+                                       'target': ['2', '3', '4', '3', '4'],
+                                       'created_at': [datetime.now() - timedelta(days=1),
+                                                      datetime.now() - timedelta(days=2),
+                                                      datetime.now() - timedelta(days=3),
+                                                      datetime.now() - timedelta(days=4),
+                                                      datetime.now() - timedelta(days=5)]})
+
+        test_data = create_test_data_from_edges_with_dates(expected_edges)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database(self.tmp_dataset)
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        collection.insert_many(test_data)
+
+        actual = self.egonet.get_hidden_network_backbone(self.tmp_dataset,
+                                                         start_date=datetime.now() - timedelta(days=3),
+                                                         end_date=datetime.now() - timedelta(days=1))
+
+        self.assertEqual({'1', '2'}, set(actual.vs['author_id']))
+        edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}
+        self.assertEqual({('1', '2')}, edges)
+
+
 
     def test_compute_hidden_network_speed(self):
         # Checks it returns the whole thing if the user is not present
@@ -435,9 +567,6 @@ class TestEgonetCase(unittest.TestCase):
         self.assertEqual(expected_hidden_network.ecount(), actual_hidden_network.ecount())
         self.assertEqual(expected_hidden_network_backbone.vcount(), actual_hidden_network_backbone.vcount())
         self.assertEqual(expected_hidden_network_backbone.ecount(), actual_hidden_network_backbone.ecount())
-
-
-
 
 
 if __name__ == '__main__':
