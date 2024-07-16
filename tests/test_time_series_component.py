@@ -35,8 +35,11 @@ class TimeSeriesComponentTest(TestCase):
         # find components recursively
         def find_components(component, found_components):
             if hasattr(component, 'children'):
-                for child in component.children:
-                    find_components(child, found_components)
+                if len(component.children) == 0:
+                    find_components(component.children, found_components)
+                else:
+                    for child in component.children:
+                        find_components(child, found_components)
             if isinstance(component, Graph):
                 found_components.append(component)
 
@@ -52,8 +55,11 @@ class TimeSeriesComponentTest(TestCase):
         # find components recursively
         def find_components(component, found_components):
             if hasattr(component, 'children'):
-                for child in component.children:
-                    find_components(child, found_components)
+                if len(component.children) == 0:
+                    find_components(component.children, found_components)
+                else:
+                    for child in component.children:
+                        find_components(child, found_components)
             if isinstance(component, DatePickerRange):
                 found_components.append(component)
             if isinstance(component, DashWordcloud):

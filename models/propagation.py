@@ -152,11 +152,11 @@ class PropagationDatasetGenerator:
         client.close()
 
         if neighbours.empty:
-            return set()
+            return []
 
         neighbours = set(neighbours['source'].unique()) | set(neighbours['target'].unique())
         neighbours.remove(user_id)
-        return neighbours
+        return sorted(neighbours)
 
     def get_features_for(self, conversation_id, sources, targets):
         client = MongoClient(self.host, self.port)
@@ -277,9 +277,9 @@ class PropagationDatasetGenerator:
         return features.set_index('tweet_id')
 
     def _fetch_propagation_metrics(self, database):
-        collection = database.get_collection('user_propagation')
+        collection = database.get_collection('legitimacy')
         pipeline = [
-            {'$project': {'_id': 0, 'author_id': 1, 'legitimacy': 1, 't-closeness': 1}}
+            {'$project': {'_id': 0, 'author_id': 1, 'legitimacy': 1}}
         ]
         propagation_metrics = collection.aggregate_pandas_all(pipeline)
         if propagation_metrics.empty:

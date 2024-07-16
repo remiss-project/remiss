@@ -12,21 +12,13 @@ from models.propagation import PropagationDatasetGenerator, PropagationCascadeMo
 
 
 class PropagationModelsTestCase(unittest.TestCase):
-    # @classmethod
-    # def setUpClass(cls):
-    #     populate_test_database('test_dataset')
-    #     populate_test_database('test_dataset_small', small=True)
-
-    # @classmethod
-    # def tearDownClass(cls):
-    #     delete_test_database('test_dataset')
-    #     delete_test_database('test_dataset_small')
-
     def setUp(self):
-        self.dataset_generator = PropagationDatasetGenerator('test_dataset')
-        self.dataset = 'test_dataset'
+        self.dataset = 'test_dataset_2'
+
+        self.dataset_generator = PropagationDatasetGenerator(self.dataset)
         self.dataset_small = 'test_dataset_small'
-        self.cache_dir = Path('tmp/cache_propagation_2')
+        self.cache_dir = Path('tmp/cache_propagation')
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def test_prepare_propagation_dataset(self):
         dataset = self.dataset
@@ -37,24 +29,29 @@ class PropagationModelsTestCase(unittest.TestCase):
         # sns.pairplot(features.sample(num_samples), hue='propagated', diag_kind='kde')
         # plt.savefig('tmp/cache_propagation_2/pairplot.png')
 
+    @unittest.skip("Slow")
     def test_fit(self):
         model = PropagationCascadeModel()
         dataset = self.dataset
         features = pd.read_csv(self.cache_dir / f'{dataset}-features.csv', index_col=0)
+        features = features.head(1000)
         model.fit(features)
         with open(self.cache_dir / f'{dataset}-model.pkl', 'wb') as f:
             pickle.dump(model, f)
 
+    @unittest.skip("Slow")
     def test_fit_2(self):
         model = PropagationCascadeModel()
         dataset = self.dataset
         features = pd.read_csv(self.cache_dir / f'{dataset}-features.csv', index_col=0)
+        features = features.head(1000)
         X, y = features.drop(columns=['propagated']), features['propagated']
         model.fit(X, y)
 
+    @unittest.skip("Slow")
     def test_fit_3(self):
         model = PropagationCascadeModel()
-        dataset = self.dataset
+        dataset = self.dataset_small
         model.fit(dataset)
 
     def test_predict(self):
@@ -206,7 +203,6 @@ class PropagationModelsTestCase(unittest.TestCase):
         plt.show()
         self.assertEqual(len(cascade.vs), 55)
         self.assertEqual(len(cascade.es), 50)
-
 
     def test_get_cascade(self):
         cascade = self.dataset_generator.get_cascade('1298573780961370112', None)

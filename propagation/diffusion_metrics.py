@@ -110,7 +110,7 @@ class DiffusionMetrics(BasePropagationMetrics):
                         'is_usual_suspect': {'$addToSet': '$author.remiss_metadata.is_usual_suspect'},
                         'party': {'$addToSet': '$author.remiss_metadata.party'}
                         }},
-            {'$sort': {'size': 1}},
+            {'$sort': {'size': -1}},
             {'$project': {'_id': 0, 'conversation_id': '$_id', 'size': 1,
                           'is_usual_suspect': {'$anyElementTrue': '$is_usual_suspect'},
                           'party': {'$arrayElemAt': ['$party', 0]}

@@ -119,7 +119,7 @@ class MyTestCase(unittest.TestCase):
         found_components = []
         find_components(layout, found_components)
         found_components = [type(component) for component in found_components]
-        self.assertIn(Dropdown, found_components)
+        self.assertIn(DashWordcloud, found_components)
         self.assertIn(DatePickerRange, found_components)
 
     def test_layout_ids(self):
@@ -130,7 +130,6 @@ class MyTestCase(unittest.TestCase):
         found_components = []
         find_components(layout, found_components)
         component_ids = ['-'.join(component.id.split('-')[:-1]) for component in found_components]
-        self.assertIn('dataset-dropdown', component_ids)
         self.assertIn('date-picker', component_ids)
         self.assertIn('wordcloud', component_ids)
         found_main_ids = ['-'.join(component.id.split('-')[-1:]) for component in found_components]
@@ -139,9 +138,12 @@ class MyTestCase(unittest.TestCase):
 
 
 def find_components(component, found_components):
-    if hasattr(component, 'children'):
-        for child in component.children:
-            find_components(child, found_components)
+    if hasattr(component, 'children') and component.children is not None:
+        if len(component.children) == 0:
+            find_components(component.children, found_components)
+        else:
+            for child in component.children:
+                find_components(child, found_components)
     if isinstance(component, Dropdown):
         found_components.append(component)
     if isinstance(component, Slider):

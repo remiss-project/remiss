@@ -1,3 +1,4 @@
+import unittest
 import uuid
 from datetime import datetime
 from unittest import TestCase
@@ -55,18 +56,21 @@ class TestTextualFigures(TestCase):
         assert isinstance(fig, Figure)
         assert len(fig.data) == 11
 
+    @unittest.skip("Won't be used")
     def test_plot_top_profiles(self):
         fig = self.plot_factory.plot_top_profiles(self.test_dataset, None, None)
         fig.show()
         assert isinstance(fig, Figure)
         assert len(fig.data) == 2
 
+    @unittest.skip("Won't be used")
     def test_plot_top_hashtags(self):
         fig = self.plot_factory.plot_top_hashtags(self.test_dataset, None, None)
         fig.show()
         assert isinstance(fig, Figure)
         assert len(fig.data) == 2
 
+    @unittest.skip("Won't be used")
     def test_plot_topic_ranking(self):
         fig = self.plot_factory.plot_topic_ranking(self.test_dataset, None, None)
         fig.show()

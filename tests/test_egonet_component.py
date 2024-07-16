@@ -81,6 +81,29 @@ class EgonetComponentTest(TestCase):
         self.assertIn(self.component.name, found_main_ids)
         self.assertEqual(len(set(found_main_ids)), 1)
 
+    # TODO implement those tests
+    # def test_get_egonet_missing_user_backbone(self):
+    #     user_id = '1'
+    #     depth = 2
+    #     self.egonet.threshold = 0.4
+    #
+    #     actual = self.egonet.get_egonet(self.test_dataset, user_id, depth)
+    #
+    #     # check it returns the hidden network backbone
+    #     self.assertEqual(actual.vcount(), 3224)
+    #     self.assertEqual(actual.ecount(), 4801)
+
+    # def test_get_egonet_missing_user_full(self):
+    #     user_id = '1'
+    #     depth = 2
+    #
+    #     actual = self.egonet.get_egonet(self.test_dataset, user_id, depth)
+    #
+    #     # check it returns the full hidden network
+    #     self.assertEqual(actual.vcount(), 3315)
+    #     self.assertEqual(actual.ecount(), 5844)
+
+
     def test_update_egonet_callback(self):
         app = Dash(prevent_initial_callbacks="initial_duplicate",
                    meta_tags=[

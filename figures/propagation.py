@@ -38,17 +38,32 @@ class PropagationPlotFactory(MongoPlotFactory):
         self.frequency = frequency
         self.egonet = Egonet(reference_types=reference_types, host=host, port=port,
                              threshold=threshold, delete_vertices=delete_vertices)
-        self.egonet.load_from_mongodb(available_datasets)
 
         self.network_metrics = NetworkMetrics(host=host, port=port, reference_types=reference_types,
                                               frequency=frequency)
-        self.network_metrics.load_from_mongodb(available_datasets)
 
         self.diffusion_metrics = DiffusionMetrics(host=host, port=port, reference_types=reference_types)
-        self.diffusion_metrics.load_from_mongodb(available_datasets)
-
         self._hidden_network_layouts = {}
-        self.load_from_mongodb(available_datasets)
+
+        try:
+            self.network_metrics.load_from_mongodb(available_datasets)
+        except Exception as ex:
+            logger.error(f'Error loading network metrics with error {ex}')
+
+        try:
+            self.egonet.load_from_mongodb(available_datasets)
+        except Exception as ex:
+            logger.error(f'Error loading egonet with error {ex}')
+
+        try:
+            self.diffusion_metrics.load_from_mongodb(available_datasets)
+        except Exception as ex:
+            logger.error(f'Error loading diffusion metrics with error {ex}')
+
+        try:
+            self.load_from_mongodb(available_datasets)
+        except Exception as ex:
+            logger.error(f'Error loading hidden network layout with error {ex}')
 
     def plot_egonet(self, collection, user, depth, start_date=None, end_date=None, hashtag=None):
         network = self.egonet.get_egonet(collection, user, depth, start_date, end_date, hashtag)
@@ -321,7 +336,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         collection = database.get_collection(collection_name)
-        layout = collection.aggregate_pandas_all([])
+        layout = collection.aggregate_pandas_all(['$project', {'_id': 0}])
         client.close()
         return layout
 

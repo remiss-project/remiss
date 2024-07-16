@@ -58,17 +58,17 @@ class ProfilingPlotFactory(MongoPlotFactory):
 
     def get_all_values_users(self, lang):
         if lang == 'en':
-            fake_spreaders_path = "../cvc_data/results_1_fake_spreaders_en"
-            fact_checkers_path = "../cvc_data/results_2_fact_checkers_eng"
-            random_path = "../cvc_data/results_3_random_en"
+            fake_spreaders_path = self.data_dir / "results_1_fake_spreaders_en"
+            fact_checkers_path = self.data_dir / "results_2_fact_checkers_eng"
+            random_path = self.data_dir / "results_3_random_en"
         elif lang == 'es':
-            fake_spreaders_path = "../cvc_data/results_4_fake_spreaders_esp"
-            fact_checkers_path = "../cvc_data/results_5_fact_checkers_esp"
-            random_path = "../cvc_data/results_6_random_es"
+            fake_spreaders_path = self.data_dir / "results_4_fake_spreaders_esp"
+            fact_checkers_path = self.data_dir / "results_5_fact_checkers_esp"
+            random_path = self.data_dir / "results_6_random_es"
         else:  # Assuming Catalan without other languages existing
-            fake_spreaders_path = "../cvc_data/results_7_fake_spreaders_cat"
-            fact_checkers_path = "../cvc_data/results_5_fact_checkers_esp"
-            random_path = "../cvc_data/results_6_random_es"
+            fake_spreaders_path = self.data_dir / "results_7_fake_spreaders_cat"
+            fact_checkers_path = self.data_dir / "results_5_fact_checkers_esp"
+            random_path = self.data_dir / "results_6_random_es"
 
         rel_fake_spreaders = self.get_median_values_users(fake_spreaders_path)
         rel_fact_checkers = self.get_median_values_users(fact_checkers_path)

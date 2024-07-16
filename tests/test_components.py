@@ -22,30 +22,48 @@ class RemissDashboardTest(TestCase):
         self.tweet_user_plot_factory.get_hashtag_freqs.return_value = [('hashtag1', 10), ('hashtag2', 5),
                                                                        ('hashtag3', 3), ('hashtag4', 2),
                                                                        ('hashtag5', 1), ('hashtag6', 1), ]
-        self.egonet_plot_factory = Mock()
-        self.egonet_plot_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
-        self.egonet_plot_factory.get_date_range.return_value = (datetime(2023, 1, 1),
+        self.propagation_factory = Mock()
+        self.propagation_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
+        self.propagation_factory.get_date_range.return_value = (datetime(2023, 1, 1),
                                                                 datetime(2023, 12, 31))
-        self.egonet_plot_factory.get_users.return_value = ['user1', 'user2', 'user3']
-        self.top_table_factory = Mock()
-        self.top_table_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
-        self.top_table_factory.get_date_range.return_value = (datetime(2023, 1, 1),
-                                                              datetime(2023, 12, 31))
-        self.top_table_factory.get_users.return_value = ['user1', 'user2', 'user3']
-        self.top_table_factory.retweeted_table_columns = ['id', 'text', 'user']
-        self.top_table_factory.user_table_columns = ['id', 'name', 'screen_name']
-        self.top_table_factory.top_table_columns = ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party']
+        self.propagation_factory.get_users.return_value = ['user1', 'user2', 'user3']
+        self.tweet_table_factory = Mock()
+        self.tweet_table_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
+        self.tweet_table_factory.get_date_range.return_value = (datetime(2023, 1, 1),
+                                                                datetime(2023, 12, 31))
+        self.tweet_table_factory.get_users.return_value = ['user1', 'user2', 'user3']
+        self.tweet_table_factory.retweeted_table_columns = ['id', 'text', 'user']
+        self.tweet_table_factory.user_table_columns = ['id', 'name', 'screen_name']
+        self.tweet_table_factory.top_table_columns = ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party']
 
-        self.uv_factory = Mock()
-        self.uv_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
-        self.uv_factory.get_date_range.return_value = (datetime(2023, 1, 1),
-                                                        datetime(2023, 12, 31))
-        self.uv_factory.get_users.return_value = ['user1', 'user2', 'user3']
-        self.uv_factory.get_hashtag_freqs.return_value = [('hashtag1', 10), ('hashtag2', 5),
-                                                        ('hashtag3', 3), ('hashtag4', 2),
-                                                        ('hashtag5', 1), ('hashtag6', 1), ]
+        self.textual_factory = Mock()
+        self.textual_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
+        self.textual_factory.get_date_range.return_value = (datetime(2023, 1, 1),
+                                                            datetime(2023, 12, 31))
+        self.textual_factory.get_users.return_value = ['user1', 'user2', 'user3']
+        self.textual_factory.get_hashtag_freqs.return_value = [('hashtag1', 10), ('hashtag2', 5),
+                                                               ('hashtag3', 3), ('hashtag4', 2),
+                                                               ('hashtag5', 1), ('hashtag6', 1), ]
 
-        self.component = RemissDashboard(self.tweet_user_plot_factory, self.top_table_factory, self.egonet_plot_factory, self.uv_factory)
+        self.multimodal_factory = Mock()
+        self.multimodal_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
+        self.multimodal_factory.get_date_range.return_value = (datetime(2023, 1, 1),
+                                                               datetime(2023, 12, 31))
+        self.multimodal_factory.get_users.return_value = ['user1', 'user2', 'user3']
+
+        self.profile_factory = Mock()
+        self.profile_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
+        self.profile_factory.get_date_range.return_value = (datetime(2023, 1, 1),
+                                                            datetime(2023, 12, 31))
+        self.profile_factory.get_users.return_value = ['user1', 'user2', 'user3']
+
+        self.component = RemissDashboard(
+            self.tweet_user_plot_factory,
+            self.tweet_table_factory,
+            self.propagation_factory,
+            self.textual_factory,
+            self.profile_factory,
+            self.multimodal_factory)
 
     def test_layout(self):
         layout = self.component.layout()
@@ -56,8 +74,10 @@ class RemissDashboardTest(TestCase):
         # - a EgonetComponent
         # find components recursively
         def find_components(component, found_components):
-            if hasattr(component, 'children'):
-                if component.children is not None:
+            if hasattr(component, 'children') and component.children is not None:
+                if len(component.children) == 0:
+                    find_components(component.children, found_components)
+                else:
                     for child in component.children:
                         find_components(child, found_components)
             if isinstance(component, Dropdown):
@@ -87,8 +107,11 @@ class RemissDashboardTest(TestCase):
         # find components recursively
         def find_components(component, found_components):
             if hasattr(component, 'children') and component.children is not None:
-                for child in component.children:
-                    find_components(child, found_components)
+                if len(component.children) == 0:
+                    find_components(component.children, found_components)
+                else:
+                    for child in component.children:
+                        find_components(child, found_components)
             if isinstance(component, Dropdown):
                 found_components.append(component)
             if isinstance(component, Slider):
@@ -102,15 +125,29 @@ class RemissDashboardTest(TestCase):
 
         found_components = []
         find_components(layout, found_components)
-        component_ids = ['-'.join(component.id.split('-')[:-1]) for component in found_components]
-        self.assertIn(f'dataset-dropdown', component_ids)
-        self.assertIn('date-picker', component_ids)
-        self.assertIn('wordcloud', component_ids)
-        self.assertIn('fig-tweet', component_ids)
-        self.assertIn('fig-users', component_ids)
-        self.assertIn('user-dropdown', component_ids)
-        self.assertIn('slider', component_ids)
-        self.assertIn('fig', component_ids)
+        actual_ids = ['-'.join(component.id.split('-')[:-1]) for component in found_components]
+        expected_ids = ['dataset-dropdown', 'fig-cascade-ccdf-cascade-ccdf-general-plots',
+                        'fig-cascade-count-over-time-cascade-count-over-time-general-plots',
+                        'fig-average-emotion-general-plots', 'fig-emotion-per-hour-general-plots',
+                        'date-picker-control-panel', 'wordcloud-control-panel', 'fig-egonet', 'user-dropdown-egonet',
+                        'slider-egonet', 'date-slider-egonet', 'fig-tweet-time-series-filterable-plots',
+                        'fig-users-time-series-filterable-plots', 'fig-radarplot-emotions-profiling-filterable-plots',
+                        'fig-vertical-barplot-polarity-profiling-filterable-plots',
+                        'fig-donut-plot-behaviour1-profiling-filterable-plots',
+                        'fig-donut-plot-behaviour2-profiling-filterable-plots',
+                        'fig-claim-image-multimodal-filterable-plots', 'fig-graph-claim-multimodal-filterable-plots',
+                        'fig-visual-evidences-multimodal-filterable-plots',
+                        'fig-graph-evidence-text-multimodal-filterable-plots',
+                        'fig-evidence-image-multimodal-filterable-plots',
+                        'fig-graph-evidence-vis-multimodal-filterable-plots',
+                        'fig-propagation-tree-propagation-filterable-plots',
+                        'fig-propagation-depth-propagation-filterable-plots',
+                        'fig-propagation-size-propagation-filterable-plots',
+                        'fig-propagation-max-breadth-propagation-filterable-plots',
+                        'fig-propagation-structural-virality-propagation-filterable-plots']
+
+        self.assertEqual(set(actual_ids), set(expected_ids))
+
 
 if __name__ == '__main__':
     unittest.main()

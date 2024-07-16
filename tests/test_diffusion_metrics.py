@@ -18,7 +18,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         self.diffusion_metrics = DiffusionMetrics()
         self.test_dataset = 'test_dataset_2'
         self.tmp_dataset = str(uuid.uuid4().hex)
-        self.test_tweet_id = '1167078759280889856'
+        self.test_tweet_id = '1167074391315890176'
         self.missing_tweet_id = '1077146799692021761'
 
     def tearDown(self):
@@ -42,8 +42,8 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
     def test_propagation_tree(self):
         graph = self.diffusion_metrics.get_propagation_tree(self.test_dataset, self.test_tweet_id)
-        self.assertEqual(graph.vcount(), 8)
-        self.assertEqual(graph.ecount(), 7)
+        self.assertEqual(graph.vcount(), 12)
+        self.assertEqual(graph.ecount(), 11)
         self.assertEqual(graph.is_directed(), True)
         self.assertIsInstance(graph.vs['author_id'][0], str)
         self.assertIsInstance(graph.vs['created_at'][0], Timestamp)
@@ -61,11 +61,12 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         self.assertFalse(shortest_paths.isna().any())
 
     def test_tweets_with_references(self):
+        conversation_sizes = self.diffusion_metrics.get_conversation_sizes(self.test_dataset)
         conversation_id, tweets, references = self.diffusion_metrics.get_conversation(self.test_dataset,
                                                                                       self.test_tweet_id)
 
-        self.assertEqual(61, len(references), )
-        self.assertEqual(76, len(tweets), )
+        self.assertEqual(0, len(references), )
+        self.assertEqual(12, len(tweets), )
         self.assertEqual(tweets.columns.tolist(),
                          ['tweet_id', 'author_id', 'created_at'])
 
@@ -172,7 +173,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         original_graph = ig.Graph(n=8, edges=edges, directed=True)
         original_graph.vs['label'] = [str(i) for i in range(8)]
         fig, ax = plt.subplots()
-        layout = original_graph.layout(self.diffusion_metrics.layout)
+        layout = original_graph.layout('kk')
         ig.plot(original_graph, layout=layout, target=ax)
         timestamps = [Timestamp.now().date() + pd.offsets.Hour(i) for i in range(8)]
         authors = [{'id': f'author_id_{i}',
@@ -206,17 +207,17 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
         graph = self.diffusion_metrics.get_propagation_tree(dataset, '1')
         fig, ax = plt.subplots()
-        layout = graph.layout(self.diffusion_metrics.layout)
+        layout = graph.layout('kk')
         ig.plot(graph, layout=layout, target=ax)
         plt.show()
         actual_edges = pd.DataFrame(
-            [(graph.vs['label'][edge.source], graph.vs['label'][edge.target]) for edge in graph.es],
+            [(graph.vs['author_id'][edge.source], graph.vs['author_id'][edge.target]) for edge in graph.es],
             columns=['source', 'target'])
-        actual_edges['source'] = actual_edges['source'].str.replace('-', 'username_0').astype(str)
-        actual_edges['target'] = actual_edges['target'].str.replace('-', 'username_0').astype(str)
+        actual_edges['source'] = actual_edges['source'].str.replace('-', 'author_id_0').astype(str)
+        actual_edges['target'] = actual_edges['target'].str.replace('-', 'author_id_0').astype(str)
         actual_edges = set(actual_edges.itertuples(index=False, name=None))
         edges.append((0, 1))
-        expected_edges = {(f'username_{source}', f'username_{target}') for source, target in edges}
+        expected_edges = {(f'author_id_{source}', f'author_id_{target}') for source, target in edges}
         self.assertEqual(actual_edges, expected_edges)
         self.assertEqual(len(graph.connected_components(mode='weak')), 1)
 
@@ -231,27 +232,27 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
     def test_depth_plot(self):
         df = self.diffusion_metrics.get_depth_over_time(self.test_dataset, self.test_tweet_id)
-        self.assertEqual(df.shape[0], 8)
+        self.assertEqual(df.shape[0], 12)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
         self.assertEqual(df.max(), 1)
 
     def test_size_plot(self):
         df = self.diffusion_metrics.get_size_over_time(self.test_dataset, self.test_tweet_id)
-        self.assertEqual(df.shape[0], 8)
+        self.assertEqual(df.shape[0], 12)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
-        self.assertEqual(df.max(), 8)
+        self.assertEqual(df.max(), 12)
 
     def test_max_breadth_plot(self):
         df = self.diffusion_metrics.get_max_breadth_over_time(self.test_dataset, self.test_tweet_id)
-        self.assertEqual(df.shape[0], 8)
+        self.assertEqual(df.shape[0], 12)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
-        self.assertEqual(df.max(), 7)
+        self.assertEqual(df.max(), 11)
 
     def test_structured_virality_plot(self):
         df = self.diffusion_metrics.get_structural_virality_over_time(self.test_dataset, self.test_tweet_id)
-        self.assertEqual(df.shape[0], 8)
+        self.assertEqual(df.shape[0], 12)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
-        self.assertEqual(df.max(), 1.53125)
+        self.assertEqual(df.max(), 1.6805555555555554)
 
     def _test_depth_cascade_ccdf_plot(self):
         start_time = Timestamp.now()
