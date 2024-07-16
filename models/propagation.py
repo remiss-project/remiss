@@ -213,22 +213,25 @@ class PropagationDatasetGenerator:
 
     def _fetch_raw_tweet_features(self, database):
         collection = database.get_collection('raw')
+
         pipeline = [
-            {'$match': {'$expr': {'$eq': ['$id', '$conversation_id']}}},
-            {'$project': {
-                '_id': 0,
-                'tweet_id': '$conversation_id',
-                'num_hashtags': {'$size': {'$ifNull': ['$entities.hashtags', []]}},
-                'num_mentions': {'$size': {'$ifNull': ['$entities.mentions', []]}},
-                'num_urls': {'$size': {'$ifNull': ['$entities.urls', []]}},
-                'num_media': {'$size': {'$ifNull': ['$entities.media', []]}},
-                'num_interactions': {'$size': {'$ifNull': ['$referenced_tweets', []]}},
-                'num_words': {'$size': {'$split': ['$text', ' ']}},
-                'num_chars': {'$strLenCP': '$text'},
-                'is_usual_suspect_op': '$author.remiss_metadata.is_usual_suspect',
-                'party_op': '$author.remiss_metadata.party'
-            }}
+            {'$group': {'_id': '$conversation_id',
+                        'num_hashtags': {'$first': {'$size': {'$ifNull': ['$entities.hashtags', []]}}},
+                        'num_mentions': {'$first': {'$size': {'$ifNull': ['$entities.mentions', []]}}},
+                        'num_urls': {'$first': {'$size': {'$ifNull': ['$entities.urls', []]}}},
+                        'num_media': {'$first': {'$size': {'$ifNull': ['$entities.media', []]}}},
+                        'num_interactions': {'$first': {'$size': {'$ifNull': ['$referenced_tweets', []]}}},
+                        'num_words': {'$first': {'$size': {'$split': ['$text', ' ']}}},
+                        'num_chars': {'$first': {'$strLenCP': '$text'}},
+                        'is_usual_suspect_op': {'$first': '$author.remiss_metadata.is_usual_suspect'},
+                        'party_op': {'$first': '$author.remiss_metadata.party'}
+                        }},
+            {'$project': {'_id': 0, 'tweet_id': '$_id', 'num_hashtags': 1, 'num_mentions': 1, 'num_urls': 1,
+                          'num_media': 1, 'num_interactions': 1, 'num_words': 1, 'num_chars': 1,
+                          'is_usual_suspect_op': 1, 'party_op': 1
+                          }}
         ]
+
         return collection.aggregate_pandas_all(pipeline).set_index('tweet_id')
 
     def _fetch_textual_tweet_features(self, database):
