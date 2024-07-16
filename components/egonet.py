@@ -1,6 +1,6 @@
 import dash_bootstrap_components as dbc
 import pandas as pd
-from dash import dcc, html, Input, Output
+from dash import dcc, html, Input, Output, ctx
 
 from components.components import RemissComponent
 
@@ -71,7 +71,7 @@ class EgonetComponent(RemissComponent):
             ])
         ])
 
-    def update(self, dataset, user, state_start_date, state_end_date, hashtag, depth, date_index, user_disabled,
+    def update(self, dataset, egonet_user, user, state_start_date, state_end_date, hashtag, depth, date_index, user_disabled,
                depth_disabled, date_disabled):
         if user_disabled:
             user = None
@@ -86,7 +86,17 @@ class EgonetComponent(RemissComponent):
             start_date = self.dates[date_index]
             end_date = self.dates[date_index + 1]
 
-        fig = self.plot_factory.plot_egonet(dataset, user, depth, start_date, end_date, hashtag)
+        if ctx.triggered_id == f'user-dropdown-{self.name}':
+            # Show egonet for the selected user
+            try:
+                user = user[0]
+                fig = self.plot_factory.plot_egonet(dataset, egonet_user, depth, start_date, end_date, hashtag)
+            except (RuntimeError, ValueError, KeyError) as e:
+                # If the user is not available, then show the backbone
+                fig = self.plot_factory.plot_hidden_network(dataset, depth, start_date, end_date, hashtag)
+        else:
+            # Plot backbone but highlight the selected user
+            fig = self.plot_factory.plot_hidden_network(dataset, user, depth, start_date, end_date, hashtag)
         # remove margin
         # fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
         return fig
@@ -135,6 +145,7 @@ class EgonetComponent(RemissComponent):
             Output(self.graph_egonet, 'figure'),
             [Input(self.state.current_dataset, 'data'),
              Input(self.state.current_user, 'data'),
+             Input(self.user_dropdown, 'value'),
              Input(self.state.current_start_date, 'data'),
              Input(self.state.current_end_date, 'data'),
              Input(self.state.current_hashtags, 'data'),

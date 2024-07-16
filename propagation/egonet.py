@@ -31,20 +31,10 @@ class Egonet(BasePropagationMetrics):
         :return:
         """
         hidden_network = self.get_hidden_network(dataset, start_date=start_date, end_date=end_date, hashtags=hashtags)
-        # check if the user is in the hidden network
-        if author_id:
-            try:
-                node = hidden_network.vs.find(author_id=author_id)
-                neighbours = hidden_network.neighborhood(node, order=depth)
-                egonet = hidden_network.induced_subgraph(neighbours)
-                return egonet
-            except (RuntimeError, ValueError, KeyError) as ex:
-                logger.debug(f'Computing neighbourhood for user {author_id} failed with error {ex}')
-        if self.threshold > 0:
-            return self.get_hidden_network_backbone(dataset, start_date=start_date, end_date=end_date,
-                                                    hashtags=hashtags)
-        else:
-            return hidden_network
+        node = hidden_network.vs.find(author_id=author_id)
+        neighbours = hidden_network.neighborhood(node, order=depth)
+        egonet = hidden_network.induced_subgraph(neighbours)
+        return egonet
 
     def get_hidden_network(self, dataset, start_date=None, end_date=None, hashtags=None):
         if start_date or end_date or hashtags:
