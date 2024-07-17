@@ -24,9 +24,8 @@ class DiffusionMetricsTestCase(unittest.TestCase):
     def tearDown(self):
         client = MongoClient('localhost', 27017)
         client.drop_database(self.tmp_dataset)
-
     def test_plot_propagation_lengths(self):
-        df = self.diffusion_metrics.get_conversation_sizes(self.test_dataset)
+        df = self.diffusion_metrics.get_conversation_sizes('test_dataset_cascade')
         print(df.head(20))
         df.hist(log=True, bins=100)
         for tweet_id in tqdm(df.index[:20]):

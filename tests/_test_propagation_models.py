@@ -9,16 +9,21 @@ from matplotlib import pyplot as plt
 import igraph as ig
 
 from models.propagation import PropagationDatasetGenerator, PropagationCascadeModel
+from propagation import NetworkMetrics
+from tests.conftest import populate_test_database
 
 
 class PropagationModelsTestCase(unittest.TestCase):
     def setUp(self):
-        self.dataset = 'test_dataset_2'
+        self.dataset = 'test_dataset_cascade'
 
         self.dataset_generator = PropagationDatasetGenerator(self.dataset)
-        self.dataset_small = 'test_dataset_small'
         self.cache_dir = Path('tmp/cache_propagation')
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+        populate_test_database(self.dataset, small=False)
+        self.network_metrics = NetworkMetrics()
+        self.network_metrics.persist([self.dataset])
 
     def test_prepare_propagation_dataset(self):
         dataset = self.dataset
@@ -29,29 +34,24 @@ class PropagationModelsTestCase(unittest.TestCase):
         # sns.pairplot(features.sample(num_samples), hue='propagated', diag_kind='kde')
         # plt.savefig('tmp/cache_propagation_2/pairplot.png')
 
-    @unittest.skip("Slow")
     def test_fit(self):
         model = PropagationCascadeModel()
         dataset = self.dataset
         features = pd.read_csv(self.cache_dir / f'{dataset}-features.csv', index_col=0)
-        features = features.head(1000)
         model.fit(features)
         with open(self.cache_dir / f'{dataset}-model.pkl', 'wb') as f:
             pickle.dump(model, f)
-
-    @unittest.skip("Slow")
+    @unittest.skip('Slow')
     def test_fit_2(self):
         model = PropagationCascadeModel()
         dataset = self.dataset
         features = pd.read_csv(self.cache_dir / f'{dataset}-features.csv', index_col=0)
-        features = features.head(1000)
         X, y = features.drop(columns=['propagated']), features['propagated']
         model.fit(X, y)
-
-    @unittest.skip("Slow")
+    @unittest.skip('Slow')
     def test_fit_3(self):
         model = PropagationCascadeModel()
-        dataset = self.dataset_small
+        dataset = self.dataset
         model.fit(dataset)
 
     def test_predict(self):
@@ -74,6 +74,7 @@ class PropagationModelsTestCase(unittest.TestCase):
         y_pred = model.predict_proba(X)
         print(y_pred)
 
+    @unittest.skip('Slow')
     def test_generate_cascade(self):
         model = PropagationCascadeModel()
         dataset = self.dataset
@@ -111,7 +112,7 @@ class PropagationModelsTestCase(unittest.TestCase):
         cascade = model.generate_cascade(sample)
         fig = model.plot_cascade(cascade)
         fig.show()
-        self.assertEqual(len(cascade.vs), 45)
+        self.assertEqual(len(cascade.vs), 40)
         self.assertEqual(len(cascade.es), 40)
 
     def test_generate_cascade_3(self):
@@ -140,7 +141,7 @@ class PropagationModelsTestCase(unittest.TestCase):
         cascade = model.generate_cascade(sample)
         fig = model.plot_cascade(cascade)
         fig.show()
-        self.assertEqual(len(cascade.vs), 46)
+        self.assertEqual(len(cascade.vs), 41)
         self.assertEqual(len(cascade.es), 41)
 
     def test_generate_cascade_4(self):

@@ -617,9 +617,6 @@ class TestEgonetCase(unittest.TestCase):
 
         self.assertEqual(expected_edges, actual_edges)
 
-
-
-
     def test__get_references_full(self):
         actual = self.egonet._get_references(self.test_dataset)
         actual = actual.sort_values(['source', 'target']).reset_index(drop=True)

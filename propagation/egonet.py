@@ -36,6 +36,7 @@ class Egonet(BasePropagationMetrics):
         egonet = hidden_network.induced_subgraph(neighbours)
         return egonet
 
+
     def get_hidden_network(self, dataset, start_date=None, end_date=None, hashtags=None):
         if start_date or end_date or hashtags:
             # no caching for date or hashtag filtered hidden networks

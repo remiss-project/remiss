@@ -20,6 +20,8 @@ class EgonetComponentTest(TestCase):
         self.plot_factory.get_date_range.return_value = (datetime(2023, 1, 1),
                                                          datetime(2023, 12, 31))
         self.plot_factory.get_users.return_value = ['user1', 'user2', 'user3']
+        self.plot_factory.plot_egonet = Mock()
+        self.plot_factory.plot_hidden_network = Mock()
         self.state = RemissState(name='state')
         self.component = EgonetComponent(self.plot_factory, self.state, name='egonet')
 
@@ -81,29 +83,6 @@ class EgonetComponentTest(TestCase):
         self.assertIn(self.component.name, found_main_ids)
         self.assertEqual(len(set(found_main_ids)), 1)
 
-    # TODO implement those tests
-    # def test_get_egonet_missing_user_backbone(self):
-    #     user_id = '1'
-    #     depth = 2
-    #     self.egonet.threshold = 0.4
-    #
-    #     actual = self.egonet.get_egonet(self.test_dataset, user_id, depth)
-    #
-    #     # check it returns the hidden network backbone
-    #     self.assertEqual(actual.vcount(), 3224)
-    #     self.assertEqual(actual.ecount(), 4801)
-
-    # def test_get_egonet_missing_user_full(self):
-    #     user_id = '1'
-    #     depth = 2
-    #
-    #     actual = self.egonet.get_egonet(self.test_dataset, user_id, depth)
-    #
-    #     # check it returns the full hidden network
-    #     self.assertEqual(actual.vcount(), 3315)
-    #     self.assertEqual(actual.ecount(), 5844)
-
-
     def test_update_egonet_callback(self):
         app = Dash(prevent_initial_callbacks="initial_duplicate",
                    meta_tags=[
@@ -120,6 +99,7 @@ class EgonetComponentTest(TestCase):
         callback = app.callback_map[plots_key]
         expected = [{'id': 'current-dataset-state', 'property': 'data'},
                     {'id': 'current-user-state', 'property': 'data'},
+                    {'id': 'user-dropdown-egonet', 'property': 'value'},
                     {'id': 'current-start-date-state', 'property': 'data'},
                     {'id': 'current-end-date-state', 'property': 'data'},
                     {'id': 'current-hashtags-state', 'property': 'data'},
@@ -131,6 +111,50 @@ class EgonetComponentTest(TestCase):
         self.assertEqual(expected, callback['inputs'])
         self.assertEqual(callback['output'].component_id, f'fig-{self.component.name}')
         self.assertEqual(callback['output'].component_property, 'figure')
+
+    def test_update_user_dropdown(self):
+        def run_callback():
+            context_value.set(AttributeDict(**{"triggered_inputs": [{"prop_id": "user-dropdown-egonet.value"}]}))
+            return self.component.update('test_dataset', 'test_user_egonet', 'test_user_state',
+                                         datetime(2023, 1, 1),
+                                         datetime(2023, 12, 31), ['test_hashtags'],
+                                         1, 0, False, False, False)
+
+        self.component.dates = ['2023-01-01', '2023-12-31']
+        ctx = copy_context()
+        output = ctx.run(run_callback)
+        self.plot_factory.plot_egonet.assert_called_once_with(
+            'test_dataset', 'test_user_egonet', 1, '2023-01-01', '2023-12-31', ['test_hashtags'])
+
+    def test_update_user_dropdown_missing_user_show_hidden_network(self):
+        def run_callback():
+            context_value.set(AttributeDict(**{"triggered_inputs": [{"prop_id": "user-dropdown-egonet.value"}]}))
+            return self.component.update('test_dataset', 'test_user_egonet', 'test_user_state',
+                                         datetime(2023, 1, 1),
+                                         datetime(2023, 12, 31), ['test_hashtags'],
+                                         1, 0, False, False, False)
+
+        self.component.dates = ['2023-01-01', '2023-12-31']
+        self.plot_factory.plot_egonet = Mock()
+        self.plot_factory.plot_egonet.side_effect = ValueError('User not found')
+        ctx = copy_context()
+        output = ctx.run(run_callback)
+        self.plot_factory.plot_hidden_network.assert_called_once_with(
+            'test_dataset', '2023-01-01', '2023-12-31', ['test_hashtags'])
+
+    def test_update_user_state_user_show_hidden_network(self):
+        def run_callback():
+            context_value.set(AttributeDict(**{"triggered_inputs": [{"prop_id": "current-user-state.data"}]}))
+            return self.component.update('test_dataset', 'test_user_egonet', 'test_user_state',
+                                         datetime(2023, 1, 1),
+                                         datetime(2023, 12, 31), ['test_hashtags'],
+                                         1, 0, False, False, False)
+
+        self.component.dates = ['2023-01-01', '2023-12-31']
+        ctx = copy_context()
+        output = ctx.run(run_callback)
+        self.plot_factory.plot_hidden_network.assert_called_once_with(
+            'test_dataset', 'test_user_state', '2023-01-01', '2023-12-31', ['test_hashtags'])
 
 
 if __name__ == '__main__':

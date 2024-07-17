@@ -30,10 +30,12 @@ class PropagationPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017,
                  reference_types=('quoted', 'retweeted'), layout='fruchterman_reingold',
                  threshold=0.2, delete_vertices=True, frequency='1D',
-                 available_datasets=None, small_size_multiplier=50, big_size_multiplier=10):
+                 available_datasets=None, small_size_multiplier=10, big_size_multiplier=50,
+                 user_highlight_color='rgb(0, 0, 255)'):
         super().__init__(host, port, available_datasets)
         self.big_size_multiplier = big_size_multiplier
         self.small_size_multiplier = small_size_multiplier
+        self.user_highlight_color = user_highlight_color
         self.layout = layout
         self.frequency = frequency
         self.egonet = Egonet(reference_types=reference_types, host=host, port=port,
@@ -70,13 +72,13 @@ class PropagationPlotFactory(MongoPlotFactory):
         layout = self.compute_layout(network)
         return self.plot_user_graph(network, collection, layout)
 
-    def plot_hidden_network(self, collection, start_date=None, end_date=None, hashtag=None):
+    def plot_hidden_network(self, collection, user=None, start_date=None, end_date=None, hashtag=None):
         if self.egonet.threshold > 0:
             hidden_network = self.egonet.get_hidden_network_backbone(collection, start_date, end_date, hashtag)
         else:
             hidden_network = self.egonet.get_hidden_network(collection, start_date, end_date, hashtag)
         layout = self.get_hidden_network_layout(hidden_network, collection, start_date, end_date, hashtag)
-        return self.plot_graph(hidden_network, layout=layout)
+        return self.plot_graph(hidden_network, layout=layout, user=user)
 
     def get_hidden_network_layout(self, hidden_network, collection, start_date=None, end_date=None, hashtag=None):
         # if start_date, end_date or hashtag are not none we need to recompute the layout
@@ -208,18 +210,32 @@ class PropagationPlotFactory(MongoPlotFactory):
         metadata = metadata.set_index('author_id')
         return metadata
 
-    def plot_graph(self, graph, layout=None, symbol=None, size=None, color=None, text=None):
+    def plot_graph(self, graph, layout=None, symbol=None, size=None, color=None, text=None, user=None):
         if layout is None:
             if 'layout' not in graph.attributes():
                 layout = graph.layout(self.layout, dim=3)
 
             else:
                 layout = graph['layout']
+
+        if isinstance(layout, Layout):
+            layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
+
+        if layout.shape[0] != graph.vcount():
+            logger.warning('Layout and graph have different number of vertices. Make sure persisted layout'
+                           'is correct. Recomputing layout')
+            layout = self.compute_layout(graph)
             layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
         logger.info('Computing plot for network')
         logger.info(graph.summary())
         start_time = time.time()
         edge_positions = self._get_edge_positions(graph, layout)
+
+        if user is not None:
+            if color is None:
+                color = ['rgb(255, 234, 208)'] * graph.vcount()
+
+            color[graph.vs.find(author_id=user).index] = self.user_highlight_color
 
         edge_trace = go.Scatter3d(x=edge_positions['x'],
                                   y=edge_positions['y'],
@@ -288,6 +304,8 @@ class PropagationPlotFactory(MongoPlotFactory):
         # edge_positions = layout.iloc[edges.values.flatten()].reset_index(drop=True)
         # nones = edge_positions[2::3].assign(x=None, y=None, z=None)
         # edge_positions = pd.concat([edge_positions, nones]).sort_index().reset_index(drop=True)
+        if isinstance(layout, Layout):
+            layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
         layout = list(layout.to_records(index=False))
         x = []
         y = []

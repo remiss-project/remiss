@@ -23,7 +23,7 @@ sklearn.set_config(transform_output="pandas")
 
 
 class PropagationDatasetGenerator:
-    def __init__(self, dataset, host='localhost', port=27017, reference_types=('replied_to', 'quoted', 'retweeted'),
+    def __init__(self, dataset, host='localhost', port=27017, reference_types=('quoted', 'retweeted'),
                  use_profiling='full', use_textual='full'):
         self.host = host
         self.port = port
@@ -231,8 +231,10 @@ class PropagationDatasetGenerator:
                           'is_usual_suspect_op': 1, 'party_op': 1
                           }}
         ]
-
-        return collection.aggregate_pandas_all(pipeline).set_index('tweet_id')
+        raw_tweet_features = collection.aggregate_pandas_all(pipeline)
+        if raw_tweet_features.empty:
+            raise RuntimeError('Tweet features not found. Please prepopulate them first')
+        return raw_tweet_features.set_index('tweet_id')
 
     def _fetch_textual_tweet_features(self, database):
         collection = database.get_collection('textual')
@@ -277,7 +279,7 @@ class PropagationDatasetGenerator:
         return features.set_index('tweet_id')
 
     def _fetch_propagation_metrics(self, database):
-        collection = database.get_collection('legitimacy')
+        collection = database.get_collection('network_metrics')
         pipeline = [
             {'$project': {'_id': 0, 'author_id': 1, 'legitimacy': 1}}
         ]
@@ -470,7 +472,7 @@ class PropagationCascadeModel(BaseEstimator, ClassifierMixin):
                  X.select_dtypes(include='object').columns),
             ], remainder='passthrough', verbose_feature_names_out=False)),
             ('scaler', StandardScaler()),
-            ('classifier', XGBClassifier())
+            ('classifier', XGBClassifier(scale_pos_weight=(len(y) - y.sum()) / y.sum()))
         ])
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         pipeline.fit(X_train, y_train)
@@ -526,15 +528,16 @@ class PropagationCascadeModel(BaseEstimator, ClassifierMixin):
         sources = [author_id] * len(available_neighbours)
         targets = list(available_neighbours)
         features = self.dataset_generator.get_features_for(cascade['conversation_id'], sources, targets)
-        predictions = self.predict(features)
-        predictions = pd.Series(predictions, index=targets)
-        author_index = cascade.vs.find(author_id=author_id).index
-        for target, prediction in predictions[predictions == 1].items():
-            if target not in cascade.vs['author_id']:
-                cascade.add_vertex(author_id=target, username=target, original='predicted')
-            target_index = cascade.vs.find(author_id=target).index
-            cascade.add_edge(author_index, target_index)
-            self._process_neighbour_propagation(target, cascade, visited_nodes)
+        if not features.empty:
+            predictions = self.predict(features)
+            predictions = pd.Series(predictions, index=targets)
+            author_index = cascade.vs.find(author_id=author_id).index
+            for target, prediction in predictions[predictions == 1].items():
+                if target not in cascade.vs['author_id']:
+                    cascade.add_vertex(author_id=target, username=target, original='predicted')
+                target_index = cascade.vs.find(author_id=target).index
+                cascade.add_edge(author_index, target_index)
+                self._process_neighbour_propagation(target, cascade, visited_nodes)
         return cascade
 
     def plot_cascade(self, cascade):

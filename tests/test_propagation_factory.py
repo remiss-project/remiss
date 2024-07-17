@@ -164,6 +164,14 @@ class PropagationFactoryTestCase(unittest.TestCase):
         fig = self.propagation_factory.plot_graph(graph, symbol=symbol)
         fig.show()
 
+    def test_plot_graph_highlight_user(self):
+        graph = ig.Graph()
+        graph.add_vertices(10)
+        graph.vs['author_id'] = [str(i) for i in range(10)]
+        graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
+        fig = self.propagation_factory.plot_graph(graph, user='1')
+        fig.show()
+
     def test_get_metadata(self):
         metadata = self.propagation_factory.get_user_metadata(self.test_dataset)
         self.assertEqual(metadata.duplicated().sum(), 0)
@@ -176,10 +184,18 @@ class PropagationFactoryTestCase(unittest.TestCase):
                          metadata.columns.tolist())
         self.assertFalse(metadata['User type'].isna().sum())
 
-    def test_plot_hidden_network(self):
+    def test_plot_hidden_network_1(self):
         hidden_network = self.propagation_factory.egonet.get_hidden_network(self.test_dataset)
         layout = self.propagation_factory.get_hidden_network_layout(hidden_network, self.test_dataset)
         fig = self.propagation_factory.plot_user_graph(hidden_network, self.test_dataset, layout=layout)
+        fig.show()
+
+    def test_plot_hidden_network_2(self):
+        fig = self.propagation_factory.plot_hidden_network(self.test_dataset)
+        fig.show()
+
+    def test_plot_hidden_network_highlight_user(self):
+        fig = self.propagation_factory.plot_hidden_network(self.test_dataset, user=self.test_user_id)
         fig.show()
 
     def test_plot_egonet(self):
@@ -187,8 +203,20 @@ class PropagationFactoryTestCase(unittest.TestCase):
         fig.show()
 
     def test_plot_egonet_missing(self):
-        fig = self.propagation_factory.plot_egonet(self.test_dataset, 'potato', 2)
-        fig.show()
+        with self.assertRaises(ValueError):
+            self.propagation_factory.plot_egonet(self.test_dataset, 'potato', 2)
+
+    def test_hidden_network_backbone(self):
+
+        self.propagation_factory.egonet.threshold = 0.4
+        fig = self.propagation_factory.plot_hidden_network(self.test_dataset)
+
+        self.assertEqual(len(fig.data[1].x), 3224)
+
+        self.propagation_factory.egonet.threshold = 0
+        fig = self.propagation_factory.plot_hidden_network(self.test_dataset)
+
+        self.assertEqual(len(fig.data[1].x), 3315)
 
     def test_plot_size_over_time(self):
         fig = self.propagation_factory.plot_size_over_time(self.test_dataset, self.test_tweet_id)
