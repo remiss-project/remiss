@@ -331,7 +331,10 @@ class PropagationPlotFactory(MongoPlotFactory):
     def persist(self, datasets):
         # Save layouts to mongodb
         for dataset in datasets:
-            hidden_network = self.egonet.get_hidden_network(dataset)
+            if self.egonet.threshold > 0:
+                hidden_network = self.egonet.get_hidden_network_backbone(dataset)
+            else:
+                hidden_network = self.egonet.get_hidden_network(dataset)
             layout = self.get_hidden_network_layout(hidden_network, dataset)
             self._persist_layout_to_mongodb(layout, dataset, 'hidden_network_layout')
 
