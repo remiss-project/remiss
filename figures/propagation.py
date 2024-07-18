@@ -68,10 +68,10 @@ class PropagationPlotFactory(MongoPlotFactory):
             except Exception as ex:
                 logger.error(f'Error loading hidden network layout with error {ex}')
 
-    def plot_egonet(self, collection, user, depth, start_date=None, end_date=None, hashtag=None):
-        network = self.egonet.get_egonet(collection, user, depth, start_date, end_date, hashtag)
+    def plot_egonet(self, collection, author_id, depth, start_date=None, end_date=None, hashtag=None):
+        network = self.egonet.get_egonet(collection, author_id, depth, start_date, end_date, hashtag)
         layout = self.compute_layout(network)
-        return self.plot_user_graph(network, collection, layout)
+        return self.plot_user_graph(network, collection, layout, author_id=author_id)
 
     def plot_hidden_network(self, collection, author_id=None, start_date=None, end_date=None, hashtag=None):
         if self.egonet.threshold > 0:
@@ -119,7 +119,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         logger.info(f'Layout computed in {time.time() - start_time} seconds')
         return layout
 
-    def plot_user_graph(self, user_graph, collection, layout=None):
+    def plot_user_graph(self, user_graph, collection, layout=None, author_id=None):
         metadata = self.get_user_metadata(collection)
         metadata = metadata.reindex(user_graph.vs['author_id'])
         metadata['User type'] = metadata['User type'].fillna('Unknown')
@@ -142,6 +142,9 @@ class PropagationPlotFactory(MongoPlotFactory):
             size = size / size.max() * self.big_size_multiplier
 
         color = metadata['legitimacy']
+
+        if author_id is not None:
+            color[user_graph.vs.find(author_id=author_id).index] = self.user_highlight_color
 
         # Available markers ['circle', 'circle-open', 'cross', 'diamond', 'diamond-open', 'square', 'square-open', 'x']
         marker_map = {'Normal': 'circle', 'Suspect': 'cross', 'Politician': 'diamond', 'Suspect politician':
