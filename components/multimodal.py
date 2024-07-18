@@ -312,7 +312,8 @@ class MultimodalComponent(RemissComponent):
                     graph_evidence_vis, graph_evidence_text, evidence_image, graph_claim1, graph_evidence_vis1,
                     graph_evidence_text1, evidence_image1, claim_image, is_open)
         except Exception as e:
-            logger.error(f'Error updating multimodal: {e}')
+            if tweet_id is not None:
+                logger.error(f'Error updating multimodal: {e}')
             visual_evidence_domain = ''
             visual_evidence_matched_categories = ''
             visual_evidence_text = ''

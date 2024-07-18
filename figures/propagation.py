@@ -81,10 +81,14 @@ class PropagationPlotFactory(MongoPlotFactory):
         layout = self.get_hidden_network_layout(hidden_network, collection, start_date, end_date, hashtag)
         return self.plot_graph(hidden_network, layout=layout, user=user)
 
-    def get_hidden_network_layout(self, hidden_network, collection, start_date=None, end_date=None, hashtag=None):
+    def get_hidden_network_layout(self, hidden_network, collection, start_date=None, end_date=None, hashtags=None):
         # if start_date, end_date or hashtag are not none we need to recompute the layout
-        if start_date is not None or end_date is not None or hashtag is not None:
-            hidden_network = self.egonet.get_hidden_network(collection, start_date, end_date, hashtag)
+        start_date, end_date = self._validate_dates(collection, start_date, end_date)
+        if start_date or end_date or hashtags:
+            if self.egonet.threshold > 0:
+                hidden_network = self.egonet.get_hidden_network_backbone(collection, start_date, end_date, hashtags)
+            else:
+                hidden_network = self.egonet.get_hidden_network(collection, start_date, end_date, hashtags)
             layout = self.compute_layout(hidden_network)
             layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
             return layout
@@ -93,6 +97,20 @@ class PropagationPlotFactory(MongoPlotFactory):
             layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
             self._hidden_network_layouts[collection] = layout
         return self._hidden_network_layouts[collection]
+
+    def _validate_dates(self, dataset, start_date, end_date):
+        dataset_start_date, dataset_end_date = self.get_date_range(dataset)
+        if start_date:
+            start_date = pd.to_datetime(start_date).date()
+        if end_date:
+            end_date = pd.to_datetime(end_date).date()
+
+        if start_date == dataset_start_date:
+            start_date = None
+        if end_date == dataset_end_date:
+            end_date = None
+
+        return start_date, end_date
 
     def compute_layout(self, network):
         logger.info(f'Computing {self.layout} layout')

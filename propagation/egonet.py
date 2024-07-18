@@ -1,3 +1,4 @@
+import datetime
 import logging
 import time
 
@@ -36,10 +37,9 @@ class Egonet(BasePropagationMetrics):
         egonet = hidden_network.induced_subgraph(neighbours)
         return egonet
 
-
     def get_hidden_network(self, dataset, start_date=None, end_date=None, hashtags=None):
+        start_date, end_date = self._validate_dates(dataset, start_date, end_date)
         if start_date or end_date or hashtags:
-            # no caching for date or hashtag filtered hidden networks
             return self._compute_hidden_network(dataset, start_date=start_date, end_date=end_date, hashtags=hashtags)
         if dataset not in self._hidden_networks:
             network = self._compute_hidden_network(dataset)
@@ -48,8 +48,8 @@ class Egonet(BasePropagationMetrics):
         return self._hidden_networks[dataset]
 
     def get_hidden_network_backbone(self, dataset, start_date=None, end_date=None, hashtags=None):
+        start_date, end_date = self._validate_dates(dataset, start_date, end_date)
         if start_date or end_date or hashtags:
-            # no caching for date filtered hidden networks
             return self._compute_hidden_network_backbone(dataset, start_date=start_date, end_date=end_date,
                                                          hashtags=hashtags)
         if dataset not in self._hidden_network_backbones:
@@ -57,6 +57,29 @@ class Egonet(BasePropagationMetrics):
             self._hidden_network_backbones[dataset] = network
 
         return self._hidden_network_backbones[dataset]
+
+    def _validate_dates(self, dataset, start_date, end_date):
+        dataset_start_date, dataset_end_date = self.get_datatset_data_range(dataset)
+        if start_date:
+            start_date = pd.to_datetime(start_date).date()
+        if end_date:
+            end_date = pd.to_datetime(end_date).date()
+
+        if start_date == dataset_start_date:
+            start_date = None
+        if end_date == dataset_end_date:
+            end_date = None
+
+        return start_date, end_date
+
+    def get_datatset_data_range(self, dataset):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
+        min_date_allowed = collection.find_one(sort=[('created_at', 1)])['created_at'].date()
+        max_date_allowed = collection.find_one(sort=[('created_at', -1)])['created_at'].date()
+        client.close()
+        return min_date_allowed, max_date_allowed
 
     def _compute_hidden_network_backbone(self, dataset, start_date=None, end_date=None, hashtags=None):
         hidden_network = self.get_hidden_network(dataset, start_date=start_date, end_date=end_date, hashtags=hashtags)
@@ -133,6 +156,8 @@ class Egonet(BasePropagationMetrics):
         return g
 
     def _simplify_graph(self, network):
+        if network.vcount() == 0:
+            return network
         network = self.compute_backbone(network, self.threshold, self.delete_vertices)
 
         return network
@@ -202,6 +227,7 @@ class Egonet(BasePropagationMetrics):
         alphas = Egonet.compute_alphas(graph)
         good = np.nonzero(alphas > alpha)[0]
         backbone = graph.subgraph_edges(graph.es.select(good), delete_vertices=delete_vertices)
+
 
         return backbone
 
