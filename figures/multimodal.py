@@ -17,15 +17,31 @@ class MultimodalPlotFactory(MongoPlotFactory):
         super().__init__(host, port, available_datasets)
         self.multimodal_collection_name = multimodal_collection_name
         self.data_dir = Path(data_dir)
+        self._validate()
+
+    def _validate(self):
+        # Assert all images are present
+        for dataset in self.available_datasets:
+            client = MongoClient(self.host, self.port)
+            self._validate_dataset(client, dataset)
+            database = client.get_database(dataset)
+            multimodal = database.get_collection(self.multimodal_collection_name)
+            tweet_ids = [data['tweet_id'] for data in multimodal.find({}, {'tweet_id': 1})]
+            client.close()
+            for tweet_id in tweet_ids:
+                data = self.load_data_for_tweet(dataset, tweet_id)
+                for image_type in ['claim_image', 'evidence_image', 'graph_claim', 'graph_evidence_text',
+                                   'graph_evidence_vis', 'evidence_image1']:
+                    image_dir = self.data_dir / dataset / 'images' / str(data['tweet_id'])
+                    try:
+                        next(image_dir.glob(f'{image_type}.*'))
+                    except StopIteration:
+                        raise RuntimeError(
+                            f'Image {image_type} not found for fact checking id {data["tweet_id"]} in {image_dir}')
 
     def plot_claim_image(self, dataset, tweet_id):
         data = self.load_data_for_tweet(dataset, tweet_id)
         fig = self.load_image(dataset, data['tweet_id'], 'claim_image')
-        return fig
-
-    def plot_evidence_image(self, dataset, tweet_id):
-        data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['tweet_id'], 'evidence_image')
         return fig
 
     def plot_graph_claim(self, dataset, tweet_id):
@@ -33,27 +49,43 @@ class MultimodalPlotFactory(MongoPlotFactory):
         fig = self.load_image(dataset, data['tweet_id'], 'graph_claim')
         return fig
 
-    def plot_graph_evidence_text(self, dataset, tweet_id):
-        data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['tweet_id'], 'graph_evidence_text')
-        return fig
-
     def plot_graph_evidence_vis(self, dataset, tweet_id):
         data = self.load_data_for_tweet(dataset, tweet_id)
         fig = self.load_image(dataset, data['tweet_id'], 'graph_evidence_vis')
         return fig
 
-    def plot_evidence_image_1(self, dataset, tweet_id):
+    def plot_graph_evidence_text(self, dataset, tweet_id):
         data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['tweet_id'], 'evidence_image1')
+        fig = self.load_image(dataset, data['tweet_id'], 'graph_evidence_text')
         return fig
 
-    def get_metadata(self, dataset, tweet_id):
+    def plot_evidence_image(self, dataset, tweet_id):
         data = self.load_data_for_tweet(dataset, tweet_id)
-        return data
+        fig = self.load_image(dataset, data['tweet_id'], 'evidence_image')
+        return fig
+
+    def plot_graph_claim1(self, dataset, tweet_id):
+        data = self.load_data_for_tweet(dataset, tweet_id)
+        fig = self.load_image(dataset, data['tweet_id'], 'graph_claim')
+        return fig
+
+    def plot_graph_evidence_vis1(self, dataset, tweet_id):
+        data = self.load_data_for_tweet(dataset, tweet_id)
+        fig = self.load_image(dataset, data['tweet_id'], 'graph_evidence_vis')
+        return fig
+
+    def plot_graph_evidence_text1(self, dataset, tweet_id):
+        data = self.load_data_for_tweet(dataset, tweet_id)
+        fig = self.load_image(dataset, data['tweet_id'], 'graph_evidence_text')
+        return fig
+
+    def plot_evidence_image1(self, dataset, tweet_id):
+        data = self.load_data_for_tweet(dataset, tweet_id)
+        fig = self.load_image(dataset, data['tweet_id'], 'evidence_image')
+        return fig
 
     def load_image(self, dataset, fact_checking_id, image_type):
-        image_dir = self.data_dir /  dataset / 'images' / str(fact_checking_id)
+        image_dir = self.data_dir / dataset / 'images' / str(fact_checking_id)
         # find matching image with image_type as filename, disregarding extension
         try:
             image_path = next(image_dir.glob(f'{image_type}.*'))
@@ -81,41 +113,41 @@ class MultimodalPlotFactory(MongoPlotFactory):
             collections = client.get_database(dataset).list_collection_names()
             if self.multimodal_collection_name not in collections:
                 raise RuntimeError(f'Collection {self.multimodal_collection_name} not found in dataset {dataset}')
-# Features
-# - Claim
-#    - Tweet text (T)
-#    - Tweet images (V)
-# - Evidence
-#    - Visual evidences (images obtained from text of the tweet) (XV)
-#    - Textual evidences (text obtained from the images of tweet) (XT)
-# - Two measurements
-#   - claim text to evidence text (T vs XT)
-#     Build a graph and check graph structure similarity (graph match only text).
-#     The stuff going in the graph are already preprocessed in order to filter irrelevant stuff with
-#     conditional filtering using LLM's
-#
-#   - claim image to evidence image (V vs XV)
-#     Five metrics + cosine similarity with at least a 3 out of 5 with greater than 0.9
-#      - Semantic
-#      - Place
-#      - Face
-#      - Object
-#      - Automatic Caption
-# Things to display
-# - T vs VT graph comparison
-#   - T graph
-#   - XT graph
-#   - XV(T) context graph
-#   - metrics
-#     - number of supported egdes (whatever claims appear they are also in the evidence). 30% must be supported.
-#     - number of conflicted nodes (the nodes have any conflict). there must be no conflicts.
-# - visual five metrics for V vs VX
-# - three images
-# INPUTS
-#   - V  -> [XT] -> XT
-#   - T -> [XV] -> XV
-#  OUTPUTS:
-#     image {claim_graph_annotated
-#     xt_graph
-#     xv_graph}
-#     numbers {5 visual scores, 2 graph scores}
+    # Features
+    # - Claim
+    #    - Tweet text (T)
+    #    - Tweet images (V)
+    # - Evidence
+    #    - Visual evidences (images obtained from text of the tweet) (XV)
+    #    - Textual evidences (text obtained from the images of tweet) (XT)
+    # - Two measurements
+    #   - claim text to evidence text (T vs XT)
+    #     Build a graph and check graph structure similarity (graph match only text).
+    #     The stuff going in the graph are already preprocessed in order to filter irrelevant stuff with
+    #     conditional filtering using LLM's
+    #
+    #   - claim image to evidence image (V vs XV)
+    #     Five metrics + cosine similarity with at least a 3 out of 5 with greater than 0.9
+    #      - Semantic
+    #      - Place
+    #      - Face
+    #      - Object
+    #      - Automatic Caption
+    # Things to display
+    # - T vs VT graph comparison
+    #   - T graph
+    #   - XT graph
+    #   - XV(T) context graph
+    #   - metrics
+    #     - number of supported egdes (whatever claims appear they are also in the evidence). 30% must be supported.
+    #     - number of conflicted nodes (the nodes have any conflict). there must be no conflicts.
+    # - visual five metrics for V vs VX
+    # - three images
+    # INPUTS
+    #   - V  -> [XT] -> XT
+    #   - T -> [XV] -> XV
+    #  OUTPUTS:
+    #     image {claim_graph_annotated
+    #     xt_graph
+    #     xv_graph}
+    #     numbers {5 visual scores, 2 graph scores}

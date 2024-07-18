@@ -15,6 +15,7 @@ def prepopulate_propagation(config_file='dev_config.yaml'):
     factory = PropagationPlotFactory(available_datasets=config['available_datasets'],
                                      host=config['mongodb']['host'],
                                      port=config['mongodb']['port'],
+                                     threshold=config['graph_simplification']['threshold'],
                                      load_from_mongodb=False)
     factory.prepopulate()
     logger.info('Propagation metrics and graphs prepopulated')

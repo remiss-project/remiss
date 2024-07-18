@@ -57,15 +57,10 @@ class TestMultimodalPlotFactory(unittest.TestCase):
         test_data_dir = Path('./test_resources/multimodal')
         data_dir = Path('/tmp/multimodal_data') / self.tmp_dataset
         shutil.copytree(test_data_dir, data_dir)
-        self.plot_factory = MultimodalPlotFactory(data_dir=data_dir.parent)
+        self.plot_factory = MultimodalPlotFactory(data_dir=data_dir.parent, available_datasets=[self.tmp_dataset])
 
     def test_claim_image(self):
         plot = self.plot_factory.plot_claim_image(self.tmp_dataset, '1133352119124353024')
-        plot.show()
-        assert isinstance(plot, Figure)
-
-    def test_evidence_image(self):
-        plot = self.plot_factory.plot_evidence_image(self.tmp_dataset, '1133352119124353024')
         plot.show()
         assert isinstance(plot, Figure)
 
@@ -74,18 +69,38 @@ class TestMultimodalPlotFactory(unittest.TestCase):
         plot.show()
         assert isinstance(plot, Figure)
 
+    def test_graph_evidence_vis(self):
+        plot = self.plot_factory.plot_graph_evidence_vis(self.tmp_dataset, '1133352119124353024')
+        plot.show()
+        assert isinstance(plot, Figure)
+
     def test_graph_evidence_text(self):
         plot = self.plot_factory.plot_graph_evidence_text(self.tmp_dataset, '1133352119124353024')
         plot.show()
         assert isinstance(plot, Figure)
 
-    def test_graph_evidence_visual(self):
-        plot = self.plot_factory.plot_graph_evidence_vis(self.tmp_dataset, '1133352119124353024')
+    def test_evidence_image(self):
+        plot = self.plot_factory.plot_evidence_image(self.tmp_dataset, '1133352119124353024')
         plot.show()
         assert isinstance(plot, Figure)
 
-    def test_visual_evidences(self):
-        plot = self.plot_factory.plot_evidence_image_1(self.tmp_dataset, '1133352119124353024')
+    def test_graph_claim1(self):
+        plot = self.plot_factory.plot_graph_claim1(self.tmp_dataset, '1133352119124353024')
+        plot.show()
+        assert isinstance(plot, Figure)
+
+    def test_graph_evidence_vis1(self):
+        plot = self.plot_factory.plot_graph_evidence_vis1(self.tmp_dataset, '1133352119124353024')
+        plot.show()
+        assert isinstance(plot, Figure)
+
+    def test_plot_graph_evidence_text1(self):
+        plot = self.plot_factory.plot_graph_evidence_text1(self.tmp_dataset, '1133352119124353024')
+        plot.show()
+        assert isinstance(plot, Figure)
+
+    def test_plot_evidence_image1(self):
+        plot = self.plot_factory.plot_evidence_image1(self.tmp_dataset, '1133352119124353024')
         plot.show()
         assert isinstance(plot, Figure)
 

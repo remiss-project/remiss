@@ -1,9 +1,11 @@
+import shutil
 import unittest
 import uuid
+from pathlib import Path
 from unittest import TestCase
 
 import dash_bootstrap_components as dbc
-from dash import Dash, Output, Input
+from dash import Dash, Output, Input, html
 from dash import dcc
 from dash.dcc import Graph
 from pymongo import MongoClient
@@ -15,7 +17,6 @@ from figures.multimodal import MultimodalPlotFactory
 
 class TestMultimodalComponentComponent(TestCase):
     def setUp(self):
-        self.plot_factory = MultimodalPlotFactory(data_dir='./../fact_checking_data')
         self.test_dataset = 'test_dataset_2'
         self.tmp_dataset = str(uuid.uuid4().hex)
         self.client = MongoClient('localhost', 27017)
@@ -54,6 +55,11 @@ class TestMultimodalComponentComponent(TestCase):
         self.collection.insert_many(self.test_data)
         self.client.close()
 
+        test_data_dir = Path('./test_resources/multimodal')
+        data_dir = Path('/tmp/multimodal_data') / self.tmp_dataset
+        shutil.copytree(test_data_dir, data_dir)
+        self.plot_factory = MultimodalPlotFactory(data_dir=data_dir.parent, available_datasets=[self.tmp_dataset])
+
         self.state = RemissState(name='state')
         self.component = MultimodalComponent(self.plot_factory, self.state, name='multimodal')
 
@@ -68,21 +74,48 @@ class TestMultimodalComponentComponent(TestCase):
         # check that among the ids are correctly patched
         # find components recursively
         def find_components(component, found_components):
-            if hasattr(component, 'children') and component.children:
-                for child in component.children:
-                    find_components(child, found_components)
+            if hasattr(component, 'children'):
+                if component.children is not None:
+                    if len(component.children) == 0:
+                        find_components(component.children, found_components)
+                    else:
+                        for child in component.children:
+                            find_components(child, found_components)
             if isinstance(component, Graph):
+                found_components.append(component)
+            if isinstance(component, html.P):
                 found_components.append(component)
 
         found_components = []
         find_components(layout, found_components)
-        component_ids = ['-'.join(component.id.split('-')[:-1]) for component in found_components]
-        expected_components = ['fig-claim-image', 'fig-graph-claim', 'fig-evidence-image-1', 'fig-graph-evidence-text',
-                               'fig-evidence-image', 'fig-graph-evidence-vis']
+        component_ids = [component.id for component in found_components]
+        expected_components = {'fig-multimodal-claim_image',
+                               'fig-multimodal-evidence_image',
+                               'fig-multimodal-evidence_image1',
+                               'fig-multimodal-graph_claim',
+                               'fig-multimodal-graph_claim1',
+                               'fig-multimodal-graph_evidence_text',
+                               'fig-multimodal-graph_evidence_text1',
+                               'fig-multimodal-graph_evidence_vis',
+                               'fig-multimodal-graph_evidence_vis1',
+                               'multimodal-claim_text',
+                               'multimodal-found_flag',
+                               'multimodal-old_t_sug',
+                               'multimodal-t_sug',
+                               'multimodal-text_evidence',
+                               'multimodal-text_evidence_graph_similarity_score',
+                               'multimodal-text_evidence_similarity_score',
+                               'multimodal-visual_evidence_domain',
+                               'multimodal-visual_evidence_domain1',
+                               'multimodal-visual_evidence_graph_similarity_score',
+                               'multimodal-visual_evidence_graph_similarity_score1',
+                               'multimodal-visual_evidence_matched_categories',
+                               'multimodal-visual_evidence_matched_categories1',
+                               'multimodal-visual_evidence_similarity_score',
+                               'multimodal-visual_evidence_similarity_score1',
+                               'multimodal-visual_evidence_text',
+                               'multimodal-visual_evidence_text1'}
         self.assertEqual(set(component_ids), set(expected_components))
-        found_main_ids = ['-'.join(component.id.split('-')[-1:]) for component in found_components]
-        self.assertIn(self.component.name, found_main_ids)
-        self.assertEqual(len(set(found_main_ids)), 1)
 
     def _test_render(self):
         dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
@@ -133,23 +166,83 @@ class TestMultimodalComponentComponent(TestCase):
                                               {'id': 'current-tweet-state', 'property': 'data'}])
         actual_output = [{'component_id': o.component_id, 'property': o.component_property} for o in
                          callback['output']]
-        self.assertEqual(actual_output, [{'component_id': 'fig-claim-image-multimodal', 'property': 'figure'},
-                                         {'component_id': 'fig-evidence-image-multimodal', 'property': 'figure'},
-                                         {'component_id': 'fig-graph-claim-multimodal', 'property': 'figure'},
-                                         {'component_id': 'fig-graph-evidence-text-multimodal', 'property': 'figure'},
-                                         {'component_id': 'fig-graph-evidence-vis-multimodal', 'property': 'figure'},
-                                         {'component_id': 'fig-evidence-image-1-multimodal', 'property': 'figure'},
-                                         {'component_id': 'claim-text-multimodal', 'property': 'children'},
-                                         {'component_id': 'text-evidences-multimodal', 'property': 'children'},
-                                         {'component_id': 'evidence-text-multimodal', 'property': 'children'},
-                                         {'component_id': 'evidence-image-alt-text-multimodal', 'property': 'children'},
-                                         {'component_id': 'predicted-label-multimodal', 'property': 'children'},
-                                         {'component_id': 'actual-label-multimodal', 'property': 'children'},
-                                         {'component_id': 'num-claim-edges-multimodal', 'property': 'children'},
-                                         {'component_id': 'frac-verified-multimodal', 'property': 'children'},
-                                         {'component_id': 'explanations-multimodal', 'property': 'children'},
-                                         {'component_id': 'visual-similarity-score-multimodal', 'property': 'children'},
-                                         {'component_id': 'collapse-multimodal', 'property': 'is_open'}])
+        self.assertEqual(actual_output, [{'component_id': 'multimodal-visual_evidence_domain', 'property': 'children'},
+                                         {'component_id': 'multimodal-visual_evidence_matched_categories',
+                                          'property': 'children'},
+                                         {'component_id': 'multimodal-visual_evidence_text', 'property': 'children'},
+                                         {'component_id': 'multimodal-visual_evidence_similarity_score',
+                                          'property': 'children'},
+                                         {'component_id': 'multimodal-visual_evidence_graph_similarity_score',
+                                          'property': 'children'},
+                                         {'component_id': 'multimodal-text_evidence', 'property': 'children'},
+                                         {'component_id': 'multimodal-text_evidence_similarity_score',
+                                          'property': 'children'},
+                                         {'component_id': 'multimodal-text_evidence_graph_similarity_score',
+                                          'property': 'children'},
+                                         {'component_id': 'multimodal-visual_evidence_domain1', 'property': 'children'},
+                                         {'component_id': 'multimodal-visual_evidence_matched_categories1',
+                                          'property': 'children'},
+                                         {'component_id': 'multimodal-visual_evidence_text1', 'property': 'children'},
+                                         {'component_id': 'multimodal-visual_evidence_similarity_score1',
+                                          'property': 'children'},
+                                         {'component_id': 'multimodal-visual_evidence_graph_similarity_score1',
+                                          'property': 'children'},
+                                         {'component_id': 'multimodal-claim_text', 'property': 'children'},
+                                         {'component_id': 'multimodal-found_flag', 'property': 'children'},
+                                         {'component_id': 'multimodal-t_sug', 'property': 'children'},
+                                         {'component_id': 'multimodal-old_t_sug', 'property': 'children'},
+                                         {'component_id': 'fig-multimodal-graph_claim', 'property': 'figure'},
+                                         {'component_id': 'fig-multimodal-graph_evidence_vis', 'property': 'figure'},
+                                         {'component_id': 'fig-multimodal-graph_evidence_text', 'property': 'figure'},
+                                         {'component_id': 'fig-multimodal-evidence_image', 'property': 'figure'},
+                                         {'component_id': 'fig-multimodal-graph_claim1', 'property': 'figure'},
+                                         {'component_id': 'fig-multimodal-graph_evidence_vis1', 'property': 'figure'},
+                                         {'component_id': 'fig-multimodal-graph_evidence_text1', 'property': 'figure'},
+                                         {'component_id': 'fig-multimodal-evidence_image1', 'property': 'figure'},
+                                         {'component_id': 'fig-multimodal-claim_image', 'property': 'figure'},
+                                         {'component_id': 'multimodal-collapse', 'property': 'is_open'}])
+
+    def test_update(self):
+        a = self.component.update(self.tmp_dataset,
+                                  '1133352119124353024')
+        (visual_evidence_domain, visual_evidence_matched_categories, visual_evidence_text,
+         visual_evidence_similarity_score, visual_evidence_graph_similarity_score, text_evidence,
+         text_evidence_similarity_score, text_evidence_graph_similarity_score, visual_evidence_domain1,
+         visual_evidence_matched_categories1, visual_evidence_text1, visual_evidence_similarity_score1,
+         visual_evidence_graph_similarity_score1, claim_text, found_flag, t_sug, old_t_sug, graph_claim,
+         graph_evidence_vis, graph_evidence_text, evidence_image, graph_claim1, graph_evidence_vis1,
+         graph_evidence_text1, evidence_image1, claim_image, is_open) = self.component.update(self.tmp_dataset,
+                                                                                              '1133352119124353024')
+        self.assertEqual(visual_evidence_domain, self.test_data[0]['visual_evidence_domain'])
+        self.assertEqual(visual_evidence_matched_categories, self.test_data[0]['visual_evidence_matched_categories'])
+        self.assertEqual(visual_evidence_text, self.test_data[0]['visual_evidence_text'])
+        self.assertEqual(visual_evidence_similarity_score, self.test_data[0]['visual_evidence_similarity_score'])
+        self.assertEqual(visual_evidence_graph_similarity_score,
+                         self.test_data[0]['visual_evidence_graph_similarity_score'])
+        self.assertEqual(text_evidence, self.test_data[0]['text_evidence'])
+        self.assertEqual(text_evidence_similarity_score, self.test_data[0]['text_evidence_similarity_score'])
+        self.assertEqual(text_evidence_graph_similarity_score,
+                         self.test_data[0]['text_evidence_graph_similarity_score'])
+        self.assertEqual(visual_evidence_domain1, self.test_data[0]['visual_evidence_domain1'])
+        self.assertEqual(visual_evidence_matched_categories1, self.test_data[0]['visual_evidence_matched_categories1'])
+        self.assertEqual(visual_evidence_text1, self.test_data[0]['visual_evidence_text1'])
+        self.assertEqual(visual_evidence_similarity_score1, self.test_data[0]['visual_evidence_similarity_score1'])
+        self.assertEqual(visual_evidence_graph_similarity_score1,
+                         self.test_data[0]['visual_evidence_graph_similarity_score1'])
+        self.assertEqual(claim_text, self.test_data[0]['claim_text'])
+        self.assertEqual(found_flag, self.test_data[0]['found_flag'])
+        self.assertEqual(t_sug, self.test_data[0]['t_sug'])
+        self.assertEqual(old_t_sug, self.test_data[0]['old_t_sug'])
+        self.assertIsNotNone(graph_claim)
+        self.assertIsNotNone(graph_evidence_vis)
+        self.assertIsNotNone(graph_evidence_text)
+        self.assertIsNotNone(evidence_image)
+        self.assertIsNotNone(graph_claim1)
+        self.assertIsNotNone(graph_evidence_vis1)
+        self.assertIsNotNone(graph_evidence_text1)
+        self.assertIsNotNone(evidence_image1)
+        self.assertIsNotNone(claim_image)
+        self.assertTrue(is_open)
 
 
 if __name__ == '__main__':
