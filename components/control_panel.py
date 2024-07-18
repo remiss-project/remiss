@@ -1,10 +1,13 @@
 import json
+import logging
 
 import dash_bootstrap_components as dbc
 from dash import dcc, Input, Output
 from dash_holoniq_wordcloud import DashWordcloud
 
 from components.components import RemissComponent
+
+logger = logging.getLogger(__name__)
 
 
 class ControlPanelComponent(RemissComponent):
@@ -25,7 +28,7 @@ class ControlPanelComponent(RemissComponent):
         available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(self.available_datasets[0])
         if available_hashtags_freqs:
             if self.max_wordcloud_words:
-                print(
+                logger.info(
                     f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
                 available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
             min_freq = min([x[1] for x in available_hashtags_freqs])
@@ -57,7 +60,8 @@ class ControlPanelComponent(RemissComponent):
     def update_wordcloud(self, dataset):
         available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(dataset)
         if self.max_wordcloud_words:
-            print(f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
+            logger.info(
+                f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
             available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
         min_freq = min([x[1] for x in available_hashtags_freqs])
 

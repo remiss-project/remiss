@@ -223,7 +223,7 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         if layout.shape[0] != graph.vcount():
             logger.warning('Layout and graph have different number of vertices. Make sure persisted layout'
-                           'is correct. Recomputing layout')
+                           ' is correct. Recomputing layout')
             layout = self.compute_layout(graph)
             layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
         logger.info('Computing plot for network')

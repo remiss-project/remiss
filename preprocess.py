@@ -1,4 +1,5 @@
 import json
+import logging
 import shutil
 import zipfile
 from collections import defaultdict
@@ -13,6 +14,7 @@ from twarc import ensure_flattened
 
 pymongoarrow.monkey.patch_all()
 
+logger = logging.getLogger(__name__)
 
 def load_metadata(metadata_file):
     raw_metadata = pd.read_excel(metadata_file, sheet_name=None)
@@ -28,8 +30,8 @@ def load_metadata(metadata_file):
     usual_suspects = usual_suspects.set_index(usernames)
 
     if not usual_suspects.index.is_unique:
-        print('WARNING: usual suspects usernames are not unique')
-        print(usual_suspects[usual_suspects.index.duplicated(keep=False)].sort_index())
+        logger.warning('WARNING: usual suspects usernames are not unique')
+        logger.warning(usual_suspects[usual_suspects.index.duplicated(keep=False)].sort_index())
         usual_suspects = usual_suspects.drop_duplicates(keep='first')
 
     parties = raw_metadata['LLISTA POLÍTICS']
@@ -38,8 +40,8 @@ def load_metadata(metadata_file):
     usernames = parties['ENLLAÇ TW'].str.split('/').str[-1].str.split('?').str[0]
     parties = parties.set_index(usernames)
     if not parties.index.is_unique:
-        print('WARNING: parties usernames are not unique')
-        print(parties[parties.index.duplicated(keep=False)].sort_index())
+        logger.warning('WARNING: parties usernames are not unique')
+        logger.warning(parties[parties.index.duplicated(keep=False)].sort_index())
         parties = parties.drop_duplicates(keep='first')
     return usual_suspects, parties
 
@@ -55,7 +57,7 @@ def retrieve_remiss_metadata(tweet, usual_suspects, parties):
         elif isinstance(party, pd.Series):
             party = party.iloc[0]
         else:
-            print(f'Unexpected type for party {party} for user {username}')
+            logger.warning(f'Unexpected type for party {party} for user {username}')
             party = 'Desconocido'
         remiss_metadata['party'] = party
     else:
@@ -87,8 +89,8 @@ def _preprocess_line(line, outfile, media_outfile, mongoimport_outfile, output_u
             fix_timestamps(tweet)
             mongoimport_outfile.write(json.dumps(tweet) + '\n')
         except TypeError as ex:
-            print(f'Error processing tweet {tweet["id"]}: {ex}')
-            print(tweet)
+            logger.warning(f'Error processing tweet {tweet["id"]}: {ex}')
+            logger.warning(tweet)
 
 
 def preprocess_tweets(twitter_jsonl_zip, metadata_file):
@@ -225,18 +227,18 @@ def validate_fact_checking_dataset_data(data_dir):
                 if tweet_images_dir.is_dir():
                     images = {image.stem for image in tweet_images_dir.iterdir() if image.is_file()}
                     if images != expected_tweet_images:
-                        print(f'Unexpected images in {tweet_images_dir}: {images - expected_tweet_images}')
+                        logger.warning(f'Unexpected images in {tweet_images_dir}: {images - expected_tweet_images}')
                 elif tweet_images_dir.name != 'metadata.json':
-                    print(f'Unexpected file {tweet_images_dir} in {dataset}')
+                    logger.warning(f'Unexpected file {tweet_images_dir} in {dataset}')
 
             with (open(dataset / 'metadata.json', 'r') as metadata_file):
                 metadata = json.load(metadata_file)
                 for tweet_metadata in metadata:
 
                     if set(tweet_metadata.keys()) != expected_metadata_fields:
-                        print(f'Unexpected metadata fields: {set(tweet_metadata.keys()) - expected_metadata_fields}')
+                        logger.warning(f'Unexpected metadata fields: {set(tweet_metadata.keys()) - expected_metadata_fields}')
                     if set(tweet_metadata['results'].keys()) == expected_metadata_results:
-                        print(
+                        logger.warning(
                             f'Unexpected metadata results fields: {set(tweet_metadata["results"].keys()) - expected_metadata_results}')
 
 
@@ -268,7 +270,7 @@ def preprocess_multimodal_dataset_data(source_dir, output_dir, host=None, port=N
             try:
                 dataset_metadata[dataset_ids[str(tweet_metadata['id_in_json'])]].append(tweet_metadata)
             except KeyError:
-                print(f'Unexpected dataset {tweet_metadata["id_in_json"]} from {tweet_metadata["image_paths"]}')
+                logger.warning(f'Unexpected dataset {tweet_metadata["id_in_json"]} from {tweet_metadata["image_paths"]}')
 
     for dataset, metadata in dataset_metadata.items():
         dataset_dir = output_dir / dataset_names[dataset]
@@ -279,7 +281,7 @@ def preprocess_multimodal_dataset_data(source_dir, output_dir, host=None, port=N
             actual_tweet_images = set(actual_images[dataset, str(tweet_metadata['id_in_json'])])
             expected_tweet_images = {Path(image).stem for image in tweet_metadata['image_paths']}
             if actual_tweet_images != expected_tweet_images:
-                print(
+                logger.warning(
                     f'Unexpected images in {dataset}/{tweet_metadata["id_in_json"]}: {actual_tweet_images - expected_images}')
                 continue
 

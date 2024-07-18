@@ -1,3 +1,4 @@
+import logging
 import time
 from pathlib import Path
 
@@ -12,7 +13,11 @@ from figures import TimeSeriesFactory, TweetTableFactory
 from figures.multimodal import MultimodalPlotFactory
 from figures.profiling import ProfilingPlotFactory
 from figures.propagation import PropagationPlotFactory
-from figures.textual import RemoteTextualFactory, TextualFactory
+from figures.textual import TextualFactory
+
+
+logger = logging.getLogger('app')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
                        'CERULEAN': dbc.themes.CERULEAN,
@@ -49,30 +54,30 @@ def generate_propagation_dataset(dataset, config_file='dev_config.yaml', output_
     config = load_config(config_file)
     propagation_plot_factory = PropagationPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                                       available_datasets=config['available_datasets'])
-    print('Generating propagation dataset...')
+    logger.info('Generating propagation dataset...')
     start_time = time.time()
     X, y = propagation_plot_factory.generate_propagation_dataset(dataset, negative_sample_ratio)
     output_dir.mkdir(parents=True, exist_ok=True)
     X.to_csv(output_dir / f'{dataset}_X.csv', index=False)
     y.to_csv(output_dir / f'{dataset}_y.csv', index=False)
 
-    print(f'Generated propagation dataset in {time.time() - start_time} seconds.')
+    logger.info(f'Generated propagation dataset in {time.time() - start_time} seconds.')
 
 
 def create_app(config):
     load_figure_template(config['theme'])
 
-    print(f'Connecting to MongoDB at {config["mongodb"]["host"]}:{config["mongodb"]["port"]}...')
-    print(f'Using database {"database"}...')
+    logger.info(f'Connecting to MongoDB at {config["mongodb"]["host"]}:{config["mongodb"]["port"]}...')
+    logger.info(f'Using database {"database"}...')
     if config['cache_dir']:
-        print(f'Using cache directory {config["cache_dir"]}...')
+        logger.info(f'Using cache directory {config["cache_dir"]}...')
     else:
-        print('Not using cache...')
+        logger.info('Not using cache...')
 
     if config['graph_simplification']:
-        print(f'Using graph simplification threshold {config["graph_simplification"]["threshold"]}...')
+        logger.info(f'Using graph simplification threshold {config["graph_simplification"]["threshold"]}...')
 
-    print('Creating plot factories...')
+    logger.info('Creating plot factories...')
     start_time = time.time()
     tweet_user_plot_factory = TimeSeriesFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                                 available_datasets=config['available_datasets'])
@@ -107,8 +112,8 @@ def create_app(config):
                                 match_wordcloud_width=config['wordcloud']['match_width'],
                                 name='dashboard',
                                 debug=config['debug'])
-    print(f'Plot factories created in {time.time() - start_time} seconds.')
-    print('Creating app...')
+    logger.info(f'Plot factories created in {time.time() - start_time} seconds.')
+    logger.info('Creating app...')
     start_time = time.time()
     dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
     app = dash.Dash(__name__,
@@ -123,7 +128,7 @@ def create_app(config):
                     )
     app.layout = dashboard.layout()
     dashboard.callbacks(app)
-    print(f'App created in {time.time() - start_time} seconds.')
+    logger.info(f'App created in {time.time() - start_time} seconds.')
 
     return app
 
@@ -134,10 +139,10 @@ def load_config(config):
 
 
 def main(config='dev_config.yaml'):
-    print(f'Loading config from {config}...')
+    logger.info(f'Loading config from {config}...')
     config = load_config(config)
     app = create_app(config)
-    print('Running app...')
+    logger.info('Running app...')
     app.run(debug=config['debug'])
 
 

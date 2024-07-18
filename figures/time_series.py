@@ -1,3 +1,4 @@
+import logging
 import time
 from datetime import datetime
 
@@ -11,6 +12,8 @@ from figures.figures import MongoPlotFactory
 
 pymongoarrow.monkey.patch_all()
 
+logger = logging.getLogger('time_series')
+
 
 class TimeSeriesFactory(MongoPlotFactory):
 
@@ -21,10 +24,10 @@ class TimeSeriesFactory(MongoPlotFactory):
                 "count": {'$count': {}}}},
             {'$sort': {'_id': 1}}
         ]
-        print('Computing tweet series')
+        logger.info('Computing tweet series')
         start_computing_time = time.time()
         plot = self._get_count_area_plot(pipeline, collection, hashtags, start_time, end_time)
-        print(f'Tweet series computed in {time.time() - start_computing_time} seconds')
+        logger.info(f'Tweet series computed in {time.time() - start_computing_time} seconds')
         return plot
 
     def plot_user_series(self, collection, hashtags, start_time, end_time, unit='day', bin_size=1):
@@ -36,10 +39,10 @@ class TimeSeriesFactory(MongoPlotFactory):
             {'$project': {'count': {'$size': '$users'}}},
             {'$sort': {'_id': 1}}
         ]
-        print('Computing user series')
+        logger.info('Computing user series')
         start_computing_time = time.time()
         plot = self._get_count_area_plot(pipeline, collection, hashtags, start_time, end_time)
-        print(f'User series computed in {time.time() - start_computing_time} seconds')
+        logger.info(f'User series computed in {time.time() - start_computing_time} seconds')
         return plot
 
     def _perform_count_aggregation(self, pipeline, collection):

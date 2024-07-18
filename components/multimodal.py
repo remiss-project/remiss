@@ -1,8 +1,11 @@
+import logging
 from pathlib import Path
 
 import dash_bootstrap_components as dbc
 from dash import dcc, html, Output, Input
 from components.components import RemissComponent
+
+logger = logging.getLogger(__name__)
 
 
 class MultimodalComponent(RemissComponent):

@@ -1,8 +1,11 @@
+import logging
+
 import dash_bootstrap_components as dbc
 from dash import dcc, Input, Output
 
 from components.components import RemissComponent
 
+logger = logging.getLogger(__name__)
 
 class PropagationComponent(RemissComponent):
     def __init__(self, plot_factory, state,
@@ -85,7 +88,7 @@ class PropagationComponent(RemissComponent):
                 self.plot_factory.plot_structural_virality_over_time(dataset, tweet_id), \
                 True
         except Exception as e:
-            print(e)
+            logger.info(e)
             return {}, {}, {}, {}, {}, False
 
     def callbacks(self, app):
@@ -129,7 +132,7 @@ class CascadeCcdfComponent(RemissComponent):
         try:
             return self.plot_factory.plot_size_cascade_ccdf(dataset)
         except KeyError as e:
-            print(e)
+            logger.info(e)
             return {}
 
     def callbacks(self, app):
