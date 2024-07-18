@@ -20,32 +20,32 @@ class MultimodalPlotFactory(MongoPlotFactory):
 
     def plot_claim_image(self, dataset, tweet_id):
         data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['id'], 'claim_image')
+        fig = self.load_image(dataset, data['tweet_id'], 'claim_image')
         return fig
 
     def plot_evidence_image(self, dataset, tweet_id):
         data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['id'], 'evidence_image')
+        fig = self.load_image(dataset, data['tweet_id'], 'evidence_image')
         return fig
 
     def plot_graph_claim(self, dataset, tweet_id):
         data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['id'], 'graph_claim')
+        fig = self.load_image(dataset, data['tweet_id'], 'graph_claim')
         return fig
 
     def plot_graph_evidence_text(self, dataset, tweet_id):
         data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['id'], 'graph_evidence_text')
+        fig = self.load_image(dataset, data['tweet_id'], 'graph_evidence_text')
         return fig
 
     def plot_graph_evidence_vis(self, dataset, tweet_id):
         data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['id'], 'graph_evidence_vis')
+        fig = self.load_image(dataset, data['tweet_id'], 'graph_evidence_vis')
         return fig
 
-    def plot_visual_evidences(self, dataset, tweet_id):
+    def plot_evidence_image_1(self, dataset, tweet_id):
         data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['id'], 'visual_evidences')
+        fig = self.load_image(dataset, data['tweet_id'], 'evidence_image1')
         return fig
 
     def get_metadata(self, dataset, tweet_id):

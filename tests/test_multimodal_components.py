@@ -1,4 +1,5 @@
 import unittest
+import uuid
 from unittest import TestCase
 
 import dash_bootstrap_components as dbc
@@ -15,37 +16,50 @@ from figures.multimodal import MultimodalPlotFactory
 class TestMultimodalComponentComponent(TestCase):
     def setUp(self):
         self.plot_factory = MultimodalPlotFactory(data_dir='./../fact_checking_data')
+        self.test_dataset = 'test_dataset_2'
+        self.tmp_dataset = str(uuid.uuid4().hex)
         self.client = MongoClient('localhost', 27017)
-        self.client.drop_database('fact_checking')
-        self.database = self.client.get_database('fact_checking')
-        self.collection = self.database.get_collection('test_dataset')
+        self.client.drop_database(self.tmp_dataset)
+        self.database = self.client.get_database(self.tmp_dataset)
+        self.collection = self.database.get_collection('multimodal')
         self.test_data = [
             {
-                "claim_text": "A shot of the All Nippon Airways Boeing 787 Dreamliner that s painted in the likeness of R2D2 in Los Angeles on Dec 15 2015",
-                "id": 47,
-                "tweet_id": "100485425",
-                "text_evidences": "-\n ANA's R2D2 Jet Uses The Force to Transport Stars Between The 'Star \nWars' Premieres - TheDesignAir\n\n- The Cast Of \"Star Wars: The Force Awakens\" On ANA Charter Flight From \nLos Angeles To The London Premiere\n\n- The R2-D2 ANA Jet Transports Star Wars Movie Cast Between Premieres in\n USA and UK\n\n- Dec15.32\n\n- 24 Boeing 787 ideas | boeing 787, boeing, boeing 787 ... - Pinterest\n\n- The stars of \"Star Wars: The Force Awakens\" blew into London in It \nMovie Cast, It Cast, Geek Movies, Star Wars Cast, Private Pilot, Air \nPhoto, Airplane Design, Aircraft Painting, Commercial Aircraft\n\n- 19 Geek Stuff ideas | geek stuff, star wars, stars\n\n- 100 Aviation ideas | aviation, boeing, aircraft\n",
-                "evidence_text": "The Cast Of \"Star Wars: The Force Awakens\" On ANA Charter Flight From Los Angeles To The London Premiere",
-                "evidence_image_alt_text": "Page\n 2 - R2d2 Star Wars High Resolution Stock Photography and Images - Alamy\n Page 2 - R2d2 Star Wars High Resolution Stock Photography and ...",
+                "visual_evidence_domain": "elpais.com",
+                "visual_evidence_matched_categories": "['caption', 'place', 'vit', 'objects']",
+                "visual_evidence_text": " El candidato a lehendakari del PNV, Imanol Pradales, comparece en la sede del PNV tras el conteo, este domingo.Resultados de las elecciones vascas 2024 | El PNV empata con Bildu y podr\u00e1 reeditar la coalici\u00f3n con los socialistas | Elecciones en el Pa\u00eds Vasco 21-A | EL PA\u00cdS",
+                "visual_evidence_similarity_score": "0.533111073076725",
+                "visual_evidence_graph_similarity_score": "1.0",
+                "text_evidence": "no_text_evidence",
+                "text_evidence_similarity_score": "0.4457797110080719",
+                "text_evidence_graph_similarity_score": "0.0",
+                "visual_evidence_domain1": "elpais.com",
+                "visual_evidence_matched_categories1": "['caption', 'place', 'vit', 'objects']",
+                "visual_evidence_text1": " El candidato a lehendakari del PNV, Imanol Pradales, comparece en la sede del PNV tras el conteo, este domingo.Resultados de las elecciones vascas 2024 | El PNV empata con Bildu y podr\u00e1 reeditar la coalici\u00f3n con los socialistas | Elecciones en el Pa\u00eds Vasco 21-A | EL PA\u00cdS",
+                "visual_evidence_similarity_score1": "0.5365476682782173",
+                "visual_evidence_graph_similarity_score1": "1.0",
+                "claim_text": "Desde hace tiempo se ve\u00eda venir que se pod\u00eda vertebrar una coalici\u00f3n como en Euskadi @eajpnv + @socialistavasco en Nafarroa @PSNPSOE + @geroabai \nCon estas declaraciones queda claro que esa es la estrategia nacional del PNV en toda Euskal Herria.\n#26M https://t.co/nAOIdpq1YB",
+                "found_flag": "not found",
+                "id_in_json": 7620,
+                "t_sug": "Estrategia Nacional PNV Euskal Herria EAJPNV SocialistaVasco Navarra",
+                "old_t_sug": "coalici\u00f3n Euskadi Euskal Herria estrategia nacional PNV",
                 "results": {
-                    "predicted_label": 1,
-                    "actual_label": 0,
-                    "num_claim_edges": 5,
-                    "frac_verified": 0.0,
-                    "explanations": "+ XT(V) ns + XV(T) ns",
-                    "visual_similarity_score": 0.8824891924858094
-                }
-            }
+                    "predicted_label": "FAKE",
+                    "actual_label": "FAKE",
+                    "visual_similarity_score": 0.533111073076725,
+                    "explanations": ""
+                },
+                "tweet_id": "1133352119124353024"
+            },
         ]
         self.collection.insert_many(self.test_data)
         self.client.close()
 
         self.state = RemissState(name='state')
-        self.component = MultimodalComponent(self.plot_factory, self.state, name='fact_checking')
+        self.component = MultimodalComponent(self.plot_factory, self.state, name='multimodal')
 
     def tearDown(self) -> None:
         self.client = MongoClient('localhost', 27017)
-        self.client.drop_database('fact_checking')
+        self.client.drop_database(self.tmp_dataset)
         self.client.close()
 
     def test_layout_ids(self):
@@ -63,7 +77,7 @@ class TestMultimodalComponentComponent(TestCase):
         found_components = []
         find_components(layout, found_components)
         component_ids = ['-'.join(component.id.split('-')[:-1]) for component in found_components]
-        expected_components = ['fig-claim-image', 'fig-graph-claim', 'fig-visual-evidences', 'fig-graph-evidence-text',
+        expected_components = ['fig-claim-image', 'fig-graph-claim', 'fig-evidence-image-1', 'fig-graph-evidence-text',
                                'fig-evidence-image', 'fig-graph-evidence-vis']
         self.assertEqual(set(component_ids), set(expected_components))
         found_main_ids = ['-'.join(component.id.split('-')[-1:]) for component in found_components]
@@ -111,18 +125,31 @@ class TestMultimodalComponentComponent(TestCase):
 
         callback = None
         for cb in app.callback_map.values():
-            if 'TimeSeriesComponent.update' in str(cb["callback"]):
+            if 'MultimodalComponent.update' in str(cb["callback"]):
                 callback = cb
                 break
 
         self.assertEqual(callback['inputs'], [{'id': 'current-dataset-state', 'property': 'data'},
-                                              {'id': 'current-hashtags-state', 'property': 'data'},
-                                              {'id': 'current-start-date-state', 'property': 'data'},
-                                              {'id': 'current-end-date-state', 'property': 'data'}])
+                                              {'id': 'current-tweet-state', 'property': 'data'}])
         actual_output = [{'component_id': o.component_id, 'property': o.component_property} for o in
                          callback['output']]
-        self.assertEqual(actual_output, [{'component_id': 'fig-tweet-timeseries', 'property': 'figure'},
-                                         {'component_id': 'fig-users-timeseries', 'property': 'figure'}])
+        self.assertEqual(actual_output, [{'component_id': 'fig-claim-image-multimodal', 'property': 'figure'},
+                                         {'component_id': 'fig-evidence-image-multimodal', 'property': 'figure'},
+                                         {'component_id': 'fig-graph-claim-multimodal', 'property': 'figure'},
+                                         {'component_id': 'fig-graph-evidence-text-multimodal', 'property': 'figure'},
+                                         {'component_id': 'fig-graph-evidence-vis-multimodal', 'property': 'figure'},
+                                         {'component_id': 'fig-evidence-image-1-multimodal', 'property': 'figure'},
+                                         {'component_id': 'claim-text-multimodal', 'property': 'children'},
+                                         {'component_id': 'text-evidences-multimodal', 'property': 'children'},
+                                         {'component_id': 'evidence-text-multimodal', 'property': 'children'},
+                                         {'component_id': 'evidence-image-alt-text-multimodal', 'property': 'children'},
+                                         {'component_id': 'predicted-label-multimodal', 'property': 'children'},
+                                         {'component_id': 'actual-label-multimodal', 'property': 'children'},
+                                         {'component_id': 'num-claim-edges-multimodal', 'property': 'children'},
+                                         {'component_id': 'frac-verified-multimodal', 'property': 'children'},
+                                         {'component_id': 'explanations-multimodal', 'property': 'children'},
+                                         {'component_id': 'visual-similarity-score-multimodal', 'property': 'children'},
+                                         {'component_id': 'collapse-multimodal', 'property': 'is_open'}])
 
 
 if __name__ == '__main__':

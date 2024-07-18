@@ -16,7 +16,7 @@ def create_test_database(source_dataset, database_name):
     prod_db = prod[source_dataset]
     # for each collection, sample the first week and insert into the test database at the local database_name
     client = MongoClient('localhost', 27017)
-    client.drop_database(database_name)
+    # client.drop_database(database_name)
     db = client[database_name]
     raw = prod_db.get_collection('raw')
     first_raw_tweet = raw.find_one(sort=[('created_at', 1)])

@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 import pymongoarrow.monkey
+from pymongo import MongoClient
 from tqdm import tqdm
 from twarc import ensure_flattened
 
@@ -239,7 +240,7 @@ def validate_fact_checking_dataset_data(data_dir):
                             f'Unexpected metadata results fields: {set(tweet_metadata["results"].keys()) - expected_metadata_results}')
 
 
-def preprocess_multimodal_dataset_data(source_dir, output_dir):
+def preprocess_multimodal_dataset_data(source_dir, output_dir, host=None, port=None):
     # Dataset names for renaming
     dataset_names = {'bcn19': 'Barcelona_2019', 'mena_aggr': 'MENA_Agressions', 'mena_ajud': 'MENA_Ajudes',
                      'openarms': 'Openarms', 'gen19': 'Generales_2019', 'gen21': 'Generalitat_2021', }
@@ -253,7 +254,8 @@ def preprocess_multimodal_dataset_data(source_dir, output_dir):
         if dataset.is_dir():
             for tweet_images_dir in dataset.iterdir():
                 if tweet_images_dir.is_dir():
-                    images = {image.stem for image in tweet_images_dir.iterdir() if image.is_file() and image.suffix in ['.jpg', '.png']}
+                    images = {image.stem for image in tweet_images_dir.iterdir() if
+                              image.is_file() and image.suffix in ['.jpg', '.png']}
                     if images:
                         actual_images[(dataset.name, tweet_images_dir.name)] = images
                         dataset_ids[tweet_images_dir.name] = dataset.name
@@ -277,19 +279,33 @@ def preprocess_multimodal_dataset_data(source_dir, output_dir):
             actual_tweet_images = set(actual_images[dataset, str(tweet_metadata['id_in_json'])])
             expected_tweet_images = {Path(image).stem for image in tweet_metadata['image_paths']}
             if actual_tweet_images != expected_tweet_images:
-                print(f'Unexpected images in {dataset}/{tweet_metadata["id_in_json"]}: {actual_tweet_images - expected_images}')
+                print(
+                    f'Unexpected images in {dataset}/{tweet_metadata["id_in_json"]}: {actual_tweet_images - expected_images}')
                 continue
 
             tweet_id = tweet_metadata['results']['tweet_id']
-            tweet_images_dir = dataset_dir / str(tweet_id)
+            tweet_images_dir = dataset_dir / 'images' / str(tweet_id)
             tweet_images_dir.mkdir(exist_ok=True, parents=True)
 
             correct_tweet_metadata = {key: value for key, value in tweet_metadata.items() if key != 'image_paths'}
-            correct_tweet_metadata[tweet_id] = correct_tweet_metadata['results']['tweet_id']
+            correct_tweet_metadata['tweet_id'] = str(tweet_id)
             del correct_tweet_metadata['results']['tweet_id']
             correct_metadata.append(correct_tweet_metadata)
 
             for image in tweet_metadata['image_paths']:
                 source = source_dir / 'outputs' / dataset / str(tweet_metadata['id_in_json']) / image
                 target = tweet_images_dir / Path(image).name
+                target.parent.mkdir(exist_ok=True, parents=True)
                 shutil.copy(source, target)
+
+        with open(dataset_dir / 'metadata.json', 'w') as metadata_file:
+            json.dump(correct_metadata, metadata_file)
+
+        if host:
+            port = port or 27017
+            client = MongoClient(host, port)
+            db = client[dataset_names[dataset]]
+            collection = db.get_collection('multimodal')
+            collection.drop()
+            collection.insert_many(correct_metadata)
+            client.close()

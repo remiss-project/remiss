@@ -1,81 +1,94 @@
+import shutil
 import unittest
+import uuid
+from pathlib import Path
 
 from plotly.graph_objs import Figure
 from pymongo import MongoClient
 
 from figures.multimodal import MultimodalPlotFactory
 
-DATA_DIR = './../fact_checking_data'
-
 
 class TestMultimodalPlotFactory(unittest.TestCase):
+
+    def tearDown(self):
+        client = MongoClient('localhost', 27017)
+        client.drop_database(self.tmp_dataset)
+
     def setUp(self):
-        self.plot_factory = MultimodalPlotFactory(data_dir=DATA_DIR)
+        self.test_dataset = 'test_dataset_2'
+        self.tmp_dataset = str(uuid.uuid4().hex)
         self.client = MongoClient('localhost', 27017)
-        self.client.drop_database('test_dataset')
-        self.database = self.client.get_database('test_dataset')
+        self.client.drop_database(self.tmp_dataset)
+        self.database = self.client.get_database(self.tmp_dataset)
         self.collection = self.database.get_collection('multimodal')
         self.test_data = [
             {
-                "claim_text": "A shot of the All Nippon Airways Boeing 787 Dreamliner that s painted in the likeness of R2D2 in Los Angeles on Dec 15 2015",
-                "id": 47,
-                "tweet_id": "100485425",
-                "text_evidences": "-\n ANA's R2D2 Jet Uses The Force to Transport Stars Between The 'Star \nWars' Premieres - TheDesignAir\n\n- The Cast Of \"Star Wars: The Force Awakens\" On ANA Charter Flight From \nLos Angeles To The London Premiere\n\n- The R2-D2 ANA Jet Transports Star Wars Movie Cast Between Premieres in\n USA and UK\n\n- Dec15.32\n\n- 24 Boeing 787 ideas | boeing 787, boeing, boeing 787 ... - Pinterest\n\n- The stars of \"Star Wars: The Force Awakens\" blew into London in It \nMovie Cast, It Cast, Geek Movies, Star Wars Cast, Private Pilot, Air \nPhoto, Airplane Design, Aircraft Painting, Commercial Aircraft\n\n- 19 Geek Stuff ideas | geek stuff, star wars, stars\n\n- 100 Aviation ideas | aviation, boeing, aircraft\n",
-                "evidence_text": "The Cast Of \"Star Wars: The Force Awakens\" On ANA Charter Flight From Los Angeles To The London Premiere",
-                "evidence_image_alt_text": "Page\n 2 - R2d2 Star Wars High Resolution Stock Photography and Images - Alamy\n Page 2 - R2d2 Star Wars High Resolution Stock Photography and ...",
+                "visual_evidence_domain": "elpais.com",
+                "visual_evidence_matched_categories": "['caption', 'place', 'vit', 'objects']",
+                "visual_evidence_text": " El candidato a lehendakari del PNV, Imanol Pradales, comparece en la sede del PNV tras el conteo, este domingo.Resultados de las elecciones vascas 2024 | El PNV empata con Bildu y podr\u00e1 reeditar la coalici\u00f3n con los socialistas | Elecciones en el Pa\u00eds Vasco 21-A | EL PA\u00cdS",
+                "visual_evidence_similarity_score": "0.533111073076725",
+                "visual_evidence_graph_similarity_score": "1.0",
+                "text_evidence": "no_text_evidence",
+                "text_evidence_similarity_score": "0.4457797110080719",
+                "text_evidence_graph_similarity_score": "0.0",
+                "visual_evidence_domain1": "elpais.com",
+                "visual_evidence_matched_categories1": "['caption', 'place', 'vit', 'objects']",
+                "visual_evidence_text1": " El candidato a lehendakari del PNV, Imanol Pradales, comparece en la sede del PNV tras el conteo, este domingo.Resultados de las elecciones vascas 2024 | El PNV empata con Bildu y podr\u00e1 reeditar la coalici\u00f3n con los socialistas | Elecciones en el Pa\u00eds Vasco 21-A | EL PA\u00cdS",
+                "visual_evidence_similarity_score1": "0.5365476682782173",
+                "visual_evidence_graph_similarity_score1": "1.0",
+                "claim_text": "Desde hace tiempo se ve\u00eda venir que se pod\u00eda vertebrar una coalici\u00f3n como en Euskadi @eajpnv + @socialistavasco en Nafarroa @PSNPSOE + @geroabai \nCon estas declaraciones queda claro que esa es la estrategia nacional del PNV en toda Euskal Herria.\n#26M https://t.co/nAOIdpq1YB",
+                "found_flag": "not found",
+                "id_in_json": 7620,
+                "t_sug": "Estrategia Nacional PNV Euskal Herria EAJPNV SocialistaVasco Navarra",
+                "old_t_sug": "coalici\u00f3n Euskadi Euskal Herria estrategia nacional PNV",
                 "results": {
-                    "predicted_label": 1,
-                    "actual_label": 0,
-                    "num_claim_edges": 5,
-                    "frac_verified": 0.0,
-                    "explanations": "+ XT(V) ns + XV(T) ns",
-                    "visual_similarity_score": 0.8824891924858094
-                }
-            }
+                    "predicted_label": "FAKE",
+                    "actual_label": "FAKE",
+                    "visual_similarity_score": 0.533111073076725,
+                    "explanations": ""
+                },
+                "tweet_id": "1133352119124353024"
+            },
         ]
         self.collection.insert_many(self.test_data)
         self.client.close()
 
-    def tearDown(self) -> None:
-        self.client = MongoClient('localhost', 27017)
-        self.client.drop_database('test_dataset')
-        self.client.close()
-
-    def tearDown(self) -> None:
-        self.client = MongoClient('localhost', 27017)
-        self.client.drop_database('test_dataset')
-        self.client.close()
+        test_data_dir = Path('./test_resources/multimodal')
+        data_dir = Path('/tmp/multimodal_data') / self.tmp_dataset
+        shutil.copytree(test_data_dir, data_dir)
+        self.plot_factory = MultimodalPlotFactory(data_dir=data_dir.parent)
 
     def test_claim_image(self):
-        plot = self.plot_factory.plot_claim_image('test_dataset', '100485425')
+        plot = self.plot_factory.plot_claim_image(self.tmp_dataset, '1133352119124353024')
         plot.show()
         assert isinstance(plot, Figure)
 
     def test_evidence_image(self):
-        plot = self.plot_factory.plot_evidence_image('test_dataset', '100485425')
+        plot = self.plot_factory.plot_evidence_image(self.tmp_dataset, '1133352119124353024')
         plot.show()
         assert isinstance(plot, Figure)
 
     def test_graph_claim(self):
-        plot = self.plot_factory.plot_graph_claim('test_dataset', '100485425')
+        plot = self.plot_factory.plot_graph_claim(self.tmp_dataset, '1133352119124353024')
         plot.show()
         assert isinstance(plot, Figure)
 
     def test_graph_evidence_text(self):
-        plot = self.plot_factory.plot_graph_evidence_text('test_dataset', '100485425')
+        plot = self.plot_factory.plot_graph_evidence_text(self.tmp_dataset, '1133352119124353024')
         plot.show()
         assert isinstance(plot, Figure)
 
     def test_graph_evidence_visual(self):
-        plot = self.plot_factory.plot_graph_evidence_vis('test_dataset', '100485425')
+        plot = self.plot_factory.plot_graph_evidence_vis(self.tmp_dataset, '1133352119124353024')
         plot.show()
         assert isinstance(plot, Figure)
 
     def test_visual_evidences(self):
-        plot = self.plot_factory.plot_visual_evidences('test_dataset', '100485425')
+        plot = self.plot_factory.plot_evidence_image_1(self.tmp_dataset, '1133352119124353024')
         plot.show()
         assert isinstance(plot, Figure)
 
     def test_load_data_for_tweet(self):
-        data = self.plot_factory.load_data_for_tweet('test_dataset', '100485425')
+        data = self.plot_factory.load_data_for_tweet(self.tmp_dataset, '1133352119124353024')
         assert data == self.test_data[0]

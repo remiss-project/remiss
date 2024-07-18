@@ -15,18 +15,18 @@ class MultimodalComponent(RemissComponent):
         self.graph_claim = dcc.Graph(figure={}, id=f'fig-graph-claim-{self.name}')
         self.graph_evidence_text = dcc.Graph(figure={}, id=f'fig-graph-evidence-text-{self.name}')
         self.graph_evidence_vis = dcc.Graph(figure={}, id=f'fig-graph-evidence-vis-{self.name}')
-        self.visual_evidences = dcc.Graph(figure={}, id=f'fig-visual-evidences-{self.name}')
+        self.evidence_image_1 = dcc.Graph(figure={}, id=f'fig-evidence-image-1-{self.name}')
 
-        self.claim_text = html.P()
-        self.text_evidences = html.P()
-        self.evidence_text = html.P()
-        self.evidence_image_alt_text = html.P()
-        self.predicted_label = html.P()
-        self.actual_label = html.P()
-        self.num_claim_edges = html.P()
-        self.frac_verified = html.P()
-        self.explanations = html.P()
-        self.visual_similarity_score = html.P()
+        self.claim_text = html.P(id=f'claim-text-{self.name}')
+        self.text_evidences = html.P(id=f'text-evidences-{self.name}')
+        self.evidence_text = html.P(id=f'evidence-text-{self.name}')
+        self.evidence_image_alt_text = html.P(id=f'evidence-image-alt-text-{self.name}')
+        self.predicted_label = html.P(id=f'predicted-label-{self.name}')
+        self.actual_label = html.P(id=f'actual-label-{self.name}')
+        self.num_claim_edges = html.P(id=f'num-claim-edges-{self.name}')
+        self.frac_verified = html.P(id=f'frac-verified-{self.name}')
+        self.explanations = html.P(id=f'explanations-{self.name}')
+        self.visual_similarity_score = html.P(id=f'visual-similarity-score-{self.name}')
 
         self.plot_factory = plot_factory
         self.state = state
@@ -63,9 +63,9 @@ class MultimodalComponent(RemissComponent):
                     ])
                 ]),
                 dbc.Card([
-                    dbc.CardHeader('Visual Evidences'),
+                    dbc.CardHeader('Evidence Image 1'),
                     dbc.CardBody([
-                        self.visual_evidences
+                        self.evidence_image_1
                     ])
                 ]),
             ]),
@@ -171,9 +171,9 @@ class MultimodalComponent(RemissComponent):
             graph_claim = self.plot_factory.plot_graph_claim(dataset, tweet_id)
             graph_evidence_text = self.plot_factory.plot_graph_evidence_text(dataset, tweet_id)
             graph_evidence_vis = self.plot_factory.plot_graph_evidence_vis(dataset, tweet_id)
-            visual_evidences = self.plot_factory.plot_visual_evidences(dataset, tweet_id)
+            evidence_image_1 = self.plot_factory.plot_evidence_image_1(dataset, tweet_id)
 
-            return claim_image, evidence_image, graph_claim, graph_evidence_text, graph_evidence_vis, visual_evidences, \
+            return claim_image, evidence_image, graph_claim, graph_evidence_text, graph_evidence_vis, evidence_image_1, \
                 claim_text, text_evidences, evidence_text, evidence_image_alt_text, predicted_label, actual_label, \
                 num_claim_edges, frac_verified, explanations, visual_similarity_score, True
         except RuntimeError as e:
@@ -186,7 +186,7 @@ class MultimodalComponent(RemissComponent):
             Output(self.graph_claim, 'figure'),
             Output(self.graph_evidence_text, 'figure'),
             Output(self.graph_evidence_vis, 'figure'),
-            Output(self.visual_evidences, 'figure'),
+            Output(self.evidence_image_1, 'figure'),
             Output(self.claim_text, 'children'),
             Output(self.text_evidences, 'children'),
             Output(self.evidence_text, 'children'),
