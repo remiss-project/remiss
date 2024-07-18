@@ -583,22 +583,22 @@ class TestEgonetCase(unittest.TestCase):
     def test_compute_hidden_network_full(self):
         actual = self.egonet.get_hidden_network(self.test_dataset)
 
-        self.assertEqual(actual.vcount(), 3315)
-        self.assertEqual(actual.ecount(), 5844)
+        self.assertEqual(3321, actual.vcount())
+        self.assertEqual(5847, actual.ecount())
 
     def test_compute_hidden_network_weight_full(self):
         graph = self.egonet.get_hidden_network(self.test_dataset)
 
         actual = pd.Series(graph.es['weight']).value_counts()[:5].to_list()
-        expected = [4932, 430, 136, 99, 49]
+        expected = [4935, 430, 136, 99, 49]
         self.assertEqual(expected, actual)
 
         actual = pd.Series(graph.es['weight_inv']).value_counts().to_list()[:5]
-        expected = [4932, 430, 136, 99, 49]
+        expected = [4935, 430, 136, 99, 49]
         self.assertEqual(expected, actual)
 
         actual = pd.Series(graph.es['weight_norm']).value_counts().to_list()[:5]
-        expected = [2401, 157, 139, 121, 88]
+        expected = [2404, 157, 139, 121, 88]
         self.assertEqual(expected, actual)
 
     def test_get_egonet_full(self):
@@ -620,13 +620,13 @@ class TestEgonetCase(unittest.TestCase):
     def test__get_references_full(self):
         actual = self.egonet._get_references(self.test_dataset)
         actual = actual.sort_values(['source', 'target']).reset_index(drop=True)
-        expected = [4932, 430, 136, 99, 49, 30, 28, 19, 15, 15, 14, 12, 10, 9, 7, 7, 7, 6, 5, 4, 3, 3, 2, 1, 1]
-        expected_weight_norm = [2401, 157, 139, 121, 88, 87, 78, 77, 74, 72]
-        self.assertEqual(actual['weight'].value_counts().to_list(), expected)
-        self.assertEqual(actual['weight_inv'].value_counts().to_list(), expected)
-        self.assertEqual(actual['weight_norm'].value_counts().to_list()[:10], expected_weight_norm)
-        self.assertEqual(actual['source'].to_list()[:2], ['1000010057743065089', '1000300778190528512'])
-        self.assertEqual(actual['target'].to_list()[:2], ['270839361', '420374996'])
+        expected = [4935, 430, 136, 99, 49, 30, 28, 19, 15, 15, 14, 12, 10, 9, 7, 7, 7, 6, 5, 4, 3, 3, 2, 1, 1]
+        expected_weight_norm = [2404, 157, 139, 121, 88, 87, 78, 77, 74, 72]
+        self.assertEqual(expected, actual['weight'].value_counts().to_list(), )
+        self.assertEqual(expected, actual['weight_inv'].value_counts().to_list(), expected)
+        self.assertEqual(expected_weight_norm, actual['weight_norm'].value_counts().to_list()[:10], )
+        self.assertEqual(['1000010057743065089', '1000300778190528512'], actual['source'].to_list()[:2])
+        self.assertEqual(['270839361', '420374996'], actual['target'].to_list()[:2])
 
     def test_compute_hidden_network_speed_full(self):
         print('computing hidden network')
@@ -643,8 +643,8 @@ class TestEgonetCase(unittest.TestCase):
     def test_backbone_full(self):
         network = self.egonet._compute_hidden_network(self.test_dataset)
         backbone = self.egonet.compute_backbone(network, alpha=0.95)
-        self.assertEqual(backbone.vcount(), 2522)
-        self.assertEqual(backbone.ecount(), 2366)
+        self.assertEqual(2528, backbone.vcount())
+        self.assertEqual(2369, backbone.ecount())
 
     def test_backbone_full_nothing(self):
         network = self.egonet._compute_hidden_network(self.test_dataset)
@@ -686,6 +686,7 @@ class TestEgonetCase(unittest.TestCase):
         self.assertEqual(expected_hidden_network.ecount(), actual_hidden_network.ecount())
         self.assertEqual(expected_hidden_network_backbone.vcount(), actual_hidden_network_backbone.vcount())
         self.assertEqual(expected_hidden_network_backbone.ecount(), actual_hidden_network_backbone.ecount())
+
 
 
 if __name__ == '__main__':

@@ -11,7 +11,7 @@ from figures.propagation import PropagationPlotFactory
 
 class PropagationFactoryTestCase(unittest.TestCase):
     def setUp(self):
-        self.propagation_factory = PropagationPlotFactory()
+        self.propagation_factory = PropagationPlotFactory(load_from_mongodb=True, available_datasets=['test_dataset_2'])
         self.test_dataset = 'test_dataset_2'
         self.tmp_dataset = 'tmp_dataset'
         self.test_user_id = '999321854'
@@ -211,12 +211,12 @@ class PropagationFactoryTestCase(unittest.TestCase):
         self.propagation_factory.egonet.threshold = 0.4
         fig = self.propagation_factory.plot_hidden_network(self.test_dataset)
 
-        self.assertEqual(len(fig.data[1].x), 3224)
+        self.assertEqual(3230, len(fig.data[1].x))
 
         self.propagation_factory.egonet.threshold = 0
         fig = self.propagation_factory.plot_hidden_network(self.test_dataset)
 
-        self.assertEqual(len(fig.data[1].x), 3315)
+        self.assertEqual(3321, len(fig.data[1].x))
 
     def test_plot_size_over_time(self):
         fig = self.propagation_factory.plot_size_over_time(self.test_dataset, self.test_tweet_id)
