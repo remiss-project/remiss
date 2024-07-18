@@ -68,7 +68,6 @@ class PropagationPlotFactory(MongoPlotFactory):
             except Exception as ex:
                 logger.error(f'Error loading hidden network layout with error {ex}')
 
-
     def plot_egonet(self, collection, user, depth, start_date=None, end_date=None, hashtag=None):
         network = self.egonet.get_egonet(collection, user, depth, start_date, end_date, hashtag)
         layout = self.compute_layout(network)
@@ -204,10 +203,10 @@ class PropagationPlotFactory(MongoPlotFactory):
                           }}
 
         ]
-        # if author_ids:
-        #     pipeline.insert(0, {'$match': {'author.id': {'$in': author_ids}}})
-        # schema = Schema({'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str})
-        metadata = database.get_collection('raw').aggregate_pandas_all(pipeline)  # , schema=schema)
+        if author_ids:
+            pipeline.insert(0, {'$match': {'author.id': {'$in': author_ids}}})
+        schema = Schema({'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str})
+        metadata = database.get_collection('raw').aggregate_pandas_all(pipeline, schema=schema)
         client.close()
         metadata = metadata.set_index('author_id')
         return metadata
@@ -371,7 +370,6 @@ class PropagationPlotFactory(MongoPlotFactory):
         logger.info('Prepopulating diffusion metrics')
         self.diffusion_metrics.persist(self.available_datasets)
         logger.info('Done prepopulating propagation factory')
-
 
 
 def transform_user_type(x):
