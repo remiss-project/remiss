@@ -16,7 +16,7 @@ def create_test_database(source_dataset, database_name):
     prod_db = prod[source_dataset]
     # for each collection, sample the first week and insert into the test database at the local database_name
     client = MongoClient('localhost', 27017)
-    # client.drop_database(database_name)
+    client.drop_database(database_name)
     db = client[database_name]
     raw = prod_db.get_collection('raw')
     first_raw_tweet = raw.find_one(sort=[('created_at', 1)])
@@ -41,23 +41,21 @@ def create_test_database(source_dataset, database_name):
     profiling_data = list(profiling.find())
     db.get_collection('profiling').insert_many(profiling_data)
 
+    # Add all multimodal data too
+    multimodal = prod_db.get_collection('multimodal')
+    multimodal_data = list(multimodal.find())
+    db.get_collection('multimodal').insert_many(multimodal_data)
+
     profiling_user_ids = [profiling['user_id'] for profiling in profiling_data]
     profiling_ids = raw.find({'author.id': {'$in': profiling_user_ids}}).distinct('id')
+    multimodal_ids = [multimodal['tweet_id'] for multimodal in multimodal_data]
     raw_ids = raw.find({'created_at': {'$gte': first_tweet, '$lt': middle_plus_week}}).distinct('id')
-    tweet_ids = profiling_ids + raw_ids
+    tweet_ids = profiling_ids + raw_ids + multimodal_ids
     raw_data = list(raw.find({'id': {'$in': tweet_ids}}))
     db.get_collection('raw').insert_many(raw_data)
 
     textual_data = textual.find({'id': {'$in': [int(tweet_id) for tweet_id in tweet_ids]}})
     db.get_collection('textual').insert_many(textual_data)
-
-    # Add all multimodal data
-    multimodal = prod_db.get_collection('multimodal')
-    multimodal_data = list(multimodal.find())
-    if len(multimodal_data) > 0:
-        db.get_collection('multimodal').insert_many(multimodal_data)
-    else:
-        print('No multimodal data found')
 
     print('Done!')
 

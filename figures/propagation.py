@@ -357,7 +357,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         collection = database.get_collection(collection_name)
-        layout = collection.aggregate_pandas_all(['$project', {'_id': 0}])
+        layout = collection.aggregate_pandas_all([{'$project': {'_id': 0}}])
         client.close()
         return layout
 
