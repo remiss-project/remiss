@@ -156,6 +156,7 @@ class MultimodalComponent(RemissComponent):
         ], justify='center', style={'margin-bottom': '1rem'})], id=f'collapse-{self.name}', is_open=False)
 
     def update(self, dataset, tweet_id):
+
         try:
             metadata = self.plot_factory.load_data_for_tweet(dataset, tweet_id)
             claim_text = metadata['claim_text']
@@ -175,11 +176,13 @@ class MultimodalComponent(RemissComponent):
             graph_evidence_text = self.plot_factory.plot_graph_evidence_text(dataset, tweet_id)
             graph_evidence_vis = self.plot_factory.plot_graph_evidence_vis(dataset, tweet_id)
             evidence_image_1 = self.plot_factory.plot_evidence_image_1(dataset, tweet_id)
+            logger.info(f'Updated multimodal component with dataset {dataset}, tweet {tweet_id}')
 
             return claim_image, evidence_image, graph_claim, graph_evidence_text, graph_evidence_vis, evidence_image_1, \
                 claim_text, text_evidences, evidence_text, evidence_image_alt_text, predicted_label, actual_label, \
                 num_claim_edges, frac_verified, explanations, visual_similarity_score, True
         except RuntimeError as e:
+            logger.error(f'Error updating multimodal component: {e} with dataset {dataset}, tweet {tweet_id}')
             return {}, {}, {}, {}, {}, {}, '', '', '', '', '', '', '', '', '', '', False
 
     def callbacks(self, app):

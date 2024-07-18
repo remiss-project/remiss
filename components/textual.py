@@ -1,9 +1,11 @@
+import logging
+
 from dash import dcc, Output, Input
 import dash_bootstrap_components as dbc
 
 from .components import RemissComponent
 import plotly.express as px
-
+logger = logging.getLogger(__name__)
 
 class EmotionPerHourComponent(RemissComponent):
     def __init__(self, plot_factory, state, name=None):
@@ -26,8 +28,10 @@ class EmotionPerHourComponent(RemissComponent):
 
     def update(self, dataset, start_date, end_date):
         try:
+            logger.info(f'Updating emotion per hour with dataset {dataset}, start date {start_date}, end date {end_date}')
             return self.plot_factory.plot_emotion_per_hour(dataset, start_date, end_date)
         except (IndexError, ValueError) as e:
+            logger.error(f'Error updating emotion per hour: {e}')
             return {}
 
     def callbacks(self, app):
@@ -61,8 +65,10 @@ class AverageEmotionBarComponent(RemissComponent):
 
     def update(self, dataset, start_date, end_date):
         try:
+            logger.info(f'Updating average emotion with dataset {dataset}, start date {start_date}, end date {end_date}')
             return self.plot_factory.plot_average_emotion(dataset, start_date, end_date)
         except (IndexError, ValueError) as e:
+            logger.error(f'Error updating average emotion: {e}')
             return {}
 
     def callbacks(self, app):

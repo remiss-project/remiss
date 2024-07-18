@@ -1,8 +1,11 @@
+import logging
+
 import dash_bootstrap_components as dbc
 from dash import dcc, Input, Output
 
 from components.components import RemissComponent
 
+logger = logging.getLogger(__name__)
 
 class TimeSeriesComponent(RemissComponent):
     def __init__(self, plot_factory, state,
@@ -39,6 +42,8 @@ class TimeSeriesComponent(RemissComponent):
         ], justify='center', style={'margin-bottom': '1rem'})
 
     def update(self, dataset, hashtags, start_date, end_date):
+        logger.info(f'Updating time series with dataset {dataset}, hashtags {hashtags}, '
+                    f'start date {start_date}, end date {end_date}')
         return self.plot_factory.plot_tweet_series(dataset, hashtags, start_date, end_date), \
             self.plot_factory.plot_user_series(dataset, hashtags, start_date, end_date)
 

@@ -1,9 +1,12 @@
+import logging
+
 import dash_bootstrap_components as dbc
 import pandas as pd
 from dash import dcc, html, Input, Output, ctx
 
 from components.components import RemissComponent
 
+logger = logging.getLogger(__name__)
 
 class EgonetComponent(RemissComponent):
     def __init__(self, plot_factory, state, name=None, debug=False):
@@ -73,6 +76,10 @@ class EgonetComponent(RemissComponent):
 
     def update(self, dataset, egonet_user, user, state_start_date, state_end_date, hashtag, depth, date_index, user_disabled,
                depth_disabled, date_disabled):
+        logger.info(f'Updating egonet with dataset {dataset}, user {user}, egonet user {egonet_user}, '
+                    f'start date {state_start_date}, end date {state_end_date}, hashtag {hashtag}, depth {depth}, '
+                    f'date index {date_index}, user disabled {user_disabled}, depth disabled {depth_disabled}, '
+                    f'date disabled {date_disabled}')
         if user_disabled:
             user = None
         if depth_disabled:
@@ -90,20 +97,25 @@ class EgonetComponent(RemissComponent):
             # Show egonet for the selected user
             try:
                 fig = self.plot_factory.plot_egonet(dataset, egonet_user, depth, start_date, end_date, hashtag)
+                logger.info(f'Plotting egonet for user {egonet_user}')
             except (RuntimeError, ValueError, KeyError) as e:
                 # If the user is not available, then show the backbone
                 fig = self.plot_factory.plot_hidden_network(dataset, start_date, end_date, hashtag)
+                logger.info(f'User {egonet_user} not available, plotting backbone')
         else:
             # Plot backbone but highlight the selected user
             fig = self.plot_factory.plot_hidden_network(dataset, user, start_date, end_date, hashtag)
+            logger.info(f'Plotting backbone with table user {user} highlighted')
         # remove margin
         # fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
         return fig
 
     def update_user(self, user):
+        logger.info(f'Updating egonet user with {user}')
         return user
 
     def update_current_date(self, date):
+        logger.info(f'Updating egonet date with {date}')
         return date
 
     def update_date_slider(self, start_date, end_date):

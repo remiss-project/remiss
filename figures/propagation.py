@@ -31,7 +31,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                  reference_types=('quoted', 'retweeted'), layout='fruchterman_reingold',
                  threshold=0.2, delete_vertices=True, frequency='1D',
                  available_datasets=None, small_size_multiplier=10, big_size_multiplier=50,
-                 user_highlight_color='rgb(0, 0, 255)'):
+                 user_highlight_color='rgb(0, 0, 255)', load_from_mongodb=True):
         super().__init__(host, port, available_datasets)
         self.big_size_multiplier = big_size_multiplier
         self.small_size_multiplier = small_size_multiplier
@@ -47,25 +47,27 @@ class PropagationPlotFactory(MongoPlotFactory):
         self.diffusion_metrics = DiffusionMetrics(host=host, port=port, reference_types=reference_types)
         self._hidden_network_layouts = {}
 
-        try:
-            self.network_metrics.load_from_mongodb(available_datasets)
-        except Exception as ex:
-            logger.error(f'Error loading network metrics with error {ex}')
+        if load_from_mongodb:
+            try:
+                self.network_metrics.load_from_mongodb(self.available_datasets)
+            except Exception as ex:
+                logger.error(f'Error loading network metrics with error {ex}')
 
-        try:
-            self.egonet.load_from_mongodb(available_datasets)
-        except Exception as ex:
-            logger.error(f'Error loading egonet with error {ex}')
+            try:
+                self.egonet.load_from_mongodb(self.available_datasets)
+            except Exception as ex:
+                logger.error(f'Error loading egonet with error {ex}')
 
-        try:
-            self.diffusion_metrics.load_from_mongodb(available_datasets)
-        except Exception as ex:
-            logger.error(f'Error loading diffusion metrics with error {ex}')
+            try:
+                self.diffusion_metrics.load_from_mongodb(self.available_datasets)
+            except Exception as ex:
+                logger.error(f'Error loading diffusion metrics with error {ex}')
 
-        try:
-            self.load_from_mongodb(available_datasets)
-        except Exception as ex:
-            logger.error(f'Error loading hidden network layout with error {ex}')
+            try:
+                self.load_from_mongodb(self.available_datasets)
+            except Exception as ex:
+                logger.error(f'Error loading hidden network layout with error {ex}')
+
 
     def plot_egonet(self, collection, user, depth, start_date=None, end_date=None, hashtag=None):
         network = self.egonet.get_egonet(collection, user, depth, start_date, end_date, hashtag)
@@ -343,6 +345,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         client.close()
 
     def load_from_mongodb(self, datasets):
+        logger.info(f'Loading hidden network layout from mongodb for datasets {datasets}')
         for dataset in datasets:
             try:
                 layout = self._load_layout_from_mongodb(dataset, 'hidden_network_layout')
@@ -359,10 +362,16 @@ class PropagationPlotFactory(MongoPlotFactory):
         return layout
 
     def prepopulate(self):
+        logger.info('Prepopulating propagation factory')
         self.persist(self.available_datasets)
+        logger.info('Prepopulating egonet')
         self.egonet.persist(self.available_datasets)
+        logger.info('Prepopulating network metrics')
         self.network_metrics.persist(self.available_datasets)
+        logger.info('Prepopulating diffusion metrics')
         self.diffusion_metrics.persist(self.available_datasets)
+        logger.info('Done prepopulating propagation factory')
+
 
 
 def transform_user_type(x):

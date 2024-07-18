@@ -1,8 +1,12 @@
+import logging
+
 import dash_bootstrap_components as dbc
 from dash import Input, Output
 from dash.dash_table import DataTable
 
 from components.components import RemissComponent
+
+logger = logging.getLogger(__name__)
 
 
 class TweetTableComponent(RemissComponent):
@@ -50,6 +54,7 @@ class TweetTableComponent(RemissComponent):
         ], justify='center', style={'margin-bottom': '1rem'})
 
     def update(self, dataset, start_date, end_date):
+        logger.info(f'Updating tweet table with dataset {dataset}, start date {start_date}, end date {end_date}')
         self.data = self.plot_factory.get_top_table_data(dataset, start_date, end_date)
         self.data['Multimodal'] = self.data['Multimodal'].apply(lambda x: '✓' if x else '✗')
         self.data['Profiling'] = self.data['Profiling'].apply(lambda x: '✓' if x else '✗')
@@ -58,6 +63,7 @@ class TweetTableComponent(RemissComponent):
     def update_hashtags(self, selected_rows):
         if selected_rows:
             hashtags = self.extract_hashtag_from_top_table(selected_rows[0])
+            logger.info(f'Updating hashtags state with {hashtags}')
             if hashtags:
                 return hashtags
         return None
@@ -65,12 +71,14 @@ class TweetTableComponent(RemissComponent):
     def update_tweet(self, selected_rows):
         if selected_rows:
             tweet = self.data['ID'].iloc[selected_rows[0]]
+            logger.info(f'Updating tweet state with {tweet}')
             return tweet
         return None
 
     def update_user(self, selected_rows):
         if selected_rows:
             user = self.data['Author ID'].iloc[selected_rows[0]]
+            logger.info(f'Updating user state with {user}')
             return user
         return None
 

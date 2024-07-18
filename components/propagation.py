@@ -7,6 +7,7 @@ from components.components import RemissComponent
 
 logger = logging.getLogger(__name__)
 
+
 class PropagationComponent(RemissComponent):
     def __init__(self, plot_factory, state,
                  name=None):
@@ -80,6 +81,7 @@ class PropagationComponent(RemissComponent):
         ], id=f'collapse-{self.name}', is_open=False)
 
     def update_tweet(self, dataset, tweet_id):
+        logger.info(f'Updating propagation plots with dataset {dataset}, tweet {tweet_id}')
         try:
             return self.plot_factory.plot_propagation_tree(dataset, tweet_id), \
                 self.plot_factory.plot_depth_over_time(dataset, tweet_id), \
@@ -130,6 +132,7 @@ class CascadeCcdfComponent(RemissComponent):
 
     def update_cascade(self, dataset):
         try:
+            logger.info(f'Updating cascade ccdf with dataset {dataset}')
             return self.plot_factory.plot_size_cascade_ccdf(dataset)
         except KeyError as e:
             logger.info(e)
@@ -167,6 +170,7 @@ class CascadeCountOverTimeComponent(RemissComponent):
         ])
 
     def update_cascade(self, dataset):
+        logger.info(f'Updating cascade count over time with dataset {dataset}')
         return self.plot_factory.plot_cascade_count_over_time(dataset)
 
     def callbacks(self, app):

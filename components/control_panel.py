@@ -58,6 +58,7 @@ class ControlPanelComponent(RemissComponent):
             end_date=max_date_allowed)
 
     def update_wordcloud(self, dataset):
+        logger.info(f'Updating wordcloud with dataset {dataset}')
         available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(dataset)
         if self.max_wordcloud_words:
             logger.info(
@@ -68,19 +69,24 @@ class ControlPanelComponent(RemissComponent):
         return available_hashtags_freqs, 10 / min_freq
 
     def update_date_range(self, dataset):
+        logger.info(f'Updating date range with dataset {dataset}')
         min_date_allowed, max_date_allowed = self.plot_factory.get_date_range(dataset)
         return min_date_allowed, max_date_allowed, min_date_allowed, max_date_allowed
 
     def update_dataset_storage(self, dropdown_dataset):
+        logger.info(f'Updating dataset storage with {dropdown_dataset}')
         return dropdown_dataset
 
     def update_hashtag_storage(self, click_data):
+        logger.info(f'Updating hashtag storage with {click_data}')
         return [click_data[0]] if click_data else None
 
     def update_start_date_storage(self, start_date):
+        logger.info(f'Updating start date storage with {start_date}')
         return start_date
 
     def update_end_date_storage(self, end_date):
+        logger.info(f'Updating end date storage with {end_date}')
         return end_date
 
     def layout(self, params=None):
@@ -103,7 +109,6 @@ class ControlPanelComponent(RemissComponent):
         ], gap=2, style={'width': f'{self.wordcloud_width + 40}px'} if self.match_wordcloud_width else None)
 
     def callbacks(self, app):
-
         app.callback(
             Output(self.date_picker, 'min_date_allowed'),
             Output(self.date_picker, 'max_date_allowed'),

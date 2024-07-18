@@ -1,3 +1,5 @@
+import logging
+
 import dash_bootstrap_components as dbc
 from dash import dcc, html, Input, Output
 
@@ -12,6 +14,8 @@ from components.propagation import PropagationComponent, CascadeCcdfComponent, C
 from components.textual import EmotionPerHourComponent, AverageEmotionBarComponent
 from components.time_series import TimeSeriesComponent
 from components.tweet_table import TweetTableComponent
+
+logger = logging.getLogger(__name__)
 
 
 class RemissState(RemissComponent):
@@ -202,6 +206,7 @@ class RemissDashboard(RemissComponent):
                        f'End date: {end_date}, Current user: {current_user}, Current tweet: {current_tweet}')
 
     def update_dataset_storage(self, dropdown_dataset):
+        logger.info(f'Updating dataset storage with {dropdown_dataset}')
         return dropdown_dataset
 
     def layout(self, params=None):
