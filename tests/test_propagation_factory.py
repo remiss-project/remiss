@@ -208,10 +208,10 @@ class PropagationFactoryTestCase(unittest.TestCase):
 
     def test_hidden_network_backbone(self):
 
-        self.propagation_factory.egonet.threshold = 0.4
+        self.propagation_factory.egonet.threshold = 0.95
         fig = self.propagation_factory.plot_hidden_network(self.test_dataset)
 
-        self.assertEqual(3230, len(fig.data[1].x))
+        self.assertEqual(3308, len(fig.data[1].x))
 
         self.propagation_factory.egonet.threshold = 0
         fig = self.propagation_factory.plot_hidden_network(self.test_dataset)
