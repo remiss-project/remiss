@@ -43,6 +43,8 @@ class DiffusionMetrics(BasePropagationMetrics):
         ]
 
         references = collection.aggregate_pandas_all(references_pipeline)
+        if len(references) == 0:
+            raise RuntimeError(f'Tweet {tweet_id} has no references')
         tweet_pipeline = [
             {'$match': {'conversation_id': conversation_id}},
             {'$project': {'tweet_id': '$id',
