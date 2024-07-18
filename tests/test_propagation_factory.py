@@ -169,7 +169,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
         graph.add_vertices(10)
         graph.vs['author_id'] = [str(i) for i in range(10)]
         graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
-        fig = self.propagation_factory.plot_graph(graph, user='1')
+        fig = self.propagation_factory.plot_graph(graph, author_id='1')
         fig.show()
 
     def test_get_metadata(self):
@@ -195,7 +195,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
         fig.show()
 
     def test_plot_hidden_network_highlight_user(self):
-        fig = self.propagation_factory.plot_hidden_network(self.test_dataset, user=self.test_user_id)
+        fig = self.propagation_factory.plot_hidden_network(self.test_dataset, author_id=self.test_user_id)
         fig.show()
 
     def test_plot_egonet(self):

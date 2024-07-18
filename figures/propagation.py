@@ -73,13 +73,13 @@ class PropagationPlotFactory(MongoPlotFactory):
         layout = self.compute_layout(network)
         return self.plot_user_graph(network, collection, layout)
 
-    def plot_hidden_network(self, collection, user=None, start_date=None, end_date=None, hashtag=None):
+    def plot_hidden_network(self, collection, author_id=None, start_date=None, end_date=None, hashtag=None):
         if self.egonet.threshold > 0:
             hidden_network = self.egonet.get_hidden_network_backbone(collection, start_date, end_date, hashtag)
         else:
             hidden_network = self.egonet.get_hidden_network(collection, start_date, end_date, hashtag)
         layout = self.get_hidden_network_layout(hidden_network, collection, start_date, end_date, hashtag)
-        return self.plot_graph(hidden_network, layout=layout, user=user)
+        return self.plot_graph(hidden_network, layout=layout, author_id=author_id)
 
     def get_hidden_network_layout(self, hidden_network, collection, start_date=None, end_date=None, hashtags=None):
         # if start_date, end_date or hashtag are not none we need to recompute the layout
@@ -229,7 +229,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         metadata = metadata.set_index('author_id')
         return metadata
 
-    def plot_graph(self, graph, layout=None, symbol=None, size=None, color=None, text=None, user=None):
+    def plot_graph(self, graph, layout=None, symbol=None, size=None, color=None, text=None, author_id=None):
         if layout is None:
             if 'layout' not in graph.attributes():
                 layout = graph.layout(self.layout, dim=3)
@@ -250,11 +250,11 @@ class PropagationPlotFactory(MongoPlotFactory):
         start_time = time.time()
         edge_positions = self._get_edge_positions(graph, layout)
 
-        if user is not None:
+        if author_id is not None:
             if color is None:
                 color = ['rgb(255, 234, 208)'] * graph.vcount()
 
-            color[graph.vs.find(author_id=user).index] = self.user_highlight_color
+            color[graph.vs.find(author_id=author_id).index] = self.user_highlight_color
 
         edge_trace = go.Scatter3d(x=edge_positions['x'],
                                   y=edge_positions['y'],

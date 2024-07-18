@@ -7,6 +7,7 @@ import pymongoarrow.monkey
 import requests
 from pymongo import MongoClient
 from pymongo.errors import OperationFailure
+from pymongoarrow.schema import Schema
 
 pymongoarrow.monkey.patch_all()
 
@@ -53,7 +54,13 @@ class MongoPlotFactory(ABC):
         self._validate_dataset(client, dataset)
         database = client.get_database(dataset)
         collection = database.get_collection('raw')
-        available_users = [str(x) for x in collection.distinct('author.username')]
+        pipeline = [
+            {'$group': {'_id': '$author.id',
+                        'username': {'$first': '$author.username'}}},
+            {'$project': {'_id': 0, 'username': 1, 'author_id': '$_id', }}
+        ]
+        schema = Schema({'username': str, 'author_id': str})
+        available_users = collection.aggregate_pandas_all(pipeline, schema=schema)
         client.close()
         return available_users
 

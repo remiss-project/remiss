@@ -8,6 +8,7 @@ from components.components import RemissComponent
 
 logger = logging.getLogger(__name__)
 
+
 class EgonetComponent(RemissComponent):
     def __init__(self, plot_factory, state, name=None, debug=False):
         super().__init__(name=name)
@@ -72,16 +73,17 @@ class EgonetComponent(RemissComponent):
                 ], id=f'collapse-date-{self.name}', is_open=False),
                 html.Div([], style={'height': '100%'}, id=f'placeholder-{self.name}') if self.debug else None,
             ])
-        ])
+        ], style={'height': '100%'})
 
-    def update(self, dataset, egonet_user, user, state_start_date, state_end_date, hashtag, depth, date_index, user_disabled,
+    def update(self, dataset, egonet_user, user, state_start_date, state_end_date, hashtag, depth, date_index,
+               user_disabled,
                depth_disabled, date_disabled):
         logger.info(f'Updating egonet with dataset {dataset}, user {user}, egonet user {egonet_user}, '
                     f'start date {state_start_date}, end date {state_end_date}, hashtag {hashtag}, depth {depth}, '
                     f'date index {date_index}, user disabled {user_disabled}, depth disabled {depth_disabled}, '
                     f'date disabled {date_disabled}')
         if user_disabled:
-            user = None
+            egonet_user = None
         if depth_disabled:
             depth = None
 
@@ -93,14 +95,15 @@ class EgonetComponent(RemissComponent):
             start_date = self.dates[date_index]
             end_date = self.dates[date_index + 1]
 
-        if ctx.triggered_id == f'user-dropdown-{self.name}':
+        if ctx.triggered_id == f'user-dropdown-{self.name}' or ctx.triggered_id == f'slider-{self.name}':
             # Show egonet for the selected user
             try:
                 fig = self.plot_factory.plot_egonet(dataset, egonet_user, depth, start_date, end_date, hashtag)
                 logger.info(f'Plotting egonet for user {egonet_user}')
             except (RuntimeError, ValueError, KeyError) as e:
                 # If the user is not available, then show the backbone
-                fig = self.plot_factory.plot_hidden_network(dataset, start_date, end_date, hashtag)
+                fig = self.plot_factory.plot_hidden_network(dataset, start_date=start_date, end_date=end_date,
+                                                            hashtag=hashtag)
                 logger.info(f'User {egonet_user} not available, plotting backbone')
         else:
             # Plot backbone but highlight the selected user
@@ -142,7 +145,8 @@ class EgonetComponent(RemissComponent):
 
     def update_user_list(self, dataset):
         available_users = self.plot_factory.get_users(dataset)
-        return [{"label": x, "value": x} for x in available_users]
+        available_users.columns = ['label', 'value']
+        return available_users.to_dict('records')
 
     def update_debug(self, dataset, user, depth, date_index, user_checkbox, date_checkbox,
                      user_dropdown_disabled, depth_slider_disabled, date_slider_disabled):
@@ -155,8 +159,8 @@ class EgonetComponent(RemissComponent):
         app.callback(
             Output(self.graph_egonet, 'figure'),
             [Input(self.state.current_dataset, 'data'),
-             Input(self.state.current_user, 'data'),
              Input(self.user_dropdown, 'value'),
+             Input(self.state.current_user, 'data'),
              Input(self.state.current_start_date, 'data'),
              Input(self.state.current_end_date, 'data'),
              Input(self.state.current_hashtags, 'data'),
@@ -167,10 +171,6 @@ class EgonetComponent(RemissComponent):
              Input(self.date_slider, 'disabled'),
              ],
         )(self.update)
-        app.callback(
-            Output(self.state.current_user, 'data', allow_duplicate=True),
-            [Input(self.user_dropdown, 'value')],
-        )(self.update_user)
         app.callback(
             Output(self.user_dropdown, 'value'),
             [Input(self.state.current_user, 'data')],
