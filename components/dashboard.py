@@ -60,18 +60,22 @@ class GeneralPlotsComponent(RemissComponent):
         self.emotion_per_hour = EmotionPerHourComponent(textual_factory, state, name=f'emotion-per-hour-{self.name}')
 
     def layout(self, params=None):
-        return dbc.Row([
-            dbc.Col([
-                self.cascade_cddf.layout(params)
+        return dbc.Container([
+            dbc.Row([
+                dbc.Col([
+                    self.cascade_cddf.layout(params)
+                ]),
+                dbc.Col([
+                    self.cascade_count_over_time.layout(params)
+                ]),
             ]),
-            dbc.Col([
-                self.cascade_count_over_time.layout(params)
-            ]),
-            dbc.Col([
-                self.average_emotion_barplot.layout(params)
-            ]),
-            dbc.Col([
-                self.emotion_per_hour.layout(params)
+            dbc.Row([
+                dbc.Col([
+                    self.average_emotion_barplot.layout(params)
+                ]),
+                dbc.Col([
+                    self.emotion_per_hour.layout(params)
+                ]),
             ]),
         ])
 
