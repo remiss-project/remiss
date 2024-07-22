@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class TweetTableComponent(RemissComponent):
     def __init__(self, plot_factory, state, name=None,
                  top_table_columns=(
-                         'ID', 'User', 'Text', 'Retweets', 'Party', 'Multimodal', 'Profiling', 'Credibility',
+                         'ID', 'User', 'Text', 'Retweets', 'Party', 'Multimodal', 'Profiling',
                          'Fakeness')):
         super().__init__(name=name)
         self.plot_factory = plot_factory
@@ -102,10 +102,10 @@ class TweetTableComponent(RemissComponent):
              Input(self.state.current_start_date, 'data'),
              Input(self.state.current_end_date, 'data')],
         )(self.update)
-        app.callback(
-            Output(self.state.current_hashtags, 'data', allow_duplicate=True),
-            [Input(self.table, 'selected_rows')],
-        )(self.update_hashtags)
+        # app.callback(
+        #     Output(self.state.current_hashtags, 'data', allow_duplicate=True),
+        #     [Input(self.table, 'selected_rows')],
+        # )(self.update_hashtags)
         app.callback(
             Output(self.state.current_user, 'data'),
             [Input(self.table, 'selected_rows')],

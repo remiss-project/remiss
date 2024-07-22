@@ -12,7 +12,7 @@ import plotly.express as px
 
 
 class ProfilingPlotFactory(MongoPlotFactory):
-    def __init__(self, host="localhost", port=27017, available_datasets=None, lang='ca',
+    def __init__(self, host="localhost", port=27017, available_datasets=None, lang='en',
                  data_dir='./profiling_data'):
         super().__init__(host, port, available_datasets)
         self.lang = lang
@@ -130,7 +130,7 @@ class ProfilingPlotFactory(MongoPlotFactory):
                                                                                                           user_id,
                                                                                                           'emociones')
 
-        labels = ['Difusors de Notícies Falses', 'Usuaris de Control', 'Usuari', "Verificadors"]
+        labels = ['Difusors de Notícies Falses', 'Usuaris de Control',  "Verificadors", 'Usuari']
         title = "Emocions"
         values = [fake_news_spreaders, fact_checkers, control_cases, user_data]
         colors = ['red', 'green', 'lightskyblue', 'orange']

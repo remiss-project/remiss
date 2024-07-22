@@ -105,7 +105,7 @@ def getFiguresFromFeatures(all_features_for_user, df_feature_selection_to_use_ca
                 df_feature_selection_to_use["category"] == category];
             listOfFeaturesNames = featuresToUseForThisCategory["feature_name"].tolist();
             listOfDisplayNames = featuresToUseForThisCategory["display_name"].tolist();
-            # print ("	Features are",featuresToUseForThisCategory["display_name"]);
+            # print ("environment	Features are",featuresToUseForThisCategory["display_name"]);
             # print ("	Features are",listOfFeaturesNames);
             # print ("	Display names are", listOfDisplayNames)
             # print ("** -- all_features_for_user", all_features_for_user);

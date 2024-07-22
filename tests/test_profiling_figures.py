@@ -1,5 +1,12 @@
+import pymongoarrow
+from matplotlib import pyplot as plt
+from pymongo import MongoClient
+from tqdm import tqdm
+
 from figures.profiling import ProfilingPlotFactory
 from figures.utils_remiss import get_all_values_users, convert_dict_to_dataframe
+
+pymongoarrow.monkey.patch_all()
 
 
 def test_init():
@@ -18,11 +25,44 @@ def test_init():
     assert cvc_plot_factory.control_cases.equals(control_cases)
 
 
+def test_histogram_donut1():
+    client = MongoClient('localhost', 27017)
+    database = client.get_database('test_dataset_2')
+    collection = database.get_collection('profiling')
+    feature_names = ['week_days_count_ratio_behav', 'weekend_days_count_ratio_behav', 'tweets_sleep_time_ratio_behav',
+                     'tweets_awake_time_ratio_behav']
+    for feature in feature_names:
+        pipeline = [
+            {'$group': {'_id': f'${feature}', 'count': {'$sum': 1}}},
+            {'$sort': {'count': -1}},
+        ]
+        df = collection.aggregate_pandas_all(pipeline)
+        df.plot(kind='bar', x='_id', y='count', title=feature, color='blue')
+        plt.savefig(f'{feature}.png')
+    plt.show()
+
+
+def test_histogram_radaplot():
+    client = MongoClient('localhost', 27017)
+    database = client.get_database('test_dataset_2')
+    collection = database.get_collection('profiling')
+    feature_names = ['joy_emolex', 'trust_emolex', 'fear_emolex', 'surprise_emolex', 'sadness_emolex', 'disgust_emolex',
+                     'anger_emolex', 'anticipation_emolex']
+    for feature in feature_names:
+        pipeline = [
+            {'$project': {feature: 1}},
+        ]
+        df = collection.aggregate_pandas_all(pipeline)
+        print(df.describe())
+    plt.show()
+
+
 def test_load_data_for_user():
     cvc_plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
     user_data = cvc_plot_factory.load_data_for_user('test_dataset_2', '1442274168')
     assert user_data['twitter_id'] == '1442274168'
-    assert user_data['description'] == 'Amo mi país, si quieres romperlo eres mi adversario. 🇪🇸💚👍🏼. #simesiguestesigo'
+    assert user_data[
+               'description'] == 'Amo mi país, si quieres romperlo eres mi adversario. 🇪🇸💚👍🏼. #simesiguestesigo'
 
 
 def test_plot_user_info():
@@ -44,6 +84,16 @@ def test_plot_radarplot_emotions():
     plot_radarplot_emotions = cvc_plot_factory.plot_radarplot_emotions('test_dataset_2', '1442274168')
     plot_radarplot_emotions.show()
     assert len(plot_radarplot_emotions.data) == 4
+
+
+def test_plot_all_users():
+    cvc_plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
+    client = MongoClient('localhost', 27017)
+    database = client.get_database('test_dataset_2')
+    collection = database.get_collection('profiling')
+    user_ids = collection.distinct('twitter_id')
+    for user_id in tqdm(user_ids):
+        cvc_plot_factory.plot_radarplot_emotions('test_dataset_2', user_id).show()
 
 
 def test_plot_vertical_accumulated_barplot_by_genre():
