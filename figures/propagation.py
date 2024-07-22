@@ -254,10 +254,14 @@ class PropagationPlotFactory(MongoPlotFactory):
         edge_positions = self._get_edge_positions(graph, layout)
 
         if author_id is not None:
-            if color is None:
-                color = ['rgb(255, 234, 208)'] * graph.vcount()
+            try:
+                author_index = graph.vs.find(author_id=author_id).index
+                if color is None:
+                    color = ['rgb(255, 234, 208)'] * graph.vcount()
 
-            color[graph.vs.find(author_id=author_id).index] = self.user_highlight_color
+                color[author_index] = self.user_highlight_color
+            except ValueError:
+                logger.warning(f'Author id {author_id} not found in graph, not highlighting user')
 
         edge_trace = go.Scatter3d(x=edge_positions['x'],
                                   y=edge_positions['y'],
