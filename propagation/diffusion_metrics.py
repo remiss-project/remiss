@@ -322,6 +322,10 @@ class DiffusionMetrics(BasePropagationMetrics):
         client.close()
         return df
 
+    def get_cascade_size(self, dataset, tweet_id):
+        graph = self.get_propagation_tree(dataset, tweet_id)
+        return graph.vcount()
+
 
 def transform_user_type(x):
     if x['is_usual_suspect'] and x['party'] is not None:

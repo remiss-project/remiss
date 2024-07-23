@@ -81,14 +81,19 @@ class PropagationComponent(RemissComponent):
         ], id=f'collapse-{self.name}', is_open=False)
 
     def update_tweet(self, dataset, tweet_id):
-        logger.info(f'Updating propagation plots with dataset {dataset}, tweet {tweet_id}')
         try:
-            return self.plot_factory.plot_propagation_tree(dataset, tweet_id), \
-                self.plot_factory.plot_depth_over_time(dataset, tweet_id), \
-                self.plot_factory.plot_size_over_time(dataset, tweet_id), \
-                self.plot_factory.plot_max_breadth_over_time(dataset, tweet_id), \
-                self.plot_factory.plot_structural_virality_over_time(dataset, tweet_id), \
-                True
+            if self.plot_factory.get_cascade_size(dataset, tweet_id) > 1:
+                logger.info(f'Updating propagation plots with dataset {dataset}, tweet {tweet_id}')
+                return self.plot_factory.plot_propagation_tree(dataset, tweet_id), \
+                    self.plot_factory.plot_depth_over_time(dataset, tweet_id), \
+                    self.plot_factory.plot_size_over_time(dataset, tweet_id), \
+                    self.plot_factory.plot_max_breadth_over_time(dataset, tweet_id), \
+                    self.plot_factory.plot_structural_virality_over_time(dataset, tweet_id), \
+                    True
+            else:
+                logger.info(f'Tweet {tweet_id} has no propagation')
+                return {}, {}, {}, {}, {}, False
+
         except Exception as e:
             logger.info(e)
             return {}, {}, {}, {}, {}, False

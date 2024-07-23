@@ -393,6 +393,9 @@ class PropagationPlotFactory(MongoPlotFactory):
         fig.update_layout(title=title)
         return fig
 
+    def get_cascade_size(self, dataset, tweet_id):
+        return self.diffusion_metrics.get_cascade_size(dataset, tweet_id)
+
     def persist(self, datasets):
         # Save layouts to mongodb
         for dataset in datasets:
