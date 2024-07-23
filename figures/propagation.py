@@ -124,13 +124,16 @@ class PropagationPlotFactory(MongoPlotFactory):
         metadata = metadata.reindex(user_graph.vs['author_id'])
         metadata['User type'] = metadata['User type'].fillna('Unknown')
 
-        def format_user_string(x):
+        def user_hover(x):
             username = x['username']
             user_type = x['User type']
-            return f'Username: {username}<br>' \
-                   f'User type: {user_type}'
+            legitimacy = x['legitimacy'] if x['legitimacy'] else ''
+            reputation = x['reputation'] if x['reputation'] else ''
+            status = x['status'] if x['status'] else ''
+            hover_template = f'Username: {username}<br>Legitimacy: {legitimacy}<br>Reputation: {reputation}<br>Status: {status}'
+            return hover_template
 
-        text = metadata.apply(format_user_string, axis=1)
+        text = metadata.apply(user_hover, axis=1)
 
         size = metadata['reputation']
         # Add 1 offset and set 1 as minimum size
@@ -195,6 +198,10 @@ class PropagationPlotFactory(MongoPlotFactory):
         reputation_mean = reputation.mean(axis=1)
         reputation_mean.name = 'reputation'
         metadata = metadata.merge(reputation_mean, right_index=True, left_index=True, how='left')
+        status = self.network_metrics.get_status(dataset)
+        status_mean = status.mean(axis=1)
+        status_mean.name = 'status'
+        metadata = metadata.merge(status_mean, right_index=True, left_index=True, how='left')
         metadata['User type'] = metadata.apply(transform_user_type, axis=1).fillna('Unknown')
 
         return metadata
@@ -290,7 +297,6 @@ class PropagationPlotFactory(MongoPlotFactory):
                                   hovertemplate='%{text}' if text is not None else None,
                                   name='',
                                   )
-
 
         axis = dict(showbackground=False,
                     showline=False,
