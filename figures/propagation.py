@@ -79,7 +79,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         else:
             hidden_network = self.egonet.get_hidden_network(collection, start_date, end_date, hashtag)
         layout = self.get_hidden_network_layout(hidden_network, collection, start_date, end_date, hashtag)
-        return self.plot_graph(hidden_network, layout=layout, author_id=author_id)
+        return self.plot_user_graph(hidden_network, collection, layout=layout, author_id=author_id)
 
     def get_hidden_network_layout(self, hidden_network, collection, start_date=None, end_date=None, hashtags=None):
         # if start_date, end_date or hashtag are not none we need to recompute the layout
@@ -130,7 +130,8 @@ class PropagationPlotFactory(MongoPlotFactory):
             legitimacy = x['legitimacy'] if x['legitimacy'] else ''
             reputation = x['reputation'] if x['reputation'] else ''
             status = x['status'] if x['status'] else ''
-            hover_template = f'Username: {username}<br>Legitimacy: {legitimacy}<br>Reputation: {reputation}<br>Status: {status}'
+            hover_template = (f'Username: {username}<br>User type: {user_type}<br>'
+                              f'Legitimacy: {legitimacy}<br>Reputation: {reputation}<br>Status: {status}')
             return hover_template
 
         text = metadata.apply(user_hover, axis=1)
@@ -150,7 +151,8 @@ class PropagationPlotFactory(MongoPlotFactory):
             user_index = user_graph.vs.find(author_id=author_id).index
             expected_user_index = metadata.index.get_loc(author_id)
             if user_index != expected_user_index:
-                logger.warning(f'Author id {author_id} has index {user_index} in graph but {expected_user_index} in metadata')
+                logger.warning(
+                    f'Author id {author_id} has index {user_index} in graph but {expected_user_index} in metadata')
             color = color.to_list()
             color[user_index] = self.user_highlight_color
 
@@ -164,7 +166,44 @@ class PropagationPlotFactory(MongoPlotFactory):
 
     def plot_propagation_tree(self, dataset, tweet_id):
         propagation_tree = self.diffusion_metrics.get_propagation_tree(dataset, tweet_id)
-        return self.plot_graph(propagation_tree)
+        metadata = self.get_user_metadata(dataset)
+        metadata = metadata.reindex(propagation_tree.vs['author_id'])
+        metadata['User type'] = metadata['User type'].fillna('Unknown')
+
+        def user_hover(x):
+            username = x['username']
+            user_type = x['User type']
+            legitimacy = x['legitimacy'] if x['legitimacy'] else ''
+            reputation = x['reputation'] if x['reputation'] else ''
+            status = x['status'] if x['status'] else ''
+            hover_template = (f'Username: {username}<br>User type: {user_type}<br>'
+                              f'Legitimacy: {legitimacy}<br>Reputation: {reputation}<br>Status: {status}')
+            return hover_template
+
+        text = metadata.apply(user_hover, axis=1)
+
+        size = metadata['reputation']
+        # Add 1 offset and set 1 as minimum size
+        size = size + 1
+        size = size.fillna(1)
+        if len(propagation_tree.vs) > 100:
+            size = size / size.max() * self.small_size_multiplier
+        else:
+            size = size / size.max() * self.big_size_multiplier
+
+        color = metadata['legitimacy'].copy()
+
+        tweet_index = propagation_tree.vs.find(tweet_id=tweet_id).index
+        color = color.to_list()
+        color[tweet_index] = self.user_highlight_color
+
+        # Available markers ['circle', 'circle-open', 'cross', 'diamond', 'diamond-open', 'square', 'square-open', 'x']
+        marker_map = {'Normal': 'circle', 'Suspect': 'cross', 'Politician': 'diamond', 'Suspect politician':
+            'square', 'Unknown': 'x'}
+        symbol = metadata.apply(lambda x: marker_map[x['User type']], axis=1)
+        # layout = self.get_hidden_network_layout(collection)
+
+        return self.plot_graph(propagation_tree, layout=None, text=text, size=size, color=color, symbol=symbol)
 
     def plot_size_over_time(self, dataset, tweet_id):
         size_over_time = self.diffusion_metrics.get_size_over_time(dataset, tweet_id)
@@ -244,7 +283,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         metadata = metadata.set_index('author_id')
         return metadata
 
-    def plot_graph(self, graph, layout=None, symbol=None, size=None, color=None, text=None, author_id=None):
+    def plot_graph(self, graph, layout=None, symbol=None, size=None, color=None, text=None):
         if layout is None:
             if 'layout' not in graph.attributes():
                 layout = graph.layout(self.layout, dim=3)
@@ -264,16 +303,6 @@ class PropagationPlotFactory(MongoPlotFactory):
         logger.info(graph.summary())
         start_time = time.time()
         edge_positions = self._get_edge_positions(graph, layout)
-
-        if author_id is not None:
-            try:
-                author_index = graph.vs.find(author_id=author_id).index
-                if color is None:
-                    color = ['rgb(255, 234, 208)'] * graph.vcount()
-
-                color[author_index] = self.user_highlight_color
-            except ValueError:
-                logger.warning(f'Author id {author_id} not found in graph, not highlighting user')
 
         edge_trace = go.Scatter3d(x=edge_positions['x'],
                                   y=edge_positions['y'],
