@@ -2,7 +2,8 @@ import json
 import logging
 
 import dash_bootstrap_components as dbc
-from dash import dcc, Input, Output
+from dash import dcc, Input, Output, html
+from dash.exceptions import PreventUpdate
 from dash_holoniq_wordcloud import DashWordcloud
 
 from components.components import RemissComponent
@@ -23,6 +24,9 @@ class ControlPanelComponent(RemissComponent):
         self.max_wordcloud_words = max_wordcloud_words
         self.date_picker = self.get_date_picker_component()
         self.wordcloud = self.get_wordcloud_component()
+        self.current_tweet_display = html.P(id=f'tweet-display-{self.name}', children='')
+        self.current_hashtags_display = html.P(id=f'hashtags-display-{self.name}', children='')
+        self.current_user_display = html.P(id=f'user-display-{self.name}', children='')
 
     def get_wordcloud_component(self):
         available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(self.available_datasets[0])
@@ -73,6 +77,10 @@ class ControlPanelComponent(RemissComponent):
         min_date_allowed, max_date_allowed = self.plot_factory.get_date_range(dataset)
         return min_date_allowed, max_date_allowed, min_date_allowed, max_date_allowed
 
+    def update_current_values_display(self, tweet, hashtags, user):
+        logger.info(f'Updating current values display with tweet {tweet}, hashtags {hashtags}, user {user}')
+        return tweet, hashtags, user
+
     def update_dataset_storage(self, dropdown_dataset):
         logger.info(f'Updating dataset storage with {dropdown_dataset}')
         return dropdown_dataset
@@ -89,12 +97,42 @@ class ControlPanelComponent(RemissComponent):
         logger.info(f'Updating end date storage with {end_date}')
         return end_date
 
+    def clear_filters(self, n_clicks):
+        if n_clicks:
+            logger.info(f'Clearing filters')
+            return None, None, None
+        raise PreventUpdate()
+
     def layout(self, params=None):
         return dbc.Stack([
             dbc.Card([
                 dbc.CardHeader('Date range'),
                 dbc.CardBody([
                     self.date_picker
+                ])
+            ]),
+            dbc.Card([
+                dbc.CardHeader('Current filters'),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            html.P('Current tweet:'),
+                            self.current_tweet_display,
+                        ]),
+                        dbc.Col([
+                            html.P('Current hashtags:'),
+                            self.current_hashtags_display,
+                        ]),
+                        dbc.Col([
+                            html.P('Current user:'),
+                            self.current_user_display,
+                        ]),
+                    ]),
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Button('Clear filters', id=f'clear-filters-{self.name}', color='danger'),
+                        ]),
+                    ])
                 ])
             ]),
 
@@ -131,3 +169,20 @@ class ControlPanelComponent(RemissComponent):
             Output(self.state.current_end_date, 'data'),
             [Input(self.date_picker, 'end_date')],
         )(self.update_end_date_storage)
+
+        app.callback(
+            Output(self.current_tweet_display, 'children'),
+            Output(self.current_hashtags_display, 'children'),
+            Output(self.current_user_display, 'children'),
+            [Input(self.state.current_tweet, 'data'),
+             Input(self.state.current_hashtags, 'data'),
+             Input(self.state.current_user, 'data')],
+        )(self.update_current_values_display)
+
+        # add reset callback that sets tweet, user and hashtag current state to None
+        app.callback(
+            Output(self.state.current_tweet, 'data', allow_duplicate=True),
+            Output(self.state.current_hashtags, 'data', allow_duplicate=True),
+            Output(self.state.current_user, 'data', allow_duplicate=True),
+            [Input(f'clear-filters-{self.name}', 'n_clicks')],
+        )(self.clear_filters)

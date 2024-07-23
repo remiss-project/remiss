@@ -71,7 +71,7 @@ class MyTestCase(unittest.TestCase):
     def test_hashtags(self):
         def run_callback():
             context_value.set(AttributeDict(**{"triggered_id": "wordcloud"}))
-            actual = self.component.update_hashtag_storage(click_data=['hashtag1', 10])
+            actual = self.component.update_hashtag_storage_wordcloud(click_data=['hashtag1', 10])
             return actual
 
         ctx = copy_context()
@@ -81,7 +81,7 @@ class MyTestCase(unittest.TestCase):
     def test_hashtags2(self):
         def run_callback():
             context_value.set(AttributeDict(**{"triggered_id": "wordcloud"}))
-            actual = self.component.update_hashtag_storage(click_data=[])
+            actual = self.component.update_hashtag_storage_wordcloud(click_data=[])
             return actual
 
         ctx = copy_context()
