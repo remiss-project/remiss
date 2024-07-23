@@ -25,11 +25,12 @@ class TweetTableFactory(MongoPlotFactory):
                           'retweets': '$public_metrics.retweet_count',
                           'suspect': '$author.remiss_metadata.is_usual_suspect',
                           'party': '$author.remiss_metadata.party', }},
+            {'$addFields':{'tweet_id_int': {'$toLong': '$tweet_id'}}},
             {'$lookup': {'from': 'multimodal', 'localField': 'tweet_id', 'foreignField': 'tweet_id',
                          'as': 'multimodal'}},
             {'$lookup': {'from': 'profiling', 'localField': 'author_id', 'foreignField': 'user_id',
                          'as': 'profiling'}},
-            {'$lookup': {'from': 'textual', 'localField': 'tweet_id', 'foreignField': 'tweet_id',
+            {'$lookup': {'from': 'textual', 'localField': 'tweet_id_int', 'foreignField': 'id',
                          'as': 'textual'}},
             {'$project': {'User': '$username', 'Text': '$text', 'Retweets': '$retweets',
                           'Is usual suspect': '$suspect', 'Party': '$party',
@@ -38,7 +39,9 @@ class TweetTableFactory(MongoPlotFactory):
                           'Profiling': {'$cond': {'if': {'$eq': [{'$size': '$profiling'}, 0]}, 'then': False,
                                                   'else': True}},
                           'ID': '$tweet_id', 'Author ID': '$author_id',
-                          'Suspicious content': {'$arrayElemAt': ['$textual.fakeness_probabilities', 0]}}},
+                          'Suspicious content': {'$arrayElemAt': ['$textual.fakeness_probabilities', 0]},
+                          'Cascade size': {'$size': '$textual.cascades'}}},
+
             {'$sort': {'Retweets': -1}},
 
         ]
@@ -53,7 +56,8 @@ class TweetTableFactory(MongoPlotFactory):
             'Profiling': bool,
             'ID': str,
             'Author ID': str,
-            'Suspicious content': float
+            'Suspicious content': float,
+            'Cascade size': int
         })
         # df = list(dataset.aggregate(pipeline))
         df = dataset.aggregate_pandas_all(pipeline, schema=schema)

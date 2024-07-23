@@ -54,9 +54,9 @@ class TestTopTableFactory(TestCase):
         profiling_collection.insert_many(profiling_data)
 
         textual = self.database.get_collection('textual')
-        textual_data = [{'tweet_id': '0', 'fakeness_probabilities': 0.1},
-                        {'tweet_id': '1', 'fakeness_probabilities': 0.2},
-                        {'tweet_id': '2', 'fakeness_probabilities': 0.3}]
+        textual_data = [{'id': '0', 'fakeness_probabilities': 0.1},
+                        {'id': '1', 'fakeness_probabilities': 0.2},
+                        {'id': '2', 'fakeness_probabilities': 0.3}]
         textual.insert_many(textual_data)
 
     def tearDown(self):
@@ -75,7 +75,7 @@ class TestTopTableFactory(TestCase):
                     'Profiling': {0: True, 1: True, 2: False},
                     'ID': {0: '0', 1: '1', 2: '2'},
                     'Author ID': {0: '0', 1: '1', 2: '2'},
-                    'Fakeness': {0: 0.1, 1: 0.2, 2: 0.3}
+                    'Suspicious content': {0: 0.1, 1: 0.2, 2: 0.3}
                     }
         expected = pd.DataFrame(expected)
         expected = expected.iloc[[2, 1, 0]].reset_index(drop=True)
@@ -123,7 +123,7 @@ class TestTopTableFactory(TestCase):
                     'Profiling': {0: True, 1: True, 2: False},
                     'ID': {0: '0', 1: '1', 2: '2'},
                     'Author ID': {0: '0', 1: '1', 2: '2'},
-                    'Fakeness': {0: 0.1, 1: 0.2, 2: 0.3}
+                    'Suspicious content': {0: 0.1, 1: 0.2, 2: 0.3}
                     }
         expected = pd.DataFrame(expected)
         expected = expected.iloc[[1, 0]].reset_index(drop=True)
