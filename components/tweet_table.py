@@ -26,9 +26,9 @@ class TweetTableComponent(RemissComponent):
                                filter_action="native",
                                sort_action="native",
                                sort_mode="multi",
-                               cell_selectable=False,
+                               cell_selectable=True,
                                # # column_selectable="multi",
-                               row_selectable="single",
+                               row_selectable=False,
                                # row_deletable=False,
                                # selected_columns=[],
                                # selected_rows=[],
@@ -60,26 +60,35 @@ class TweetTableComponent(RemissComponent):
         self.data['Profiling'] = self.data['Profiling'].apply(lambda x: '✓' if x else '✗')
         return self.data.to_dict('records')
 
-    def update_hashtags(self, selected_rows):
-        if selected_rows:
-            hashtags = self.extract_hashtag_from_top_table(selected_rows[0])
-            logger.info(f'Updating hashtags state with {hashtags}')
-            if hashtags:
+    def update_hashtags(self, active_cell):
+        if active_cell:
+            column = self.top_table_columns[active_cell['column']]
+            if column == 'Text':
+                selected_row = active_cell['row']
+                hashtags = self.extract_hashtag_from_top_table(selected_row)
+                logger.info(f'Updating hashtags state with {hashtags}')
                 return hashtags
+
         return None
 
-    def update_tweet(self, selected_rows):
-        if selected_rows:
-            tweet = self.data['ID'].iloc[selected_rows[0]]
-            logger.info(f'Updating tweet state with {tweet}')
-            return tweet
+    def update_tweet(self, active_cell):
+        if active_cell:
+            column = self.top_table_columns[active_cell['column']]
+            if column == 'ID':
+                tweet_id = self.data['ID'].iloc[active_cell['row']]
+                logger.info(f'Updating tweet state with {tweet_id}')
+                return tweet_id
+
         return None
 
-    def update_user(self, selected_rows):
-        if selected_rows:
-            user = self.data['Author ID'].iloc[selected_rows[0]]
-            logger.info(f'Updating user state with {user}')
-            return user
+    def update_user(self, active_cell):
+        if active_cell:
+            column = self.top_table_columns[active_cell['column']]
+            if column == 'User':
+                user_id = self.data['Author ID'].iloc[active_cell['row']]
+                logger.info(f'Updating user state with {user_id}')
+                return user_id
+
         return None
 
     def extract_hashtag_from_top_table(self, selected_row):
@@ -102,17 +111,17 @@ class TweetTableComponent(RemissComponent):
              Input(self.state.current_start_date, 'data'),
              Input(self.state.current_end_date, 'data')],
         )(self.update)
-        # app.callback(
-        #     Output(self.state.current_hashtags, 'data', allow_duplicate=True),
-        #     [Input(self.table, 'selected_rows')],
-        # )(self.update_hashtags)
+        app.callback(
+            Output(self.state.current_hashtags, 'data', allow_duplicate=True),
+            [Input(self.table, 'active_cell')],
+        )(self.update_hashtags)
         app.callback(
             Output(self.state.current_user, 'data'),
-            [Input(self.table, 'selected_rows')],
+            [Input(self.table, 'active_cell')],
         )(self.update_user)
         app.callback(
             Output(self.state.current_tweet, 'data'),
-            [Input(self.table, 'selected_rows')],
+            [Input(self.table, 'active_cell')],
         )(self.update_tweet)
         app.callback(
             Output(self.table, 'style_data_conditional'),
