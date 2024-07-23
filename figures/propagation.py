@@ -291,6 +291,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                                   name='',
                                   )
 
+
         axis = dict(showbackground=False,
                     showline=False,
                     zeroline=False,
@@ -300,7 +301,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                     )
 
         layout = go.Layout(
-            showlegend=False,
+            showlegend=True,
             scene=dict(
                 xaxis=dict(axis),
                 yaxis=dict(axis),
@@ -315,6 +316,34 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         data = [edge_trace, node_trace]
         fig = go.Figure(data=data, layout=layout)
+
+        # Create a custom legend for marker sizes
+        sizes = [1, 2, 3, 5, 10, 15, 25]  # Example sizes for the legend
+        for size in sizes:
+            fig.add_trace(go.Scatter(
+                x=[None], y=[None],
+                mode='markers',
+                marker=dict(
+                    size=size,
+                    color='lightgrey'
+                ),
+                legendgroup='size',
+                showlegend=True,
+                name=f'{size}'
+            ))
+
+        # Update layout to position the legends
+        fig.update_layout(
+            legend=dict(
+                x=1.05,
+                y=0.995,
+                traceorder='normal',
+                xanchor='left',
+                yanchor='top',
+                itemclick=False,  # Disable click events on legend items,
+                title='Reputation',
+            )
+        )
 
         camera = dict(
             up=dict(x=0, y=0, z=1),

@@ -8,6 +8,8 @@ from pymongo import MongoClient
 
 from figures.propagation import PropagationPlotFactory
 
+import plotly.express as px
+
 
 class PropagationFactoryTestCase(unittest.TestCase):
     def setUp(self):
@@ -266,6 +268,63 @@ class PropagationFactoryTestCase(unittest.TestCase):
 
         pd.testing.assert_frame_equal(expected_layout, actual_layout, check_dtype=False, check_index_type=False,
                                       check_column_type=False, check_frame_type=False)
+
+    def test_legend(self):
+        import plotly.graph_objects as go
+        import plotly.express as px
+
+        # Sample data
+        df = px.data.iris()
+
+        # Create the main scatter plot
+        fig = go.Figure()
+
+        fig.add_trace(go.Scatter(
+            x=df['sepal_width'],
+            y=df['sepal_length'],
+            mode='markers',
+            marker=dict(
+                size=df['petal_length'],
+                color=df['species'].astype('category').cat.codes,
+                colorscale='Viridis',
+                showscale=True,
+                colorbar=dict(title="Species")
+            ),
+            text=df['species'],
+            name='Data points'
+        ))
+
+        # Create a custom legend for marker sizes
+        sizes = [5, 10, 15, 20, 25]  # Example sizes for the legend
+        for size in sizes:
+            fig.add_trace(go.Scatter(
+                x=[None], y=[None],
+                mode='markers',
+                marker=dict(
+                    size=size,
+                    color='lightgrey'
+                ),
+                legendgroup='size',
+                showlegend=True,
+                name=f'Size {size}'
+            ))
+
+        # Update layout to position the legends
+        fig.update_layout(
+            title='Scatter plot with color and size',
+            xaxis_title='Sepal Width',
+            yaxis_title='Sepal Length',
+            legend=dict(
+                x=1.05,
+                y=1,
+                traceorder='normal',
+                xanchor='left',
+                yanchor='top',
+                itemclick=False  # Disable click events on legend items
+            )
+        )
+
+        fig.show()
 
 
 if __name__ == '__main__':
