@@ -144,10 +144,15 @@ class PropagationPlotFactory(MongoPlotFactory):
         else:
             size = size / size.max() * self.big_size_multiplier
 
-        color = metadata['legitimacy']
+        color = metadata['legitimacy'].copy()
 
         if author_id is not None:
-            color[user_graph.vs.find(author_id=author_id).index] = self.user_highlight_color
+            user_index = user_graph.vs.find(author_id=author_id).index
+            expected_user_index = metadata.index.get_loc(author_id)
+            if user_index != expected_user_index:
+                logger.warning(f'Author id {author_id} has index {user_index} in graph but {expected_user_index} in metadata')
+            color = color.to_list()
+            color[user_index] = self.user_highlight_color
 
         # Available markers ['circle', 'circle-open', 'cross', 'diamond', 'diamond-open', 'square', 'square-open', 'x']
         marker_map = {'Normal': 'circle', 'Suspect': 'cross', 'Politician': 'diamond', 'Suspect politician':
