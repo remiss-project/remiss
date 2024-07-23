@@ -36,7 +36,7 @@ class EgonetComponent(RemissComponent):
 
     def layout(self, params=None):
         return dbc.Card([
-            dbc.CardHeader('Egonet'),
+            dbc.CardHeader('Filtered network', id=f'title-{self.name}'),
             dbc.CardBody([
                 dcc.Loading(id=f'loading-{self.name}',
                             type='default',
@@ -99,19 +99,22 @@ class EgonetComponent(RemissComponent):
             # Show egonet for the selected user
             try:
                 fig = self.plot_factory.plot_egonet(dataset, egonet_user, depth, start_date, end_date, hashtag)
+                title = f'Egonet'
                 logger.info(f'Plotting egonet for user {egonet_user}')
             except (RuntimeError, ValueError, KeyError) as e:
                 # If the user is not available, then show the backbone
                 fig = self.plot_factory.plot_hidden_network(dataset, start_date=start_date, end_date=end_date,
                                                             hashtag=hashtag)
+                title = 'Filtered network'
                 logger.info(f'User {egonet_user} not available, plotting backbone')
         else:
             # Plot backbone but highlight the selected user
             fig = self.plot_factory.plot_hidden_network(dataset, user, start_date, end_date, hashtag)
+            title = 'Filtered network'
             logger.info(f'Plotting backbone with table user {user} highlighted')
         # remove margin
         # fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-        return fig
+        return fig, title
 
     def update_user(self, user):
         logger.info(f'Updating egonet user with {user}')
@@ -158,6 +161,7 @@ class EgonetComponent(RemissComponent):
     def callbacks(self, app):
         app.callback(
             Output(self.graph_egonet, 'figure'),
+            Output(f'title-{self.name}', 'children'),
             [Input(self.state.current_dataset, 'data'),
              Input(self.user_dropdown, 'value'),
              Input(self.state.current_user, 'data'),
