@@ -254,7 +254,7 @@ class RemissDashboard(RemissComponent):
                 ]),
             ]),
 
-        ], fluid=False)
+        ], fluid=False, )
 
     def callbacks(self, app):
         if self.debug:

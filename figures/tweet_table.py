@@ -38,7 +38,7 @@ class TweetTableFactory(MongoPlotFactory):
                           'Profiling': {'$cond': {'if': {'$eq': [{'$size': '$profiling'}, 0]}, 'then': False,
                                                   'else': True}},
                           'ID': '$tweet_id', 'Author ID': '$author_id',
-                          'Fakeness': {'$arrayElemAt': ['$textual.fakeness_probabilities', 0]}}},
+                          'Suspicious content': {'$arrayElemAt': ['$textual.fakeness_probabilities', 0]}}},
             {'$sort': {'Retweets': -1}},
 
         ]
@@ -53,7 +53,7 @@ class TweetTableFactory(MongoPlotFactory):
             'Profiling': bool,
             'ID': str,
             'Author ID': str,
-            'Fakeness': float
+            'Suspicious content': float
         })
         # df = list(dataset.aggregate(pipeline))
         df = dataset.aggregate_pandas_all(pipeline, schema=schema)
