@@ -73,7 +73,7 @@ class DiffusionMetrics(BasePropagationMetrics):
             {'$project': {'_id': 0,
                           'tweet_id': '$_id',
                           'author_id': 1,
-                          'created_at': 1
+                          'created_at': {'$dateFromString': {'dateString': '$created_at', 'onError': '$created_at'}}
                           }
              }
         ]
