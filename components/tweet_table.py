@@ -53,9 +53,9 @@ class TweetTableComponent(RemissComponent):
             ], width=12),
         ], justify='center', style={'margin-bottom': '1rem'})
 
-    def update(self, dataset, start_date, end_date):
+    def update(self, dataset, start_date, end_date, hashtags):
         logger.info(f'Updating tweet table with dataset {dataset}, start date {start_date}, end date {end_date}')
-        self.data = self.plot_factory.get_top_table_data(dataset, start_date, end_date)
+        self.data = self.plot_factory.get_top_table_data(dataset, start_date, end_date, hashtags)
         self.data['Multimodal'] = self.data['Multimodal'].apply(lambda x: 'Yes' if x else 'No')
         self.data['Profiling'] = self.data['Profiling'].apply(lambda x: 'Yes' if x else 'No')
         return self.data.to_dict('records')
@@ -109,7 +109,8 @@ class TweetTableComponent(RemissComponent):
             Output(self.table, 'data'),
             [Input(self.state.current_dataset, 'data'),
              Input(self.state.current_start_date, 'data'),
-             Input(self.state.current_end_date, 'data')],
+             Input(self.state.current_end_date, 'data'),
+             Input(self.state.current_hashtags, 'data')],
         )(self.update)
         app.callback(
             Output(self.state.current_hashtags, 'data', allow_duplicate=True),

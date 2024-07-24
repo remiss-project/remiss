@@ -11,7 +11,7 @@ pymongoarrow.monkey.patch_all()
 
 class TweetTableFactory(MongoPlotFactory):
 
-    def get_top_table_data(self, dataset, start_time=None, end_time=None):
+    def get_top_table_data(self, dataset, start_time=None, end_time=None, hashtags=None):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         dataset = database.get_collection('raw')
@@ -48,7 +48,7 @@ class TweetTableFactory(MongoPlotFactory):
             {'$sort': {'Retweets': -1}},
 
         ]
-        pipeline = self._add_filters(pipeline, start_time, end_time)
+        pipeline = self._add_filters(pipeline, start_time, end_time, hashtags)
         schema = Schema({
             'User': str,
             'Text': str,
@@ -62,13 +62,13 @@ class TweetTableFactory(MongoPlotFactory):
             'Suspicious content': float,
             'Cascade size': int
         })
-        df = list(dataset.aggregate(pipeline))
+        # df = list(dataset.aggregate(pipeline))
         df = dataset.aggregate_pandas_all(pipeline, schema=schema)
         client.close()
 
         return df
 
-    def _add_filters(self, pipeline, start_time=None, end_time=None):
+    def _add_filters(self, pipeline, start_time=None, end_time=None, hashtags=None):
         pipeline = pipeline.copy()
         if start_time:
             start_time = pd.to_datetime(start_time)
@@ -78,4 +78,7 @@ class TweetTableFactory(MongoPlotFactory):
             # Add a day to account for all the tweets published in that day
             end_time = end_time + pd.Timedelta(days=1)
             pipeline.insert(0, {'$match': {'created_at': {'$lt': end_time}}})
+        if hashtags:
+            pipeline.insert(0, {'$match': {'entities.hashtags.tag': {'$in': hashtags}}})
+
         return pipeline
