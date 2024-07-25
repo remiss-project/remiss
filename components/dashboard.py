@@ -1,7 +1,7 @@
 import logging
 
 import dash_bootstrap_components as dbc
-from dash import dcc, html, Input, Output
+from dash import dcc, html, Input, Output, State
 from dash.exceptions import PreventUpdate
 
 from components.components import RemissComponent
@@ -289,5 +289,5 @@ class RemissDashboard(RemissComponent):
 
         app.callback(
             Output(self.tweet_table_component.table, 'active_cell'),
-            Input(self.control_panel_component.reset_button, 'n_clicks')
+            Input(self.control_panel_component.reset_button, 'n_clicks'),
         )(self.reset_table_active_cell)

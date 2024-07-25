@@ -97,17 +97,6 @@ class TweetTableComponent(RemissComponent):
         hashtags = [x[1:] for x in text.split() if x.startswith('#')]
         return hashtags if hashtags else None
 
-    def highlight_row(self, author_id, active_cell):
-        if active_cell and author_id and self.data['Author ID'].iloc[active_cell['row']] == author_id:
-            style_data_conditional = [{
-                'if': {'row_index': active_cell['row']},
-                'backgroundColor': 'rgba(0, 0, 0, 0.1)'
-            }]
-        else:
-            # Remove all highlights, even dash ones
-            style_data_conditional = ['if', {'row_index': -1}]
-        return style_data_conditional
-
 
     def callbacks(self, app):
         app.callback(
@@ -129,8 +118,4 @@ class TweetTableComponent(RemissComponent):
             Output(self.state.current_tweet, 'data'),
             [Input(self.table, 'active_cell')],
         )(self.update_tweet)
-        app.callback(
-            Output(self.table, 'style_data_conditional'),
-            Input(self.state.current_user, 'data'),
-            Input(self.table, 'active_cell'),
-        )(self.highlight_row)
+
