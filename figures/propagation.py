@@ -30,7 +30,7 @@ class PropagationPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017,
                  reference_types=('quoted', 'retweeted'), layout='fruchterman_reingold',
                  threshold=0.2, delete_vertices=True, frequency='1D',
-                 available_datasets=None, small_size_multiplier=10, big_size_multiplier=50,
+                 available_datasets=None, small_size_multiplier=15, big_size_multiplier=50,
                  user_highlight_color='rgb(0, 0, 255)', load_from_mongodb=True):
         super().__init__(host, port, available_datasets)
         self.big_size_multiplier = big_size_multiplier
@@ -140,10 +140,6 @@ class PropagationPlotFactory(MongoPlotFactory):
         # Add 1 offset and set 1 as minimum size
         size = size + 1
         size = size.fillna(1)
-        if len(user_graph.vs) > 100:
-            size = size / size.max() * self.small_size_multiplier
-        else:
-            size = size / size.max() * self.big_size_multiplier
 
         color = metadata['legitimacy'].copy()
 
@@ -186,10 +182,6 @@ class PropagationPlotFactory(MongoPlotFactory):
         # Add 1 offset and set 1 as minimum size
         size = size + 1
         size = size.fillna(1)
-        if len(propagation_tree.vs) > 100:
-            size = size / size.max() * self.small_size_multiplier
-        else:
-            size = size / size.max() * self.big_size_multiplier
 
         color = metadata['legitimacy'].copy()
 
@@ -283,13 +275,23 @@ class PropagationPlotFactory(MongoPlotFactory):
         metadata = metadata.set_index('author_id')
         return metadata
 
-    def plot_graph(self, graph, layout=None, symbol=None, size=None, color=None, text=None):
+    def plot_graph(self, graph, layout=None, symbol=None, size=None, color=None, text=None, normalize=True):
         if layout is None:
             if 'layout' not in graph.attributes():
                 layout = graph.layout(self.layout, dim=3)
 
             else:
                 layout = graph['layout']
+
+        if normalize:
+            # apply logarithm on color and size if available
+            if color is not None:
+                color = pd.Series(color)
+                color = color.apply(lambda x: np.log(x+1) if isinstance(x, (int, float)) else x)
+
+            if size is not None:
+                original_size = size
+                size = np.log(size+1)/np.log(size.max()+1) * self.small_size_multiplier
 
         if isinstance(layout, Layout):
             layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
@@ -358,44 +360,51 @@ class PropagationPlotFactory(MongoPlotFactory):
         data = [edge_trace, node_trace]
         fig = go.Figure(data=data, layout=layout)
 
-        # Create a custom legend for marker sizes
-        sizes = [1, 2, 3, 5, 10, 15, 25]  # Example sizes for the legend
-        for size in sizes:
-            fig.add_trace(go.Scatter(
-                x=[None], y=[None],
-                mode='markers',
-                marker=dict(
-                    size=size,
-                    color='lightgrey'
+        if size is not None:
+            # Create a custom legend for marker sizes
+            if normalize:
+                legend_values = np.linspace(original_size.min(), original_size.max(), 5) #
+                legend_values = np.array(sorted(set(legend_values.astype(int))))
+                legend_sizes = np.log(legend_values+1)/np.log(original_size.max()+1) * self.small_size_multiplier
+            else:
+                legend_values = np.linspace(size.min(), size.max(), 5)
+                legend_sizes = legend_values * self.small_size_multiplier
+            for size, value in zip(legend_sizes, legend_values):
+                fig.add_trace(go.Scatter(
+                    x=[None], y=[None],
+                    mode='markers',
+                    marker=dict(
+                        size=size,
+                        color='lightgrey'
+                    ),
+                    legendgroup='size',
+                    showlegend=True,
+                    name=f'{value}',
+                    # remove background
+                    hoverinfo='skip',
+
+                ))
+
+            # Update layout to position the legends
+            fig.update_layout(
+                legend=dict(
+                    x=1.05,
+                    y=0.995,
+                    traceorder='normal',
+                    xanchor='left',
+                    yanchor='top',
+                    itemclick=False,  # Disable click events on legend items,
+                    title='Reputation',
                 ),
-                legendgroup='size',
-                showlegend=True,
-                name=f'{size}',
-                # remove background
-                hoverinfo='skip',
+                scene=dict(
+                    xaxis=dict(axis),
+                    yaxis=dict(axis),
+                    zaxis=dict(axis),
+                ),
+                xaxis={'showgrid': False, 'zeroline': False, 'showline': False, 'showticklabels': False},
+                yaxis={'showgrid': False, 'zeroline': False, 'showline': False, 'showticklabels': False}
 
-            ))
-
-        # Update layout to position the legends
-        fig.update_layout(
-            legend=dict(
-                x=1.05,
-                y=0.995,
-                traceorder='normal',
-                xanchor='left',
-                yanchor='top',
-                itemclick=False,  # Disable click events on legend items,
-                title='Reputation',
-            ),
-            scene=dict(
-                xaxis=dict(axis),
-                yaxis=dict(axis),
-                zaxis=dict(axis),
-            ),
-            xaxis={'showgrid': False, 'zeroline': False, 'showline': False, 'showticklabels': False},
-            yaxis={'showgrid': False, 'zeroline': False, 'showline': False, 'showticklabels': False}
-
-        )
+            )
 
         camera = dict(
             up=dict(x=0, y=0, z=1),
