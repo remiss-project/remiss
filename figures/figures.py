@@ -49,6 +49,22 @@ class MongoPlotFactory(ABC):
             client.close()
         return self._available_hashtags[dataset]
 
+    def get_hashtags_for_user(self, dataset, user_id):
+        client = MongoClient(self.host, self.port)
+        self._validate_dataset(client, dataset)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
+        pipeline = [
+            {'$match': {'author.id': user_id}},
+            {'$unwind': '$entities.hashtags'},
+            {'$group': {'_id': '$entities.hashtags.tag', 'count': {'$count': {}}}},
+            {'$sort': {'count': -1}}
+        ]
+        available_hashtags_freqs = list(collection.aggregate(pipeline))
+        available_hashtags_freqs = [(x['_id'], x['count']) for x in available_hashtags_freqs]
+        client.close()
+        return available_hashtags_freqs
+
     def get_users(self, dataset):
         client = MongoClient(self.host, self.port)
         self._validate_dataset(client, dataset)
