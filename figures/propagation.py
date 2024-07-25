@@ -337,6 +337,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                     zeroline=False,
                     showgrid=False,
                     showticklabels=False,
+                    showspikes=False,
                     title=''
                     )
 
@@ -347,9 +348,9 @@ class PropagationPlotFactory(MongoPlotFactory):
                 yaxis=dict(axis),
                 zaxis=dict(axis),
             ),
-            # margin=dict(
-            #     t=100
-            # ),
+            margin=dict(
+                t=0
+            ),
             hovermode='closest',
 
         )
@@ -369,7 +370,10 @@ class PropagationPlotFactory(MongoPlotFactory):
                 ),
                 legendgroup='size',
                 showlegend=True,
-                name=f'{size}'
+                name=f'{size}',
+                # remove background
+                hoverinfo='skip',
+
             ))
 
         # Update layout to position the legends
@@ -382,13 +386,21 @@ class PropagationPlotFactory(MongoPlotFactory):
                 yanchor='top',
                 itemclick=False,  # Disable click events on legend items,
                 title='Reputation',
-            )
+            ),
+            scene=dict(
+                xaxis=dict(axis),
+                yaxis=dict(axis),
+                zaxis=dict(axis),
+            ),
+            xaxis={'showgrid': False, 'zeroline': False, 'showline': False, 'showticklabels': False},
+            yaxis={'showgrid': False, 'zeroline': False, 'showline': False, 'showticklabels': False}
+
         )
 
         camera = dict(
             up=dict(x=0, y=0, z=1),
             center=dict(x=0, y=0, z=0),
-            eye=dict(x=1.25, y=1.25, z=1.25)
+            eye=dict(x=0.75, y=0.75, z=0.75)
         )
         fig.update_layout(scene_camera=camera)
         logger.info(f'Plot computed in {time.time() - start_time} seconds')
