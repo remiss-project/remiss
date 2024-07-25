@@ -287,11 +287,11 @@ class PropagationPlotFactory(MongoPlotFactory):
             # apply logarithm on color and size if available
             if color is not None:
                 color = pd.Series(color)
-                color = color.apply(lambda x: np.log(x+1) if isinstance(x, (int, float)) else x)
+                color = color.apply(lambda x: np.log(x + 1) if isinstance(x, (int, float)) else x)
 
             if size is not None:
                 original_size = size
-                size = np.log(size+1)/np.log(size.max()+1) * self.small_size_multiplier
+                size = np.log(size + 1) / np.log(size.max() + 1) * self.small_size_multiplier
 
         if isinstance(layout, Layout):
             layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
@@ -350,9 +350,13 @@ class PropagationPlotFactory(MongoPlotFactory):
                 yaxis=dict(axis),
                 zaxis=dict(axis),
             ),
-            margin=dict(
-                t=0
-            ),
+            # margin=dict(
+            #     t=0,
+            #     l=0,
+            #     r=0,
+            #     b=0
+            # ),
+            autosize=True,
             hovermode='closest',
 
         )
@@ -363,9 +367,9 @@ class PropagationPlotFactory(MongoPlotFactory):
         if size is not None:
             # Create a custom legend for marker sizes
             if normalize:
-                legend_values = np.linspace(original_size.min(), original_size.max(), 5) #
+                legend_values = np.linspace(original_size.min(), original_size.max(), 5)  #
                 legend_values = np.array(sorted(set(legend_values.astype(int))))
-                legend_sizes = np.log(legend_values+1)/np.log(original_size.max()+1) * self.small_size_multiplier
+                legend_sizes = np.log(legend_values + 1) / np.log(original_size.max() + 1) * self.small_size_multiplier
             else:
                 legend_values = np.linspace(size.min(), size.max(), 5)
                 legend_sizes = legend_values * self.small_size_multiplier

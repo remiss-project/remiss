@@ -239,10 +239,10 @@ class RemissDashboard(RemissComponent):
             dbc.Row([
                 dbc.Col([
                     self.control_panel_component.layout(params)
-                ]),
+                ], width=3),
                 dbc.Col([
                     self.egonet_component.layout(params)
-                ]),
+                ], width=9),
             ]),
             dbc.Row([
                 dbc.Col([

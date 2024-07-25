@@ -18,11 +18,10 @@ class EgonetComponent(RemissComponent):
         self.state = state
         self.available_datasets = plot_factory.available_datasets
         self.graph_egonet = dcc.Graph(figure={}, id=f'fig-{self.name}',
-                                      config={'displayModeBar': False},
+                                      # config={'displayModeBar': False},
                                       responsive=True,
                                       # style={'height': '100%', 'width': '100%'},
                                       )
-        available_users = self.plot_factory.get_users(self.available_datasets[0])
         self.depth_slider = dcc.Slider(min=1, max=5, step=1, value=2, id=f'slider-{self.name}')
 
     def layout(self, params=None):
@@ -31,18 +30,17 @@ class EgonetComponent(RemissComponent):
             dbc.CardBody([
                 dcc.Loading(id=f'loading-{self.name}',
                             type='default',
-                            children=self.graph_egonet)
+                            children=self.graph_egonet,
+                            # style={'height': '100%'}
+                            ),
             ]),
             dbc.Collapse([
                 dbc.CardFooter([
                     dbc.Row([
                         dbc.Col([
-
                             self.depth_slider
-
                         ], width=6),
                     ]),
-                    html.Div([], style={'height': '100%'}, id=f'placeholder-{self.name}') if self.debug else None,
                 ])
             ], id=f'collapse-depth-slider-{self.name}', is_open=False),
         ], style={'height': '100%'})
@@ -68,9 +66,6 @@ class EgonetComponent(RemissComponent):
         # fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
         return fig, title, show_depth_slider, not show_depth_slider
 
-    def update_debug(self, depth, depth_disabled):
-        return f'Depth: {depth}, Disabled: {depth_disabled}'
-
     def callbacks(self, app):
         app.callback(
             Output(f'fig-{self.name}', 'figure'),
@@ -85,12 +80,3 @@ class EgonetComponent(RemissComponent):
              Input(self.depth_slider, 'value'),
              ]
         )(self.update)
-
-        if self.debug:
-            app.callback(
-                Output(f'placeholder-{self.name}', 'children'),
-                [
-                    Input(self.depth_slider, 'value'),
-                    Input(self.depth_slider, 'disabled'),
-                ]
-            )(self.update_debug)
