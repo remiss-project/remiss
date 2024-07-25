@@ -35,6 +35,8 @@ class TweetTableFactory(MongoPlotFactory):
                          'as': 'textual'}},
             {'$lookup': {'from': 'raw', 'localField': 'conversation_id', 'foreignField': 'conversation_id',
                          'as': 'conversation'}},
+            {'$lookup': {'from': 'network_metrics', 'localField': 'author_id', 'foreignField': 'author_id',
+                         'as': 'network_metrics'}},
             {'$project': {'User': '$username', 'Text': '$text', 'Retweets': '$retweets',
                           'Is usual suspect': '$suspect', 'Party': '$party',
                           'Multimodal': {'$cond': {'if': {'$eq': [{'$size': '$multimodal'}, 0]}, 'then': False,
@@ -43,7 +45,11 @@ class TweetTableFactory(MongoPlotFactory):
                                                   'else': True}},
                           'ID': '$tweet_id', 'Author ID': '$author_id',
                           'Suspicious content': {'$arrayElemAt': ['$textual.fakeness_probabilities', 0]},
-                          'Cascade size': {'$size': '$conversation'}}},
+                          'Cascade size': {'$size': '$conversation'},
+                          'Legitimacy': {'$arrayElemAt': ['$network_metrics.legitimacy', 0]},
+                          'Reputation': {'$arrayElemAt': ['$network_metrics.average_reputation', 0]},
+                          'Status': {'$arrayElemAt': ['$network_metrics.average_status', 0]}},
+             },
 
             {'$sort': {'Retweets': -1}},
 
@@ -60,7 +66,10 @@ class TweetTableFactory(MongoPlotFactory):
             'ID': str,
             'Author ID': str,
             'Suspicious content': float,
-            'Cascade size': int
+            'Cascade size': int,
+            'Legitimacy': float,
+            'Reputation': float,
+            'Status': float
         })
         # df = list(dataset.aggregate(pipeline))
         df = dataset.aggregate_pandas_all(pipeline, schema=schema)

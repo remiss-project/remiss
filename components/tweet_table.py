@@ -14,7 +14,7 @@ class TweetTableComponent(RemissComponent):
     def __init__(self, plot_factory, state, name=None,
                  top_table_columns=(
                          'ID', 'User', 'Text', 'Retweets', 'Party', 'Multimodal', 'Profiling',
-                         'Suspicious content', 'Cascade size')):
+                         'Suspicious content', 'Cascade size', 'Legitimacy', 'Reputation', 'Status')):
         super().__init__(name=name)
         self.plot_factory = plot_factory
         self.data = None

@@ -117,11 +117,17 @@ class NetworkMetrics(BasePropagationMetrics):
         database = client.get_database(dataset)
         collection = database.get_collection('network_metrics')
         collection.drop()
-        collection.insert_many([{'author_id': author_id,
-                                 'legitimacy': int(legitimacy[author_id]),
-                                 'reputation': reputation.loc[author_id].to_json(date_format='iso'),
-                                 'status': status.loc[author_id].to_json(date_format='iso')} for author_id in
-                                legitimacy.index])
+        data = []
+        for author_id in legitimacy.index:
+            average_reputation = float(reputation.loc[author_id].mean())
+            average_status = float(status.loc[author_id].mean())
+            data.append({'author_id': author_id,
+                         'legitimacy': float(legitimacy[author_id]),
+                         'reputation': reputation.loc[author_id].to_json(),
+                         'status': status.loc[author_id].to_json(),
+                         'average_reputation': average_reputation,
+                         'average_status': average_status})
+        collection.insert_many(data)
         client.close()
 
     def load_from_mongodb(self, datasets):
