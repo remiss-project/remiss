@@ -87,7 +87,15 @@ class ControlPanelComponent(RemissComponent):
 
     def update_hashtag_storage(self, click_data):
         logger.info(f'Updating hashtag storage with {click_data}')
-        return [click_data[0]] if click_data else None
+        if click_data:
+            hashtags = [click_data[0]]
+            tweet_id = None
+            user_id = None
+            return hashtags, tweet_id, user_id
+        else:
+            raise PreventUpdate()
+
+
 
     def update_start_date_storage(self, start_date):
         logger.info(f'Updating start date storage with {start_date}')
@@ -157,6 +165,8 @@ class ControlPanelComponent(RemissComponent):
 
         app.callback(
             Output(self.state.current_hashtags, 'data'),
+            Output(self.state.current_tweet, 'data', allow_duplicate=True),
+            Output(self.state.current_user, 'data', allow_duplicate=True),
             Input(self.wordcloud, 'click'),
         )(self.update_hashtag_storage)
 
