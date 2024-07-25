@@ -255,7 +255,7 @@ class RemissDashboard(RemissComponent):
                 ]),
             ]),
 
-        ], fluid=False, )
+        ], fluid=True, )
 
     def reset_table_active_cell(self, n_clicks):
         if n_clicks:
