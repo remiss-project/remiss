@@ -85,6 +85,8 @@ To set up the project on your local machine, follow these steps:
 
 ### Step 2: Install Dependencies
 
+This software requires Python 3.11 or higher. You can install the necessary Python packages using `pip` or `conda`.
+
 1. **Clone the Repository:**
    - Clone this repository to your local machine using the following command:
      ```bash
