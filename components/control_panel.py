@@ -27,6 +27,7 @@ class ControlPanelComponent(RemissComponent):
         self.current_tweet_display = html.P(id=f'tweet-display-{self.name}', children='')
         self.current_hashtags_display = html.P(id=f'hashtags-display-{self.name}', children='')
         self.current_user_display = html.P(id=f'user-display-{self.name}', children='')
+        self.reset_button = dbc.Button('Clear filters', id=f'clear-filters-{self.name}', color='danger')
 
     def get_wordcloud_component(self):
         available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(self.available_datasets[0])
@@ -95,8 +96,6 @@ class ControlPanelComponent(RemissComponent):
         else:
             raise PreventUpdate()
 
-
-
     def update_start_date_storage(self, start_date):
         logger.info(f'Updating start date storage with {start_date}')
         return start_date
@@ -138,7 +137,7 @@ class ControlPanelComponent(RemissComponent):
                     ]),
                     dbc.Row([
                         dbc.Col([
-                            dbc.Button('Clear filters', id=f'clear-filters-{self.name}', color='danger'),
+                            self.reset_button
                         ]),
                     ])
                 ])

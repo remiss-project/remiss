@@ -2,6 +2,7 @@ import logging
 
 import dash_bootstrap_components as dbc
 from dash import dcc, html, Input, Output
+from dash.exceptions import PreventUpdate
 
 from components.components import RemissComponent
 from components.control_panel import ControlPanelComponent
@@ -256,6 +257,12 @@ class RemissDashboard(RemissComponent):
 
         ], fluid=False, )
 
+    def reset_table_active_cell(self, n_clicks):
+        if n_clicks:
+            logger.info(f'Clearing active cell')
+            return None
+        raise PreventUpdate()
+
     def callbacks(self, app):
         if self.debug:
             app.callback(
@@ -279,3 +286,8 @@ class RemissDashboard(RemissComponent):
         self.egonet_component.callbacks(app)
         self.tweet_table_component.callbacks(app)
         self.filterable_plots_component.callbacks(app)
+
+        app.callback(
+            Output(self.tweet_table_component.table, 'active_cell'),
+            Input(self.control_panel_component.reset_button, 'n_clicks')
+        )(self.reset_table_active_cell)
