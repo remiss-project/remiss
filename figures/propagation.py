@@ -413,9 +413,10 @@ class PropagationPlotFactory(MongoPlotFactory):
         camera = dict(
             up=dict(x=0, y=0, z=1),
             center=dict(x=0, y=0, z=0),
-            eye=dict(x=0.75, y=0.75, z=0.75)
+            eye=dict(x=0.75, y=0.75, z=0.75),
         )
-        fig.update_layout(scene_camera=camera)
+        fig.update_layout(scene_camera=camera,
+                          autosize=True)
         logger.info(f'Plot computed in {time.time() - start_time} seconds')
         return fig
 
