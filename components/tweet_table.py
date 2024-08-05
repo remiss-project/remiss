@@ -42,7 +42,7 @@ class TweetTableComponent(RemissComponent):
                                    'maxWidth': 0,
                                },
                                style_cell_conditional=[
-                                   {'if': {'column_id': 'Text'},
+                                   {'if': {'column_id': 'ID'},
                                     'width': '40%'},
                                ]
                                )
@@ -60,44 +60,37 @@ class TweetTableComponent(RemissComponent):
         self.data = self.data.round(2)
         self.data['Multimodal'] = self.data['Multimodal'].apply(lambda x: 'Yes' if x else 'No')
         self.data['Profiling'] = self.data['Profiling'].apply(lambda x: 'Yes' if x else 'No')
+        self.data['id'] = self.data['ID']
         return self.data.to_dict('records')
 
     def update_hashtags(self, active_cell):
-        if active_cell:
-            column = self.top_table_columns[active_cell['column']]
-            if column == 'Text':
-                selected_row = active_cell['row']
-                hashtags = self.extract_hashtag_from_top_table(selected_row)
-                logger.info(f'Updating hashtags state with {hashtags}')
-                return hashtags
+        if active_cell and active_cell['column_id'] == 'Text':
+            text = self.data[self.data['ID'] == active_cell['row_id']]['Text'].values[0]
+            hashtags = self.extract_hashtag_from_tweet_text(text)
+            logger.info(f'Updating hashtags state with {hashtags}')
+            return hashtags
 
         return None
 
     def update_tweet(self, active_cell):
-        if active_cell:
-            column = self.top_table_columns[active_cell['column']]
-            if column == 'ID':
-                tweet_id = self.data['ID'].iloc[active_cell['row']]
-                logger.info(f'Updating tweet state with {tweet_id}')
-                return tweet_id
+        if active_cell and active_cell['column_id'] == 'ID':
+            tweet_id = active_cell['row_id']
+            logger.info(f'Updating tweet state with {tweet_id}')
+            return tweet_id
 
         return None
 
     def update_user(self, active_cell):
-        if active_cell:
-            column = self.top_table_columns[active_cell['column']]
-            if column == 'User':
-                user_id = self.data['Author ID'].iloc[active_cell['row']]
-                logger.info(f'Updating user state with {user_id}')
-                return user_id
+        if active_cell and active_cell['column_id'] == 'User':
+            user = self.data[self.data['ID'] == active_cell['row_id']]['User'].values[0]
+            logger.info(f'Updating user state with {user}')
+            return user
 
         return None
 
-    def extract_hashtag_from_top_table(self, selected_row):
-        text = self.data['Text'].iloc[selected_row]
+    def extract_hashtag_from_tweet_text(self, text):
         hashtags = [x[1:] for x in text.split() if x.startswith('#')]
         return hashtags if hashtags else None
-
 
     def callbacks(self, app):
         app.callback(
@@ -119,4 +112,3 @@ class TweetTableComponent(RemissComponent):
             Output(self.state.current_tweet, 'data'),
             [Input(self.table, 'active_cell')],
         )(self.update_tweet)
-
