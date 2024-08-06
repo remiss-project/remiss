@@ -46,21 +46,21 @@ class EgonetComponent(RemissComponent):
         ], style={'height': '100%'})
 
     def update(self, dataset, user, start_date, end_date, hashtags, depth):
-        logger.info(f'Updating egonet with dataset {dataset}, user {user}, '
+        logger.debug(f'Updating egonet with dataset {dataset}, user {user}, '
                     f'start date {start_date}, end date {end_date}, hashtag {hashtags}, depth {depth}')
         # Show egonet for the selected user
         try:
             fig = self.plot_factory.plot_egonet(dataset, user, depth, start_date, end_date, hashtags)
             title = f'Egonet'
             show_depth_slider = True
-            logger.info(f'Plotting egonet for user {user}')
+            logger.debug(f'Plotting egonet for user {user}')
         except (RuntimeError, ValueError, KeyError) as e:
             # If the user is not available, then show the backbone
             fig = self.plot_factory.plot_hidden_network(dataset, start_date=start_date, end_date=end_date,
                                                         hashtag=hashtags)
             show_depth_slider = False
             title = 'Filtered network'
-            logger.info(f'User {user} not available, plotting backbone')
+            logger.debug(f'User {user} not available, plotting backbone')
 
         # remove margin
         # fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))

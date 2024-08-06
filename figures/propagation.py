@@ -113,10 +113,10 @@ class PropagationPlotFactory(MongoPlotFactory):
         return start_date, end_date
 
     def compute_layout(self, network):
-        logger.info(f'Computing {self.layout} layout')
+        logger.debug(f'Computing {self.layout} layout')
         start_time = time.time()
         layout = network.layout(self.layout, dim=3)
-        logger.info(f'Layout computed in {time.time() - start_time} seconds')
+        logger.debug(f'Layout computed in {time.time() - start_time} seconds')
         return layout
 
     def plot_user_graph(self, user_graph, collection, layout=None, author_id=None):
@@ -301,8 +301,8 @@ class PropagationPlotFactory(MongoPlotFactory):
                            ' is correct. Recomputing layout')
             layout = self.compute_layout(graph)
             layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
-        logger.info('Computing plot for network')
-        logger.info(graph.summary())
+        logger.debug('Computing plot for network')
+        logger.debug(graph.summary())
         start_time = time.time()
         edge_positions = self._get_edge_positions(graph, layout)
 
@@ -417,7 +417,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         )
         fig.update_layout(scene_camera=camera,
                           autosize=True)
-        logger.info(f'Plot computed in {time.time() - start_time} seconds')
+        logger.debug(f'Plot computed in {time.time() - start_time} seconds')
         return fig
 
     def _get_edge_positions(self, graph, layout):
@@ -470,7 +470,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         client.close()
 
     def load_from_mongodb(self, datasets):
-        logger.info(f'Loading hidden network layout from mongodb for datasets {datasets}')
+        logger.debug(f'Loading hidden network layout from mongodb for datasets {datasets}')
         for dataset in datasets:
             try:
                 layout = self._load_layout_from_mongodb(dataset, 'hidden_network_layout')
@@ -487,15 +487,15 @@ class PropagationPlotFactory(MongoPlotFactory):
         return layout
 
     def prepopulate(self):
-        logger.info('Prepopulating propagation factory')
+        logger.debug('Prepopulating propagation factory')
         self.persist(self.available_datasets)
-        logger.info('Prepopulating egonet')
+        logger.debug('Prepopulating egonet')
         self.egonet.persist(self.available_datasets)
-        logger.info('Prepopulating network metrics')
+        logger.debug('Prepopulating network metrics')
         self.network_metrics.persist(self.available_datasets)
-        logger.info('Prepopulating diffusion metrics')
+        logger.debug('Prepopulating diffusion metrics')
         self.diffusion_metrics.persist(self.available_datasets)
-        logger.info('Done prepopulating propagation factory')
+        logger.debug('Done prepopulating propagation factory')
 
 
 def transform_user_type(x):

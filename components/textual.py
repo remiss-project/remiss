@@ -27,7 +27,7 @@ class EmotionPerHourComponent(RemissComponent):
 
     def update(self, dataset, start_date, end_date):
         try:
-            logger.info(
+            logger.debug(
                 f'Updating emotion per hour with dataset {dataset}, start date {start_date}, end date {end_date}')
             return self.plot_factory.plot_emotion_per_hour(dataset, start_date, end_date)
         except (IndexError, ValueError) as e:
@@ -62,7 +62,7 @@ class AverageEmotionBarComponent(RemissComponent):
 
     def update(self, dataset, start_date, end_date):
         try:
-            logger.info(
+            logger.debug(
                 f'Updating average emotion with dataset {dataset}, start date {start_date}, end date {end_date}')
             return self.plot_factory.plot_average_emotion(dataset, start_date, end_date)
         except (IndexError, ValueError) as e:

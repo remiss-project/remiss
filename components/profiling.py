@@ -32,7 +32,7 @@ class ProfilingComponent(RemissComponent):
         ], id=f'collapse-{self.name}', is_open=False)
 
     def update_collapse(self, dataset, user_id):
-        logger.info(f'Updating collapse with dataset {dataset}, user {user_id}')
+        logger.debug(f'Updating collapse with dataset {dataset}, user {user_id}')
         return self.profile_plot_factory.is_user_profiled(dataset, user_id)
 
     def callbacks(self, app):

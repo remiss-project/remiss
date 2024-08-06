@@ -53,17 +53,17 @@ available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
 def create_app(config):
     load_figure_template(config['theme'])
 
-    logger.info(f'Connecting to MongoDB at {config["mongodb"]["host"]}:{config["mongodb"]["port"]}...')
-    logger.info(f'Using database {"database"}...')
+    logger.debug(f'Connecting to MongoDB at {config["mongodb"]["host"]}:{config["mongodb"]["port"]}...')
+    logger.debug(f'Using database {"database"}...')
     if config['cache_dir']:
-        logger.info(f'Using cache directory {config["cache_dir"]}...')
+        logger.debug(f'Using cache directory {config["cache_dir"]}...')
     else:
-        logger.info('Not using cache...')
+        logger.debug('Not using cache...')
 
     if config['graph_simplification']:
-        logger.info(f'Using graph simplification threshold {config["graph_simplification"]["threshold"]}...')
+        logger.debug(f'Using graph simplification threshold {config["graph_simplification"]["threshold"]}...')
 
-    logger.info('Creating plot factories...')
+    logger.debug('Creating plot factories...')
     start_time = time.time()
     tweet_user_plot_factory = TimeSeriesFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                                 available_datasets=config['available_datasets'])
@@ -98,8 +98,8 @@ def create_app(config):
                                 match_wordcloud_width=config['wordcloud']['match_width'],
                                 name='dashboard',
                                 debug=config['debug'])
-    logger.info(f'Plot factories created in {time.time() - start_time} seconds.')
-    logger.info('Creating app...')
+    logger.debug(f'Plot factories created in {time.time() - start_time} seconds.')
+    logger.debug('Creating app...')
     start_time = time.time()
     dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
     app = dash.Dash(__name__,
@@ -114,7 +114,7 @@ def create_app(config):
                     )
     app.layout = dashboard.layout()
     dashboard.callbacks(app)
-    logger.info(f'App created in {time.time() - start_time} seconds.')
+    logger.debug(f'App created in {time.time() - start_time} seconds.')
 
     return app
 
@@ -125,10 +125,10 @@ def load_config(config):
 
 
 def main(config='dev_config.yaml'):
-    logger.info(f'Loading config from {config}...')
+    logger.debug(f'Loading config from {config}...')
     config = load_config(config)
     app = create_app(config)
-    logger.info('Running app...')
+    logger.debug('Running app...')
     app.run(debug=config['debug'])
 
 

@@ -44,7 +44,7 @@ class TimeSeriesComponent(RemissComponent):
         ])
 
     def update(self, dataset, hashtags, start_date, end_date):
-        logger.info(f'Updating time series with dataset {dataset}, hashtags {hashtags}, '
+        logger.debug(f'Updating time series with dataset {dataset}, hashtags {hashtags}, '
                     f'start date {start_date}, end date {end_date}')
         return self.plot_factory.plot_tweet_series(dataset, hashtags, start_date, end_date), \
             self.plot_factory.plot_user_series(dataset, hashtags, start_date, end_date)

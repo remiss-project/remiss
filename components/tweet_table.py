@@ -55,7 +55,7 @@ class TweetTableComponent(RemissComponent):
         ], justify='center', style={'margin-bottom': '1rem'})
 
     def update(self, dataset, start_date, end_date, hashtags):
-        logger.info(f'Updating tweet table with dataset {dataset}, start date {start_date}, end date {end_date}')
+        logger.debug(f'Updating tweet table with dataset {dataset}, start date {start_date}, end date {end_date}')
         self.data = self.plot_factory.get_top_table_data(dataset, start_date, end_date, hashtags)
         self.data = self.data.round(2)
         self.data['Multimodal'] = self.data['Multimodal'].apply(lambda x: 'Yes' if x else 'No')
@@ -67,7 +67,7 @@ class TweetTableComponent(RemissComponent):
         if active_cell and active_cell['column_id'] == 'Text':
             text = self.data[self.data['ID'] == active_cell['row_id']]['Text'].values[0]
             hashtags = self.extract_hashtag_from_tweet_text(text)
-            logger.info(f'Updating hashtags state with {hashtags}')
+            logger.debug(f'Updating hashtags state with {hashtags}')
             return hashtags
 
         return None
@@ -75,7 +75,7 @@ class TweetTableComponent(RemissComponent):
     def update_tweet(self, active_cell):
         if active_cell and active_cell['column_id'] == 'ID':
             tweet_id = active_cell['row_id']
-            logger.info(f'Updating tweet state with {tweet_id}')
+            logger.debug(f'Updating tweet state with {tweet_id}')
             return tweet_id
 
         return None
@@ -83,7 +83,7 @@ class TweetTableComponent(RemissComponent):
     def update_user(self, active_cell):
         if active_cell and active_cell['column_id'] == 'User':
             user = self.data[self.data['ID'] == active_cell['row_id']]['Author ID'].values[0]
-            logger.info(f'Updating user state with {user}')
+            logger.debug(f'Updating user state with {user}')
             return user
 
         return None

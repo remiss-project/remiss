@@ -34,7 +34,7 @@ class ControlPanelComponent(RemissComponent):
         available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(self.available_datasets[0])
         if available_hashtags_freqs:
             if self.max_wordcloud_words:
-                logger.info(
+                logger.debug(
                     f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
                 available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
             min_freq = min([x[1] for x in available_hashtags_freqs])
@@ -65,13 +65,13 @@ class ControlPanelComponent(RemissComponent):
 
     def update_wordcloud(self, dataset, author_id):
         if author_id:
-            logger.info(f'Updating wordcloud with dataset {dataset} and user {author_id}')
+            logger.debug(f'Updating wordcloud with dataset {dataset} and user {author_id}')
             available_hashtags_freqs = self.plot_factory.get_hashtags_for_user(dataset, author_id)
         else:
-            logger.info(f'Updating wordcloud with dataset {dataset}')
+            logger.debug(f'Updating wordcloud with dataset {dataset}')
             available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(dataset)
         if self.max_wordcloud_words < len(available_hashtags_freqs):
-            logger.info(
+            logger.debug(
                 f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
             available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
         if available_hashtags_freqs:
@@ -82,20 +82,20 @@ class ControlPanelComponent(RemissComponent):
             return [('No hashtags found', 1)], 1
 
     def update_date_range(self, dataset):
-        logger.info(f'Updating date range with dataset {dataset}')
+        logger.debug(f'Updating date range with dataset {dataset}')
         min_date_allowed, max_date_allowed = self.plot_factory.get_date_range(dataset)
         return min_date_allowed, max_date_allowed, min_date_allowed, max_date_allowed
 
     def update_current_values_display(self, tweet, hashtags, user):
-        logger.info(f'Updating current values display with tweet {tweet}, hashtags {hashtags}, user {user}')
+        logger.debug(f'Updating current values display with tweet {tweet}, hashtags {hashtags}, user {user}')
         return tweet, hashtags, user
 
     def update_dataset_storage(self, dropdown_dataset):
-        logger.info(f'Updating dataset storage with {dropdown_dataset}')
+        logger.debug(f'Updating dataset storage with {dropdown_dataset}')
         return dropdown_dataset
 
     def update_hashtag_storage(self, click_data):
-        logger.info(f'Updating hashtag storage with {click_data}')
+        logger.debug(f'Updating hashtag storage with {click_data}')
         if click_data:
             hashtags = [click_data[0]]
             tweet_id = None
@@ -105,11 +105,11 @@ class ControlPanelComponent(RemissComponent):
             raise PreventUpdate()
 
     def update_start_date_storage(self, start_date):
-        logger.info(f'Updating start date storage with {start_date}')
+        logger.debug(f'Updating start date storage with {start_date}')
         return start_date
 
     def update_end_date_storage(self, end_date):
-        logger.info(f'Updating end date storage with {end_date}')
+        logger.debug(f'Updating end date storage with {end_date}')
         return end_date
 
     def layout(self, params=None):
@@ -242,7 +242,7 @@ class FilterDisplayComponent(RemissComponent):
 
     def clear_filters(self, n_clicks):
         if n_clicks:
-            logger.info(f'Clearing filters')
+            logger.debug(f'Clearing filters')
             return None, None, None
         raise PreventUpdate()
 

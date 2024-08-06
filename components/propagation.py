@@ -85,7 +85,7 @@ class PropagationComponent(RemissComponent):
     def update_tweet(self, dataset, tweet_id):
         try:
             if self.plot_factory.get_cascade_size(dataset, tweet_id) > 1:
-                logger.info(f'Updating propagation plots with dataset {dataset}, tweet {tweet_id}')
+                logger.debug(f'Updating propagation plots with dataset {dataset}, tweet {tweet_id}')
                 return self.plot_factory.plot_propagation_tree(dataset, tweet_id), \
                     self.plot_factory.plot_depth_over_time(dataset, tweet_id), \
                     self.plot_factory.plot_size_over_time(dataset, tweet_id), \
@@ -93,11 +93,11 @@ class PropagationComponent(RemissComponent):
                     self.plot_factory.plot_structural_virality_over_time(dataset, tweet_id), \
                     True
             else:
-                logger.info(f'Tweet {tweet_id} has no propagation')
+                logger.debug(f'Tweet {tweet_id} has no propagation')
                 return {}, {}, {}, {}, {}, False
 
         except Exception as e:
-            logger.info(e)
+            logger.debug(e)
             return {}, {}, {}, {}, {}, False
 
     def callbacks(self, app):
@@ -136,10 +136,10 @@ class CascadeCcdfComponent(RemissComponent):
 
     def update_cascade(self, dataset):
         try:
-            logger.info(f'Updating cascade ccdf with dataset {dataset}')
+            logger.debug(f'Updating cascade ccdf with dataset {dataset}')
             return self.plot_factory.plot_size_cascade_ccdf(dataset)
         except KeyError as e:
-            logger.info(e)
+            logger.debug(e)
             return {}
 
     def callbacks(self, app):
@@ -169,7 +169,7 @@ class CascadeCountOverTimeComponent(RemissComponent):
         ])
 
     def update_cascade(self, dataset):
-        logger.info(f'Updating cascade count over time with dataset {dataset}')
+        logger.debug(f'Updating cascade count over time with dataset {dataset}')
         return self.plot_factory.plot_cascade_count_over_time(dataset)
 
     def callbacks(self, app):

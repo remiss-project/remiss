@@ -50,13 +50,13 @@ class NetworkMetrics(BasePropagationMetrics):
                           'author_id': '$_id',
                           'legitimacy': 1}},
         ]
-        logger.info('Computing legitimacy')
+        logger.debug('Computing legitimacy')
         start_time = time.time()
         legitimacy = collection.aggregate_pandas_all(node_pipeline)
         legitimacy = legitimacy.set_index('author_id')
         legitimacy = legitimacy.sort_values('legitimacy', ascending=False)
         legitimacy = legitimacy['legitimacy']
-        logger.info(f'Legitimacy computed in {time.time() - start_time} seconds')
+        logger.debug(f'Legitimacy computed in {time.time() - start_time} seconds')
         return legitimacy
 
     def _get_legitimacy_over_time(self, dataset):
@@ -78,7 +78,7 @@ class NetworkMetrics(BasePropagationMetrics):
                           'date': '$_id.date',
                           'legitimacy': 1}},
         ]
-        logger.info('Computing reputation')
+        logger.debug('Computing reputation')
 
         legitimacy = collection.aggregate_pandas_all(node_pipeline)
         if len(legitimacy) == 0:
@@ -94,7 +94,7 @@ class NetworkMetrics(BasePropagationMetrics):
         reputation = legitimacy.cumsum(axis=1)
         reputation.name = 'reputation'
 
-        logger.info(f'Reputation computed in {time.time() - start_time} seconds')
+        logger.debug(f'Reputation computed in {time.time() - start_time} seconds')
         return reputation
 
     def compute_status(self, dataset):
@@ -102,7 +102,7 @@ class NetworkMetrics(BasePropagationMetrics):
         legitimacy = self._get_legitimacy_over_time(dataset)
         reputation = legitimacy.cumsum(axis=1)
         status = reputation.apply(lambda x: x.argsort())
-        logger.info(f'Status computed in {time.time() - start_time} seconds')
+        logger.debug(f'Status computed in {time.time() - start_time} seconds')
         return status
 
     def persist(self, datasets):

@@ -111,11 +111,11 @@ class Egonet(BasePropagationMetrics):
                           }},
         ]
         self._add_filters(references_pipeline, start_date, end_date, hashtags)
-        logger.info('Computing references')
+        logger.debug('Computing references')
         start_time = time.time()
         schema = Schema({'source': str, 'target': str, 'weight': int, 'weight_inv': float, 'weight_norm': float})
         references = collection.aggregate_pandas_all(references_pipeline, schema=schema)
-        logger.info(f'References computed in {time.time() - start_time} seconds')
+        logger.debug(f'References computed in {time.time() - start_time} seconds')
         client.close()
         return references
 
@@ -132,7 +132,7 @@ class Egonet(BasePropagationMetrics):
             # in case of no authors we return an empty graph
             return ig.Graph(directed=True)
 
-        logger.info('Computing graph')
+        logger.debug('Computing graph')
         start_time = time.time()
         # switch id by position (which will be the node id in the graph) and set it as index
         author_to_id = authors['author_id'].reset_index().set_index('author_id')
@@ -150,8 +150,8 @@ class Egonet(BasePropagationMetrics):
             g.es['weight_inv'] = references['weight_inv']
             g.es['weight_norm'] = references['weight_norm']
 
-        logger.info(g.summary())
-        logger.info(f'Graph computed in {time.time() - start_time} seconds')
+        logger.debug(g.summary())
+        logger.debug(f'Graph computed in {time.time() - start_time} seconds')
 
         return g
 

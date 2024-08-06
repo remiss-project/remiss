@@ -209,7 +209,7 @@ class RemissDashboard(RemissComponent):
                        f'End date: {end_date}, Current user: {current_user}, Current tweet: {current_tweet}')
 
     def update_dataset_storage(self, dropdown_dataset):
-        logger.info(f'Updating dataset storage with {dropdown_dataset}')
+        logger.debug(f'Updating dataset storage with {dropdown_dataset}')
         return dropdown_dataset
 
     def layout(self, params=None):
@@ -259,7 +259,7 @@ class RemissDashboard(RemissComponent):
 
     def reset_table_active_cell(self, n_clicks):
         if n_clicks:
-            logger.info(f'Clearing active cell')
+            logger.debug(f'Clearing active cell')
             return None
         raise PreventUpdate()
 

@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 
 
 def prepopulate_propagation(config_file='dev_config.yaml'):
-    logger.info('Prepopulating propagation metrics and graphs...')
+    logger.debug('Prepopulating propagation metrics and graphs...')
     config = parse_config(config_file)
     factory = PropagationPlotFactory(available_datasets=config['available_datasets'],
                                      host=config['mongodb']['host'],
@@ -18,7 +18,7 @@ def prepopulate_propagation(config_file='dev_config.yaml'):
                                      threshold=config['graph_simplification']['threshold'],
                                      load_from_mongodb=False)
     factory.prepopulate()
-    logger.info('Propagation metrics and graphs prepopulated')
+    logger.debug('Propagation metrics and graphs prepopulated')
 
 
 if __name__ == '__main__':

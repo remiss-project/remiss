@@ -24,10 +24,10 @@ class TimeSeriesFactory(MongoPlotFactory):
                 "count": {'$count': {}}}},
             {'$sort': {'_id': 1}}
         ]
-        logger.info('Computing tweet series')
+        logger.debug('Computing tweet series')
         start_computing_time = time.time()
         plot = self._get_count_area_plot(pipeline, collection, hashtags, start_time, end_time)
-        logger.info(f'Tweet series computed in {time.time() - start_computing_time} seconds')
+        logger.debug(f'Tweet series computed in {time.time() - start_computing_time} seconds')
         return plot
 
     def plot_user_series(self, collection, hashtags, start_time, end_time, unit='day', bin_size=1):
@@ -39,10 +39,10 @@ class TimeSeriesFactory(MongoPlotFactory):
             {'$project': {'count': {'$size': '$users'}}},
             {'$sort': {'_id': 1}}
         ]
-        logger.info('Computing user series')
+        logger.debug('Computing user series')
         start_computing_time = time.time()
         plot = self._get_count_area_plot(pipeline, collection, hashtags, start_time, end_time)
-        logger.info(f'User series computed in {time.time() - start_computing_time} seconds')
+        logger.debug(f'User series computed in {time.time() - start_computing_time} seconds')
         return plot
 
     def _perform_count_aggregation(self, pipeline, collection):
