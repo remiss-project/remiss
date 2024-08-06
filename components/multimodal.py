@@ -10,8 +10,9 @@ logger = logging.getLogger(__name__)
 
 class MultimodalComponent(RemissComponent):
     def __init__(self, plot_factory, state,
-                 name=None):
+                 name=None, gap=2):
         super().__init__(name=name)
+        self.gap = gap
         self.claim_text = html.P(id=f'{self.name}-claim_text')
         self.claim_image = dcc.Graph(figure={}, id=f'fig-{self.name}-claim_image')
         self.visual_evidence_text = html.P(id=f'{self.name}-visual_evidence_text')
@@ -25,60 +26,72 @@ class MultimodalComponent(RemissComponent):
         self.state = state
 
     def layout(self, params=None):
-        claim_column = dbc.Col([
-            dbc.Card([
-                dbc.CardHeader('Claim Text'),
-                dbc.CardBody([
-                    self.claim_text,
-                ])
-            ]),
-            dbc.Card([
-                dbc.CardHeader('Claim Image'),
-                dbc.CardBody([
-                    self.claim_image,
-                ])
-            ]),
-        ], width=4)
+        claim_column = dbc.Col(
+            dbc.Stack([
+                dbc.Card([
+                    dbc.CardHeader('Claim Text'),
+                    dbc.CardBody([
+                        self.claim_text,
+                    ])
+                ]),
+                dbc.Card([
+                    dbc.CardHeader('Claim Image'),
+                    dbc.CardBody([
+                        self.claim_image,
+                    ])
+                ]),
+            ], gap=self.gap),
+            width=4)
 
         evidence_column = dbc.Col([
             dbc.Card([
-                dbc.Row([
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardHeader('Visual Evidence Text'),
-                            dbc.CardBody([
-                                self.visual_evidence_text,
-                            ])
-                        ]),
-                        dbc.Card([
-                            dbc.CardHeader('Evidence Image'),
-                            dbc.CardBody([
-                                self.evidence_image,
-                            ])
-                        ]),
-                    ], width=6),
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardBody([
-                                self.text_evidence_similarity_score
-                            ])
-                        ]),
-                        dbc.Card([
-                            dbc.CardBody([
-                                self.visual_evidence_similarity_score
-                            ])
-                        ]),
-                        dbc.Card([
-                            dbc.CardBody([
-                                self.visual_evidence_graph_similarity_score
-                            ])
-                        ]),
-                        dbc.Card([
-                            dbc.CardBody([
-                                self.visual_evidence_domain
-                            ])
-                        ]),
-                    ], width=6),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Stack([
+                                dbc.Card([
+                                    dbc.CardHeader('Visual Evidence Text'),
+                                    dbc.CardBody([
+                                        self.visual_evidence_text,
+                                    ])
+                                ]),
+                                dbc.Card([
+                                    dbc.CardHeader('Evidence Image'),
+                                    dbc.CardBody([
+                                        self.evidence_image,
+                                    ])
+                                ]),
+                            ], gap=self.gap)
+                        ], width=6),
+                        dbc.Col(
+                            dbc.Stack([
+                                dbc.Card([
+                                    dbc.CardHeader('Text Evidence Similarity Score'),
+                                    dbc.CardBody([
+                                        self.text_evidence_similarity_score
+                                    ])
+                                ]),
+                                dbc.Card([
+                                    dbc.CardHeader('Visual Evidence Similarity Score'),
+                                    dbc.CardBody([
+                                        self.visual_evidence_similarity_score
+                                    ])
+                                ]),
+                                dbc.Card([
+                                    dbc.CardHeader('Visual Evidence Graph Similarity Score'),
+                                    dbc.CardBody([
+                                        self.visual_evidence_graph_similarity_score
+                                    ])
+                                ]),
+                                dbc.Card([
+                                    dbc.CardHeader('Visual Evidence Domain'),
+                                    dbc.CardBody([
+                                        self.visual_evidence_domain
+                                    ])
+                                ]),
+                            ], gap=self.gap),
+                            width=6),
+                    ])
                 ])
             ])
         ], width=8)
