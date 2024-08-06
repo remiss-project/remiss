@@ -2,13 +2,13 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from pymongo import MongoClient
 
 from figures.figures import MongoPlotFactory
 from figures.utils_plot import draw_vertical_barplot, draw_radarplot, \
-    draw_vertical_acumulated_barplot_plotly, draw_horizontal_barplot, draw_donutplot
-import plotly.graph_objects as go
-import plotly.express as px
+    draw_vertical_acumulated_barplot_plotly, draw_horizontal_barplot  # , draw_donutplot
 
 
 class ProfilingPlotFactory(MongoPlotFactory):
@@ -130,7 +130,7 @@ class ProfilingPlotFactory(MongoPlotFactory):
                                                                                                           user_id,
                                                                                                           'emociones')
 
-        labels = ['Difusors de Notícies Falses', 'Usuaris de Control',  "Verificadors", 'Usuari']
+        labels = ['Difusors de Notícies Falses', 'Usuaris de Control', "Verificadors", 'Usuari']
         title = "Emocions"
         values = [fake_news_spreaders, fact_checkers, control_cases, user_data]
         colors = ['red', 'green', 'lightskyblue', 'orange']
@@ -273,8 +273,7 @@ class ProfilingPlotFactory(MongoPlotFactory):
                             [current_user[0], current_user[1]]]
         labels_1 = [display_names[0], display_names[1]]
 
-        donut_plot_py_behavior_1 = draw_donutplot(values_to_show_1, labels_1, titles,
-                                                  "Gràfic de Comportament 1")
+        donut_plot_py_behavior_1 = draw_donutplot(values_to_show_1, labels_1, titles)
 
         # Data for the second donut plot
         labels_2 = [display_names[2], display_names[3]]
@@ -283,8 +282,7 @@ class ProfilingPlotFactory(MongoPlotFactory):
                             [control_cases[2], control_cases[3]],
                             [current_user[2], current_user[3]]]
 
-        donut_plot_py_behavior_2 = draw_donutplot(values_to_show_2, labels_2, titles,
-                                                  "Gràfic de Comportament 2")
+        donut_plot_py_behavior_2 = draw_donutplot(values_to_show_2, labels_2, titles)
 
         return donut_plot_py_behavior_1, donut_plot_py_behavior_2
 
@@ -433,3 +431,34 @@ def format_description(description):
     # Break the description into multiple lines
     description_lines = [description[i:i + 60] for i in range(0, len(description), 60)]
     return '<br>'.join(description_lines)
+
+
+def draw_donutplot(values, labels, titles):
+    fig = make_subplots(
+        rows=2, cols=2,
+        specs=[[{'type': 'pie'}, {'type': 'pie'}], [{'type': 'pie'}, {'type': 'pie'}]],
+        subplot_titles=titles
+    )
+
+    for i in range(len(values)):
+        row = (i // 2) + 1
+        col = (i % 2) + 1
+
+        fig.add_trace(go.Pie(
+            labels=labels,
+            values=values[i],
+            hole=0.6,
+            marker=dict(colors=["blue", 'orange']),
+            textinfo='percent',
+            name=titles[i],
+            # domain=domain,
+            textposition='inside',
+            direction='clockwise',
+            showlegend=True,
+        ), row, col)
+
+    fig.update_layout(
+        showlegend=True,
+    )
+
+    return fig
