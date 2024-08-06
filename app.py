@@ -19,6 +19,15 @@ from figures.textual import TextualFactory
 logger = logging.getLogger('app')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+banner = \
+'''
+ ______     ______     __    __     __     ______     ______    
+/\  == \   /\  ___\   /\ "-./  \   /\ \   /\  ___\   /\  ___\   
+\ \  __<   \ \  __\   \ \ \-./\ \  \ \ \  \ \___  \  \ \___  \  
+ \ \_\ \_\  \ \_____\  \ \_\ \ \_\  \ \_\  \/\_____\  \/\_____\ 
+  \/_/ /_/   \/_____/   \/_/  \/_/   \/_/   \/_____/   \/_____/ 
+'''
+
 available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
                        'CERULEAN': dbc.themes.CERULEAN,
                        'COSMO': dbc.themes.COSMO,
@@ -53,17 +62,9 @@ available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
 def create_app(config):
     load_figure_template(config['theme'])
 
-    logger.debug(f'Connecting to MongoDB at {config["mongodb"]["host"]}:{config["mongodb"]["port"]}...')
-    logger.debug(f'Using database {"database"}...')
-    if config['cache_dir']:
-        logger.debug(f'Using cache directory {config["cache_dir"]}...')
-    else:
-        logger.debug('Not using cache...')
+    logger.info(f'Connecting to MongoDB at {config["mongodb"]["host"]}:{config["mongodb"]["port"]}...')
 
-    if config['graph_simplification']:
-        logger.debug(f'Using graph simplification threshold {config["graph_simplification"]["threshold"]}...')
-
-    logger.debug('Creating plot factories...')
+    logger.info('Creating plot factories...')
     start_time = time.time()
     tweet_user_plot_factory = TimeSeriesFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                                 available_datasets=config['available_datasets'])
@@ -98,8 +99,8 @@ def create_app(config):
                                 match_wordcloud_width=config['wordcloud']['match_width'],
                                 name='dashboard',
                                 debug=config['debug'])
-    logger.debug(f'Plot factories created in {time.time() - start_time} seconds.')
-    logger.debug('Creating app...')
+    logger.info(f'Plot factories created in {time.time() - start_time} seconds.')
+    logger.info('Creating app...')
     start_time = time.time()
     dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
     app = dash.Dash(__name__,
@@ -114,7 +115,7 @@ def create_app(config):
                     )
     app.layout = dashboard.layout()
     dashboard.callbacks(app)
-    logger.debug(f'App created in {time.time() - start_time} seconds.')
+    logger.info(f'App created in {time.time() - start_time} seconds.')
 
     return app
 
@@ -125,10 +126,10 @@ def load_config(config):
 
 
 def main(config='dev_config.yaml'):
-    logger.debug(f'Loading config from {config}...')
+    logger.info(banner)
+    logger.info(f'Loading config from {config}...')
     config = load_config(config)
     app = create_app(config)
-    logger.debug('Running app...')
     app.run(debug=config['debug'])
 
 
