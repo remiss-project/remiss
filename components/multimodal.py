@@ -113,6 +113,11 @@ class MultimodalComponent(RemissComponent):
             visual_evidence_similarity_score = metadata['visual_evidence_similarity_score']
             visual_evidence_graph_similarity_score = metadata['visual_evidence_graph_similarity_score']
             visual_evidence_domain = metadata['visual_evidence_domain']
+
+            text_evidence_similarity_score = f'{float(text_evidence_similarity_score):.3f}'
+            visual_evidence_similarity_score = f'{float(visual_evidence_similarity_score):.3f}'
+            visual_evidence_graph_similarity_score = f'{float(visual_evidence_graph_similarity_score):.3f}'
+
             claim_image = self.plot_factory.plot_claim_image(dataset, tweet_id)
             evidence_image = self.plot_factory.plot_evidence_image(dataset, tweet_id)
 
