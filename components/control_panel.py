@@ -221,7 +221,7 @@ class FilterDisplayComponent(RemissComponent):
 
     def update_tweet_display(self, tweet):
         if tweet:
-            return tweet, True if tweet else '', False
+            return tweet, True
         else:
             return '', False
 
