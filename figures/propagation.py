@@ -445,7 +445,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         fig = px.line(data, x=data.index, y=data.columns)
         fig.update_xaxes(title_text=x_label)
         fig.update_yaxes(title_text=y_label)
-        fig.update_layout(title=title)
+        # fig.update_layout(title=title)
         return fig
 
     def get_cascade_size(self, dataset, tweet_id):

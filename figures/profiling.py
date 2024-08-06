@@ -58,22 +58,17 @@ class ProfilingPlotFactory(MongoPlotFactory):
 
     def get_all_values_users(self, lang):
         if lang == 'en':
-            fake_spreaders_path = self.data_dir / "results_1_fake_spreaders_en"
-            fact_checkers_path = self.data_dir / "results_2_fact_checkers_eng"
-            random_path = self.data_dir / "results_3_random_en"
+            rel_fake_spreaders = load_medians_file_all_features(self.data_dir / "results_1_fake_spreaders_en")
+            rel_fact_checkers = load_medians_file_all_features(self.data_dir / "results_2_fact_checkers_eng")
+            rel_random = load_medians_file_all_features(self.data_dir / "results_3_random_en")
         elif lang == 'es':
-            fake_spreaders_path = self.data_dir / "results_4_fake_spreaders_esp"
-            fact_checkers_path = self.data_dir / "results_5_fact_checkers_esp"
-            random_path = self.data_dir / "results_6_random_es"
-        else:  # Assuming Catalan without other languages existing
-            fake_spreaders_path = self.data_dir / "results_7_fake_spreaders_cat"
-            fact_checkers_path = self.data_dir / "results_5_fact_checkers_esp"
-            random_path = self.data_dir / "results_6_random_es"
-
-        rel_fake_spreaders = self.get_median_values_users(fake_spreaders_path)
-        rel_fact_checkers = self.get_median_values_users(fact_checkers_path)
-        rel_random = self.get_median_values_users(random_path)
-
+            rel_fake_spreaders = load_medians_file_all_features(self.data_dir / "results_4_fake_spreaders_esp")
+            rel_fact_checkers = load_medians_file_all_features(self.data_dir / "results_5_fact_checkers_esp")
+            rel_random = load_medians_file_all_features(self.data_dir / "results_6_random_es")
+        else:  # asumiendo catalan sin que existan otros lenguajes
+            rel_fake_spreaders = load_medians_file_all_features(self.data_dir / "results_7_fake_spreaders_cat")
+            rel_fact_checkers = load_medians_file_all_features(self.data_dir / "results_5_fact_checkers_esp")
+            rel_random = load_medians_file_all_features(self.data_dir / "results_6_random_es")
         return rel_fake_spreaders, rel_fact_checkers, rel_random
 
     def plot_user_info(self, dataset, user_id):
@@ -130,11 +125,24 @@ class ProfilingPlotFactory(MongoPlotFactory):
                                                                                                           user_id,
                                                                                                           'emociones')
 
-        labels = ['Difusors de Notícies Falses', 'Usuaris de Control', "Verificadors", 'Usuari']
+        labels = ['Fake News Spreaders', 'Control Users', 'Fact Checkers', 'User']
+
         title = "Emocions"
         values = [fake_news_spreaders, fact_checkers, control_cases, user_data]
         colors = ['red', 'green', 'lightskyblue', 'orange']
 
+        translations = {
+            'alegría*': 'joy*',
+            'confiança*': 'trust*',
+            'por*': 'fear*',
+            'sorpresa*': 'surprise*',
+            'tristesa': 'sadness',
+            'fàstic': 'disgust',
+            'ira*': 'anger*',
+            'anticipació*': 'anticipation*'
+        }
+
+        display_names = [translations.get(x, x) for x in display_names]
         return draw_radarplot(display_names, values, labels, title, colors)
 
     def plot_vertical_accumulated_barplot_by_genre(self):
@@ -198,16 +206,23 @@ class ProfilingPlotFactory(MongoPlotFactory):
         fake_news_spreaders = self.fake_news_spreaders[features_names].values.astype(float).tolist()[0]
         fact_checkers = self.fact_checkers[features_names].values.astype(float).tolist()[0]
         control_cases = self.control_cases[features_names].values.astype(float).tolist()[0]
-        label1 = 'Difusors de Notícies Falses'
-        label2 = 'Verificadors'
-        label3 = 'Usuaris de Control'
-        label4 = 'Usuari'
+        # label1 = 'Difusors de Notícies Falses'
+        # label2 = 'Verificadors'
+        # label3 = 'Usuaris de Control'
+        # label4 = 'Usuari'
+        label1 = 'Fake News Spreaders'
+        label2 = 'Fact Checkers'
+        label3 = 'Control Users'
+        label4 = 'User'
 
         values_to_show = [fake_news_spreaders, fact_checkers, control_cases, current_user]
         colors_to_show_values = ['red', 'green', 'blue', 'orange']
         labels = [label1, label2, label3, label4]
         title = "Polaritat dels Tweets"
 
+        translations = {'positiva*': 'Positive', 'negativa*': 'Negative*', 'neutral*': 'Neutral*',
+                        "discurs d'odi": "Hate Speech"}
+        bar_names = [translations.get(x, x) for x in bar_names]
         return draw_vertical_barplot(bar_names, values_to_show, colors_to_show_values,
                                      labels, title)
 
@@ -260,11 +275,20 @@ class ProfilingPlotFactory(MongoPlotFactory):
         display_names = category_features["display_name"].tolist()
         current_user = [user_data[x] for x in features_names]
 
+        translations = {
+            'proporció de tweets publicats en días laborables (Dill-Div)': 'proportion of tweets posted on weekdays (Mon-Thurs)',
+            'proporció de tweets publicats en cap de setmana (Diss i Diu)': 'proportion of tweets posted on weekends (Sat and Sun)',
+            'proporció de tweets publicats a la nit': 'proportion of tweets posted at night',
+            'proporció de tweets publicats durant el día': 'proportion of tweets posted during the day'
+        }
+        display_names = [translations.get(x, x) for x in display_names]
+
         fake_news_spreaders = self.fake_news_spreaders[features_names].values.astype(float).tolist()[0]
         fact_checkers = self.fact_checkers[features_names].values.astype(float).tolist()[0]
         control_cases = self.control_cases[features_names].values.astype(float).tolist()[0]
 
-        titles = ['Difusors de Notícies Falses', 'Verificadors', 'Usuaris de Control', 'Usuari']
+        # titles = ['Difusors de Notícies Falses', 'Verificadors', 'Usuaris de Control', 'Usuari']
+        titles = ['Fake News Spreaders', 'Fact Checkers', 'Control Users', 'User']
 
         # Data for the first donut plot
         values_to_show_1 = [[fake_news_spreaders[0], fake_news_spreaders[1]],
@@ -306,21 +330,6 @@ class ProfilingPlotFactory(MongoPlotFactory):
             rel_fact_checkers = load_medians_file(self.data_dir / "results_5_fact_checkers_esp", rel_feats)
             rel_random = load_medians_file(self.data_dir / "results_6_random_es", rel_feats)
         return rel_feats, rel_fake_spreaders, rel_fact_checkers, rel_random
-
-    def get_all_values_users(self, lang):
-        if lang == 'en':
-            rel_fake_spreaders = load_medians_file_all_features(self.data_dir / "results_1_fake_spreaders_en")
-            rel_fact_checkers = load_medians_file_all_features(self.data_dir / "results_2_fact_checkers_eng")
-            rel_random = load_medians_file_all_features(self.data_dir / "results_3_random_en")
-        elif lang == 'es':
-            rel_fake_spreaders = load_medians_file_all_features(self.data_dir / "results_4_fake_spreaders_esp")
-            rel_fact_checkers = load_medians_file_all_features(self.data_dir / "results_5_fact_checkers_esp")
-            rel_random = load_medians_file_all_features(self.data_dir / "results_6_random_es")
-        else:  # asumiendo catalan sin que existan otros lenguajes
-            rel_fake_spreaders = load_medians_file_all_features(self.data_dir / "results_7_fake_spreaders_cat")
-            rel_fact_checkers = load_medians_file_all_features(self.data_dir / "results_5_fact_checkers_esp")
-            rel_random = load_medians_file_all_features(self.data_dir / "results_6_random_es")
-        return rel_fake_spreaders, rel_fact_checkers, rel_random
 
 
 def load_relevant_features(relevant_features_path):

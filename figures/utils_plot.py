@@ -257,7 +257,7 @@ def draw_vertical_barplot(barNames, valuesToShow, colorsToShowValues, labels, ti
     spacing = [r + barWidth for r in range(len(valuesToShow[0]))]
     fig.update_xaxes(tickvals=spacing, ticktext=barNames, tickangle=25)
 
-    fig.update_layout(title=title, barmode='group')
+    fig.update_layout(barmode='group')
 
     return fig
 

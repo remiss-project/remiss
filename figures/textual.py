@@ -69,13 +69,28 @@ class TextualFactory(MongoPlotFactory):
 
         emotions = ['Miedo', 'Disgusto', 'Sorpresa', 'Odio', 'Diversion', 'Agresividad', 'Dirigido', 'Enfado',
                     'Tristeza', 'Toxico', 'Ironia']
+
         # Take average of each of the columns
         pipeline = [
             {'$group': {'_id': None, **{emotion: {'$avg': f'${emotion}'} for emotion in emotions}}},
             {'$project': {'_id': 0}}
         ]
         df = dataset.aggregate_pandas_all(pipeline).iloc[0]
-        fig = px.bar(x=df.index, y=df.values, labels={'x': 'Emotion', 'y': 'Average value'}, title='Average Emotion',
+        translations = {
+            'Miedo': 'Fear',
+            'Disgusto': 'Disgust',
+            'Sorpresa': 'Surprise',
+            'Odio': 'Hate',
+            'Diversion': 'Fun',
+            'Agresividad': 'Aggressiveness',
+            'Dirigido': 'Targeted',
+            'Enfado': 'Anger',
+            'Tristeza': 'Sadness',
+            'Toxico': 'Toxic',
+            'Ironia': 'Irony'
+        }
+        df = df.rename(index=translations)
+        fig = px.bar(x=df.index, y=df.values, labels={'x': 'Emotion', 'y': 'Average value'},
                      color=df.index)
         fig.update_layout(showlegend=False)
         return fig
@@ -103,5 +118,22 @@ class TextualFactory(MongoPlotFactory):
 
     def plot_emotion_per_hour(self, dataset, start_time, end_time):
         df = self.get_emotion_per_hour(dataset, start_time, end_time)
-        fig = px.line(df, x=df.index, y=df.columns, title='Emotion per hour')
+        translations = {
+            'Agresividad': 'Aggressiveness',
+            'Enfado': 'Anger',
+            'Disgusto': 'Disgust',
+            'Miedo': 'Fear',
+            'Odio': 'Hate',
+            'Ironia': 'Irony',
+            'Diversion': 'Fun',
+            'Tristeza': 'Sadness',
+            'Sorpresa': 'Surprise',
+            'Dirigido': 'Targeted',
+            'Negativo': 'Negative',
+            'Neutro': 'Neutral',
+            'Positivo': 'Positive'
+        }
+        df = df.rename(columns=translations)
+
+        fig = px.line(df, x=df.index, y=df.columns)
         return fig
