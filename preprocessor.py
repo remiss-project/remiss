@@ -23,14 +23,34 @@ class PropagationPreprocessor:
         logger.info(f"Processing dataset {self.dataset} with data {self.data}")
         # Send data to raw collection
         logger.info(f"Storing data in raw collection")
+        try:
+            self.store_raw_data()
+        except Exception as e:
+            logger.error(f"Error storing data in raw collection: {e}")
+            raise RuntimeError(f"Error storing data in raw collection: {e}") from e
+        logger.info('Generating diffusion metrics')
+        try:
+            self.diffusion_metrics.persist([self.dataset])
+        except Exception as e:
+            logger.error(f"Error generating diffusion metrics: {e}")
+            raise RuntimeError(f"Error generating diffusion metrics: {e}") from e
+        logger.info('Generating network metrics')
+        try:
+            self.network_metrics.persist([self.dataset])
+        except Exception as e:
+            logger.error(f"Error generating network metrics: {e}")
+            raise RuntimeError(f"Error generating network metrics: {e}") from e
+        logger.info('Generating egonet metrics')
+        try:
+            self.egonet.persist([self.dataset])
+        except Exception as e:
+            logger.error(f"Error generating egonet metrics: {e}")
+            raise RuntimeError(f"Error generating egonet metrics: {e}") from e
+
+    def store_raw_data(self):
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.dataset)
         database.drop_collection('raw')
         collection = database.get_collection('raw')
         collection.insert_many(self.data)
-        logger.info('Generating diffusion metrics')
-        self.diffusion_metrics.persist([self.dataset])
-        logger.info('Generating network metrics')
-        self.network_metrics.persist([self.dataset])
-        logger.info('Generating egonet metrics')
-        self.egonet.persist([self.dataset])
+        logger.info('Data stored in raw collection')
