@@ -21,7 +21,8 @@ class EmotionPerHourComponent(RemissComponent):
             dbc.CardHeader('Emotion per hour'),
             dbc.CardBody([
                 self.graph
-            ])
+            ]),
+            dbc.CardFooter('Average emotion per hour of the day.')
         ])
 
     def update(self, dataset, start_date, end_date):
@@ -55,7 +56,8 @@ class AverageEmotionBarComponent(RemissComponent):
             dbc.CardHeader('Average emotion'),
             dbc.CardBody([
                 self.graph
-            ])
+            ]),
+            dbc.CardFooter('Average emotion over the entire dataset')
         ])
 
     def update(self, dataset, start_date, end_date):
@@ -90,7 +92,8 @@ class TopProfilesComponent(RemissComponent):
                     dbc.CardHeader('Top profiles'),
                     dbc.CardBody([
                         self.graph
-                    ])
+                    ]),
+                    dbc.CardFooter('Top profiles by number of tweets')
                 ]),
             ]),
         ], justify='center', style={'margin-bottom': '1rem'})

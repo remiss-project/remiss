@@ -26,7 +26,8 @@ class TimeSeriesComponent(RemissComponent):
                                     type='default',
                                     children=self.graph_tweet)
 
-                    ])
+                    ]),
+                    dbc.CardFooter('Number of tweets per day')
                 ]),
             ]),
             dbc.Col([
@@ -36,7 +37,8 @@ class TimeSeriesComponent(RemissComponent):
                         dcc.Loading(id=f'loading-users-{self.name}',
                                     type='default',
                                     children=self.graph_users)
-                    ])
+                    ]),
+                    dbc.CardFooter('Number of users that tweeted per day')
                 ]),
             ]),
         ])

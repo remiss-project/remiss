@@ -32,13 +32,15 @@ class MultimodalComponent(RemissComponent):
                     dbc.CardHeader('Claim Text'),
                     dbc.CardBody([
                         self.claim_text,
-                    ])
+                    ]),
+                    dbc.CardFooter('Claim text extracted from the tweet')
                 ]),
                 dbc.Card([
                     dbc.CardHeader('Claim Image'),
                     dbc.CardBody([
                         self.claim_image,
-                    ])
+                    ]),
+                    dbc.CardFooter('Claim image extracted from the tweet')
                 ]),
             ], gap=self.gap),
             width=4)
@@ -53,13 +55,16 @@ class MultimodalComponent(RemissComponent):
                                     dbc.CardHeader('Visual Evidence Text'),
                                     dbc.CardBody([
                                         self.visual_evidence_text,
-                                    ])
+                                    ]),
+                                    dbc.CardFooter('Visual evidence text extracted from the image')
+
                                 ]),
                                 dbc.Card([
                                     dbc.CardHeader('Evidence Image'),
                                     dbc.CardBody([
                                         self.evidence_image,
-                                    ])
+                                    ]),
+                                    dbc.CardFooter('Visual evidence image extracted from the tweet')
                                 ]),
                             ], gap=self.gap)
                         ], width=6),
@@ -69,25 +74,29 @@ class MultimodalComponent(RemissComponent):
                                     dbc.CardHeader('Text Evidence Similarity Score'),
                                     dbc.CardBody([
                                         self.text_evidence_similarity_score
-                                    ])
+                                    ]),
+                                    dbc.CardFooter('Similarity score between the claim and the visual evidence')
                                 ]),
                                 dbc.Card([
                                     dbc.CardHeader('Visual Evidence Similarity Score'),
                                     dbc.CardBody([
                                         self.visual_evidence_similarity_score
-                                    ])
+                                    ]),
+                                    dbc.CardFooter('Similarity score between the claim and the visual evidence')
                                 ]),
                                 dbc.Card([
                                     dbc.CardHeader('Visual Evidence Graph Similarity Score'),
                                     dbc.CardBody([
                                         self.visual_evidence_graph_similarity_score
-                                    ])
+                                    ]),
+                                    dbc.CardFooter('Similarity score between the claim and the visual evidence graph')
                                 ]),
                                 dbc.Card([
                                     dbc.CardHeader('Visual Evidence Domain'),
                                     dbc.CardBody([
                                         self.visual_evidence_domain
-                                    ])
+                                    ]),
+                                    dbc.CardFooter('Source of the visual evidence')
                                 ]),
                             ], gap=self.gap),
                             width=6),

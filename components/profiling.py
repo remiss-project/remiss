@@ -49,6 +49,7 @@ class ProfilingComponent(RemissComponent):
 
 class BaseProfilingComponent(RemissComponent):
     title = 'Profiling component'
+    caption = 'Profiling caption'
 
     def __init__(self, plot_factory, state, name=None):
         super().__init__(name=name)
@@ -67,7 +68,8 @@ class BaseProfilingComponent(RemissComponent):
                             type='default',
                             children=self.graph
                         )
-                    ])
+                    ]),
+                    dbc.CardFooter(self.caption)
                 ]),
             ]),
         ], justify='center', style={'margin-bottom': '1rem'})
@@ -85,6 +87,7 @@ class BaseProfilingComponent(RemissComponent):
 
 class UserInfoComponent(BaseProfilingComponent):
     title = 'User info'
+    caption = 'General user information'
 
     def update(self, dataset, user):
         return self.plot_factory.plot_user_info(dataset, user)
@@ -99,6 +102,7 @@ class TopicVerticalBarplotComponent(BaseProfilingComponent):
 
 class RadarplotEmotionsComponent(BaseProfilingComponent):
     title = 'Radarplot emotions'
+    caption = 'Radarplot showing the distribution of emotions of the tweets produced by the user'
 
     def update(self, dataset, user):
         try:
@@ -131,6 +135,7 @@ class VerticalAccumulatedBarplotGenre(BaseProfilingComponent):
 # plot_vertical_barplot_polarity
 class VerticalBarplotPolarityComponent(BaseProfilingComponent):
     title = 'Vertical barplot polarity'
+    caption = 'Vertical barplot showing the distribution of polarity of the tweets produced by the user'
 
     def update(self, dataset, user):
         try:
@@ -159,6 +164,8 @@ class HorizontalBarplotInteraction2(BaseProfilingComponent):
 
 class DonutPlotBehaviour1Component(BaseProfilingComponent):
     title = 'Donut plot behaviour 1'
+    caption = 'Donut plot showing the distribution of the days of the week of the tweets produced by the user ' \
+              'compared to other types of users'
 
     def update(self, dataset, user):
         return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[0]
@@ -166,6 +173,8 @@ class DonutPlotBehaviour1Component(BaseProfilingComponent):
 
 class DonutPlotBehaviour2Component(BaseProfilingComponent):
     title = 'Donut plot behaviour 2'
+    caption = 'Donut plot showing the distribution of the hours of the day of the tweets produced by the user ' \
+              'compared to other types of users'
 
     def update(self, dataset, user):
         return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[1]

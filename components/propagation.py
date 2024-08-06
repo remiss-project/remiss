@@ -128,7 +128,10 @@ class CascadeCcdfComponent(RemissComponent):
                 dcc.Loading(id=f'loading-cascade-ccdf-{self.name}',
                             type='default',
                             children=self.graph_cascade_ccdf)
-            ])
+            ]),
+            dbc.CardFooter('Cascade Comulative Distribution Function showing the probability of a cascade '
+                           'reaching a certain size over time.')
+
         ])
 
     def update_cascade(self, dataset):
@@ -161,7 +164,8 @@ class CascadeCountOverTimeComponent(RemissComponent):
                 dcc.Loading(id=f'loading-cascade-count-over-time-{self.name}',
                             type='default',
                             children=self.graph_cascade_count_over_time)
-            ])
+            ]),
+            dbc.CardFooter('Cascade count over time showing the number of cascades over time.')
         ])
 
     def update_cascade(self, dataset):
