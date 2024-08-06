@@ -51,7 +51,7 @@ class GeneralPlotsComponent(RemissComponent):
     - Emotion per hour
     """
 
-    def __init__(self, propagation_factory, profile_factory, textual_factory, state, name=None):
+    def __init__(self, propagation_factory, profile_factory, textual_factory, state, name=None, gap=2):
         super().__init__(name=name)
         self.cascade_cddf = CascadeCcdfComponent(propagation_factory, state, name=f'cascade-ccdf-{self.name}')
         self.cascade_count_over_time = CascadeCountOverTimeComponent(propagation_factory, state,
@@ -59,9 +59,10 @@ class GeneralPlotsComponent(RemissComponent):
         self.average_emotion_barplot = AverageEmotionBarComponent(textual_factory, state,
                                                                   name=f'average-emotion-{self.name}')
         self.emotion_per_hour = EmotionPerHourComponent(textual_factory, state, name=f'emotion-per-hour-{self.name}')
+        self.gap = gap
 
     def layout(self, params=None):
-        return dbc.Container([
+        return dbc.Stack([
             dbc.Row([
                 dbc.Col([
                     self.cascade_cddf.layout(params)
@@ -78,7 +79,7 @@ class GeneralPlotsComponent(RemissComponent):
                     self.emotion_per_hour.layout(params)
                 ]),
             ]),
-        ])
+        ], gap=self.gap)
 
     def callbacks(self, app):
         self.cascade_cddf.callbacks(app)
@@ -104,13 +105,14 @@ class FilterablePlotsComponent(RemissComponent):
                  profile_plot_factory,
                  multimodal_plot_factory,
                  propagation_plot_factory,
-                 state, name=None):
+                 state, name=None, gap=2):
         super().__init__(name=name)
         self.state = state
         self.time_series = TimeSeriesComponent(tweet_user_plot_factory, state, name=f'time-series-{self.name}')
         self.profiling_component = ProfilingComponent(profile_plot_factory, state, name=f'profiling-{self.name}')
         self.multimodal = MultimodalComponent(multimodal_plot_factory, state, name=f'multimodal-{self.name}')
         self.propagation = PropagationComponent(propagation_plot_factory, state, name=f'propagation-{self.name}')
+        self.gap = gap
 
     def layout(self, params=None):
         """
@@ -123,12 +125,8 @@ class FilterablePlotsComponent(RemissComponent):
         :param params:
         :return:
         """
-        return dbc.Container([
-            dbc.Row([
-                dbc.Col([
-                    self.time_series.layout(params)
-                ]),
-            ]),
+        return dbc.Stack([
+            self.time_series.layout(params),
             dbc.Row([
                 dbc.Col([
                     self.profiling_component.layout(params)
@@ -144,7 +142,7 @@ class FilterablePlotsComponent(RemissComponent):
                     self.propagation.layout(params)
                 ]),
             ]),
-        ])
+        ], gap=self.gap)
 
     def callbacks(self, app):
         self.time_series.callbacks(app)
@@ -173,8 +171,7 @@ class RemissDashboard(RemissComponent):
                  multimodal_factory,
                  name=None,
                  max_wordcloud_words=50, wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=False,
-
-                 debug=False):
+                 debug=False, gap=2):
         super().__init__(name=name)
         self.debug = debug
         self.available_datasets = tweet_user_plot_factory.available_datasets
@@ -198,6 +195,7 @@ class RemissDashboard(RemissComponent):
                                                                    multimodal_factory,
                                                                    propagation_factory,
                                                                    self.state, name=f'filterable-plots-{self.name}')
+        self.gap = gap
 
     def get_dataset_dropdown_component(self):
         available_datasets = {db_key: db_key.replace('_', ' ').capitalize().strip() for db_key in
@@ -226,34 +224,36 @@ class RemissDashboard(RemissComponent):
 
             ),
             html.Div([], style={'margin-bottom': '1rem'}, id=f'placeholder-{self.name}') if self.debug else None,
-            dbc.Row([
-                dbc.Col([
-                    self.dataset_dropdown
+            dbc.Stack([
+                dbc.Row([
+                    dbc.Col([
+                        self.dataset_dropdown
+                    ]),
                 ]),
-            ]),
-            dbc.Row([
-                dbc.Col([
-                    self.general_plots_component.layout(params)
-                ])
-            ]),
-            dbc.Row([
-                dbc.Col([
-                    self.control_panel_component.layout(params)
-                ], width=3),
-                dbc.Col([
-                    self.egonet_component.layout(params)
-                ], width=9),
-            ]),
-            dbc.Row([
-                dbc.Col([
-                    self.tweet_table_component.layout(params)
+                dbc.Row([
+                    dbc.Col([
+                        self.general_plots_component.layout(params)
+                    ])
                 ]),
-            ]),
-            dbc.Row([
-                dbc.Col([
-                    self.filterable_plots_component.layout(params)
+                dbc.Row([
+                    dbc.Col([
+                        self.control_panel_component.layout(params)
+                    ]),
+                    dbc.Col([
+                        self.egonet_component.layout(params)
+                    ], width=8, align='right'),
                 ]),
-            ]),
+                dbc.Row([
+                    dbc.Col([
+                        self.tweet_table_component.layout(params)
+                    ]),
+                ]),
+                dbc.Row([
+                    dbc.Col([
+                        self.filterable_plots_component.layout(params)
+                    ]),
+                ]),
+            ], gap=self.gap),
 
         ], fluid=True, )
 

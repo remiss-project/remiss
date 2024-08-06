@@ -24,10 +24,11 @@ class ControlPanelComponent(RemissComponent):
         self.max_wordcloud_words = max_wordcloud_words
         self.date_picker = self.get_date_picker_component()
         self.wordcloud = self.get_wordcloud_component()
-        self.current_tweet_display = html.P(id=f'tweet-display-{self.name}', children='')
-        self.current_hashtags_display = html.P(id=f'hashtags-display-{self.name}', children='')
-        self.current_user_display = html.P(id=f'user-display-{self.name}', children='')
-        self.reset_button = dbc.Button('Clear filters', id=f'clear-filters-{self.name}', color='danger')
+        self.filter_display = FilterDisplayComponent(state, name=f'filter-display-{self.name}')
+
+    @property
+    def reset_button(self):
+        return self.filter_display.reset_button
 
     def get_wordcloud_component(self):
         available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(self.available_datasets[0])
@@ -73,9 +74,12 @@ class ControlPanelComponent(RemissComponent):
             logger.info(
                 f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
             available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
-        min_freq = min([x[1] for x in available_hashtags_freqs])
+        if available_hashtags_freqs:
+            min_freq = min([x[1] for x in available_hashtags_freqs])
 
-        return available_hashtags_freqs, 10 / min_freq
+            return available_hashtags_freqs, 10 / min_freq
+        else:
+            return [('No hashtags found', 1)], 1
 
     def update_date_range(self, dataset):
         logger.info(f'Updating date range with dataset {dataset}')
@@ -108,12 +112,6 @@ class ControlPanelComponent(RemissComponent):
         logger.info(f'Updating end date storage with {end_date}')
         return end_date
 
-    def clear_filters(self, n_clicks):
-        if n_clicks:
-            logger.info(f'Clearing filters')
-            return None, None, None
-        raise PreventUpdate()
-
     def layout(self, params=None):
         return dbc.Stack([
             dbc.Card([
@@ -122,30 +120,7 @@ class ControlPanelComponent(RemissComponent):
                     self.date_picker
                 ])
             ]),
-            dbc.Card([
-                dbc.CardHeader('Current filters'),
-                dbc.CardBody([
-                    dbc.Row([
-                        dbc.Col([
-                            html.P('Current tweet:'),
-                            self.current_tweet_display,
-                        ]),
-                        dbc.Col([
-                            html.P('Current hashtags:'),
-                            self.current_hashtags_display,
-                        ]),
-                        dbc.Col([
-                            html.P('Current user:'),
-                            self.current_user_display,
-                        ]),
-                    ]),
-                    dbc.Row([
-                        dbc.Col([
-                            self.reset_button
-                        ]),
-                    ])
-                ])
-            ]),
+            self.filter_display.layout(),
 
             dbc.Card([
                 dbc.CardHeader('Hashtags'),
@@ -184,27 +159,123 @@ class ControlPanelComponent(RemissComponent):
         )(self.update_end_date_storage)
 
         app.callback(
-            Output(self.current_tweet_display, 'children'),
-            Output(self.current_hashtags_display, 'children'),
-            Output(self.current_user_display, 'children'),
-            [Input(self.state.current_tweet, 'data'),
-             Input(self.state.current_hashtags, 'data'),
-             Input(self.state.current_user, 'data')],
-        )(self.update_current_values_display)
-
-        # add reset callback that sets tweet, user and hashtag current state to None
-        app.callback(
-            Output(self.state.current_tweet, 'data', allow_duplicate=True),
-            Output(self.state.current_hashtags, 'data', allow_duplicate=True),
-            Output(self.state.current_user, 'data', allow_duplicate=True),
-            [Input(f'clear-filters-{self.name}', 'n_clicks')],
-        )(self.clear_filters)
-
-        app.callback(
             Output(self.wordcloud, 'list'),
             Output(self.wordcloud, 'weightFactor'),
             [Input(self.state.current_dataset, 'data'),
              Input(self.state.current_user, 'data')],
         )(self.update_wordcloud)
 
+        self.filter_display.callbacks(app)
 
+
+class FilterDisplayComponent(RemissComponent):
+    def __init__(self, state, name=None, gap=2):
+        super().__init__(name)
+        self.state = state
+        self.tweet_display = html.P(id=f'tweet-display-{self.name}', children='')
+        self.hashtags_display = html.P(id=f'hashtags-display-{self.name}', children='')
+        self.user_display = html.P(id=f'user-display-{self.name}', children='')
+        self.reset_button = dbc.Button('Clear filters', id=f'clear-filters-{self.name}', color='danger')
+        self.tweet_card = self.create_field_card('collapse-tweet', 'Current Tweet:', self.tweet_display)
+        self.user_card = self.create_field_card('collapse-user', 'Current User:', self.user_display)
+        self.hashtags_card = self.create_field_card('collapse-hashtags', 'Current Hashtags:', self.hashtags_display)
+        self.gap = gap
+
+    def create_field_card(self, field_id, field_label, display):
+        return dbc.Collapse([
+            dbc.Card([
+                dbc.CardHeader(field_label, id=f'header-{field_id}-{self.name}'),
+                dbc.CardBody([
+                    display
+                ])]
+            )], id=f'{field_id}-{self.name}', is_open=False)
+
+    def layout(self, params=None):
+        return dbc.Collapse([dbc.Card([
+            dbc.CardHeader('Current Filters'),
+            dbc.CardBody([
+                dbc.Stack([
+                    dbc.Row([
+                        dbc.Col([
+                            self.tweet_card
+                        ]),
+                    ]),
+                    dbc.Row([
+                        dbc.Col([
+                            self.user_card
+                        ])
+                    ]),
+                    dbc.Row([
+                        dbc.Col([
+                            self.hashtags_card
+                        ])
+                    ]),
+                    dbc.Row([
+                        dbc.Col([
+                            self.reset_button
+                        ]),
+                    ])
+                ], gap=self.gap),
+            ])
+        ])], id=f'filter-display-{self.name}', is_open=False)
+
+    def update_tweet_display(self, tweet):
+        if tweet:
+            return tweet, True if tweet else '', False
+        else:
+            return '', False
+
+    def update_hashtags_display(self, hashtags):
+        if hashtags:
+            return ', '.join(hashtags), True
+        else:
+            return '', False
+
+    def update_user_display(self, user):
+        if user:
+            return user, True
+        else:
+            return '', False
+
+    def update_card_collapse(self, tweet, user, hashtags):
+        return tweet or user or hashtags
+
+    def clear_filters(self, n_clicks):
+        if n_clicks:
+            logger.info(f'Clearing filters')
+            return None, None, None
+        raise PreventUpdate()
+
+    def callbacks(self, app):
+        app.callback(
+            Output(self.tweet_display, 'children'),
+            Output(self.tweet_card, 'is_open'),
+            [Input(self.state.current_tweet, 'data')],
+        )(self.update_tweet_display)
+
+        app.callback(
+            Output(self.hashtags_display, 'children'),
+            Output(self.hashtags_card, 'is_open'),
+            [Input(self.state.current_hashtags, 'data')],
+        )(self.update_hashtags_display)
+
+        app.callback(
+            Output(self.user_display, 'children'),
+            Output(self.user_card, 'is_open'),
+
+            [Input(self.state.current_user, 'data')],
+        )(self.update_user_display)
+
+        app.callback(
+            Output(f'filter-display-{self.name}', 'is_open'),
+            [Input(self.state.current_tweet, 'data'),
+             Input(self.state.current_user, 'data'),
+             Input(self.state.current_hashtags, 'data')],
+        )(self.update_card_collapse)
+
+        app.callback(
+            [Output(self.state.current_tweet, 'data', allow_duplicate=True),
+             Output(self.state.current_hashtags, 'data', allow_duplicate=True),
+             Output(self.state.current_user, 'data', allow_duplicate=True)],
+            [Input(f'clear-filters-{self.name}', 'n_clicks')],
+        )(self.clear_filters)

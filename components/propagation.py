@@ -9,8 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class PropagationComponent(RemissComponent):
-    def __init__(self, plot_factory, state,
-                 name=None):
+    def __init__(self, plot_factory, state, name=None, gap=2):
         super().__init__(name=name)
         self.plot_factory = plot_factory
         self.graph_propagation_tree = dcc.Graph(figure={}, id=f'fig-propagation-tree-{self.name}')
@@ -21,6 +20,7 @@ class PropagationComponent(RemissComponent):
                                                                id=f'fig-propagation-structural-virality-{self.name}')
 
         self.state = state
+        self.gap = gap
 
     def layout(self, params=None):
         """
@@ -32,52 +32,54 @@ class PropagationComponent(RemissComponent):
         """
 
         return dbc.Collapse([
-            dbc.Row([
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader('Propagation Tree'),
-                        dbc.CardBody([
-                            self.graph_propagation_tree
-                        ])
+            dbc.Stack([
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Card([
+                            dbc.CardHeader('Propagation Tree'),
+                            dbc.CardBody([
+                                self.graph_propagation_tree
+                            ])
+                        ]),
                     ]),
                 ]),
-            ]),
-            dbc.Row([
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader('Propagation Depth'),
-                        dbc.CardBody([
-                            self.graph_propagation_depth
-                        ])
-                    ]),
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Card([
+                            dbc.CardHeader('Propagation Depth'),
+                            dbc.CardBody([
+                                self.graph_propagation_depth
+                            ])
+                        ]),
+                    ], width=6),
+                    dbc.Col([
+                        dbc.Card([
+                            dbc.CardHeader('Propagation Size'),
+                            dbc.CardBody([
+                                self.graph_propagation_size
+                            ])
+                        ]),
+                    ], width=6),
                 ]),
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader('Propagation Size'),
-                        dbc.CardBody([
-                            self.graph_propagation_size
-                        ])
-                    ]),
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Card([
+                            dbc.CardHeader('Propagation Max Breadth'),
+                            dbc.CardBody([
+                                self.graph_propagation_max_breadth
+                            ])
+                        ]),
+                    ], width=6),
+                    dbc.Col([
+                        dbc.Card([
+                            dbc.CardHeader('Propagation Structural Virality'),
+                            dbc.CardBody([
+                                self.graph_propagation_structural_virality
+                            ])
+                        ]),
+                    ], width=6),
                 ]),
-            ]),
-            dbc.Row([
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader('Propagation Max Breadth'),
-                        dbc.CardBody([
-                            self.graph_propagation_max_breadth
-                        ])
-                    ]),
-                ]),
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader('Propagation Structural Virality'),
-                        dbc.CardBody([
-                            self.graph_propagation_structural_virality
-                        ])
-                    ]),
-                ]),
-            ]),
+            ], gap=self.gap),
         ], id=f'collapse-{self.name}', is_open=False)
 
     def update_tweet(self, dataset, tweet_id):
@@ -120,19 +122,13 @@ class CascadeCcdfComponent(RemissComponent):
         self.state = state
 
     def layout(self, params=None):
-        return dbc.Container([
-            dbc.Row([
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader('Cascade CCDF'),
-                        dbc.CardBody([
-                            dcc.Loading(id=f'loading-cascade-ccdf-{self.name}',
-                                        type='default',
-                                        children=self.graph_cascade_ccdf)
-                        ])
-                    ]),
-                ]),
-            ]),
+        return dbc.Card([
+            dbc.CardHeader('Cascade CCDF'),
+            dbc.CardBody([
+                dcc.Loading(id=f'loading-cascade-ccdf-{self.name}',
+                            type='default',
+                            children=self.graph_cascade_ccdf)
+            ])
         ])
 
     def update_cascade(self, dataset):
@@ -159,19 +155,13 @@ class CascadeCountOverTimeComponent(RemissComponent):
         self.state = state
 
     def layout(self, params=None):
-        return dbc.Container([
-            dbc.Row([
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader('Cascade Count Over Time'),
-                        dbc.CardBody([
-                            dcc.Loading(id=f'loading-cascade-count-over-time-{self.name}',
-                                        type='default',
-                                        children=self.graph_cascade_count_over_time)
-                        ])
-                    ]),
-                ]),
-            ]),
+        return dbc.Card([
+            dbc.CardHeader('Cascade Count Over Time'),
+            dbc.CardBody([
+                dcc.Loading(id=f'loading-cascade-count-over-time-{self.name}',
+                            type='default',
+                            children=self.graph_cascade_count_over_time)
+            ])
         ])
 
     def update_cascade(self, dataset):

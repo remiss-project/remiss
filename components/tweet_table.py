@@ -82,7 +82,7 @@ class TweetTableComponent(RemissComponent):
 
     def update_user(self, active_cell):
         if active_cell and active_cell['column_id'] == 'User':
-            user = self.data[self.data['ID'] == active_cell['row_id']]['User'].values[0]
+            user = self.data[self.data['ID'] == active_cell['row_id']]['Author ID'].values[0]
             logger.info(f'Updating user state with {user}')
             return user
 

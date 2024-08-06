@@ -39,7 +39,7 @@ class TimeSeriesComponent(RemissComponent):
                     ])
                 ]),
             ]),
-        ], justify='center', style={'margin-bottom': '1rem'})
+        ])
 
     def update(self, dataset, hashtags, start_date, end_date):
         logger.info(f'Updating time series with dataset {dataset}, hashtags {hashtags}, '
