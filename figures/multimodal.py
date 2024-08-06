@@ -84,6 +84,9 @@ class MultimodalPlotFactory(MongoPlotFactory):
             raise RuntimeError(f'Image {image_type} not found for fact checking id {fact_checking_id}')
         img = io.imread(image_path)
         fig = px.imshow(img)
+        # remove axis ticks
+        fig.update_xaxes(showticklabels=False)
+        fig.update_yaxes(showticklabels=False)
         return fig
 
     def load_data_for_tweet(self, dataset, tweet_id):

@@ -132,12 +132,53 @@ class TestMultimodalComponentComponent(TestCase):
         self.component.callbacks(app)
         self.state.callbacks(app)
         dataset_dropdown = dcc.Dropdown(id='dataset-dropdown',
-                                        options=[{'label': 'test_dataset', 'value': self.tmp_dataset}],
+                                        options=[{'label': 'tmp_dataset', 'value': self.tmp_dataset}],
                                         value=self.tmp_dataset)
         tweet_dropdown = dcc.Dropdown(id='tweet-dropdown',
                                       options=[{'label': '1133352119124353024', 'value': '1133352119124353024'},
                                                ],
                                       value='1133352119124353024')
+
+        app.callback(Output(self.state.current_dataset, 'data'),
+                     [Input('dataset-dropdown', 'value')])(lambda x: x)
+        app.callback(Output(self.state.current_tweet, 'data'),
+                     [Input('tweet-dropdown', 'value')])(lambda x: x)
+        app.layout = dbc.Container([
+            self.state.layout(),
+            dbc.Row([
+                dbc.Col([
+                    dataset_dropdown,
+                    tweet_dropdown,
+                ])
+            ]),
+            self.component.layout(),
+        ])
+
+        app.run_server(debug=True, port=8050)
+
+    def test_render_2(self):
+        self.component.plot_factory._available_datasets = [self.test_dataset]
+        self.component.plot_factory.data_dir = Path('../multimodal_data')
+        dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
+        app = Dash(__name__,
+                   external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME, dbc_css],
+                   prevent_initial_callbacks="initial_duplicate",
+                   meta_tags=[
+                       {
+                           "name": "viewport",
+                           "content": "width=device-width, initial-scale=1, maximum-scale=1",
+                       }
+                   ],
+                   )
+        self.component.callbacks(app)
+        self.state.callbacks(app)
+        dataset_dropdown = dcc.Dropdown(id='dataset-dropdown',
+                                        options=[{'label': 'test_dataset', 'value': self.test_dataset}],
+                                        value=self.test_dataset)
+        tweet_dropdown = dcc.Dropdown(id='tweet-dropdown',
+                                      options=[{'label': '1347870778977628161', 'value': '1347870778977628161'},
+                                               ],
+                                      value='1347870778977628161')
 
         app.callback(Output(self.state.current_dataset, 'data'),
                      [Input('dataset-dropdown', 'value')])(lambda x: x)
