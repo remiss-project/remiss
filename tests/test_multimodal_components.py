@@ -117,7 +117,7 @@ class TestMultimodalComponentComponent(TestCase):
                                'multimodal-visual_evidence_text1'}
         self.assertEqual(set(component_ids), set(expected_components))
 
-    def _test_render(self):
+    def test_render(self):
         dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
         app = Dash(__name__,
                    external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME, dbc_css],
@@ -132,12 +132,12 @@ class TestMultimodalComponentComponent(TestCase):
         self.component.callbacks(app)
         self.state.callbacks(app)
         dataset_dropdown = dcc.Dropdown(id='dataset-dropdown',
-                                        options=[{'label': 'test_dataset', 'value': 'test_dataset'}],
-                                        value='test_dataset')
+                                        options=[{'label': 'test_dataset', 'value': self.tmp_dataset}],
+                                        value=self.tmp_dataset)
         tweet_dropdown = dcc.Dropdown(id='tweet-dropdown',
-                                      options=[{'label': '100485425', 'value': '100485425'},
-                                               {'label': '100485426', 'value': '100485426'}],
-                                      value='100485425')
+                                      options=[{'label': '1133352119124353024', 'value': '1133352119124353024'},
+                                               ],
+                                      value='1133352119124353024')
 
         app.callback(Output(self.state.current_dataset, 'data'),
                      [Input('dataset-dropdown', 'value')])(lambda x: x)
@@ -145,9 +145,13 @@ class TestMultimodalComponentComponent(TestCase):
                      [Input('tweet-dropdown', 'value')])(lambda x: x)
         app.layout = dbc.Container([
             self.state.layout(),
+            dbc.Row([
+                dbc.Col([
+                    dataset_dropdown,
+                    tweet_dropdown,
+                ])
+            ]),
             self.component.layout(),
-            dataset_dropdown,
-            tweet_dropdown
         ])
 
         app.run_server(debug=True, port=8050)

@@ -40,48 +40,39 @@ class MultimodalPlotFactory(MongoPlotFactory):
                             f'Image {image_type} not found for fact checking id {data["tweet_id"]} in {image_dir}')
 
     def plot_claim_image(self, dataset, tweet_id):
-        data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['tweet_id'], 'claim_image')
+        fig = self.load_image(dataset, tweet_id, 'claim_image')
         return fig
 
     def plot_graph_claim(self, dataset, tweet_id):
-        data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['tweet_id'], 'graph_claim')
+        fig = self.load_image(dataset, tweet_id, 'graph_claim')
         return fig
 
     def plot_graph_evidence_vis(self, dataset, tweet_id):
-        data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['tweet_id'], 'graph_evidence_vis')
+        fig = self.load_image(dataset, tweet_id, 'graph_evidence_vis')
         return fig
 
     def plot_graph_evidence_text(self, dataset, tweet_id):
-        data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['tweet_id'], 'graph_evidence_text')
+        fig = self.load_image(dataset, tweet_id, 'graph_evidence_text')
         return fig
 
     def plot_evidence_image(self, dataset, tweet_id):
-        data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['tweet_id'], 'evidence_image')
+        fig = self.load_image(dataset, tweet_id, 'evidence_image')
         return fig
 
     def plot_graph_claim1(self, dataset, tweet_id):
-        data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['tweet_id'], 'graph_claim')
+        fig = self.load_image(dataset, tweet_id, 'graph_claim')
         return fig
 
     def plot_graph_evidence_vis1(self, dataset, tweet_id):
-        data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['tweet_id'], 'graph_evidence_vis')
+        fig = self.load_image(dataset, tweet_id, 'graph_evidence_vis')
         return fig
 
     def plot_graph_evidence_text1(self, dataset, tweet_id):
-        data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['tweet_id'], 'graph_evidence_text')
+        fig = self.load_image(dataset, tweet_id, 'graph_evidence_text')
         return fig
 
     def plot_evidence_image1(self, dataset, tweet_id):
-        data = self.load_data_for_tweet(dataset, tweet_id)
-        fig = self.load_image(dataset, data['tweet_id'], 'evidence_image')
+        fig = self.load_image(dataset, tweet_id, 'evidence_image')
         return fig
 
     def load_image(self, dataset, fact_checking_id, image_type):
