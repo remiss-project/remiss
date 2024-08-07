@@ -1,6 +1,7 @@
 import logging
+from typing import Union
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from pymongo import MongoClient
 
 from preprocessor import PropagationPreprocessor
@@ -10,7 +11,7 @@ app = Flask(__name__)
 
 
 @app.route("/process_dataset", methods=['POST'])
-def process_dataset() -> str:
+def process_dataset() -> Union[str, Response]:
     data = request.get_json()
 
     if not data:

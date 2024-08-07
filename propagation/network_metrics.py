@@ -121,14 +121,25 @@ class NetworkMetrics(BasePropagationMetrics):
         for author_id in legitimacy.index:
             average_reputation = float(reputation.loc[author_id].mean())
             average_status = float(status.loc[author_id].mean())
+            current_reputation = self._serialize_date_metric(reputation.loc[author_id], 'reputation')
+            current_status = self._serialize_date_metric(status.loc[author_id], 'status')
+
             data.append({'author_id': author_id,
                          'legitimacy': float(legitimacy[author_id]),
-                         'reputation': reputation.loc[author_id].to_json(),
-                         'status': status.loc[author_id].to_json(),
+                         'reputation': current_reputation,
+                         'status': current_status,
                          'average_reputation': average_reputation,
                          'average_status': average_status})
         collection.insert_many(data)
         client.close()
+
+    def _serialize_date_metric(self, metric, name):
+        try:
+            metric = metric.to_dict()
+            metric = {str(k): v for k, v in metric.items()}
+        except AttributeError:
+            logger.error(f'Error serializing {name}')
+        return metric
 
     def load_from_mongodb(self, datasets):
         for dataset in datasets:
@@ -146,11 +157,11 @@ class NetworkMetrics(BasePropagationMetrics):
             author_id = user['author_id']
             legitimacy[author_id] = user['legitimacy']
             # Load reputation as Series
-            reputation[author_id] = pd.read_json(StringIO(user['reputation']), typ='series')
-            reputation[author_id].index = pd.to_datetime(reputation[author_id].index, unit='s')
+            reputation[author_id] = pd.Series(user['reputation'])
+            reputation[author_id].index = pd.to_datetime(reputation[author_id].index)
             # Load status as Series
-            status[author_id] = pd.read_json(StringIO(user['status']), typ='series')
-            status[author_id].index = pd.to_datetime(status[author_id].index, unit='s')
+            status[author_id] = pd.Series(user['status'])
+            status[author_id].index = pd.to_datetime(status[author_id].index)
 
         legitimacy = pd.Series(legitimacy, name='legitimacy')
         legitimacy.index.name = 'author_id'

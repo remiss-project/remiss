@@ -50,13 +50,15 @@ class DiffusionMetrics(BasePropagationMetrics):
     def get_max_breadth_over_time(self, dataset, tweet_id):
         conversation_id = self.get_conversation_id(dataset, tweet_id)
         if (dataset, conversation_id) not in self._max_breadth_over_time:
-            self._max_breadth_over_time[(dataset, conversation_id)] = self.compute_max_breadth_over_time(dataset, tweet_id)
+            self._max_breadth_over_time[(dataset, conversation_id)] = self.compute_max_breadth_over_time(dataset,
+                                                                                                         tweet_id)
         return self._max_breadth_over_time[(dataset, conversation_id)]
 
     def get_structural_virality_over_time(self, dataset, tweet_id):
         conversation_id = self.get_conversation_id(dataset, tweet_id)
         if (dataset, conversation_id) not in self._structural_virality_over_time:
-            self._structural_virality_over_time[(dataset, conversation_id)] = self.compute_structural_virality_over_time(dataset, conversation_id)
+            self._structural_virality_over_time[
+                (dataset, conversation_id)] = self.compute_structural_virality_over_time(dataset, conversation_id)
         return self._structural_virality_over_time[(dataset, conversation_id)]
 
     def compute_propagation_tree(self, dataset, tweet_id):
@@ -173,7 +175,7 @@ class DiffusionMetrics(BasePropagationMetrics):
     def compute_size_over_time(self, dataset, tweet_id):
         graph = self.get_propagation_tree(dataset, tweet_id)
         # get the difference between the first tweet and the rest in minutes
-        size = pd.Series(np.ones(graph.vcount(), dtype=int), index=graph.vs['created_at']).sort_index()
+        size = pd.Series(np.ones(graph.vcount(), dtype=int), index=graph.vs['created_at'], name='Size').sort_index()
         size = size.cumsum()
         # Remove duplicated timestamps
         size = size.groupby(size.index).max()
@@ -183,7 +185,7 @@ class DiffusionMetrics(BasePropagationMetrics):
     def compute_depth_over_time(self, dataset, tweet_id):
         graph = self.get_propagation_tree(dataset, tweet_id)
         shortest_paths = self.get_shortest_paths_to_conversation_id(graph)
-        created_at = pd.Series(graph.vs['created_at'])
+        created_at = pd.Series(graph.vs['created_at'], name='Depth')
         order = created_at.argsort()
         shortest_paths = shortest_paths.iloc[order]
         created_at = created_at.iloc[order]
@@ -197,7 +199,7 @@ class DiffusionMetrics(BasePropagationMetrics):
     def compute_max_breadth_over_time(self, dataset, tweet_id):
         graph = self.get_propagation_tree(dataset, tweet_id)
         shortest_paths = self.get_shortest_paths_to_conversation_id(graph)
-        created_at = pd.Series(graph.vs['created_at'])
+        created_at = pd.Series(graph.vs['created_at'], name='Max Breadth')
         order = created_at.argsort()
         shortest_paths = shortest_paths.iloc[order]
         created_at = created_at.iloc[order]
@@ -383,7 +385,7 @@ class DiffusionMetrics(BasePropagationMetrics):
             conversation_ids = self.get_conversation_ids(dataset)
             for conversation_id in tqdm(conversation_ids['conversation_id']):
                 jobs.append(delayed(self._persist_conversation_metrics)(dataset, conversation_id))
-        Parallel(n_jobs=-2)(jobs)
+        Parallel(n_jobs=-2, backend='threading')(jobs)
 
     def _persist_conversation_metrics(self, dataset, conversation_id):
         graph = self.get_propagation_tree(dataset, conversation_id)

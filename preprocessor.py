@@ -1,5 +1,6 @@
 import logging
 
+import pandas as pd
 from pymongo import MongoClient
 
 from propagation import DiffusionMetrics, NetworkMetrics, Egonet
@@ -11,6 +12,7 @@ class PropagationPreprocessor:
     def __init__(self, dataset, data, host='localhost', port=27017, reference_types=('retweeted', 'quoted')):
         self.dataset = dataset
         self.data = data
+        cast_strings_to_timestamps(self.data)
         self.host = host
         self.port = port
         self.reference_types = reference_types
@@ -54,3 +56,23 @@ class PropagationPreprocessor:
         collection = database.get_collection('raw')
         collection.insert_many(self.data)
         logger.info('Data stored in raw collection')
+
+
+def cast_strings_to_timestamps(data):
+    for tweet in data:
+        cast_tweet_strings_to_timestamps(tweet)
+
+
+def cast_tweet_strings_to_timestamps(tweet):
+    date_fields = {'created_at', 'editable_until', 'retrieved_at'}
+    for field, value in tweet.items():
+        if field in date_fields:
+            if not isinstance(value, pd.Timestamp):
+                tweet[field] = pd.Timestamp(value)
+
+        elif isinstance(value, dict):
+            cast_tweet_strings_to_timestamps(value)
+        elif isinstance(value, list):
+            for v in value:
+                if isinstance(v, dict):
+                    cast_tweet_strings_to_timestamps(v)
