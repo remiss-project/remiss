@@ -1,11 +1,11 @@
 import base64
 import json
 
+import dash_bootstrap_components as dbc
 import requests
 from dash import dcc, html, Output, Input
 
 from components.components import RemissComponent
-import dash_bootstrap_components as dbc
 
 
 class UploadComponent(RemissComponent):
@@ -33,7 +33,10 @@ class UploadComponent(RemissComponent):
         self.feedback = html.Div(id=f'feedback-{self.name}')
 
     def layout(self, params=None):
-        return self.upload
+        return dbc.Stack([
+            self.upload,
+            self.feedback
+        ])
 
     def process_upload(self, contents, filename):
         if contents is None:
@@ -41,10 +44,17 @@ class UploadComponent(RemissComponent):
         if filename.endswith('.jsonl'):
             try:
                 data = self.decode_jsonl(contents)
-                self.send_to_api(data)
-                return dbc.Alert('File uploaded', color='success')
             except Exception as e:
-                return dbc.Alert(f'Error uploading file: {e}', color='danger')
+                return dbc.Alert(f'Error decoding file: {e}', color='danger')
+
+            try:
+                response = self.send_to_api(data)
+                if response.status_code == 200:
+                    return dbc.Alert('Data correctly imported', color='success')
+                else:
+                    return dbc.Alert(f'Error processing data', color='danger')
+            except Exception as e:
+                return dbc.Alert(f'Error importing data', color='danger')
         else:
             return dbc.Alert('Invalid jsonl file format.', color='danger')
 
@@ -54,11 +64,12 @@ class UploadComponent(RemissComponent):
         return [json.loads(line) for line in decoded.decode('utf-8').split('\n') if line]
 
     def send_to_api(self, data):
-        requests.post(self.target_api_url, json=data)
+        return requests.post(self.target_api_url, json=data)
 
     def callbacks(self, app):
         app.callback(
-            Output(f'feedback-{self.name}', 'children'),
-            Input(f'upload-{self.name}', 'contents'),
+            Output(self.feedback, 'children'),
+            Input(self.upload, 'contents'),
+            Input(self.upload, 'filename'),
             prevent_initial_call=True
         )(self.process_upload)

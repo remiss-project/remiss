@@ -1,20 +1,19 @@
 import logging
 
 import dash_bootstrap_components as dbc
-from dash import dcc, html, Input, Output, State
+from dash import dcc, html, Input, Output
 from dash.exceptions import PreventUpdate
 
 from components.components import RemissComponent
 from components.control_panel import ControlPanelComponent
 from components.egonet import EgonetComponent
 from components.multimodal import MultimodalComponent
-from components.profiling import RadarplotEmotionsComponent, VerticalBarplotPolarityComponent, \
-    DonutPlotBehaviour1Component, \
-    DonutPlotBehaviour2Component, ProfilingComponent
+from components.profiling import ProfilingComponent
 from components.propagation import PropagationComponent, CascadeCcdfComponent, CascadeCountOverTimeComponent
 from components.textual import EmotionPerHourComponent, AverageEmotionBarComponent
 from components.time_series import TimeSeriesComponent
 from components.tweet_table import TweetTableComponent
+from components.upload import UploadComponent
 
 logger = logging.getLogger(__name__)
 
@@ -171,7 +170,7 @@ class RemissDashboard(RemissComponent):
                  multimodal_factory,
                  name=None,
                  max_wordcloud_words=50, wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=False,
-                 debug=False, gap=2):
+                 debug=False, gap=2, target_api_url='http://localhost:5000/process_dataset'):
         super().__init__(name=name)
         self.debug = debug
         self.available_datasets = tweet_user_plot_factory.available_datasets
@@ -195,6 +194,7 @@ class RemissDashboard(RemissComponent):
                                                                    multimodal_factory,
                                                                    propagation_factory,
                                                                    self.state, name=f'filterable-plots-{self.name}')
+        self.upload = UploadComponent(target_api_url=target_api_url, name=f'upload-{self.name}')
         self.gap = gap
 
     def get_dataset_dropdown_component(self):
@@ -225,6 +225,11 @@ class RemissDashboard(RemissComponent):
             ),
             html.Div([], style={'margin-bottom': '1rem'}, id=f'placeholder-{self.name}') if self.debug else None,
             dbc.Stack([
+                dbc.Row([
+                    dbc.Col([
+                        self.upload.layout(params)
+                    ]),
+                ]),
                 dbc.Row([
                     dbc.Col([
                         self.dataset_dropdown
@@ -286,6 +291,7 @@ class RemissDashboard(RemissComponent):
         self.egonet_component.callbacks(app)
         self.tweet_table_component.callbacks(app)
         self.filterable_plots_component.callbacks(app)
+        self.upload.callbacks(app)
 
         app.callback(
             Output(self.tweet_table_component.table, 'active_cell'),

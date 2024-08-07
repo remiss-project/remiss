@@ -97,6 +97,7 @@ def create_app(config):
                                 wordcloud_width=config['wordcloud']['width'],
                                 wordcloud_height=config['wordcloud']['height'],
                                 match_wordcloud_width=config['wordcloud']['match_width'],
+                                target_api_url=config.get('target_api_url', 'http://localhost:5000/process_dataset'),
                                 name='dashboard',
                                 debug=config['debug'])
     logger.info(f'Plot factories created in {time.time() - start_time} seconds.')
