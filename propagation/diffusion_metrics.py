@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 import igraph as ig
 import numpy as np
@@ -6,13 +7,24 @@ import pandas as pd
 import pymongoarrow
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
+from tqdm import tqdm
 
 from propagation.base import BasePropagationMetrics
 
 pymongoarrow.monkey.patch_all()
 
+logger = logging.getLogger(__name__)
+
 
 class DiffusionMetrics(BasePropagationMetrics):
+
+    def __init__(self, host='localhost', port=27017, reference_types=('retweeted', 'quoted')):
+        super().__init__(host, port, reference_types)
+        self._propagation_tree = {}
+        self._size_over_time = {}
+        self._depth_over_time = {}
+        self._max_breadth_over_time = {}
+        self._structural_virality_over_time = {}
 
     def get_propagation_tree(self, dataset, tweet_id):
         conversation_id, conversation_tweets, references = self.get_conversation(dataset, tweet_id)
@@ -99,6 +111,10 @@ class DiffusionMetrics(BasePropagationMetrics):
 
         return conversation_id, tweets, references
 
+    def get_conversation_id(self, dataset, tweet_id):
+        tweet = self.get_tweet(dataset, tweet_id)
+        return tweet['conversation_id']
+
     def get_conversation_sizes(self, dataset):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
@@ -126,6 +142,8 @@ class DiffusionMetrics(BasePropagationMetrics):
         # get the difference between the first tweet and the rest in minutes
         size = pd.Series(np.ones(graph.vcount(), dtype=int), index=graph.vs['created_at']).sort_index()
         size = size.cumsum()
+        # Remove duplicated timestamps
+        size = size.groupby(size.index).max()
 
         return size
 
@@ -211,7 +229,7 @@ class DiffusionMetrics(BasePropagationMetrics):
             current_shortests_paths = shortests_paths.iloc[:i + 1, :i + 1]
             structured_virality[time] = current_shortests_paths.mean().mean()
 
-        structured_virality = pd.Series(structured_virality, name='Structured Virality')
+        structured_virality = pd.Series(structured_virality, name='Structural Virality')
         return structured_virality
 
     def get_depth_cascade_ccdf(self, dataset):
@@ -329,7 +347,7 @@ class DiffusionMetrics(BasePropagationMetrics):
     def persist(self, datasets):
         for dataset in datasets:
             conversation_ids = self.get_conversation_ids(dataset)
-            for conversation_id in conversation_ids['conversation_id']:
+            for conversation_id in tqdm(conversation_ids['conversation_id']):
                 self._persist_conversation_metrics(dataset, conversation_id)
 
     def _persist_conversation_metrics(self, dataset, conversation_id):
@@ -342,13 +360,74 @@ class DiffusionMetrics(BasePropagationMetrics):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         collection = database.get_collection('diffusion_metrics')
+        try:
+            size_over_time = size_over_time.to_dict()
+            size_over_time = {str(key): value for key, value in size_over_time.items()}
+        except Exception as e:
+            logger.error(f'Error converting {conversation_id} size over time to json: {e}')
+            size_over_time = None
+
+        try:
+            depth_over_time = depth_over_time.to_dict()
+            depth_over_time = {str(key): value for key, value in depth_over_time.items()}
+        except Exception as e:
+            logger.error(f'Error converting {conversation_id} depth over time to json: {e}')
+            depth_over_time = None
+
+        try:
+            max_breadth_over_time = max_breadth_over_time.to_dict()
+            max_breadth_over_time = {str(key): value for key, value in max_breadth_over_time.items()}
+        except Exception as e:
+            logger.error(f'Error converting {conversation_id} max breadth over time to json: {e}')
+            max_breadth_over_time = None
+
+        try:
+            structural_virality_over_time = structural_virality_over_time.to_dict()
+            structural_virality_over_time = {str(key): value for key, value in structural_virality_over_time.items()}
+        except Exception as e:
+            logger.error(f'Error converting {conversation_id} structural virality over time to json: {e}')
+            structural_virality_over_time = None
+
+        attributes = {attribute: graph.vs[attribute] for attribute in graph.vs.attributes()}
         collection.insert_one({'conversation_id': conversation_id,
                                'edges': graph.get_edgelist(),
-                               'vertices': graph.vs.attributes(),
-                               'size_over_time': size_over_time.to_dict(),
-                               'depth_over_time': depth_over_time.to_dict(),
-                               'max_breadth_over_time': max_breadth_over_time.to_dict(),
-                               'structural_virality_over_time': structural_virality_over_time.to_dict()})
+                               'vs_attributes': attributes,
+                               'size_over_time': size_over_time,
+                               'depth_over_time': depth_over_time,
+                               'max_breadth_over_time': max_breadth_over_time,
+                               'structural_virality_over_time': structural_virality_over_time})
+        client.close()
+
+    def load_from_mongodb(self, datasets):
+        for dataset in datasets:
+            self._load_metrics(dataset)
+
+    def _load_metrics(self, dataset):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('diffusion_metrics')
+        for document in collection.find():
+            conversation_id = document['conversation_id']
+            graph = ig.Graph(directed=True)
+            graph.add_vertices(len(document['vs_attributes']['author_id']))
+            for attribute, values in document['vs_attributes'].items():
+                graph.vs[attribute] = values
+            graph.add_edges(document['edges'])
+            self._propagation_tree[(dataset, conversation_id)] = graph
+            size_over_time = pd.Series(document['size_over_time'], name='Size')
+            size_over_time.index = pd.to_datetime(size_over_time.index)
+            self._size_over_time[(dataset, conversation_id)] = size_over_time
+            depth_over_time = pd.Series(document['depth_over_time'], name='Depth')
+            depth_over_time.index = pd.to_datetime(depth_over_time.index)
+            self._depth_over_time[(dataset, conversation_id)] = depth_over_time
+            max_breadth_over_time = pd.Series(document['max_breadth_over_time'], name='Max Breadth')
+            max_breadth_over_time.index = pd.to_datetime(max_breadth_over_time.index)
+            self._max_breadth_over_time[(dataset, conversation_id)] = max_breadth_over_time
+            structural_virality_over_time = pd.Series(document['structural_virality_over_time'],
+                                                      name='Structural Virality')
+            structural_virality_over_time.index = pd.to_datetime(structural_virality_over_time.index)
+            self._structural_virality_over_time[(dataset, conversation_id)] = structural_virality_over_time
+
         client.close()
 
 
