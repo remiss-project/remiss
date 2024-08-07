@@ -5,6 +5,7 @@ import igraph as ig
 import numpy as np
 import pandas as pd
 import pymongoarrow
+from joblib import delayed, Parallel
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
 from tqdm import tqdm
@@ -27,6 +28,38 @@ class DiffusionMetrics(BasePropagationMetrics):
         self._structural_virality_over_time = {}
 
     def get_propagation_tree(self, dataset, tweet_id):
+        conversation_id = self.get_conversation_id(dataset, tweet_id)
+        if (dataset, conversation_id) not in self._propagation_tree:
+            # conversation_id tweet might not be present in the dataset, so we will use the tweet_id
+            # TODO think of a more clever way to do this
+            self._propagation_tree[(dataset, conversation_id)] = self.compute_propagation_tree(dataset, tweet_id)
+        return self._propagation_tree[(dataset, conversation_id)]
+
+    def get_size_over_time(self, dataset, tweet_id):
+        conversation_id = self.get_conversation_id(dataset, tweet_id)
+        if (dataset, conversation_id) not in self._size_over_time:
+            self._size_over_time[(dataset, conversation_id)] = self.compute_size_over_time(dataset, tweet_id)
+        return self._size_over_time[(dataset, conversation_id)]
+
+    def get_depth_over_time(self, dataset, tweet_id):
+        conversation_id = self.get_conversation_id(dataset, tweet_id)
+        if (dataset, conversation_id) not in self._depth_over_time:
+            self._depth_over_time[(dataset, conversation_id)] = self.compute_depth_over_time(dataset, tweet_id)
+        return self._depth_over_time[(dataset, conversation_id)]
+
+    def get_max_breadth_over_time(self, dataset, tweet_id):
+        conversation_id = self.get_conversation_id(dataset, tweet_id)
+        if (dataset, conversation_id) not in self._max_breadth_over_time:
+            self._max_breadth_over_time[(dataset, conversation_id)] = self.compute_max_breadth_over_time(dataset, tweet_id)
+        return self._max_breadth_over_time[(dataset, conversation_id)]
+
+    def get_structural_virality_over_time(self, dataset, tweet_id):
+        conversation_id = self.get_conversation_id(dataset, tweet_id)
+        if (dataset, conversation_id) not in self._structural_virality_over_time:
+            self._structural_virality_over_time[(dataset, conversation_id)] = self.compute_structural_virality_over_time(dataset, conversation_id)
+        return self._structural_virality_over_time[(dataset, conversation_id)]
+
+    def compute_propagation_tree(self, dataset, tweet_id):
         conversation_id, conversation_tweets, references = self.get_conversation(dataset, tweet_id)
         graph = self._get_graph(conversation_tweets, references)
         self.ensure_conversation_id(conversation_id, graph)
@@ -137,7 +170,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         df = collection.aggregate_pandas_all(pipeline, schema=schema)
         return df
 
-    def get_size_over_time(self, dataset, tweet_id):
+    def compute_size_over_time(self, dataset, tweet_id):
         graph = self.get_propagation_tree(dataset, tweet_id)
         # get the difference between the first tweet and the rest in minutes
         size = pd.Series(np.ones(graph.vcount(), dtype=int), index=graph.vs['created_at']).sort_index()
@@ -147,7 +180,7 @@ class DiffusionMetrics(BasePropagationMetrics):
 
         return size
 
-    def get_depth_over_time(self, dataset, tweet_id):
+    def compute_depth_over_time(self, dataset, tweet_id):
         graph = self.get_propagation_tree(dataset, tweet_id)
         shortest_paths = self.get_shortest_paths_to_conversation_id(graph)
         created_at = pd.Series(graph.vs['created_at'])
@@ -161,7 +194,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         depths = pd.Series(depths, name='Depth')
         return depths
 
-    def get_max_breadth_over_time(self, dataset, tweet_id):
+    def compute_max_breadth_over_time(self, dataset, tweet_id):
         graph = self.get_propagation_tree(dataset, tweet_id)
         shortest_paths = self.get_shortest_paths_to_conversation_id(graph)
         created_at = pd.Series(graph.vs['created_at'])
@@ -213,7 +246,7 @@ class DiffusionMetrics(BasePropagationMetrics):
 
         return structured_viralities
 
-    def get_structural_virality_over_time(self, dataset, tweet_id):
+    def compute_structural_virality_over_time(self, dataset, tweet_id):
         graph = self.get_propagation_tree(dataset, tweet_id)
         # Specifically, we define structural
         # virality as the average distance between all pairs
@@ -345,10 +378,12 @@ class DiffusionMetrics(BasePropagationMetrics):
         return graph.vcount()
 
     def persist(self, datasets):
+        jobs = []
         for dataset in datasets:
             conversation_ids = self.get_conversation_ids(dataset)
             for conversation_id in tqdm(conversation_ids['conversation_id']):
-                self._persist_conversation_metrics(dataset, conversation_id)
+                jobs.append(delayed(self._persist_conversation_metrics)(dataset, conversation_id))
+        Parallel(n_jobs=-2)(jobs)
 
     def _persist_conversation_metrics(self, dataset, conversation_id):
         graph = self.get_propagation_tree(dataset, conversation_id)

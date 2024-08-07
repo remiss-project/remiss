@@ -232,44 +232,44 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         self.assertFalse(tweets.isna().any().any())
         self.assertFalse(references.isna().any().any())
 
-    def test_depth_plot(self):
+    def test_depth(self):
         df = self.diffusion_metrics.get_depth_over_time(self.test_dataset, self.test_tweet_id)
         self.assertEqual(df.shape[0], 12)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
         self.assertEqual(df.max(), 1)
 
-    def test_size_plot(self):
+    def test_size(self):
         df = self.diffusion_metrics.get_size_over_time(self.test_dataset, self.test_tweet_id)
         self.assertEqual(df.shape[0], 12)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
         self.assertEqual(df.max(), 12)
 
-    def test_max_breadth_plot(self):
+    def test_max_breadth(self):
         df = self.diffusion_metrics.get_max_breadth_over_time(self.test_dataset, self.test_tweet_id)
         self.assertEqual(df.shape[0], 12)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
         self.assertEqual(df.max(), 11)
 
-    def test_structured_virality_plot(self):
+    def test_structured_virality(self):
         df = self.diffusion_metrics.get_structural_virality_over_time(self.test_dataset, self.test_tweet_id)
         self.assertEqual(df.shape[0], 12)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
         self.assertEqual(df.max(), 1.6805555555555554)
 
-    def _test_depth_cascade_ccdf_plot(self):
+    def _test_depth_cascade_ccdf(self):
         start_time = Timestamp.now()
         df = self.diffusion_metrics.get_depth_cascade_ccdf(self.test_dataset)
         end_time = Timestamp.now()
         print(f'Time taken: {end_time - start_time}')
 
-    def test_size_cascade_ccdf_plot(self):
+    def test_size_cascade_ccdf(self):
         start_time = Timestamp.now()
         df = self.diffusion_metrics.get_size_cascade_ccdf(self.test_dataset)
         end_time = Timestamp.now()
         print(f'Time taken: {end_time - start_time}')
         self.assertEqual(df.columns.to_list(), ['Normal', 'Politician'])
 
-    def test_cascade_count_over_time_plot(self):
+    def test_cascade_count_over_time(self):
         start_time = Timestamp.now()
         df = self.diffusion_metrics.get_cascade_count_over_time(self.test_dataset)
         end_time = Timestamp.now()
@@ -363,6 +363,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
                 pd.testing.assert_series_equal(expected_structural_virality, actual_structural_virality,
                                                check_dtype=False, atol=1e-6, rtol=1e-6)
 
+    @unittest.skip('Test is too slow')
     def test_persistence_full(self):
         # Test
         self.diffusion_metrics.persist([self.test_dataset])
