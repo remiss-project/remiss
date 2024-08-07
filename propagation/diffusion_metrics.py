@@ -326,6 +326,31 @@ class DiffusionMetrics(BasePropagationMetrics):
         graph = self.get_propagation_tree(dataset, tweet_id)
         return graph.vcount()
 
+    def persist(self, datasets):
+        for dataset in datasets:
+            conversation_ids = self.get_conversation_ids(dataset)
+            for conversation_id in conversation_ids['conversation_id']:
+                self._persist_conversation_metrics(dataset, conversation_id)
+
+    def _persist_conversation_metrics(self, dataset, conversation_id):
+        graph = self.get_propagation_tree(dataset, conversation_id)
+        size_over_time = self.get_size_over_time(dataset, conversation_id)
+        depth_over_time = self.get_depth_over_time(dataset, conversation_id)
+        max_breadth_over_time = self.get_max_breadth_over_time(dataset, conversation_id)
+        structural_virality_over_time = self.get_structural_virality_over_time(dataset, conversation_id)
+
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('diffusion_metrics')
+        collection.insert_one({'conversation_id': conversation_id,
+                               'edges': graph.get_edgelist(),
+                               'vertices': graph.vs.attributes(),
+                               'size_over_time': size_over_time.to_dict(),
+                               'depth_over_time': depth_over_time.to_dict(),
+                               'max_breadth_over_time': max_breadth_over_time.to_dict(),
+                               'structural_virality_over_time': structural_virality_over_time.to_dict()})
+        client.close()
+
 
 def transform_user_type(x):
     if x['is_usual_suspect'] and x['party'] is not None:
