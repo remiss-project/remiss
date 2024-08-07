@@ -1,17 +1,15 @@
 import json
-import shutil
 import unittest
 import uuid
 from datetime import datetime
-from pathlib import Path
 
 import pandas as pd
 from pymongo import MongoClient
 
-from preprocess import preprocess_multimodal_dataset_data
+from api import create_app
 from preprocessor import PropagationPreprocessor
 from propagation import NetworkMetrics, DiffusionMetrics, Egonet
-from tests.conftest import populate_test_database, delete_test_database
+from tests.conftest import delete_test_database
 
 
 class MyTestCase(unittest.TestCase):
@@ -153,6 +151,28 @@ class MyTestCase(unittest.TestCase):
 
         assert expected_hidden_network.isomorphic(actual_hidden_network)
         assert expected_backbone.isomorphic(actual_backbone)
+
+    def test_api(self):
+        with open('test_resources/Openarms.preprocessed.jsonl', 'r') as f:
+            data = [json.loads(line) for line in f.readlines()[:self.num_samples]]
+
+        app = create_app()
+        client = app.test_client()
+        # make request
+        response = client.post('/process_dataset', json={'dataset_name': self.tmp_dataset, 'dataset_data': data})
+        assert response.status_code == 200
+        assert response.json == {"message": f"Processed dataset {self.tmp_dataset}"}
+        # Check that the data is actually in the db
+        client = MongoClient('localhost', 27017)
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        actual_data = list(collection.find({}, {'_id': 0}))
+        cast_datetimes_to_timestamps(actual_data)
+        cast_datetimes_to_timestamps(data)
+        assert data == actual_data
+
+    def tearDown(self):
+        delete_test_database(self.tmp_dataset)
 
 
 def cast_datetimes_to_timestamps(data):

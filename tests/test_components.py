@@ -1,11 +1,8 @@
 import unittest
-from contextvars import copy_context
 from datetime import datetime
 from unittest import TestCase
 from unittest.mock import Mock
 
-from dash._callback_context import context_value
-from dash._utils import AttributeDict
 from dash.dcc import DatePickerRange, Graph, Dropdown, Slider
 from dash_holoniq_wordcloud import DashWordcloud
 

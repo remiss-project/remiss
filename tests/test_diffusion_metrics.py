@@ -2,6 +2,7 @@ import random
 import unittest
 import uuid
 
+import igraph as ig
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -10,8 +11,6 @@ from pymongo import MongoClient
 from tqdm import tqdm
 
 from propagation import DiffusionMetrics
-
-import igraph as ig
 
 
 class DiffusionMetricsTestCase(unittest.TestCase):

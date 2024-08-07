@@ -3,7 +3,6 @@ import random
 import sys
 import unittest
 from collections.abc import Mapping
-from pathlib import Path
 from unittest import TestCase
 
 import numpy as np
@@ -285,7 +284,6 @@ class TestPreprocess(TestCase):
                 tweet = json.loads(line)
                 # find all nested fields that contain timestamps
                 assert_mongoimport_date_format(tweet)
-
 
     def test_preprocess_timestamps_openarms_1(self):
         def assert_mongoimport_date_format(tweet):

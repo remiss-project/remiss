@@ -1,6 +1,9 @@
 {
   "visdat": {
-    "7a6c5bf3b89b": ["function () ", "plotlyVisDat"]
+    "7a6c5bf3b89b": [
+      "function () ",
+      "plotlyVisDat"
+    ]
   },
   "cur_data": "7a6c5bf3b89b",
   "attrs": {
@@ -10,8 +13,14 @@
       "color": {},
       "colors": "viridis",
       "alpha_stroke": 1,
-      "sizes": [10, 100],
-      "spans": [1, 20],
+      "sizes": [
+        10,
+        100
+      ],
+      "spans": [
+        1,
+        20
+      ],
       "type": "bar"
     }
   },
@@ -24,18 +33,51 @@
     },
     "title": "",
     "xaxis": {
-      "domain": [0, 1],
+      "domain": [
+        0,
+        1
+      ],
       "automargin": true,
       "title": "",
       "tickmode": "array",
-      "tickvals": ["Ironia", "Odio", "Dirigido", "Agresividad", "Diversion", "Tristeza", "Enfado", "Sorpresa", "Disgusto", "Miedo", "Toxico"],
-      "ticktext": ["Agresividad", "Enfado", "Disgusto", "Miedo", "Odio", "Ironia", "Diversion", "Tristeza", "Sorpresa", "Dirigido", "Toxico"]
+      "tickvals": [
+        "Ironia",
+        "Odio",
+        "Dirigido",
+        "Agresividad",
+        "Diversion",
+        "Tristeza",
+        "Enfado",
+        "Sorpresa",
+        "Disgusto",
+        "Miedo",
+        "Toxico"
+      ],
+      "ticktext": [
+        "Agresividad",
+        "Enfado",
+        "Disgusto",
+        "Miedo",
+        "Odio",
+        "Ironia",
+        "Diversion",
+        "Tristeza",
+        "Sorpresa",
+        "Dirigido",
+        "Toxico"
+      ]
     },
     "yaxis": {
-      "domain": [0, 1],
+      "domain": [
+        0,
+        1
+      ],
       "automargin": true,
       "title": "",
-      "range": [0, 0.6033992202449292]
+      "range": [
+        0,
+        0.6033992202449292
+      ]
     },
     "tickangle": -45,
     "tickfont": {
@@ -46,14 +88,21 @@
   },
   "source": "A",
   "config": {
-    "modeBarButtonsToAdd": ["hoverclosest", "hovercompare"],
+    "modeBarButtonsToAdd": [
+      "hoverclosest",
+      "hovercompare"
+    ],
     "showSendToCloud": false
   },
   ".hideLegend": true,
   "data": [
     {
-      "x": ["Agresividad"],
-      "y": [0.03402752583237658],
+      "x": [
+        "Agresividad"
+      ],
+      "y": [
+        0.03402752583237658
+      ],
       "type": "bar",
       "name": "Agresividad",
       "marker": {
@@ -76,8 +125,12 @@
       "frame": null
     },
     {
-      "x": ["Dirigido"],
-      "y": [0.016146546115575967],
+      "x": [
+        "Dirigido"
+      ],
+      "y": [
+        0.016146546115575967
+      ],
       "type": "bar",
       "name": "Dirigido",
       "marker": {
@@ -100,8 +153,12 @@
       "frame": null
     },
     {
-      "x": ["Disgusto"],
-      "y": [0.041331161500191352],
+      "x": [
+        "Disgusto"
+      ],
+      "y": [
+        0.041331161500191352
+      ],
       "type": "bar",
       "name": "Disgusto",
       "marker": {
@@ -124,8 +181,12 @@
       "frame": null
     },
     {
-      "x": ["Diversion"],
-      "y": [0.072549703406046689],
+      "x": [
+        "Diversion"
+      ],
+      "y": [
+        0.072549703406046689
+      ],
       "type": "bar",
       "name": "Diversion",
       "marker": {
@@ -148,8 +209,12 @@
       "frame": null
     },
     {
-      "x": ["Enfado"],
-      "y": [0.23074125526215078],
+      "x": [
+        "Enfado"
+      ],
+      "y": [
+        0.23074125526215078
+      ],
       "type": "bar",
       "name": "Enfado",
       "marker": {
@@ -172,8 +237,12 @@
       "frame": null
     },
     {
-      "x": ["Ironia"],
-      "y": [0.091239901454267122],
+      "x": [
+        "Ironia"
+      ],
+      "y": [
+        0.091239901454267122
+      ],
       "type": "bar",
       "name": "Ironia",
       "marker": {
@@ -196,8 +265,12 @@
       "frame": null
     },
     {
-      "x": ["Miedo"],
-      "y": [0.011004506314580942],
+      "x": [
+        "Miedo"
+      ],
+      "y": [
+        0.011004506314580942
+      ],
       "type": "bar",
       "name": "Miedo",
       "marker": {
@@ -220,8 +293,12 @@
       "frame": null
     },
     {
-      "x": ["Odio"],
-      "y": [0.058655826636050519],
+      "x": [
+        "Odio"
+      ],
+      "y": [
+        0.058655826636050519
+      ],
       "type": "bar",
       "name": "Odio",
       "marker": {
@@ -244,8 +321,12 @@
       "frame": null
     },
     {
-      "x": ["Sorpresa"],
-      "y": [0.022176234213547648],
+      "x": [
+        "Sorpresa"
+      ],
+      "y": [
+        0.022176234213547648
+      ],
       "type": "bar",
       "name": "Sorpresa",
       "marker": {
@@ -268,8 +349,12 @@
       "frame": null
     },
     {
-      "x": ["Toxico"],
-      "y": [0.6033992202449292],
+      "x": [
+        "Toxico"
+      ],
+      "y": [
+        0.6033992202449292
+      ],
       "type": "bar",
       "name": "Toxico",
       "marker": {
@@ -292,8 +377,12 @@
       "frame": null
     },
     {
-      "x": ["Tristeza"],
-      "y": [0.020735151167240718],
+      "x": [
+        "Tristeza"
+      ],
+      "y": [
+        0.020735151167240718
+      ],
       "type": "bar",
       "name": "Tristeza",
       "marker": {
@@ -327,6 +416,18 @@
     },
     "debounce": 0
   },
-  "shinyEvents": ["plotly_hover", "plotly_click", "plotly_selected", "plotly_relayout", "plotly_brushed", "plotly_brushing", "plotly_clickannotation", "plotly_doubleclick", "plotly_deselect", "plotly_afterplot", "plotly_sunburstclick"],
+  "shinyEvents": [
+    "plotly_hover",
+    "plotly_click",
+    "plotly_selected",
+    "plotly_relayout",
+    "plotly_brushed",
+    "plotly_brushing",
+    "plotly_clickannotation",
+    "plotly_doubleclick",
+    "plotly_deselect",
+    "plotly_afterplot",
+    "plotly_sunburstclick"
+  ],
   "base_url": "https://plot.ly"
 }

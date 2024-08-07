@@ -7,7 +7,6 @@ from plotly.graph_objs import Figure
 from pymongo import MongoClient
 
 from figures.textual import TextualFactory
-from tests.conftest import populate_test_database
 
 
 class TestTextualFigures(TestCase):

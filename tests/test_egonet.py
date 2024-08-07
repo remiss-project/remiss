@@ -1,4 +1,4 @@
-import random
+import time
 import time
 import unittest
 import uuid
@@ -686,7 +686,6 @@ class TestEgonetCase(unittest.TestCase):
         self.assertEqual(expected_hidden_network.ecount(), actual_hidden_network.ecount())
         self.assertEqual(expected_hidden_network_backbone.vcount(), actual_hidden_network_backbone.vcount())
         self.assertEqual(expected_hidden_network_backbone.ecount(), actual_hidden_network_backbone.ecount())
-
 
 
 if __name__ == '__main__':

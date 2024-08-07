@@ -1,7 +1,5 @@
 import json
 import random
-import shutil
-import subprocess
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -171,6 +169,7 @@ def create_test_data_from_edges_with_dates(expected_edges):
                  'referenced_tweets': referenced_tweets}
         test_data.append(tweet)
     return test_data
+
 
 def create_test_data_from_edges_with_hashtags(expected_edges):
     test_data = []

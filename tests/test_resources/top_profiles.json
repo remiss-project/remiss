@@ -1,6 +1,9 @@
 {
   "visdat": {
-    "a45c5c434a14": ["function () ", "plotlyVisDat"]
+    "a45c5c434a14": [
+      "function () ",
+      "plotlyVisDat"
+    ]
   },
   "cur_data": "a45c5c434a14",
   "attrs": {
@@ -8,22 +11,56 @@
       "x": {},
       "y": {},
       "marker": {
-        "color": ["#D32F2F", "#C2185B", "#FF4081", "#E040FB", "#536DFE", "#2196F3", "#00BCD4", "#4CAF50", "#FFEB3B", "#FF9800"]
+        "color": [
+          "#D32F2F",
+          "#C2185B",
+          "#FF4081",
+          "#E040FB",
+          "#536DFE",
+          "#2196F3",
+          "#00BCD4",
+          "#4CAF50",
+          "#FFEB3B",
+          "#FF9800"
+        ]
       },
       "alpha_stroke": 1,
-      "sizes": [10, 100],
-      "spans": [1, 20],
+      "sizes": [
+        10,
+        100
+      ],
+      "spans": [
+        1,
+        20
+      ],
       "type": "bar"
     },
     "a45c5c434a14.1": {
       "x": {},
       "y": {},
       "marker": {
-        "color": ["#D32F2F", "#C2185B", "#FF4081", "#E040FB", "#536DFE", "#2196F3", "#00BCD4", "#4CAF50", "#FFEB3B", "#FF9800"]
+        "color": [
+          "#D32F2F",
+          "#C2185B",
+          "#FF4081",
+          "#E040FB",
+          "#536DFE",
+          "#2196F3",
+          "#00BCD4",
+          "#4CAF50",
+          "#FFEB3B",
+          "#FF9800"
+        ]
       },
       "alpha_stroke": 1,
-      "sizes": [10, 100],
-      "spans": [1, 20],
+      "sizes": [
+        10,
+        100
+      ],
+      "spans": [
+        1,
+        20
+      ],
       "type": "bar",
       "hovertemplate": "%{x}",
       "name": "",
@@ -38,23 +75,51 @@
       "r": 10
     },
     "xaxis": {
-      "domain": [0, 1],
+      "domain": [
+        0,
+        1
+      ],
       "automargin": true,
       "title": ""
     },
     "yaxis": {
-      "domain": [0, 1],
+      "domain": [
+        0,
+        1
+      ],
       "automargin": true,
       "title": "",
       "type": "category",
       "categoryorder": "array",
-      "categoryarray": ["@el_pais", "@Newtral", "@Pedrito15345813", "@PSOE", "@El_Plural", "@elboletinmadrid", "@MOONVICUS4", "@UrretaJorge", "@Gacetinmadrid", "@telemadrid"]
+      "categoryarray": [
+        "@el_pais",
+        "@Newtral",
+        "@Pedrito15345813",
+        "@PSOE",
+        "@El_Plural",
+        "@elboletinmadrid",
+        "@MOONVICUS4",
+        "@UrretaJorge",
+        "@Gacetinmadrid",
+        "@telemadrid"
+      ]
     },
     "showlegend": false,
     "annotations": [
       {
         "x": 0,
-        "y": ["@telemadrid", "@Gacetinmadrid", "@UrretaJorge", "@MOONVICUS4", "@El_Plural", "@elboletinmadrid", "@Newtral", "@PSOE", "@Pedrito15345813", "@el_pais"],
+        "y": [
+          "@telemadrid",
+          "@Gacetinmadrid",
+          "@UrretaJorge",
+          "@MOONVICUS4",
+          "@El_Plural",
+          "@elboletinmadrid",
+          "@Newtral",
+          "@PSOE",
+          "@Pedrito15345813",
+          "@el_pais"
+        ],
         "text": "",
         "xanchor": "right",
         "yanchor": "middle",
@@ -69,15 +134,51 @@
   },
   "source": "A",
   "config": {
-    "modeBarButtonsToAdd": ["hoverclosest", "hovercompare"],
+    "modeBarButtonsToAdd": [
+      "hoverclosest",
+      "hovercompare"
+    ],
     "showSendToCloud": false
   },
   "data": [
     {
-      "x": [122, 108, 98, 76, 64, 64, 62, 62, 62, 60],
-      "y": ["@telemadrid", "@Gacetinmadrid", "@UrretaJorge", "@MOONVICUS4", "@El_Plural", "@elboletinmadrid", "@Newtral", "@PSOE", "@Pedrito15345813", "@el_pais"],
+      "x": [
+        122,
+        108,
+        98,
+        76,
+        64,
+        64,
+        62,
+        62,
+        62,
+        60
+      ],
+      "y": [
+        "@telemadrid",
+        "@Gacetinmadrid",
+        "@UrretaJorge",
+        "@MOONVICUS4",
+        "@El_Plural",
+        "@elboletinmadrid",
+        "@Newtral",
+        "@PSOE",
+        "@Pedrito15345813",
+        "@el_pais"
+      ],
       "marker": {
-        "color": ["#D32F2F", "#C2185B", "#FF4081", "#E040FB", "#536DFE", "#2196F3", "#00BCD4", "#4CAF50", "#FFEB3B", "#FF9800"],
+        "color": [
+          "#D32F2F",
+          "#C2185B",
+          "#FF4081",
+          "#E040FB",
+          "#536DFE",
+          "#2196F3",
+          "#00BCD4",
+          "#4CAF50",
+          "#FFEB3B",
+          "#FF9800"
+        ],
         "line": {
           "color": "rgba(31,119,180,1)"
         }
@@ -95,16 +196,60 @@
       "frame": null
     },
     {
-      "x": [122, 108, 98, 76, 64, 64, 62, 62, 62, 60],
-      "y": ["@telemadrid", "@Gacetinmadrid", "@UrretaJorge", "@MOONVICUS4", "@El_Plural", "@elboletinmadrid", "@Newtral", "@PSOE", "@Pedrito15345813", "@el_pais"],
+      "x": [
+        122,
+        108,
+        98,
+        76,
+        64,
+        64,
+        62,
+        62,
+        62,
+        60
+      ],
+      "y": [
+        "@telemadrid",
+        "@Gacetinmadrid",
+        "@UrretaJorge",
+        "@MOONVICUS4",
+        "@El_Plural",
+        "@elboletinmadrid",
+        "@Newtral",
+        "@PSOE",
+        "@Pedrito15345813",
+        "@el_pais"
+      ],
       "marker": {
-        "color": ["#D32F2F", "#C2185B", "#FF4081", "#E040FB", "#536DFE", "#2196F3", "#00BCD4", "#4CAF50", "#FFEB3B", "#FF9800"],
+        "color": [
+          "#D32F2F",
+          "#C2185B",
+          "#FF4081",
+          "#E040FB",
+          "#536DFE",
+          "#2196F3",
+          "#00BCD4",
+          "#4CAF50",
+          "#FFEB3B",
+          "#FF9800"
+        ],
         "line": {
           "color": "rgba(255,127,14,1)"
         }
       },
       "type": "bar",
-      "hovertemplate": ["%{x}", "%{x}", "%{x}", "%{x}", "%{x}", "%{x}", "%{x}", "%{x}", "%{x}", "%{x}"],
+      "hovertemplate": [
+        "%{x}",
+        "%{x}",
+        "%{x}",
+        "%{x}",
+        "%{x}",
+        "%{x}",
+        "%{x}",
+        "%{x}",
+        "%{x}",
+        "%{x}"
+      ],
       "name": "",
       "orientation": "h",
       "error_y": {
@@ -129,6 +274,18 @@
     },
     "debounce": 0
   },
-  "shinyEvents": ["plotly_hover", "plotly_click", "plotly_selected", "plotly_relayout", "plotly_brushed", "plotly_brushing", "plotly_clickannotation", "plotly_doubleclick", "plotly_deselect", "plotly_afterplot", "plotly_sunburstclick"],
+  "shinyEvents": [
+    "plotly_hover",
+    "plotly_click",
+    "plotly_selected",
+    "plotly_relayout",
+    "plotly_brushed",
+    "plotly_brushing",
+    "plotly_clickannotation",
+    "plotly_doubleclick",
+    "plotly_deselect",
+    "plotly_afterplot",
+    "plotly_sunburstclick"
+  ],
   "base_url": "https://plot.ly"
 }

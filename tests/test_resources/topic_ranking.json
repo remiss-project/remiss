@@ -1,29 +1,90 @@
 {
   "visdat": {
-    "abfc726bb72b": ["function () ", "plotlyVisDat"]
+    "abfc726bb72b": [
+      "function () ",
+      "plotlyVisDat"
+    ]
   },
   "cur_data": "abfc726bb72b",
   "attrs": {
     "abfc726bb72b": {
-      "x": [34058, 33384, 31794, 29218, 28984],
-      "y": ["madrid, amenaza, iglesias, eleccionesmadrid, correos", "eleccionesm, eleccionesmadrid, iglesias, madrid, tickets", "eleccionesmadrid, iglesias, amenaza, madrid, elecciones", "madrid, correos, tickets, ayuso, eleccionesm", "madrid, iglesias, pablo, cartas, correos"],
+      "x": [
+        34058,
+        33384,
+        31794,
+        29218,
+        28984
+      ],
+      "y": [
+        "madrid, amenaza, iglesias, eleccionesmadrid, correos",
+        "eleccionesm, eleccionesmadrid, iglesias, madrid, tickets",
+        "eleccionesmadrid, iglesias, amenaza, madrid, elecciones",
+        "madrid, correos, tickets, ayuso, eleccionesm",
+        "madrid, iglesias, pablo, cartas, correos"
+      ],
       "marker": {
-        "color": ["#D32F2F", "#C2185B", "#FF4081", "#E040FB", "#536DFE", "#2196F3", "#00BCD4", "#4CAF50", "#FFEB3B", "#FF9800"]
+        "color": [
+          "#D32F2F",
+          "#C2185B",
+          "#FF4081",
+          "#E040FB",
+          "#536DFE",
+          "#2196F3",
+          "#00BCD4",
+          "#4CAF50",
+          "#FFEB3B",
+          "#FF9800"
+        ]
       },
       "alpha_stroke": 1,
-      "sizes": [10, 100],
-      "spans": [1, 20],
+      "sizes": [
+        10,
+        100
+      ],
+      "spans": [
+        1,
+        20
+      ],
       "type": "bar"
     },
     "abfc726bb72b.1": {
-      "x": [34058, 33384, 31794, 29218, 28984],
-      "y": ["madrid, amenaza, iglesias, eleccionesmadrid, correos", "eleccionesm, eleccionesmadrid, iglesias, madrid, tickets", "eleccionesmadrid, iglesias, amenaza, madrid, elecciones", "madrid, correos, tickets, ayuso, eleccionesm", "madrid, iglesias, pablo, cartas, correos"],
+      "x": [
+        34058,
+        33384,
+        31794,
+        29218,
+        28984
+      ],
+      "y": [
+        "madrid, amenaza, iglesias, eleccionesmadrid, correos",
+        "eleccionesm, eleccionesmadrid, iglesias, madrid, tickets",
+        "eleccionesmadrid, iglesias, amenaza, madrid, elecciones",
+        "madrid, correos, tickets, ayuso, eleccionesm",
+        "madrid, iglesias, pablo, cartas, correos"
+      ],
       "marker": {
-        "color": ["#D32F2F", "#C2185B", "#FF4081", "#E040FB", "#536DFE", "#2196F3", "#00BCD4", "#4CAF50", "#FFEB3B", "#FF9800"]
+        "color": [
+          "#D32F2F",
+          "#C2185B",
+          "#FF4081",
+          "#E040FB",
+          "#536DFE",
+          "#2196F3",
+          "#00BCD4",
+          "#4CAF50",
+          "#FFEB3B",
+          "#FF9800"
+        ]
       },
       "alpha_stroke": 1,
-      "sizes": [10, 100],
-      "spans": [1, 20],
+      "sizes": [
+        10,
+        100
+      ],
+      "spans": [
+        1,
+        20
+      ],
       "type": "bar",
       "hovertemplate": "%{x}",
       "name": "",
@@ -38,23 +99,41 @@
       "r": 10
     },
     "xaxis": {
-      "domain": [0, 1],
+      "domain": [
+        0,
+        1
+      ],
       "automargin": true,
       "title": ""
     },
     "yaxis": {
-      "domain": [0, 1],
+      "domain": [
+        0,
+        1
+      ],
       "automargin": true,
       "title": "",
       "type": "category",
       "categoryorder": "array",
-      "categoryarray": ["madrid, iglesias, pablo, cartas, correos", "madrid, correos, tickets, ayuso, eleccionesm", "eleccionesmadrid, iglesias, amenaza, madrid, elecciones", "eleccionesm, eleccionesmadrid, iglesias, madrid, tickets", "madrid, amenaza, iglesias, eleccionesmadrid, correos"]
+      "categoryarray": [
+        "madrid, iglesias, pablo, cartas, correos",
+        "madrid, correos, tickets, ayuso, eleccionesm",
+        "eleccionesmadrid, iglesias, amenaza, madrid, elecciones",
+        "eleccionesm, eleccionesmadrid, iglesias, madrid, tickets",
+        "madrid, amenaza, iglesias, eleccionesmadrid, correos"
+      ]
     },
     "showlegend": false,
     "annotations": [
       {
         "x": 0,
-        "y": ["madrid, amenaza, iglesias, eleccionesmadrid, correos", "eleccionesm, eleccionesmadrid, iglesias, madrid, tickets", "eleccionesmadrid, iglesias, amenaza, madrid, elecciones", "madrid, correos, tickets, ayuso, eleccionesm", "madrid, iglesias, pablo, cartas, correos"],
+        "y": [
+          "madrid, amenaza, iglesias, eleccionesmadrid, correos",
+          "eleccionesm, eleccionesmadrid, iglesias, madrid, tickets",
+          "eleccionesmadrid, iglesias, amenaza, madrid, elecciones",
+          "madrid, correos, tickets, ayuso, eleccionesm",
+          "madrid, iglesias, pablo, cartas, correos"
+        ],
         "text": "",
         "xanchor": "right",
         "yanchor": "middle",
@@ -69,15 +148,41 @@
   },
   "source": "A",
   "config": {
-    "modeBarButtonsToAdd": ["hoverclosest", "hovercompare"],
+    "modeBarButtonsToAdd": [
+      "hoverclosest",
+      "hovercompare"
+    ],
     "showSendToCloud": false
   },
   "data": [
     {
-      "x": [34058, 33384, 31794, 29218, 28984],
-      "y": ["madrid, amenaza, iglesias, eleccionesmadrid, correos", "eleccionesm, eleccionesmadrid, iglesias, madrid, tickets", "eleccionesmadrid, iglesias, amenaza, madrid, elecciones", "madrid, correos, tickets, ayuso, eleccionesm", "madrid, iglesias, pablo, cartas, correos"],
+      "x": [
+        34058,
+        33384,
+        31794,
+        29218,
+        28984
+      ],
+      "y": [
+        "madrid, amenaza, iglesias, eleccionesmadrid, correos",
+        "eleccionesm, eleccionesmadrid, iglesias, madrid, tickets",
+        "eleccionesmadrid, iglesias, amenaza, madrid, elecciones",
+        "madrid, correos, tickets, ayuso, eleccionesm",
+        "madrid, iglesias, pablo, cartas, correos"
+      ],
       "marker": {
-        "color": ["#D32F2F", "#C2185B", "#FF4081", "#E040FB", "#536DFE", "#2196F3", "#00BCD4", "#4CAF50", "#FFEB3B", "#FF9800"],
+        "color": [
+          "#D32F2F",
+          "#C2185B",
+          "#FF4081",
+          "#E040FB",
+          "#536DFE",
+          "#2196F3",
+          "#00BCD4",
+          "#4CAF50",
+          "#FFEB3B",
+          "#FF9800"
+        ],
         "line": {
           "color": "rgba(31,119,180,1)"
         }
@@ -95,16 +200,45 @@
       "frame": null
     },
     {
-      "x": [34058, 33384, 31794, 29218, 28984],
-      "y": ["madrid, amenaza, iglesias, eleccionesmadrid, correos", "eleccionesm, eleccionesmadrid, iglesias, madrid, tickets", "eleccionesmadrid, iglesias, amenaza, madrid, elecciones", "madrid, correos, tickets, ayuso, eleccionesm", "madrid, iglesias, pablo, cartas, correos"],
+      "x": [
+        34058,
+        33384,
+        31794,
+        29218,
+        28984
+      ],
+      "y": [
+        "madrid, amenaza, iglesias, eleccionesmadrid, correos",
+        "eleccionesm, eleccionesmadrid, iglesias, madrid, tickets",
+        "eleccionesmadrid, iglesias, amenaza, madrid, elecciones",
+        "madrid, correos, tickets, ayuso, eleccionesm",
+        "madrid, iglesias, pablo, cartas, correos"
+      ],
       "marker": {
-        "color": ["#D32F2F", "#C2185B", "#FF4081", "#E040FB", "#536DFE", "#2196F3", "#00BCD4", "#4CAF50", "#FFEB3B", "#FF9800"],
+        "color": [
+          "#D32F2F",
+          "#C2185B",
+          "#FF4081",
+          "#E040FB",
+          "#536DFE",
+          "#2196F3",
+          "#00BCD4",
+          "#4CAF50",
+          "#FFEB3B",
+          "#FF9800"
+        ],
         "line": {
           "color": "rgba(255,127,14,1)"
         }
       },
       "type": "bar",
-      "hovertemplate": ["%{x}", "%{x}", "%{x}", "%{x}", "%{x}"],
+      "hovertemplate": [
+        "%{x}",
+        "%{x}",
+        "%{x}",
+        "%{x}",
+        "%{x}"
+      ],
       "name": "",
       "orientation": "h",
       "error_y": {
@@ -129,6 +263,18 @@
     },
     "debounce": 0
   },
-  "shinyEvents": ["plotly_hover", "plotly_click", "plotly_selected", "plotly_relayout", "plotly_brushed", "plotly_brushing", "plotly_clickannotation", "plotly_doubleclick", "plotly_deselect", "plotly_afterplot", "plotly_sunburstclick"],
+  "shinyEvents": [
+    "plotly_hover",
+    "plotly_click",
+    "plotly_selected",
+    "plotly_relayout",
+    "plotly_brushed",
+    "plotly_brushing",
+    "plotly_clickannotation",
+    "plotly_doubleclick",
+    "plotly_deselect",
+    "plotly_afterplot",
+    "plotly_sunburstclick"
+  ],
   "base_url": "https://plot.ly"
 }

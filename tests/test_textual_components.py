@@ -34,6 +34,7 @@ def test_emotion_per_hour_component():
         {'id': component.state.current_end_date.id, 'property': 'data'}]
     assert dash_app.callback_map[component.graph.id + '.figure']['output'].component_id == component.graph.id
 
+
 @pytest.mark.skip("Won't be used")
 def test_emotion_per_hour_component_run_server():
     with open('test_resources/emotion_per_hour.json', 'r') as f:
@@ -84,8 +85,8 @@ def test_average_emotion_bar_component():
         {'id': component.state.current_end_date.id, 'property': 'data'}]
     assert dash_app.callback_map[component.graph.id + '.figure']['output'].component_id == component.graph.id
 
-@pytest.mark.skip("Won't be used")
 
+@pytest.mark.skip("Won't be used")
 def test_average_emotion_bar_component_run_server():
     with open('test_resources/average_emotion.json', 'r') as f:
         expected = f.read()
@@ -135,8 +136,8 @@ def test_top_profiles_component():
         {'id': component.state.current_end_date.id, 'property': 'data'}]
     assert dash_app.callback_map[component.graph.id + '.figure']['output'].component_id == component.graph.id
 
-@pytest.mark.skip("Won't be used")
 
+@pytest.mark.skip("Won't be used")
 def test_top_profiles_component_run_server():
     with open('test_resources/top_profiles.json', 'r') as f:
         expected = f.read()
@@ -186,8 +187,8 @@ def test_top_hashtags_component():
         {'id': component.state.current_end_date.id, 'property': 'data'}]
     assert dash_app.callback_map[component.graph.id + '.figure']['output'].component_id == component.graph.id
 
-@pytest.mark.skip("Won't be used")
 
+@pytest.mark.skip("Won't be used")
 def test_top_hashtags_component_run_server():
     with open('test_resources/top_hashtags.json', 'r') as f:
         expected = f.read()
@@ -237,8 +238,8 @@ def test_topic_ranking_component():
         {'id': component.state.current_end_date.id, 'property': 'data'}]
     assert dash_app.callback_map[component.graph.id + '.figure']['output'].component_id == component.graph.id
 
-@pytest.mark.skip("Won't be used")
 
+@pytest.mark.skip("Won't be used")
 def test_topic_ranking_component_run_server():
     with open('test_resources/topic_ranking.json', 'r') as f:
         expected = f.read()

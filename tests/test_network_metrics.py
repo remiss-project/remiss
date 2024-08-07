@@ -3,12 +3,12 @@ import unittest
 import uuid
 
 import pandas as pd
+import plotly.express as px
+import plotly.figure_factory as ff
 from pymongo import MongoClient
 
 from propagation import NetworkMetrics
-from tests.conftest import create_test_data_from_edges, create_test_data
-import plotly.express as px
-import plotly.figure_factory as ff
+from tests.conftest import create_test_data
 
 
 class NetworkMetricsTestCase(unittest.TestCase):
@@ -179,8 +179,6 @@ class NetworkMetricsTestCase(unittest.TestCase):
         pd.testing.assert_frame_equal(expected_status, actual_status, check_dtype=False, check_like=True,
                                       check_index_type=False, check_column_type=False)
 
-
-
     def test_plot_histograms(self):
         # Test the plotting of histograms
         legitimacy = self.network_metrics.compute_legitimacy(self.test_dataset)
@@ -206,6 +204,7 @@ class NetworkMetricsTestCase(unittest.TestCase):
         fig.show()
         fig = ff.create_distplot([mean_status], group_labels=['Status'])
         fig.show()
+
 
 if __name__ == '__main__':
     unittest.main()
