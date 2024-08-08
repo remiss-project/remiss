@@ -14,20 +14,16 @@ def create_app() -> Flask:
 
     @app.route("/process_dataset", methods=['POST'])
     def process_dataset() -> Union[str, Response]:
+
+        dbname = request.args.get('db_name')
+        if not dbname:
+            return jsonify({"error": "No database name was provided"}), 400
+
+
         data = request.files['file']
 
         if not data:
             return jsonify({"error": "No JSON object was provided"})
-
-        # Store data in mongodb raw
-        try:
-            dataset_name = data.filename
-        except KeyError:
-            logger.error("No dataset name was provided")
-            return jsonify({"error": "No dataset name was provided"})
-        except Exception as e:
-            logger.error(f"Error: {e}")
-            return jsonify({"error": f"Error: {e}"})
 
         try:
             dataset_data = data.read().decode('utf-8')
@@ -40,10 +36,10 @@ def create_app() -> Flask:
             return jsonify({"error": f"Error: {e}"})
 
         try:
-            propagation_preprocessor = PropagationPreprocessor(dataset=dataset_name, data=dataset_data)
+            propagation_preprocessor = PropagationPreprocessor(dataset=dbname, data=dataset_data, host="mongo")
             propagation_preprocessor.process()
-            logger.info(f"Processed dataset {dataset_name}")
-            return jsonify({"message": f"Processed dataset {dataset_name}"})
+            logger.info(f"Processed dataset {dbname}")
+            return jsonify({"message": f"Processed dataset {dbname}"})
         except Exception as e:
             logger.error(f"Error: {e}")
             return jsonify({"error": f"Error: {e}"})
