@@ -129,7 +129,7 @@ class CascadeCcdfComponent(RemissComponent):
                             type='default',
                             children=self.graph_cascade_ccdf)
             ]),
-            dbc.CardFooter('Cascade Comulative Distribution Function showing the probability of a cascade '
+            dbc.CardFooter('Cascade Cumulative Distribution Function showing the probability of a cascade '
                            'reaching a certain size over time.')
 
         ])
