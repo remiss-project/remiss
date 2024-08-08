@@ -1,9 +1,9 @@
 import logging
 
-import fire
 from pyaml_env import parse_config
 
-from figures.propagation import PropagationPlotFactory
+from propagation import Egonet, NetworkMetrics, DiffusionMetrics
+from propagation.histogram import Histogram
 
 logger = logging.getLogger('main')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -12,11 +12,37 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 def prepopulate_propagation(config_file='dev_config.yaml'):
     logger.debug('Prepopulating propagation metrics and graphs...')
     config = parse_config(config_file)
-    factory = PropagationPlotFactory(available_datasets=config['available_datasets'],
-                                     host=config['mongodb']['host'],
-                                     port=config['mongodb']['port'],
-                                     threshold=config['graph_simplification']['threshold'])
-    factory.prepopulate()
+    diffusion_metrics = DiffusionMetrics(host=config['host'], port=config['port'],
+                                         reference_types=config['reference_types'])
+    network_metrics = NetworkMetrics(host=config['host'], port=config['port'],
+                                     reference_types=config['reference_types'])
+    egonet = Egonet(host=config['host'], port=config['port'], reference_types=config['reference_types'])
+    histogram = Histogram(host=config['host'], port=config['port'])
+    available_datasets = config['available_datasets']
+
+    try:
+        diffusion_metrics.persist(available_datasets)
+    except Exception as e:
+        logger.error(f"Error generating diffusion metrics: {e}")
+        raise RuntimeError(f"Error generating diffusion metrics: {e}") from e
+    logger.info('Generating network metrics')
+    try:
+        network_metrics.persist(available_datasets)
+    except Exception as e:
+        logger.error(f"Error generating network metrics: {e}")
+        raise RuntimeError(f"Error generating network metrics: {e}") from e
+    logger.info('Generating egonet metrics')
+    try:
+        egonet.persist(available_datasets)
+    except Exception as e:
+        logger.error(f"Error generating egonet metrics: {e}")
+        raise RuntimeError(f"Error generating egonet metrics: {e}") from e
+    logger.info('Generating histograms')
+    try:
+        histogram.persist(available_datasets)
+    except Exception as e:
+        logger.error(f"Error generating histograms: {e}")
+        raise RuntimeError(f"Error generating histograms: {e}") from e
     logger.debug('Propagation metrics and graphs prepopulated')
 
 
