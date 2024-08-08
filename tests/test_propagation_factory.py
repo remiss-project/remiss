@@ -8,12 +8,10 @@ from pymongo import MongoClient
 
 from figures.propagation import PropagationPlotFactory
 
-import plotly.express as px
-
 
 class PropagationFactoryTestCase(unittest.TestCase):
     def setUp(self):
-        self.propagation_factory = PropagationPlotFactory(load_from_mongodb=True, available_datasets=['test_dataset_2'])
+        self.propagation_factory = PropagationPlotFactory(available_datasets=['test_dataset_2'])
         self.test_dataset = 'test_dataset_2'
         self.tmp_dataset = 'tmp_dataset'
         self.test_user_id = '999321854'
