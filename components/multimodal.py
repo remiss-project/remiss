@@ -135,7 +135,9 @@ class MultimodalComponent(RemissComponent):
                     visual_evidence_graph_similarity_score, visual_evidence_domain, claim_image, evidence_image,
                     is_open)
         except Exception as e:
-            if tweet_id is not None:
+            if 'not found in dataset' in str(e):
+                logger.debug(f'No multimodal data found for tweet {tweet_id}')
+            else:
                 logger.error(f'Error updating multimodal component: {e}')
             return None, None, None, None, None, None, None, None, False
 
