@@ -43,24 +43,40 @@ class TimeSeriesFactory(MongoPlotFactory):
 
     def plot_tweet_series(self, dataset, hashtags, start_time, end_time, unit='day', bin_size=1):
         if hashtags or start_time or end_time:
-            logger.debug('Computing tweet series')
-            start_computing_time = time.time()
-            df = self.compute_tweet_histogram(dataset, hashtags, start_time, end_time, unit, bin_size)
-            logger.debug(f'Tweet series computed in {time.time() - start_computing_time} seconds')
+            try:
+                logger.debug('Computing tweet series')
+                start_computing_time = time.time()
+                df = self.compute_tweet_histogram(dataset, hashtags, start_time, end_time, unit, bin_size)
+                logger.debug(f'Tweet series computed in {time.time() - start_computing_time} seconds')
+            except Exception as e:
+                logger.error(f'Error computing tweet series: {e}')
+                raise RuntimeError('Error computing tweet series') from e
         else:
-            df = self.load_histogram(dataset, 'tweet')
+            try:
+                df = self.load_histogram(dataset, 'tweet')
+            except Exception as e:
+                logger.error(f'Error loading tweet series: {e}')
+                raise RuntimeError('Error loading tweet series') from e
 
         plot = self._get_count_plot(df)
         return plot
 
     def plot_user_series(self, dataset, hashtags, start_time, end_time, unit='day', bin_size=1):
         if hashtags or start_time or end_time:
-            logger.debug('Computing user series')
-            start_computing_time = time.time()
-            df = self.compute_user_histogram(dataset, hashtags, start_time, end_time, unit, bin_size)
-            logger.debug(f'User series computed in {time.time() - start_computing_time} seconds')
+            try:
+                logger.debug('Computing user series')
+                start_computing_time = time.time()
+                df = self.compute_user_histogram(dataset, hashtags, start_time, end_time, unit, bin_size)
+                logger.debug(f'User series computed in {time.time() - start_computing_time} seconds')
+            except Exception as e:
+                logger.error(f'Error computing user series: {e}')
+                raise RuntimeError('Error computing user series') from e
         else:
-            df = self.load_histogram(dataset, 'user')
+            try:
+                df = self.load_histogram(dataset, 'user')
+            except Exception as e:
+                logger.error(f'Error loading user series: {e}')
+                raise RuntimeError('Error loading user series') from e
 
         plot = self._get_count_plot(df)
         return plot
