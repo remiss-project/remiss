@@ -1,4 +1,3 @@
-import json
 import logging
 
 import dash_bootstrap_components as dbc
@@ -176,19 +175,15 @@ class FilterDisplayComponent(RemissComponent):
         self.hashtags_display = html.P(id=f'hashtags-display-{self.name}', children='')
         self.user_display = html.P(id=f'user-display-{self.name}', children='')
         self.reset_button = dbc.Button('Clear filters', id=f'clear-filters-{self.name}', color='danger')
-        self.tweet_card = self.create_field_card('collapse-tweet', 'Current Tweet:', self.tweet_display)
-        self.user_card = self.create_field_card('collapse-user', 'Current User:', self.user_display)
-        self.hashtags_card = self.create_field_card('collapse-hashtags', 'Current Hashtags:', self.hashtags_display)
+        self.tweet_toast = self.create_field_toast('collapse-tweet', 'Current Tweet:', self.tweet_display)
+        self.user_toast = self.create_field_toast('collapse-user', 'Current User:', self.user_display)
+        self.hashtags_toast = self.create_field_toast('collapse-hashtags', 'Current Hashtags:', self.hashtags_display)
         self.gap = gap
 
-    def create_field_card(self, field_id, field_label, display):
+    def create_field_toast(self, field_id, field_label, display):
         return dbc.Collapse([
-            dbc.Card([
-                dbc.CardHeader(field_label, id=f'header-{field_id}-{self.name}'),
-                dbc.CardBody([
-                    display
-                ])]
-            )], id=f'{field_id}-{self.name}', is_open=False)
+            dbc.Toast(display, header=field_label)
+        ], id=f'{field_id}-{self.name}', is_open=False)
 
     def layout(self, params=None):
         return dbc.Collapse([dbc.Card([
@@ -197,17 +192,17 @@ class FilterDisplayComponent(RemissComponent):
                 dbc.Stack([
                     dbc.Row([
                         dbc.Col([
-                            self.tweet_card
+                            self.tweet_toast
                         ]),
                     ]),
                     dbc.Row([
                         dbc.Col([
-                            self.user_card
+                            self.user_toast
                         ])
                     ]),
                     dbc.Row([
                         dbc.Col([
-                            self.hashtags_card
+                            self.hashtags_toast
                         ])
                     ]),
                     dbc.Row([
@@ -249,19 +244,19 @@ class FilterDisplayComponent(RemissComponent):
     def callbacks(self, app):
         app.callback(
             Output(self.tweet_display, 'children'),
-            Output(self.tweet_card, 'is_open'),
+            Output(self.tweet_toast, 'is_open'),
             [Input(self.state.current_tweet, 'data')],
         )(self.update_tweet_display)
 
         app.callback(
             Output(self.hashtags_display, 'children'),
-            Output(self.hashtags_card, 'is_open'),
+            Output(self.hashtags_toast, 'is_open'),
             [Input(self.state.current_hashtags, 'data')],
         )(self.update_hashtags_display)
 
         app.callback(
             Output(self.user_display, 'children'),
-            Output(self.user_card, 'is_open'),
+            Output(self.user_toast, 'is_open'),
 
             [Input(self.state.current_user, 'data')],
         )(self.update_user_display)
