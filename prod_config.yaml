@@ -13,6 +13,9 @@ available_datasets:
   - MENA_Agressions
   - MENA_Ajudes
   - Openarms
+reference_types:
+  - retweeted
+  - quoted
 theme: PULSE
 debug: "True"
 frequency: 1D
