@@ -1,5 +1,6 @@
 import logging
 
+import fire
 from pyaml_env import parse_config
 
 from propagation import Egonet, NetworkMetrics, DiffusionMetrics
@@ -47,5 +48,5 @@ def prepopulate_propagation(config_file='dev_config.yaml'):
 
 
 if __name__ == '__main__':
-    # fire.Fire(prepopulate_propagation)
-    prepopulate_propagation('dev_config.yaml')
+    fire.Fire(prepopulate_propagation)
+
