@@ -177,8 +177,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         df = collection.aggregate_pandas_all(pipeline, schema=schema)
         return df
 
-    def compute_size_over_time(self, dataset, tweet_id):
-        graph = self.get_propagation_tree(dataset, tweet_id)
+    def compute_size_over_time(self, graph):
         # get the difference between the first tweet and the rest in minutes
         size = pd.Series(np.ones(graph.vcount(), dtype=int), index=graph.vs['created_at'], name='Size').sort_index()
         size = size.cumsum()
@@ -187,8 +186,7 @@ class DiffusionMetrics(BasePropagationMetrics):
 
         return size
 
-    def compute_depth_over_time(self, dataset, tweet_id):
-        graph = self.get_propagation_tree(dataset, tweet_id)
+    def compute_depth_over_time(self, graph):
         shortest_paths = self.get_shortest_paths_to_conversation_id(graph)
         created_at = pd.Series(graph.vs['created_at'], name='Depth')
         order = created_at.argsort()
@@ -201,8 +199,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         depths = pd.Series(depths, name='Depth')
         return depths
 
-    def compute_max_breadth_over_time(self, dataset, tweet_id):
-        graph = self.get_propagation_tree(dataset, tweet_id)
+    def compute_max_breadth_over_time(self, graph):
         shortest_paths = self.get_shortest_paths_to_conversation_id(graph)
         created_at = pd.Series(graph.vs['created_at'], name='Max Breadth')
         order = created_at.argsort()
@@ -215,8 +212,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         max_breadth = pd.Series(max_breadth, name='Max Breadth')
         return max_breadth
 
-    def get_structural_virality(self, dataset, tweet_id):
-        graph = self.get_propagation_tree(dataset, tweet_id)
+    def get_structural_virality(self, graph):
         # Specifically, we define structural
         # virality as the average distance between all pairs
         # of nodes in a diffusion tree
@@ -253,8 +249,7 @@ class DiffusionMetrics(BasePropagationMetrics):
 
         return structured_viralities
 
-    def compute_structural_virality_over_time(self, dataset, tweet_id):
-        graph = self.get_propagation_tree(dataset, tweet_id)
+    def compute_structural_virality_over_time(self, graph):
         # Specifically, we define structural
         # virality as the average distance between all pairs
         # of nodes in a diffusion tree
@@ -393,53 +388,56 @@ class DiffusionMetrics(BasePropagationMetrics):
         Parallel(n_jobs=-2, backend='threading')(jobs)
 
     def _persist_conversation_metrics(self, dataset, conversation_id):
-        graph = self.get_propagation_tree(dataset, conversation_id)
-        size_over_time = self.get_size_over_time(dataset, conversation_id)
-        depth_over_time = self.get_depth_over_time(dataset, conversation_id)
-        max_breadth_over_time = self.get_max_breadth_over_time(dataset, conversation_id)
-        structural_virality_over_time = self.get_structural_virality_over_time(dataset, conversation_id)
-
-        client = MongoClient(self.host, self.port)
-        database = client.get_database(dataset)
-        collection = database.get_collection('diffusion_metrics')
         try:
-            size_over_time = size_over_time.to_dict()
-            size_over_time = {str(key): value for key, value in size_over_time.items()}
+            graph = self.compute_propagation_tree(dataset, conversation_id)
+            size_over_time = self.compute_size_over_time(graph)
+            depth_over_time = self.compute_depth_over_time(graph)
+            max_breadth_over_time = self.compute_max_breadth_over_time(graph)
+            structural_virality_over_time = self.compute_structural_virality_over_time(graph)
+
+            client = MongoClient(self.host, self.port)
+            database = client.get_database(dataset)
+            collection = database.get_collection('diffusion_metrics')
+            try:
+                size_over_time = size_over_time.to_dict()
+                size_over_time = {str(key): value for key, value in size_over_time.items()}
+            except Exception as e:
+                logger.error(f'Error converting {conversation_id} size over time to json: {e}')
+                size_over_time = None
+
+            try:
+                depth_over_time = depth_over_time.to_dict()
+                depth_over_time = {str(key): value for key, value in depth_over_time.items()}
+            except Exception as e:
+                logger.error(f'Error converting {conversation_id} depth over time to json: {e}')
+                depth_over_time = None
+
+            try:
+                max_breadth_over_time = max_breadth_over_time.to_dict()
+                max_breadth_over_time = {str(key): value for key, value in max_breadth_over_time.items()}
+            except Exception as e:
+                logger.error(f'Error converting {conversation_id} max breadth over time to json: {e}')
+                max_breadth_over_time = None
+
+            try:
+                structural_virality_over_time = structural_virality_over_time.to_dict()
+                structural_virality_over_time = {str(key): value for key, value in structural_virality_over_time.items()}
+            except Exception as e:
+                logger.error(f'Error converting {conversation_id} structural virality over time to json: {e}')
+                structural_virality_over_time = None
+
+            attributes = {attribute: graph.vs[attribute] for attribute in graph.vs.attributes()}
+            collection.insert_one({'conversation_id': conversation_id,
+                                   'edges': graph.get_edgelist(),
+                                   'vs_attributes': attributes,
+                                   'size_over_time': size_over_time,
+                                   'depth_over_time': depth_over_time,
+                                   'max_breadth_over_time': max_breadth_over_time,
+                                   'structural_virality_over_time': structural_virality_over_time})
+            client.close()
+
         except Exception as e:
-            logger.error(f'Error converting {conversation_id} size over time to json: {e}')
-            size_over_time = None
-
-        try:
-            depth_over_time = depth_over_time.to_dict()
-            depth_over_time = {str(key): value for key, value in depth_over_time.items()}
-        except Exception as e:
-            logger.error(f'Error converting {conversation_id} depth over time to json: {e}')
-            depth_over_time = None
-
-        try:
-            max_breadth_over_time = max_breadth_over_time.to_dict()
-            max_breadth_over_time = {str(key): value for key, value in max_breadth_over_time.items()}
-        except Exception as e:
-            logger.error(f'Error converting {conversation_id} max breadth over time to json: {e}')
-            max_breadth_over_time = None
-
-        try:
-            structural_virality_over_time = structural_virality_over_time.to_dict()
-            structural_virality_over_time = {str(key): value for key, value in structural_virality_over_time.items()}
-        except Exception as e:
-            logger.error(f'Error converting {conversation_id} structural virality over time to json: {e}')
-            structural_virality_over_time = None
-
-        attributes = {attribute: graph.vs[attribute] for attribute in graph.vs.attributes()}
-        collection.insert_one({'conversation_id': conversation_id,
-                               'edges': graph.get_edgelist(),
-                               'vs_attributes': attributes,
-                               'size_over_time': size_over_time,
-                               'depth_over_time': depth_over_time,
-                               'max_breadth_over_time': max_breadth_over_time,
-                               'structural_virality_over_time': structural_virality_over_time})
-        client.close()
-
+            logger.error(f'Error processing conversation {conversation_id}: {e}')
 
 def transform_user_type(x):
     if x['is_usual_suspect'] and x['party'] is not None:

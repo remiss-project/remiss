@@ -165,8 +165,9 @@ class Egonet(BasePropagationMetrics):
     def persist(self, datasets):
         # Save to mongodb
         for dataset in datasets:
-            hidden_network = self.get_hidden_network(dataset)
-            hidden_network_backbone = self.get_hidden_network_backbone(dataset)
+            hidden_network = self._compute_hidden_network(dataset)
+            hidden_network_backbone = self._simplify_graph(hidden_network)
+
             self._persist_graph_to_mongodb(hidden_network, dataset, 'hidden_network')
             self._persist_graph_to_mongodb(hidden_network_backbone, dataset, 'hidden_network_backbone')
 

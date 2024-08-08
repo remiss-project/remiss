@@ -4,7 +4,8 @@ from datetime import datetime
 from unittest import TestCase
 from unittest.mock import Mock
 
-from dash import Dash
+import dash_bootstrap_components as dbc
+from dash import Dash, dcc, Output, Input
 from dash._callback_context import context_value
 from dash._utils import AttributeDict
 from dash.dcc import Graph, Dropdown, Slider
@@ -24,6 +25,9 @@ class EgonetComponentTest(TestCase):
         self.plot_factory.plot_hidden_network = Mock()
         self.state = RemissState(name='state')
         self.component = EgonetComponent(self.plot_factory, self.state, name='egonet')
+        self.test_dataset = 'test_dataset_2'
+        self.test_user_id = '1033714286231740416'
+        self.test_tweet_id = '1167078759280889856'
 
     def test_layout(self):
         layout = self.component.layout()
@@ -155,6 +159,44 @@ class EgonetComponentTest(TestCase):
         output = ctx.run(run_callback)
         self.plot_factory.plot_hidden_network.assert_called_once_with(
             'test_dataset', 'test_user_state', '2023-01-01', '2023-12-31', ['test_hashtags'])
+
+    def test_render(self):
+        dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
+        app = Dash(__name__,
+                   external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME, dbc_css],
+                   prevent_initial_callbacks="initial_duplicate",
+                   meta_tags=[
+                       {
+                           "name": "viewport",
+                           "content": "width=device-width, initial-scale=1, maximum-scale=1",
+                       }
+                   ],
+                   )
+        self.component.callbacks(app)
+        self.state.callbacks(app)
+        dataset_dropdown = dcc.Dropdown(id='dataset-dropdown',
+                                        options=[{'label': 'test_dataset', 'value': self.test_dataset}],
+                                        value=self.test_dataset)
+        user_dropdown = dcc.Dropdown(id='tweet-dropdown',
+                                      options=[{'label': self.test_user_id, 'value': self.test_user_id},
+                                               {'label': 'POTATO', 'value': 'POTATO'}],
+                                      value=self.test_user_id)
+
+        def update(x):
+            return x
+
+        app.callback(Output(self.state.current_dataset, 'data'),
+                     [Input('dataset-dropdown', 'value')])(update)
+        app.callback(Output(self.state.current_user, 'data'),
+                     [Input('tweet-dropdown', 'value')])(update)
+        app.layout = dbc.Container([
+            self.state.layout(),
+            self.component.layout(),
+            dataset_dropdown,
+            user_dropdown
+        ])
+
+        app.run_server(debug=True, port=8050)
 
 
 if __name__ == '__main__':
