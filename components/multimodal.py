@@ -135,7 +135,8 @@ class MultimodalComponent(RemissComponent):
                     visual_evidence_graph_similarity_score, visual_evidence_domain, claim_image, evidence_image,
                     is_open)
         except Exception as e:
-            logger.error(f'Error updating multimodal component: {e}')
+            if tweet_id is not None:
+                logger.error(f'Error updating multimodal component: {e}')
             return None, None, None, None, None, None, None, None, False
 
     def callbacks(self, app):

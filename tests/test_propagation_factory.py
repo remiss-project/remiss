@@ -182,6 +182,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
                           'party',
                           'legitimacy',
                           'reputation',
+                          'status',
                           'User type'],
                          metadata.columns.tolist())
         self.assertFalse(metadata['User type'].isna().sum())

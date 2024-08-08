@@ -1,4 +1,3 @@
-import datetime
 import logging
 import time
 
@@ -19,8 +18,6 @@ class Egonet(BasePropagationMetrics):
         super().__init__(host, port, reference_types)
         self.threshold = threshold
         self.delete_vertices = delete_vertices
-        self._hidden_networks = {}
-        self._hidden_network_backbones = {}
 
     def get_egonet(self, dataset, author_id, depth, start_date=None, end_date=None, hashtags=None):
         """
@@ -40,23 +37,26 @@ class Egonet(BasePropagationMetrics):
     def get_hidden_network(self, dataset, start_date=None, end_date=None, hashtags=None):
         start_date, end_date = self._validate_dates(dataset, start_date, end_date)
         if start_date or end_date or hashtags:
-            return self._compute_hidden_network(dataset, start_date=start_date, end_date=end_date, hashtags=hashtags)
-        if dataset not in self._hidden_networks:
-            network = self._compute_hidden_network(dataset)
-            self._hidden_networks[dataset] = network
+            network = self._compute_hidden_network(dataset, start_date=start_date, end_date=end_date, hashtags=hashtags)
+        else:
+            network = self.load_hidden_network(dataset)
 
-        return self._hidden_networks[dataset]
+        return network
 
     def get_hidden_network_backbone(self, dataset, start_date=None, end_date=None, hashtags=None):
         start_date, end_date = self._validate_dates(dataset, start_date, end_date)
         if start_date or end_date or hashtags:
-            return self._compute_hidden_network_backbone(dataset, start_date=start_date, end_date=end_date,
-                                                         hashtags=hashtags)
-        if dataset not in self._hidden_network_backbones:
-            network = self._compute_hidden_network_backbone(dataset)
-            self._hidden_network_backbones[dataset] = network
+            network = self._compute_hidden_network_backbone(dataset, start_date=start_date, end_date=end_date,
+                                                            hashtags=hashtags)
+        else:
+            network = self.load_hidden_network_backbone(dataset)
+        return network
 
-        return self._hidden_network_backbones[dataset]
+    def load_hidden_network(self, dataset):
+        return self._load_graph_from_mongodb(dataset, 'hidden_network')
+
+    def load_hidden_network_backbone(self, dataset):
+        return self._load_graph_from_mongodb(dataset, 'hidden_network_backbone')
 
     def _validate_dates(self, dataset, start_date, end_date):
         dataset_start_date, dataset_end_date = self.get_datatset_data_range(dataset)
@@ -170,16 +170,6 @@ class Egonet(BasePropagationMetrics):
             self._persist_graph_to_mongodb(hidden_network, dataset, 'hidden_network')
             self._persist_graph_to_mongodb(hidden_network_backbone, dataset, 'hidden_network_backbone')
 
-    def load_from_mongodb(self, datasets):
-        for dataset in datasets:
-            try:
-                hidden_network = self._load_graph_from_mongodb(dataset, 'hidden_network')
-                hidden_network_backbone = self._load_graph_from_mongodb(dataset, 'hidden_network_backbone')
-                self._hidden_networks[dataset] = hidden_network
-                self._hidden_network_backbones[dataset] = hidden_network_backbone
-            except Exception as ex:
-                logger.error(f'Error loading hidden network for dataset {dataset} with error {ex}')
-
     def _persist_graph_to_mongodb(self, graph, dataset, collection_name):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
@@ -227,7 +217,6 @@ class Egonet(BasePropagationMetrics):
         alphas = Egonet.compute_alphas(graph)
         good = np.nonzero(alphas > alpha)[0]
         backbone = graph.subgraph_edges(graph.es.select(good), delete_vertices=delete_vertices)
-
 
         return backbone
 

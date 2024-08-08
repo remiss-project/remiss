@@ -10,5 +10,3 @@ class BasePropagationMetrics(ABC):
     def persist(self, datasets):
         pass
 
-    def load_from_mongodb(self, datasets):
-        pass

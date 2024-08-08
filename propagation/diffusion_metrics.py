@@ -19,47 +19,52 @@ logger = logging.getLogger(__name__)
 
 class DiffusionMetrics(BasePropagationMetrics):
 
-    def __init__(self, host='localhost', port=27017, reference_types=('retweeted', 'quoted')):
-        super().__init__(host, port, reference_types)
-        self._propagation_tree = {}
-        self._size_over_time = {}
-        self._depth_over_time = {}
-        self._max_breadth_over_time = {}
-        self._structural_virality_over_time = {}
+    def load_conversation_data(self, dataset, tweet_id):
+        conversation_id = self.get_conversation_id(dataset, tweet_id)
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('diffusion_metrics')
+        conversation_data = collection.find_one({'conversation_id': conversation_id})
+        client.close()
+        if not conversation_data:
+            raise RuntimeError(f'Diffusion metrics for conversation {conversation_id} for tweet {tweet_id} not found')
+        return conversation_data
 
     def get_propagation_tree(self, dataset, tweet_id):
-        conversation_id = self.get_conversation_id(dataset, tweet_id)
-        if (dataset, conversation_id) not in self._propagation_tree:
-            # conversation_id tweet might not be present in the dataset, so we will use the tweet_id
-            # TODO think of a more clever way to do this
-            self._propagation_tree[(dataset, conversation_id)] = self.compute_propagation_tree(dataset, tweet_id)
-        return self._propagation_tree[(dataset, conversation_id)]
+        conversation_data = self.load_conversation_data(dataset, tweet_id)
+        conversation_id = conversation_data['conversation_id']
+        graph = ig.Graph(directed=True)
+        graph.add_vertices(len(conversation_data['vs_attributes']['author_id']))
+        for attribute, values in conversation_data['vs_attributes'].items():
+            graph.vs[attribute] = values
+        graph.add_edges(conversation_data['edges'])
+        self.ensure_conversation_id(conversation_id, graph)
+        return graph
 
     def get_size_over_time(self, dataset, tweet_id):
-        conversation_id = self.get_conversation_id(dataset, tweet_id)
-        if (dataset, conversation_id) not in self._size_over_time:
-            self._size_over_time[(dataset, conversation_id)] = self.compute_size_over_time(dataset, tweet_id)
-        return self._size_over_time[(dataset, conversation_id)]
+        conversation_data = self.load_conversation_data(dataset, tweet_id)
+        size_over_time = pd.Series(conversation_data['size_over_time'], name='Size')
+        size_over_time.index = pd.to_datetime(size_over_time.index)
+        return size_over_time
 
     def get_depth_over_time(self, dataset, tweet_id):
-        conversation_id = self.get_conversation_id(dataset, tweet_id)
-        if (dataset, conversation_id) not in self._depth_over_time:
-            self._depth_over_time[(dataset, conversation_id)] = self.compute_depth_over_time(dataset, tweet_id)
-        return self._depth_over_time[(dataset, conversation_id)]
+        conversation_data = self.load_conversation_data(dataset, tweet_id)
+        depth_over_time = pd.Series(conversation_data['depth_over_time'], name='Depth')
+        depth_over_time.index = pd.to_datetime(depth_over_time.index)
+        return depth_over_time
 
     def get_max_breadth_over_time(self, dataset, tweet_id):
-        conversation_id = self.get_conversation_id(dataset, tweet_id)
-        if (dataset, conversation_id) not in self._max_breadth_over_time:
-            self._max_breadth_over_time[(dataset, conversation_id)] = self.compute_max_breadth_over_time(dataset,
-                                                                                                         tweet_id)
-        return self._max_breadth_over_time[(dataset, conversation_id)]
+        conversation_data = self.load_conversation_data(dataset, tweet_id)
+        max_breadth_over_time = pd.Series(conversation_data['max_breadth_over_time'], name='Max Breadth')
+        max_breadth_over_time.index = pd.to_datetime(max_breadth_over_time.index)
+        return max_breadth_over_time
 
     def get_structural_virality_over_time(self, dataset, tweet_id):
-        conversation_id = self.get_conversation_id(dataset, tweet_id)
-        if (dataset, conversation_id) not in self._structural_virality_over_time:
-            self._structural_virality_over_time[
-                (dataset, conversation_id)] = self.compute_structural_virality_over_time(dataset, conversation_id)
-        return self._structural_virality_over_time[(dataset, conversation_id)]
+        conversation_data = self.load_conversation_data(dataset, tweet_id)
+        structural_virality_over_time = pd.Series(conversation_data['structural_virality_over_time'],
+                                                  name='Structural Virality')
+        structural_virality_over_time.index = pd.to_datetime(structural_virality_over_time.index)
+        return structural_virality_over_time
 
     def compute_propagation_tree(self, dataset, tweet_id):
         conversation_id, conversation_tweets, references = self.get_conversation(dataset, tweet_id)
@@ -433,38 +438,6 @@ class DiffusionMetrics(BasePropagationMetrics):
                                'depth_over_time': depth_over_time,
                                'max_breadth_over_time': max_breadth_over_time,
                                'structural_virality_over_time': structural_virality_over_time})
-        client.close()
-
-    def load_from_mongodb(self, datasets):
-        for dataset in datasets:
-            self._load_metrics(dataset)
-
-    def _load_metrics(self, dataset):
-        client = MongoClient(self.host, self.port)
-        database = client.get_database(dataset)
-        collection = database.get_collection('diffusion_metrics')
-        for document in collection.find():
-            conversation_id = document['conversation_id']
-            graph = ig.Graph(directed=True)
-            graph.add_vertices(len(document['vs_attributes']['author_id']))
-            for attribute, values in document['vs_attributes'].items():
-                graph.vs[attribute] = values
-            graph.add_edges(document['edges'])
-            self._propagation_tree[(dataset, conversation_id)] = graph
-            size_over_time = pd.Series(document['size_over_time'], name='Size')
-            size_over_time.index = pd.to_datetime(size_over_time.index)
-            self._size_over_time[(dataset, conversation_id)] = size_over_time
-            depth_over_time = pd.Series(document['depth_over_time'], name='Depth')
-            depth_over_time.index = pd.to_datetime(depth_over_time.index)
-            self._depth_over_time[(dataset, conversation_id)] = depth_over_time
-            max_breadth_over_time = pd.Series(document['max_breadth_over_time'], name='Max Breadth')
-            max_breadth_over_time.index = pd.to_datetime(max_breadth_over_time.index)
-            self._max_breadth_over_time[(dataset, conversation_id)] = max_breadth_over_time
-            structural_virality_over_time = pd.Series(document['structural_virality_over_time'],
-                                                      name='Structural Virality')
-            structural_virality_over_time.index = pd.to_datetime(structural_virality_over_time.index)
-            self._structural_virality_over_time[(dataset, conversation_id)] = structural_virality_over_time
-
         client.close()
 
 

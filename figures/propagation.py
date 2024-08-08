@@ -1,20 +1,15 @@
-import datetime
 import logging
 import time
-from pathlib import Path
 
-import igraph as ig
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import pymongo
 import pymongoarrow
 from igraph import Layout
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
 from sklearn import set_config
-from tqdm import tqdm
 
 from figures.figures import MongoPlotFactory
 from propagation import Egonet, NetworkMetrics, DiffusionMetrics
@@ -31,7 +26,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                  reference_types=('quoted', 'retweeted'), layout='fruchterman_reingold',
                  threshold=0.2, delete_vertices=True, frequency='1D',
                  available_datasets=None, small_size_multiplier=15, big_size_multiplier=50,
-                 user_highlight_color='rgb(0, 0, 255)', load_from_mongodb=True):
+                 user_highlight_color='rgb(0, 0, 255)'):
         super().__init__(host, port, available_datasets)
         self.big_size_multiplier = big_size_multiplier
         self.small_size_multiplier = small_size_multiplier
@@ -45,28 +40,6 @@ class PropagationPlotFactory(MongoPlotFactory):
                                               frequency=frequency)
 
         self.diffusion_metrics = DiffusionMetrics(host=host, port=port, reference_types=reference_types)
-        self._hidden_network_layouts = {}
-
-        if load_from_mongodb:
-            try:
-                self.network_metrics.load_from_mongodb(self.available_datasets)
-            except Exception as ex:
-                logger.error(f'Error loading network metrics with error {ex}')
-
-            try:
-                self.egonet.load_from_mongodb(self.available_datasets)
-            except Exception as ex:
-                logger.error(f'Error loading egonet with error {ex}')
-
-            try:
-                self.diffusion_metrics.load_from_mongodb(self.available_datasets)
-            except Exception as ex:
-                logger.error(f'Error loading diffusion metrics with error {ex}')
-
-            try:
-                self.load_from_mongodb(self.available_datasets)
-            except Exception as ex:
-                logger.error(f'Error loading hidden network layout with error {ex}')
 
     def plot_egonet(self, collection, author_id, depth, start_date=None, end_date=None, hashtag=None):
         network = self.egonet.get_egonet(collection, author_id, depth, start_date, end_date, hashtag)
@@ -92,11 +65,9 @@ class PropagationPlotFactory(MongoPlotFactory):
             layout = self.compute_layout(hidden_network)
             layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
             return layout
-        if collection not in self._hidden_network_layouts:
-            layout = self.compute_layout(hidden_network)
-            layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
-            self._hidden_network_layouts[collection] = layout
-        return self._hidden_network_layouts[collection]
+        else:
+            layout = self._load_layout_from_mongodb(collection, 'hidden_network_layout')
+            return layout
 
     def _validate_dates(self, dataset, start_date, end_date):
         dataset_start_date, dataset_end_date = self.get_date_range(dataset)
@@ -227,22 +198,6 @@ class PropagationPlotFactory(MongoPlotFactory):
         return self.plot_time_series(cascade_count_over_time, 'Cascade count over time', 'Time', 'Cascade count')
 
     def get_user_metadata(self, dataset, author_ids=None):
-        metadata = self.get_verificat_user_metadata(dataset, author_ids)
-        legitimacy = self.network_metrics.get_legitimacy(dataset)
-        metadata = metadata.merge(legitimacy, right_index=True, left_index=True, how='left')
-        reputation = self.network_metrics.get_reputation(dataset)
-        reputation_mean = reputation.mean(axis=1)
-        reputation_mean.name = 'reputation'
-        metadata = metadata.merge(reputation_mean, right_index=True, left_index=True, how='left')
-        status = self.network_metrics.get_status(dataset)
-        status_mean = status.mean(axis=1)
-        status_mean.name = 'status'
-        metadata = metadata.merge(status_mean, right_index=True, left_index=True, how='left')
-        metadata['User type'] = metadata.apply(transform_user_type, axis=1).fillna('Unknown')
-
-        return metadata
-
-    def get_verificat_user_metadata(self, dataset, author_ids=None):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
 
@@ -257,22 +212,29 @@ class PropagationPlotFactory(MongoPlotFactory):
                         'username': {'$first': '$username'},
                         'is_usual_suspect': {'$addToSet': '$is_usual_suspect'},
                         'party': {'$addToSet': '$party'},
-                        }
-             },
+                        }},
+            {'$lookup': {'from': 'network_metrics', 'localField': '_id', 'foreignField': 'author_id',
+                         'as': 'network_metrics'}},
             {'$project': {'_id': 0,
                           'author_id': '$_id',
                           'username': 1,
                           'is_usual_suspect': {'$anyElementTrue': '$is_usual_suspect'},
-                          'party': {'$arrayElemAt': ['$party', 0]}
+                          'party': {'$arrayElemAt': ['$party', 0]},
+                          'legitimacy': {'$arrayElemAt': ['$network_metrics.legitimacy', 0]},
+                          'reputation': {'$arrayElemAt': ['$network_metrics.average_reputation', 0]},
+                          'status': {'$arrayElemAt': ['$network_metrics.average_status', 0]},
                           }}
 
         ]
         if author_ids:
             pipeline.insert(0, {'$match': {'author.id': {'$in': author_ids}}})
-        schema = Schema({'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str})
+        schema = Schema({'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str,
+                         'legitimacy': float, 'reputation': float, 'status': float})
         metadata = database.get_collection('raw').aggregate_pandas_all(pipeline, schema=schema)
         client.close()
         metadata = metadata.set_index('author_id')
+        metadata['User type'] = metadata.apply(transform_user_type, axis=1).fillna('Unknown')
+
         return metadata
 
     def plot_graph(self, graph, layout=None, symbol=None, size=None, color=None, text=None, normalize=True):
@@ -468,15 +430,6 @@ class PropagationPlotFactory(MongoPlotFactory):
         collection.drop()
         collection.insert_many(layout.to_dict(orient='records'))
         client.close()
-
-    def load_from_mongodb(self, datasets):
-        logger.debug(f'Loading hidden network layout from mongodb for datasets {datasets}')
-        for dataset in datasets:
-            try:
-                layout = self._load_layout_from_mongodb(dataset, 'hidden_network_layout')
-                self._hidden_network_layouts[dataset] = layout
-            except Exception as ex:
-                logger.error(f'Error loading hidden network layout for dataset {dataset} with error {ex}')
 
     def _load_layout_from_mongodb(self, dataset, collection_name):
         client = MongoClient(self.host, self.port)

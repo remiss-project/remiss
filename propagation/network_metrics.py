@@ -1,8 +1,6 @@
 import logging
 import time
-from io import StringIO
 
-import pandas as pd
 from pymongo import MongoClient
 
 from propagation.base import BasePropagationMetrics
@@ -16,24 +14,6 @@ class NetworkMetrics(BasePropagationMetrics):
         self.bin_size = int(frequency[:-1])
         pd_units = {'D': 'day', 'W': 'week', 'M': 'month', 'Y': 'year'}
         self.unit = pd_units[frequency[-1]]
-        self._legitimacy = {}
-        self._reputation = {}
-        self._status = {}
-
-    def get_legitimacy(self, dataset):
-        if dataset not in self._legitimacy:
-            self._legitimacy[dataset] = self.compute_legitimacy(dataset)
-        return self._legitimacy[dataset]
-
-    def get_reputation(self, dataset):
-        if dataset not in self._reputation:
-            self._reputation[dataset] = self.compute_reputation(dataset)
-        return self._reputation[dataset]
-
-    def get_status(self, dataset):
-        if dataset not in self._status:
-            self._status[dataset] = self.compute_status(dataset)
-        return self._status[dataset]
 
     def compute_legitimacy(self, dataset):
         client = MongoClient(self.host, self.port)
@@ -107,9 +87,9 @@ class NetworkMetrics(BasePropagationMetrics):
 
     def persist(self, datasets):
         for dataset in datasets:
-            legitimacy = self.get_legitimacy(dataset)
-            reputation = self.get_reputation(dataset)
-            status = self.get_status(dataset)
+            legitimacy = self.compute_legitimacy(dataset)
+            reputation = self.compute_reputation(dataset)
+            status = self.compute_status(dataset)
             self._persist_metrics(dataset, legitimacy, reputation, status)
 
     def _persist_metrics(self, dataset, legitimacy, reputation, status):
@@ -140,38 +120,3 @@ class NetworkMetrics(BasePropagationMetrics):
         except AttributeError:
             logger.error(f'Error serializing {name}')
         return metric
-
-    def load_from_mongodb(self, datasets):
-        for dataset in datasets:
-            self._load_metrics(dataset)
-
-    def _load_metrics(self, dataset):
-        client = MongoClient(self.host, self.port)
-        database = client.get_database(dataset)
-        collection = database.get_collection('network_metrics')
-        data = collection.find()
-        legitimacy = {}
-        reputation = {}
-        status = {}
-        for user in data:
-            author_id = user['author_id']
-            legitimacy[author_id] = user['legitimacy']
-            # Load reputation as Series
-            reputation[author_id] = pd.Series(user['reputation'])
-            reputation[author_id].index = pd.to_datetime(reputation[author_id].index)
-            # Load status as Series
-            status[author_id] = pd.Series(user['status'])
-            status[author_id].index = pd.to_datetime(status[author_id].index)
-
-        legitimacy = pd.Series(legitimacy, name='legitimacy')
-        legitimacy.index.name = 'author_id'
-        reputation = pd.DataFrame(reputation).T
-        reputation.index.name = 'author_id'
-        reputation.columns.name = 'date'
-        status = pd.DataFrame(status).T
-        status.index.name = 'author_id'
-        status.columns.name = 'date'
-
-        self._legitimacy[dataset] = legitimacy
-        self._reputation[dataset] = reputation
-        self._status[dataset] = status
