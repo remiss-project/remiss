@@ -4,6 +4,7 @@ import pandas as pd
 from pymongo import MongoClient
 
 from propagation import DiffusionMetrics, NetworkMetrics, Egonet
+from propagation.histogram import Histogram
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ class PropagationPreprocessor:
         self.diffusion_metrics = DiffusionMetrics(host=self.host, port=self.port, reference_types=self.reference_types)
         self.network_metrics = NetworkMetrics(host=self.host, port=self.port, reference_types=self.reference_types)
         self.egonet = Egonet(host=self.host, port=self.port, reference_types=self.reference_types)
+        self.histogram = Histogram(host=self.host, port=self.port)
 
     def process(self):
         logger.info(f"Processing dataset {self.dataset} with data {self.data}")
@@ -48,6 +50,12 @@ class PropagationPreprocessor:
         except Exception as e:
             logger.error(f"Error generating egonet metrics: {e}")
             raise RuntimeError(f"Error generating egonet metrics: {e}") from e
+        logger.info('Generating histograms')
+        try:
+            self.histogram.persist([self.dataset])
+        except Exception as e:
+            logger.error(f"Error generating histograms: {e}")
+            raise RuntimeError(f"Error generating histograms: {e}") from e
 
     def store_raw_data(self):
         client = MongoClient(self.host, self.port)

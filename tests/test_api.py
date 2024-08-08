@@ -9,6 +9,7 @@ from pymongo import MongoClient
 from api import create_app
 from preprocessor import PropagationPreprocessor
 from propagation import NetworkMetrics, DiffusionMetrics, Egonet
+from propagation.histogram import Histogram
 from tests.conftest import delete_test_database
 
 
@@ -152,6 +153,21 @@ class MyTestCase(unittest.TestCase):
 
         assert expected_hidden_network.isomorphic(actual_hidden_network)
         assert expected_backbone.isomorphic(actual_backbone)
+
+    def test_histograms(self):
+        with open('test_resources/Openarms.preprocessed.jsonl', 'r') as f:
+            data = [json.loads(line) for line in f.readlines()[:self.num_samples]]
+        preprocessor = PropagationPreprocessor(dataset=self.tmp_dataset, data=data)
+        preprocessor.process()
+        histogram = Histogram(host=preprocessor.host, port=preprocessor.port)
+        expected_tweet_histogram = histogram.compute_tweet_histogram(self.tmp_dataset, [], None, None)
+        expected_user_histogram = histogram.compute_user_histogram(self.tmp_dataset, [], None, None)
+        histogram = Histogram(host=preprocessor.host, port=preprocessor.port)
+        actual_tweet_histogram = histogram.load_histogram(self.tmp_dataset, 'tweet')
+        actual_user_histogram = histogram.load_histogram(self.tmp_dataset, 'user')
+        pd.testing.assert_frame_equal(expected_tweet_histogram, actual_tweet_histogram, check_dtype=False)
+        pd.testing.assert_frame_equal(expected_user_histogram, actual_user_histogram, check_dtype=False)
+
 
     def test_api(self):
         test_file = Path('test_resources/Openarms.sample.jsonl')
