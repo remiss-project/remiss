@@ -51,7 +51,7 @@ class EgonetComponent(RemissComponent):
         # Show egonet for the selected user
         try:
             fig = self.plot_factory.plot_egonet(dataset, user, depth, start_date, end_date, hashtags)
-            title = f'Egonet'
+            title = f'Egonet for user {user}'
             show_depth_slider = True
             logger.debug(f'Plotting egonet for user {user}')
         except (RuntimeError, ValueError, KeyError) as e:
@@ -59,7 +59,7 @@ class EgonetComponent(RemissComponent):
             fig = self.plot_factory.plot_hidden_network(dataset, start_date=start_date, end_date=end_date,
                                                         hashtag=hashtags)
             show_depth_slider = False
-            title = 'Filtered network'
+            title = 'Filtered hidden network'
             logger.debug(f'User {user} not available, plotting backbone')
 
         # remove margin
