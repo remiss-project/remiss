@@ -1,10 +1,13 @@
 import logging
 import time
 
+import pandas as pd
 from pymongo import MongoClient
+from pymongoarrow.monkey import patch_all
 
 from propagation.base import BasePropagationMetrics
 
+patch_all()
 logger = logging.getLogger(__name__)
 
 
@@ -14,6 +17,34 @@ class NetworkMetrics(BasePropagationMetrics):
         self.bin_size = int(frequency[:-1])
         pd_units = {'D': 'day', 'W': 'week', 'M': 'month', 'Y': 'year'}
         self.unit = pd_units[frequency[-1]]
+
+    def get_legitimacy(self, dataset):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('network_metrics')
+        legitimacy = collection.aggregate_pandas_all([{'$project': {'_id': 0, 'author_id': 1, 'legitimacy': 1}}])
+        legitimacy = legitimacy.set_index('author_id')['legitimacy']
+        return legitimacy
+
+    def get_reputation(self, dataset):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('network_metrics')
+        reputation = collection.aggregate_pandas_all([{'$project': {'_id': 0, 'author_id': 1, 'reputation': 1}}])
+        reputation = pd.DataFrame(list(reputation['reputation']), index=reputation['author_id'])
+        reputation.columns = pd.to_datetime(reputation.columns)
+        reputation.columns.name = 'date'
+        return reputation
+
+    def get_status(self, dataset):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('network_metrics')
+        status = collection.aggregate_pandas_all([{'$project': {'_id': 0, 'author_id': 1, 'status': 1}}])
+        status = pd.DataFrame(list(status['status']), index=status['author_id'])
+        status.columns = pd.to_datetime(status.columns)
+        status.columns.name = 'date'
+        return status
 
     def compute_legitimacy(self, dataset):
         client = MongoClient(self.host, self.port)

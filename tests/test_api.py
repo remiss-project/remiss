@@ -1,7 +1,7 @@
 import json
 import unittest
-import uuid
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 from pymongo import MongoClient
@@ -15,7 +15,7 @@ from tests.conftest import delete_test_database
 class MyTestCase(unittest.TestCase):
     def setUp(self):
         self.test_dataset = 'new_dataset'
-        self.tmp_dataset = str(uuid.uuid4().hex)
+        self.tmp_dataset = 'tmp_dataset'
         self.num_samples = 100
 
     def test_store_raw(self):
@@ -58,17 +58,16 @@ class MyTestCase(unittest.TestCase):
         preprocessor.process()
         network_metrics = NetworkMetrics(host=preprocessor.host, port=preprocessor.port,
                                          reference_types=preprocessor.reference_types)
-        expected_legitimacy = network_metrics.get_legitimacy(self.tmp_dataset).sort_index()
-        expected_reputation = network_metrics.get_reputation(self.tmp_dataset).sort_index()
-        expected_status = network_metrics.get_status(self.tmp_dataset).sort_index()
+        expected_legitimacy = network_metrics.compute_legitimacy(self.tmp_dataset).sort_index()
+        expected_reputation = network_metrics.compute_reputation(self.tmp_dataset).sort_index()
+        expected_status = network_metrics.compute_status(self.tmp_dataset).sort_index()
 
         network_metrics = NetworkMetrics(host=preprocessor.host, port=preprocessor.port,
                                          reference_types=preprocessor.reference_types)
 
-        network_metrics.load_from_mongodb([self.tmp_dataset])
-        actual_legitimacy = network_metrics._legitimacy[self.tmp_dataset].sort_index()
-        actual_reputation = network_metrics._reputation[self.tmp_dataset].sort_index()
-        actual_status = network_metrics._status[self.tmp_dataset].sort_index()
+        actual_legitimacy = network_metrics.get_legitimacy(self.tmp_dataset).sort_index()
+        actual_reputation = network_metrics.get_reputation(self.tmp_dataset).sort_index()
+        actual_status = network_metrics.get_status(self.tmp_dataset).sort_index()
 
         pd.testing.assert_series_equal(expected_legitimacy, actual_legitimacy, check_dtype=False)
         pd.testing.assert_frame_equal(expected_reputation, actual_reputation, check_dtype=False, check_index_type=False,
@@ -87,12 +86,11 @@ class MyTestCase(unittest.TestCase):
         conversation_ids = diffusion_metrics.get_conversation_ids(self.tmp_dataset)
         expected = {}
         for conversation_id in conversation_ids['conversation_id']:
-            graph = diffusion_metrics.get_propagation_tree(self.tmp_dataset, conversation_id)
-            size_over_time = diffusion_metrics.get_size_over_time(self.tmp_dataset, conversation_id)
-            depth_over_time = diffusion_metrics.get_depth_over_time(self.tmp_dataset, conversation_id)
-            max_breadth_over_time = diffusion_metrics.get_max_breadth_over_time(self.tmp_dataset, conversation_id)
-            structural_virality_over_time = diffusion_metrics.get_structural_virality_over_time(self.tmp_dataset,
-                                                                                                conversation_id)
+            graph = diffusion_metrics.compute_propagation_tree(self.tmp_dataset, conversation_id)
+            size_over_time = diffusion_metrics.compute_size_over_time(graph)
+            depth_over_time = diffusion_metrics.compute_depth_over_time(graph)
+            max_breadth_over_time = diffusion_metrics.compute_max_breadth_over_time(graph)
+            structural_virality_over_time = diffusion_metrics.compute_structural_virality_over_time(graph)
             expected[conversation_id] = {'graph': graph, 'size_over_time': size_over_time,
                                          'depth_over_time': depth_over_time,
                                          'max_breadth_over_time': max_breadth_over_time,
@@ -100,16 +98,19 @@ class MyTestCase(unittest.TestCase):
         diffusion_metrics = DiffusionMetrics(host=preprocessor.host, port=preprocessor.port,
                                              reference_types=preprocessor.reference_types)
 
-        diffusion_metrics.load_from_mongodb([self.tmp_dataset])
         actual = {}
         for conversation_id in conversation_ids['conversation_id']:
-            actual[conversation_id] = {
-                'graph': diffusion_metrics._propagation_tree[(self.tmp_dataset, conversation_id)],
-                'size_over_time': diffusion_metrics._size_over_time[(self.tmp_dataset, conversation_id)],
-                'depth_over_time': diffusion_metrics._depth_over_time[(self.tmp_dataset, conversation_id)],
-                'max_breadth_over_time': diffusion_metrics._max_breadth_over_time[(self.tmp_dataset, conversation_id)],
-                'structural_virality_over_time': diffusion_metrics._structural_virality_over_time[
-                    (self.tmp_dataset, conversation_id)]}
+            graph = diffusion_metrics.get_propagation_tree(self.tmp_dataset, conversation_id)
+            size_over_time = diffusion_metrics.get_size_over_time(self.tmp_dataset, conversation_id)
+            depth_over_time = diffusion_metrics.get_depth_over_time(self.tmp_dataset, conversation_id)
+            max_breadth_over_time = diffusion_metrics.get_max_breadth_over_time(self.tmp_dataset, conversation_id)
+            structural_virality_over_time = diffusion_metrics.get_structural_virality_over_time(self.tmp_dataset,
+                                                                                                conversation_id)
+            actual[conversation_id] = {'graph': graph, 'size_over_time': size_over_time,
+                                       'depth_over_time': depth_over_time,
+                                       'max_breadth_over_time': max_breadth_over_time,
+                                       'structural_virality_over_time': structural_virality_over_time}
+
         for conversation_id in conversation_ids['conversation_id']:
             expected_graph = expected[conversation_id]['graph']
             expected_size_over_time = expected[conversation_id]['size_over_time']
@@ -145,25 +146,24 @@ class MyTestCase(unittest.TestCase):
         egonet = Egonet(host=preprocessor.host, port=preprocessor.port,
                         reference_types=preprocessor.reference_types)
 
-        egonet.load_from_mongodb([self.tmp_dataset])
-        expected_hidden_network = egonet._hidden_networks[self.tmp_dataset]
-        expected_backbone = egonet._hidden_network_backbones[self.tmp_dataset]
+        expected_hidden_network = egonet._compute_hidden_network(self.tmp_dataset)
+
+        expected_backbone = egonet._simplify_graph(expected_hidden_network)
 
         assert expected_hidden_network.isomorphic(actual_hidden_network)
         assert expected_backbone.isomorphic(actual_backbone)
 
     def test_api(self):
-        test_file = 'test_resources/Openarms.sample.jsonl'
+        test_file = Path('test_resources/Openarms.sample.jsonl')
         with open(test_file, 'r') as f:
             expected_data = [json.loads(line) for line in f]
-
 
         app = create_app()
         client = app.test_client()
         # make request
         with open(test_file, 'rb') as f:
-            response = client.post('/process_dataset',
-                                   data={'file': (f, self.tmp_dataset)},
+            response = client.post(f'/process_dataset?db_name={self.tmp_dataset}',
+                                   data={'file': (f, test_file.name)},
                                    content_type='multipart/form-data')
         assert response.status_code == 200
         assert response.json == {"message": f"Processed dataset {self.tmp_dataset}"}
