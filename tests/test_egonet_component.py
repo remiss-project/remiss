@@ -12,6 +12,7 @@ from dash.dcc import Graph, Dropdown, Slider
 
 from components.dashboard import RemissState
 from components.egonet import EgonetComponent
+from figures.propagation import PropagationPlotFactory
 
 
 class EgonetComponentTest(TestCase):
@@ -26,7 +27,7 @@ class EgonetComponentTest(TestCase):
         self.state = RemissState(name='state')
         self.component = EgonetComponent(self.plot_factory, self.state, name='egonet')
         self.test_dataset = 'test_dataset_2'
-        self.test_user_id = '1033714286231740416'
+        self.test_user_id = '377541658'
         self.test_tweet_id = '1167078759280889856'
 
     def test_layout(self):
@@ -161,6 +162,8 @@ class EgonetComponentTest(TestCase):
             'test_dataset', 'test_user_state', '2023-01-01', '2023-12-31', ['test_hashtags'])
 
     def test_render(self):
+        plot_factory = PropagationPlotFactory()
+        component = EgonetComponent(plot_factory, self.state, name='egonet')
         dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
         app = Dash(__name__,
                    external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME, dbc_css],
@@ -172,7 +175,7 @@ class EgonetComponentTest(TestCase):
                        }
                    ],
                    )
-        self.component.callbacks(app)
+        component.callbacks(app)
         self.state.callbacks(app)
         dataset_dropdown = dcc.Dropdown(id='dataset-dropdown',
                                         options=[{'label': 'test_dataset', 'value': self.test_dataset}],
@@ -191,9 +194,19 @@ class EgonetComponentTest(TestCase):
                      [Input('tweet-dropdown', 'value')])(update)
         app.layout = dbc.Container([
             self.state.layout(),
-            self.component.layout(),
-            dataset_dropdown,
-            user_dropdown
+            dbc.Row([
+                dbc.Col([
+                    component.layout()
+                ]),
+            ]),
+            dbc.Row([
+                dbc.Col([
+                    dataset_dropdown
+                ]),
+                dbc.Col([
+                    user_dropdown
+                ]),
+            ]),
         ])
 
         app.run_server(debug=True, port=8050)

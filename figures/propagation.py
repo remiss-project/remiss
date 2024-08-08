@@ -312,15 +312,14 @@ class PropagationPlotFactory(MongoPlotFactory):
                 yaxis=dict(axis),
                 zaxis=dict(axis),
             ),
-            # margin=dict(
-            #     t=0,
-            #     l=0,
-            #     r=0,
-            #     b=0
-            # ),
-            autosize=True,
+            margin=dict(
+                t=0,
+                l=0,
+                r=0,
+                b=0
+            ),
             hovermode='closest',
-
+            autosize=True,
         )
 
         data = [edge_trace, node_trace]
@@ -354,8 +353,8 @@ class PropagationPlotFactory(MongoPlotFactory):
             # Update layout to position the legends
             fig.update_layout(
                 legend=dict(
-                    x=1.05,
-                    y=0.995,
+                    x=1.1,
+                    y=0.925,
                     traceorder='normal',
                     xanchor='left',
                     yanchor='top',
@@ -377,8 +376,7 @@ class PropagationPlotFactory(MongoPlotFactory):
             center=dict(x=0, y=0, z=0),
             eye=dict(x=0.75, y=0.75, z=0.75),
         )
-        fig.update_layout(scene_camera=camera,
-                          autosize=True)
+        fig.update_layout(scene_camera=camera)
         logger.debug(f'Plot computed in {time.time() - start_time} seconds')
         return fig
 

@@ -20,7 +20,7 @@ class EgonetComponent(RemissComponent):
         self.graph_egonet = dcc.Graph(figure={}, id=f'fig-{self.name}',
                                       # config={'displayModeBar': False},
                                       responsive=True,
-                                      # style={'height': '100%', 'width': '100%'},
+                                      style={'height': '100%', 'width': '100%'},
                                       )
         self.depth_slider = dcc.Slider(min=1, max=5, step=1, value=2, id=f'slider-{self.name}')
 
@@ -31,9 +31,9 @@ class EgonetComponent(RemissComponent):
                 dcc.Loading(id=f'loading-{self.name}',
                             type='default',
                             children=self.graph_egonet,
-                            # style={'height': '100%'}
+                            style={'height': '100%'}
                             ),
-            ]),
+            ], style={'height': '100%'}),
             dbc.Collapse([
                 dbc.CardFooter([
                     dbc.Row([
