@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 
 
 def prepopulate_propagation(config_file='dev_config.yaml'):
-    logger.debug('Prepopulating propagation metrics and graphs...')
+    logger.debug(f'Prepopulating propagation metrics and graphs from {config_file}...')
     config = parse_config(config_file)
     diffusion_metrics = DiffusionMetrics(host=config['host'], port=config['port'],
                                          reference_types=config['reference_types'])
@@ -20,7 +20,9 @@ def prepopulate_propagation(config_file='dev_config.yaml'):
     egonet = Egonet(host=config['host'], port=config['port'], reference_types=config['reference_types'])
     histogram = Histogram(host=config['host'], port=config['port'])
     available_datasets = config['available_datasets']
+    logger.info(f"Prepopulating datasets: {available_datasets}")
 
+    logger.info('Generating diffusion metrics')
     try:
         diffusion_metrics.persist(available_datasets)
     except Exception as e:
