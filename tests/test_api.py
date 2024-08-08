@@ -153,13 +153,18 @@ class MyTestCase(unittest.TestCase):
         assert expected_backbone.isomorphic(actual_backbone)
 
     def test_api(self):
-        with open('test_resources/Openarms.preprocessed.jsonl', 'r') as f:
-            data = [json.loads(line) for line in f.readlines()[:self.num_samples]]
+        test_file = 'test_resources/Openarms.sample.jsonl'
+        with open(test_file, 'r') as f:
+            expected_data = [json.loads(line) for line in f]
+
 
         app = create_app()
         client = app.test_client()
         # make request
-        response = client.post('/process_dataset', json={'dataset_name': self.tmp_dataset, 'dataset_data': data})
+        with open(test_file, 'rb') as f:
+            response = client.post('/process_dataset',
+                                   data={'file': (f, self.tmp_dataset)},
+                                   content_type='multipart/form-data')
         assert response.status_code == 200
         assert response.json == {"message": f"Processed dataset {self.tmp_dataset}"}
         # Check that the data is actually in the db
@@ -168,8 +173,8 @@ class MyTestCase(unittest.TestCase):
         collection = database.get_collection('raw')
         actual_data = list(collection.find({}, {'_id': 0}))
         cast_datetimes_to_timestamps(actual_data)
-        cast_datetimes_to_timestamps(data)
-        assert data == actual_data
+        cast_datetimes_to_timestamps(expected_data)
+        assert expected_data == actual_data
 
     def tearDown(self):
         delete_test_database(self.tmp_dataset)

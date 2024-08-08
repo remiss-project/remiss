@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Union
 
@@ -13,14 +14,14 @@ def create_app() -> Flask:
 
     @app.route("/process_dataset", methods=['POST'])
     def process_dataset() -> Union[str, Response]:
-        data = request.get_json()
+        data = request.files['file']
 
         if not data:
             return jsonify({"error": "No JSON object was provided"})
 
         # Store data in mongodb raw
         try:
-            dataset_name = data.get("dataset_name")
+            dataset_name = data.filename
         except KeyError:
             logger.error("No dataset name was provided")
             return jsonify({"error": "No dataset name was provided"})
@@ -29,7 +30,8 @@ def create_app() -> Flask:
             return jsonify({"error": f"Error: {e}"})
 
         try:
-            dataset_data = data.get("dataset_data")
+            dataset_data = data.read().decode('utf-8')
+            dataset_data = [json.loads(line) for line in dataset_data.strip().split('\n')]
         except KeyError:
             logger.error("No dataset data was provided")
             return jsonify({"error": "No dataset data was provided"})
