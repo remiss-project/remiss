@@ -17,20 +17,18 @@ logger = logging.getLogger('time_series')
 
 class TimeSeriesFactory(MongoPlotFactory):
 
-    def plot_tweet_series(self, collection, hashtags, start_time, end_time, unit='day', bin_size=1):
+    def compute_tweet_histogram(self, dataset, hashtags, start_time, end_time, unit='day', bin_size=1):
         pipeline = [
             {'$group': {
                 "_id": {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}},
                 "count": {'$count': {}}}},
             {'$sort': {'_id': 1}}
         ]
-        logger.debug('Computing tweet series')
-        start_computing_time = time.time()
-        plot = self._get_count_area_plot(pipeline, collection, hashtags, start_time, end_time)
-        logger.debug(f'Tweet series computed in {time.time() - start_computing_time} seconds')
-        return plot
 
-    def plot_user_series(self, collection, hashtags, start_time, end_time, unit='day', bin_size=1):
+        df = self._get_count_data(dataset, pipeline, hashtags, start_time, end_time)
+        return df
+
+    def compute_user_histogram(self, dataset, hashtags, start_time, end_time, unit='day', bin_size=1):
         pipeline = [
             {'$group': {
                 "_id": {"$dateTrunc": {'date': "$created_at", 'unit': unit, 'binSize': bin_size}},
@@ -39,10 +37,32 @@ class TimeSeriesFactory(MongoPlotFactory):
             {'$project': {'count': {'$size': '$users'}}},
             {'$sort': {'_id': 1}}
         ]
-        logger.debug('Computing user series')
-        start_computing_time = time.time()
-        plot = self._get_count_area_plot(pipeline, collection, hashtags, start_time, end_time)
-        logger.debug(f'User series computed in {time.time() - start_computing_time} seconds')
+
+        df = self._get_count_data(dataset, pipeline, hashtags, start_time, end_time)
+        return df
+
+    def plot_tweet_series(self, dataset, hashtags, start_time, end_time, unit='day', bin_size=1):
+        if hashtags or start_time or end_time:
+            logger.debug('Computing tweet series')
+            start_computing_time = time.time()
+            df = self.compute_tweet_histogram(dataset, hashtags, start_time, end_time, unit, bin_size)
+            logger.debug(f'Tweet series computed in {time.time() - start_computing_time} seconds')
+        else:
+            df = self.load_histogram(dataset, 'tweet')
+
+        plot = self._get_count_plot(df)
+        return plot
+
+    def plot_user_series(self, dataset, hashtags, start_time, end_time, unit='day', bin_size=1):
+        if hashtags or start_time or end_time:
+            logger.debug('Computing user series')
+            start_computing_time = time.time()
+            df = self.compute_user_histogram(dataset, hashtags, start_time, end_time, unit, bin_size)
+            logger.debug(f'User series computed in {time.time() - start_computing_time} seconds')
+        else:
+            df = self.load_histogram(dataset, 'user')
+
+        plot = self._get_count_plot(df)
         return plot
 
     def _perform_count_aggregation(self, pipeline, collection):
@@ -54,7 +74,11 @@ class TimeSeriesFactory(MongoPlotFactory):
 
         return df
 
-    def _get_count_data(self, pipeline, hashtags, start_time, end_time, collection):
+    def _get_count_data(self, dataset, pipeline, hashtags, start_time, end_time):
+        client = MongoClient(self.host, self.port)
+        self._validate_dataset(client, dataset)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
         normal_pipeline = self._add_filters(pipeline, hashtags, start_time, end_time, user_type='normal')
         normal_df = self._perform_count_aggregation(normal_pipeline, collection)
 
@@ -70,17 +94,11 @@ class TimeSeriesFactory(MongoPlotFactory):
 
         df = pd.concat([normal_df, suspect_df, politician_df, suspect_politician_df], axis=1)
         df.columns = ['Normal', 'Usual suspect', 'Politician', 'Usual suspect politician']
+        df = df.fillna(0)
 
         return df
 
-    def _get_count_area_plot(self, pipeline, dataset, hashtags, start_time, end_time):
-        client = MongoClient(self.host, self.port)
-        self._validate_dataset(client, dataset)
-        database = client.get_database(dataset)
-        collection = database.get_collection('raw')
-
-        df = self._get_count_data(pipeline, hashtags, start_time, end_time, collection)
-
+    def _get_count_plot(self, df):
         if len(df) == 1:
             plot = px.bar(df, labels={"value": "Count"})
         else:
@@ -116,3 +134,32 @@ class TimeSeriesFactory(MongoPlotFactory):
             end_time = pd.to_datetime(end_time)
             pipeline.insert(0, {'$match': {'created_at': {'$lte': end_time}}})
         return pipeline
+
+    def persist(self, datasets):
+        for dataset in datasets:
+            tweet_df = self.compute_tweet_histogram(dataset, [], None, None)
+            user_df = self.compute_user_histogram(dataset, [], None, None)
+
+            self._persist_histogram(tweet_df, dataset, 'tweet')
+            self._persist_histogram(user_df, dataset, 'user')
+
+    def _persist_histogram(self, df, dataset, kind):
+        client = MongoClient(self.host, self.port)
+        self._validate_dataset(client, dataset)
+        database = client.get_database(dataset)
+        database.drop_collection(f'{kind}_time_series')
+        collection = database.get_collection(f'{kind}_time_series')
+
+        collection.insert_many(df.reset_index().to_dict('records'))
+
+    def load_histogram(self, dataset, kind):
+        client = MongoClient(self.host, self.port)
+        self._validate_dataset(client, dataset)
+        database = client.get_database(dataset)
+        collection = database.get_collection(f'{kind}_time_series')
+
+        schema = Schema({'Time': datetime, 'Normal': int, 'Usual suspect': int, 'Politician': int,
+                         'Usual suspect politician': int})
+        df = collection.aggregate_pandas_all([], schema=schema)
+        df = df.set_index('Time')
+        return df

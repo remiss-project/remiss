@@ -278,3 +278,14 @@ class TestTimeSeriesFactory(unittest.TestCase):
         expected = pd.concat([good_data] * 2 + [bad_data] * 2, axis=1)
         expected.columns = ['Normal', 'Usual suspect', 'Politician', 'Usual suspect politician']
         pd.testing.assert_frame_equal(actual, expected)
+
+    def test_persistence(self):
+        self.tweet_user_plot.persist(['test_dataset_2'])
+        actual_tweet = self.tweet_user_plot.load_histogram('test_dataset_2', 'tweet')
+        actual_user = self.tweet_user_plot.load_histogram('test_dataset_2', 'user')
+
+        expected_tweet = self.tweet_user_plot.compute_tweet_histogram('test_dataset_2', None, None, None)
+        expected_user = self.tweet_user_plot.compute_user_histogram('test_dataset_2', None, None, None)
+
+        pd.testing.assert_frame_equal(actual_tweet, expected_tweet, check_dtype=False)
+        pd.testing.assert_frame_equal(actual_user, expected_user, check_dtype=False)
