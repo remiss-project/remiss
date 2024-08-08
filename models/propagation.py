@@ -14,10 +14,10 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from xgboost import XGBClassifier
 import igraph as ig
-import pymongoarrow
 import plotly.graph_objects as go
+from pymongoarrow.monkey import patch_all
 
-pymongoarrow.monkey.patch_all()
+patch_all()
 
 sklearn.set_config(transform_output="pandas")
 

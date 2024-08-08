@@ -1,13 +1,13 @@
 from pathlib import Path
 
 import plotly.express as px
-import pymongoarrow
 from pymongo import MongoClient
+from pymongoarrow.monkey import patch_all
 from skimage import io
 
 from figures.figures import MongoPlotFactory
 
-pymongoarrow.monkey.patch_all()
+patch_all()
 
 
 class MultimodalPlotFactory(MongoPlotFactory):

@@ -1,12 +1,12 @@
-import pymongoarrow
 from matplotlib import pyplot as plt
 from pymongo import MongoClient
+from pymongoarrow.monkey import patch_all
 from tqdm import tqdm
 
 from figures.profiling import ProfilingPlotFactory
 from figures.utils_remiss import get_all_values_users, convert_dict_to_dataframe
 
-pymongoarrow.monkey.patch_all()
+patch_all()
 
 
 def test_init():

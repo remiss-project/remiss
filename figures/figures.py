@@ -8,8 +8,9 @@ import requests
 from pymongo import MongoClient
 from pymongo.errors import OperationFailure
 from pymongoarrow.schema import Schema
+from pymongoarrow.monkey import patch_all
 
-pymongoarrow.monkey.patch_all()
+patch_all()
 
 
 class MongoPlotFactory(ABC):

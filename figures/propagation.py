@@ -5,16 +5,16 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import pymongoarrow
 from igraph import Layout
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
+from pymongoarrow.monkey import patch_all
 from sklearn import set_config
 
 from figures.figures import MongoPlotFactory
 from propagation import Egonet, NetworkMetrics, DiffusionMetrics
 
-pymongoarrow.monkey.patch_all()
+patch_all()
 
 set_config(transform_output="pandas")
 

@@ -1,12 +1,11 @@
 import pandas as pd
-import pymongoarrow.monkey
-import pymongoarrow.monkey
+from pymongoarrow.monkey import patch_all
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
 
 from figures.figures import MongoPlotFactory
 
-pymongoarrow.monkey.patch_all()
+patch_all()
 
 
 class TweetTableFactory(MongoPlotFactory):

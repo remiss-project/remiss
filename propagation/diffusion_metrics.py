@@ -4,15 +4,15 @@ import logging
 import igraph as ig
 import numpy as np
 import pandas as pd
-import pymongoarrow
 from joblib import delayed, Parallel
 from pymongo import MongoClient
+from pymongoarrow.monkey import patch_all
 from pymongoarrow.schema import Schema
 from tqdm import tqdm
 
 from propagation.base import BasePropagationMetrics
 
-pymongoarrow.monkey.patch_all()
+patch_all()
 
 logger = logging.getLogger(__name__)
 

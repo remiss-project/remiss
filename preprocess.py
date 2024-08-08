@@ -7,12 +7,12 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
-import pymongoarrow.monkey
 from pymongo import MongoClient
 from tqdm import tqdm
 from twarc import ensure_flattened
+from pymongoarrow.monkey import patch_all
 
-pymongoarrow.monkey.patch_all()
+patch_all()
 
 logger = logging.getLogger(__name__)
 

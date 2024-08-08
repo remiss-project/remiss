@@ -4,13 +4,13 @@ from datetime import datetime
 
 import pandas as pd
 import plotly.express as px
-import pymongoarrow.monkey
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
+from pymongoarrow.monkey import patch_all
 
 from figures.figures import MongoPlotFactory
 
-pymongoarrow.monkey.patch_all()
+patch_all()
 
 logger = logging.getLogger('time_series')
 
