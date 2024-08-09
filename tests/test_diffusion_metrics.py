@@ -1,3 +1,4 @@
+import datetime
 import random
 import unittest
 import uuid
@@ -40,8 +41,22 @@ class DiffusionMetricsTestCase(unittest.TestCase):
                 pass
         plt.show()
 
-    def test_propagation_tree(self):
+    def test_get_propagation_tree(self):
         graph = self.diffusion_metrics.get_propagation_tree(self.test_dataset, self.test_tweet_id)
+        self.assertEqual(graph.vcount(), 12)
+        self.assertEqual(graph.ecount(), 11)
+        self.assertEqual(graph.is_directed(), True)
+        self.assertIsInstance(graph.vs['author_id'][0], str)
+        self.assertIsInstance(graph.vs['created_at'][0], datetime.datetime)
+
+        # Display the igraph graph with matplotlib
+        layout = graph.layout('fr')
+        fig, ax = plt.subplots()
+        ig.plot(graph, layout=layout, target=ax)
+        plt.show()
+
+    def test_compute_propagation_tree(self):
+        graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, self.test_tweet_id)
         self.assertEqual(graph.vcount(), 12)
         self.assertEqual(graph.ecount(), 11)
         self.assertEqual(graph.is_directed(), True)
@@ -97,7 +112,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
         } for i, j in edges]
         collection.insert_many(data)
-        graph = self.diffusion_metrics.get_propagation_tree(self.tmp_dataset, '0')
+        graph = self.diffusion_metrics.compute_propagation_tree(self.tmp_dataset, '0')
         fig, ax = plt.subplots()
         layout = graph.layout('fr')
         ig.plot(graph, layout=layout, target=ax)
@@ -149,7 +164,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
         references_created_at = pd.DataFrame(references_created_at, columns=['id', 'created_at'])
 
-        graph = self.diffusion_metrics.get_propagation_tree(dataset, '0')
+        graph = self.diffusion_metrics.compute_propagation_tree(dataset, '0')
         fig, ax = plt.subplots()
         layout = graph.layout('fr')
         ig.plot(graph, layout=layout, target=ax)
@@ -206,7 +221,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
         references_created_at = pd.DataFrame(references_created_at, columns=['id', 'created_at'])
 
-        graph = self.diffusion_metrics.get_propagation_tree(dataset, '1')
+        graph = self.diffusion_metrics.compute_propagation_tree(dataset, '1')
         fig, ax = plt.subplots()
         layout = graph.layout('kk')
         ig.plot(graph, layout=layout, target=ax)
@@ -312,15 +327,14 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
         # Test
         self.diffusion_metrics.persist([self.tmp_dataset])
-        self.diffusion_metrics.load_from_mongodb([self.tmp_dataset])
 
         for conversation_data in test_data:
             for tweet_data in conversation_data:
                 test_tweet_id = tweet_data['id']
 
-                expected_tree = self.diffusion_metrics.get_propagation_tree(self.tmp_dataset, test_tweet_id)
+                expected_tree = self.diffusion_metrics.compute_propagation_tree(self.tmp_dataset, test_tweet_id)
                 conversation_id = self.diffusion_metrics.get_conversation_id(self.tmp_dataset, test_tweet_id)
-                actual_tree = self.diffusion_metrics._propagation_tree[(self.tmp_dataset, conversation_id)]
+                actual_tree = self.diffusion_metrics.get_propagation_tree(self.tmp_dataset, test_tweet_id)
 
                 self.assertEqual(expected_tree.vcount(), actual_tree.vcount())
                 self.assertEqual(expected_tree.ecount(), actual_tree.ecount())
@@ -334,20 +348,20 @@ class DiffusionMetricsTestCase(unittest.TestCase):
                 actual_attributes = actual_attributes.set_index('tweet_id').sort_index()
                 self.assertTrue(expected_attributes.equals(actual_attributes))
 
-                expected_depth = self.diffusion_metrics.get_depth_over_time(self.tmp_dataset, test_tweet_id)
-                actual_depth = self.diffusion_metrics._depth_over_time[(self.tmp_dataset, conversation_id)]
+                expected_depth = self.diffusion_metrics.compute_depth_over_time(expected_tree)
+                actual_depth = self.diffusion_metrics.get_depth_over_time(self.tmp_dataset, conversation_id)
 
                 self.assertEqual(expected_depth.shape, actual_depth.shape)
                 self.assertTrue(expected_depth.equals(actual_depth))
 
                 expected_size = self.diffusion_metrics.get_size_over_time(self.tmp_dataset, test_tweet_id)
-                actual_size = self.diffusion_metrics._size_over_time[(self.tmp_dataset, conversation_id)]
+                actual_size = self.diffusion_metrics.compute_size_over_time(expected_tree)
 
                 self.assertEqual(expected_size.shape, actual_size.shape)
                 self.assertTrue(expected_size.equals(actual_size))
 
                 expected_max_breadth = self.diffusion_metrics.get_max_breadth_over_time(self.tmp_dataset, test_tweet_id)
-                actual_max_breadth = self.diffusion_metrics._max_breadth_over_time[(self.tmp_dataset, conversation_id)]
+                actual_max_breadth = self.diffusion_metrics.compute_max_breadth_over_time(expected_tree)
 
                 self.assertEqual(expected_max_breadth.shape, actual_max_breadth.shape)
                 self.assertTrue(expected_max_breadth.equals(actual_max_breadth))
@@ -355,50 +369,11 @@ class DiffusionMetricsTestCase(unittest.TestCase):
                 expected_structural_virality = self.diffusion_metrics.get_structural_virality_over_time(
                     self.tmp_dataset,
                     test_tweet_id)
-                actual_structural_virality = self.diffusion_metrics._structural_virality_over_time[
-                    (self.tmp_dataset, conversation_id)]
+                actual_structural_virality = self.diffusion_metrics.compute_structural_virality_over_time(expected_tree)
 
                 self.assertEqual(expected_structural_virality.shape, actual_structural_virality.shape)
                 pd.testing.assert_series_equal(expected_structural_virality, actual_structural_virality,
                                                check_dtype=False, atol=1e-6, rtol=1e-6)
-
-    @unittest.skip('Test is too slow')
-    def test_persistence_full(self):
-        # Test
-        self.diffusion_metrics.persist([self.test_dataset])
-        self.diffusion_metrics.load_from_mongodb([self.test_dataset])
-
-        expected_tree = self.diffusion_metrics.get_propagation_tree(self.test_dataset, self.test_tweet_id)
-        actual_tree = self.diffusion_metrics._propagation_tree[(self.test_dataset, self.test_tweet_id)]
-
-        self.assertEqual(expected_tree.vcount(), actual_tree.vcount())
-        self.assertEqual(expected_tree.ecount(), actual_tree.ecount())
-
-        expected_depth = self.diffusion_metrics.get_depth_over_time(self.test_dataset, self.test_tweet_id)
-        actual_depth = self.diffusion_metrics._depth_over_time[(self.test_dataset, self.test_tweet_id)]
-
-        self.assertEqual(expected_depth.shape, actual_depth.shape)
-        self.assertTrue(expected_depth.equals(actual_depth))
-
-        expected_size = self.diffusion_metrics.get_size_over_time(self.test_dataset, self.test_tweet_id)
-        actual_size = self.diffusion_metrics._size_over_time[(self.test_dataset, self.test_tweet_id)]
-
-        self.assertEqual(expected_size.shape, actual_size.shape)
-        self.assertTrue(expected_size.equals(actual_size))
-
-        expected_max_breadth = self.diffusion_metrics.get_max_breadth_over_time(self.test_dataset, self.test_tweet_id)
-        actual_max_breadth = self.diffusion_metrics._max_breadth_over_time[(self.test_dataset, self.test_tweet_id)]
-
-        self.assertEqual(expected_max_breadth.shape, actual_max_breadth.shape)
-        self.assertTrue(expected_max_breadth.equals(actual_max_breadth))
-
-        expected_structural_virality = self.diffusion_metrics.get_structural_virality_over_time(self.test_dataset,
-                                                                                                self.test_tweet_id)
-        actual_structural_virality = self.diffusion_metrics._structural_virality_over_time[
-            (self.test_dataset, self.test_tweet_id)]
-
-        self.assertEqual(expected_structural_virality.shape, actual_structural_virality.shape)
-        self.assertTrue(expected_structural_virality.equals(actual_structural_virality))
 
 
 if __name__ == '__main__':

@@ -3,7 +3,6 @@ from abc import ABC
 import pandas as pd
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
-from pymongoarrow.schema import Schema
 
 patch_all()
 
@@ -42,21 +41,6 @@ class MongoPlotFactory(ABC):
             return self._available_hashtags[dataset]
         else:
             return self._get_hashtag_freqs(dataset, author_id, start_date, end_date)
-
-    def get_users(self, dataset):
-        client = MongoClient(self.host, self.port)
-        self._validate_dataset(client, dataset)
-        database = client.get_database(dataset)
-        collection = database.get_collection('raw')
-        pipeline = [
-            {'$group': {'_id': '$author.id',
-                        'username': {'$first': '$author.username'}}},
-            {'$project': {'_id': 0, 'username': 1, 'author_id': '$_id', }}
-        ]
-        schema = Schema({'username': str, 'author_id': str})
-        available_users = collection.aggregate_pandas_all(pipeline, schema=schema)
-        client.close()
-        return available_users
 
     def get_user_id(self, dataset, username):
         client = MongoClient(self.host, self.port)

@@ -74,27 +74,8 @@ class TestMongoPlotFactory(unittest.TestCase):
         actual = self.mongo_plot.get_hashtag_freqs("test_dataset")
         self.assertEqual(expected, actual)
 
-    def test_get_hashtag_freqs_2(self):
+    def test_get_hashtag_freqs_3(self):
         self.assertRaises(RuntimeError, self.mongo_plot.get_hashtag_freqs, "test_not_exists")
-
-    def test_get_users(self):
-        # Mock MongoClient and database
-        mock_collection = Mock()
-        mock_collection.distinct.return_value = ['test_user1', 'test_user2']
-        mock_database = Mock()
-        mock_database.get_collection.return_value = mock_collection
-        mock_database.list_collection_names.return_value = ['raw']
-        mock_client = Mock()
-        mock_client.get_database.return_value = mock_database
-        mock_client.list_database_names.return_value = ['test_dataset']
-        with patch('figures.figures.MongoClient', return_value=mock_client):
-            users = self.mongo_plot.get_users("test_dataset")
-            self.assertEqual(users, [str(x) for x in mock_collection.distinct.return_value])
-
-    def test_get_users_2(self):
-        expected = ['TEST_USER_0', 'TEST_USER_1', 'TEST_USER_2']
-        actual = self.mongo_plot.get_users("test_dataset")
-        self.assertEqual(expected, actual)
 
     def test_get_user_id(self):
         # Mock MongoClient and database
@@ -129,7 +110,7 @@ class TestMongoPlotFactory(unittest.TestCase):
     def test__get_hashtag_freqs(self):
         expected = [('test_hashtag', 3), ('test_hashtag2', 2)]
         self.mongo_plot.max_hashtags = None
-        actual = self.mongo_plot._get_hashtag_freqs(self.collection)
+        actual = self.mongo_plot._get_hashtag_freqs("test_dataset")
         self.assertEqual(expected, actual)
 
 

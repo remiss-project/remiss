@@ -48,11 +48,12 @@ class TestEgonetCase(unittest.TestCase):
                 return authors
 
         mock_collection.aggregate_pandas_all = aggregate_pandas_all
+        mock_collection.find_one.return_value = {'created_at': datetime.now()}
         mock_database = Mock()
         mock_database.get_collection.return_value = mock_collection
         mock_mongo_client.return_value.get_database.return_value = mock_database
 
-        actual = self.egonet.get_hidden_network(self.test_dataset)
+        actual = self.egonet._compute_hidden_network(self.test_dataset)
 
         self.assertEqual({'1', '2', '3'}, set(actual.vs['author_id']))
         edges = {frozenset((actual.vs[s]['author_id'], actual.vs[t]['author_id'])) for s, t in actual.get_edgelist()}
@@ -84,7 +85,7 @@ class TestEgonetCase(unittest.TestCase):
         mock_database.get_collection.return_value = mock_collection
         mock_mongo_client.return_value.get_database.return_value = mock_database
 
-        actual = self.egonet.get_hidden_network(None)
+        actual = self.egonet._compute_hidden_network(None)
 
         self.assertEqual({'1', '2', '3', '4'}, set(actual.vs['author_id']))
         edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}
@@ -114,7 +115,7 @@ class TestEgonetCase(unittest.TestCase):
         mock_database.get_collection.return_value = mock_collection
         mock_mongo_client.return_value.get_database.return_value = mock_database
 
-        graph = self.egonet.get_hidden_network(None)
+        graph = self.egonet._compute_hidden_network(None)
 
         actual = graph.es['weight']
         expected = [1, 2, 3]
@@ -130,38 +131,24 @@ class TestEgonetCase(unittest.TestCase):
 
     @patch('propagation.egonet.MongoClient')
     def test_get_egonet(self, mock_mongo_client):
-        # Checks it returns the whole thing if the user is not present
+        graph = ig.Graph(directed=True)
+        graph.add_vertices(3)
+        graph.add_edges([(0, 1), (1, 2)])
+        graph.es['weight'] = [1, 2, 3]
+        graph.es['weight_inv'] = [1, 0.5, 0.33]
+        graph.es['weight_norm'] = [1, 0.5, 0.5]
+        graph.vs['author_id'] = ['1', '2', '3']
 
-        mock_collection = Mock()
+        self.egonet.get_hidden_network = Mock(return_value=graph)
 
-        def aggregate_pandas_all(pipeline, schema=None):
-            if 'source' in pipeline[-1]['$project']:
-                # its edges
-                edges = pd.DataFrame({'source': ['1', '2', '3'],
-                                      'target': ['2', '3', '4'],
-                                      'weight': [1, 2, 3],
-                                      'weight_inv': [1, 0.5, 0.33],
-                                      'weight_norm': [1, 0.5, 0.5]})
-                return edges
-            else:
-                # its authors
-                authors = pd.DataFrame({'author_id': ['1', '2', '3', '4']})
-                return authors
-
-        mock_collection.aggregate_pandas_all = aggregate_pandas_all
-        mock_database = Mock()
-        mock_database.get_collection.return_value = mock_collection
-        mock_mongo_client.return_value.get_database.return_value = mock_database
-
-        collection = 'test_collection'
         user_id = '1'
         depth = 1
 
-        actual = self.egonet.get_egonet(collection, user_id, depth)
+        actual = self.egonet.get_egonet(None, user_id, depth)
 
         self.assertEqual({'1', '2'}, set(actual.vs['author_id']))
-        edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}
-        self.assertEqual({('1', '2')}, edges)
+        self.assertEqual({('1', '2')},
+                         {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()})
 
     def test__get_references(self):
         expected_edges = pd.DataFrame({'source': ['1', '2', '3', '2', '1'],
@@ -251,9 +238,9 @@ class TestEgonetCase(unittest.TestCase):
         collection = database.get_collection('raw')
         collection.insert_many(test_data)
 
-        actual = self.egonet.get_hidden_network(self.tmp_dataset,
-                                                start_date=datetime.now() - timedelta(days=3),
-                                                end_date=datetime.now() - timedelta(days=1))
+        actual = self.egonet._compute_hidden_network(self.tmp_dataset,
+                                                     start_date=datetime.now() - timedelta(days=3),
+                                                     end_date=datetime.now() - timedelta(days=1))
 
         self.assertEqual({'1', '2', '3'}, set(actual.vs['author_id']))
         edges = {(actual.vs[s]['author_id'], actual.vs[t]['author_id']) for s, t in actual.get_edgelist()}
@@ -532,8 +519,9 @@ class TestEgonetCase(unittest.TestCase):
         mock_database = Mock()
         mock_database.get_collection.return_value = mock_collection
         mock_mongo_client.return_value.get_database.return_value = mock_database
+        self.egonet.get_hidden_network = Mock(return_value=self.egonet._compute_hidden_network(self.test_dataset))
 
-        actual = self.egonet.get_hidden_network_backbone(self.test_dataset)
+        actual = self.egonet._compute_hidden_network_backbone(self.test_dataset)
 
         self.assertEqual({'1', '2', '3'}, set(actual.vs['author_id']))
         edges = {frozenset((actual.vs[s]['author_id'], actual.vs[t]['author_id'])) for s, t in actual.get_edgelist()}
@@ -558,7 +546,6 @@ class TestEgonetCase(unittest.TestCase):
         self.egonet.persist([self.tmp_dataset])
 
         start_time = time.time()
-        self.egonet.load_from_mongodb([self.tmp_dataset])
         end_time = time.time()
         print(f'loaded in {end_time - start_time} seconds')
         start_time = time.time()
@@ -570,8 +557,8 @@ class TestEgonetCase(unittest.TestCase):
         end_time = time.time()
         print(f'computed in {end_time - start_time} seconds')
 
-        actual_hidden_network = self.egonet._hidden_networks[self.tmp_dataset]
-        actual_hidden_network_backbone = self.egonet._hidden_network_backbones[self.tmp_dataset]
+        actual_hidden_network = self.egonet.get_hidden_network(self.tmp_dataset)
+        actual_hidden_network_backbone = self.egonet.get_hidden_network_backbone(self.tmp_dataset)
 
         self.assertEqual(expected_hidden_network.vcount(), actual_hidden_network.vcount())
         self.assertEqual(expected_hidden_network.ecount(), actual_hidden_network.ecount())
@@ -667,7 +654,6 @@ class TestEgonetCase(unittest.TestCase):
         self.egonet.persist([self.test_dataset])
 
         start_time = time.time()
-        self.egonet.load_from_mongodb([self.test_dataset])
         end_time = time.time()
         print(f'loaded in {end_time - start_time} seconds')
         start_time = time.time()
@@ -679,8 +665,8 @@ class TestEgonetCase(unittest.TestCase):
         end_time = time.time()
         print(f'computed in {end_time - start_time} seconds')
 
-        actual_hidden_network = self.egonet._hidden_networks[self.test_dataset]
-        actual_hidden_network_backbone = self.egonet._hidden_network_backbones[self.test_dataset]
+        actual_hidden_network = self.egonet.get_hidden_network(self.test_dataset)
+        actual_hidden_network_backbone = self.egonet.get_hidden_network_backbone(self.test_dataset)
 
         self.assertEqual(expected_hidden_network.vcount(), actual_hidden_network.vcount())
         self.assertEqual(expected_hidden_network.ecount(), actual_hidden_network.ecount())

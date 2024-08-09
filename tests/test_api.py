@@ -20,7 +20,7 @@ class TestAPICase(unittest.TestCase):
         self.num_samples = 100
 
     def test_store_raw(self):
-        with open('test_resources/Openarms.preprocessed.jsonl', 'r') as f:
+        with open('test_resources/Openarms.sample.jsonl', 'r') as f:
             expected_data = [json.loads(line) for line in f.readlines()[:self.num_samples]]
         preprocessor = PropagationPreprocessor(dataset=self.tmp_dataset, data=expected_data)
         preprocessor.store_raw_data()
@@ -53,7 +53,7 @@ class TestAPICase(unittest.TestCase):
         assert expected_data == actual_data
 
     def test_preprocess_network_metrics(self):
-        with open('test_resources/Openarms.preprocessed.jsonl', 'r') as f:
+        with open('test_resources/Openarms.sample.jsonl', 'r') as f:
             data = [json.loads(line) for line in f.readlines()[:self.num_samples]]
         preprocessor = PropagationPreprocessor(dataset=self.tmp_dataset, data=data)
         preprocessor.process()
@@ -77,7 +77,7 @@ class TestAPICase(unittest.TestCase):
                                       check_column_type=False)
 
     def test_preprocess_diffusion_metrics(self):
-        with open('test_resources/Openarms.preprocessed.jsonl', 'r') as f:
+        with open('test_resources/Openarms.sample.jsonl', 'r') as f:
             data = [json.loads(line) for line in f.readlines()[:self.num_samples]]
         preprocessor = PropagationPreprocessor(dataset=self.tmp_dataset, data=data)
         preprocessor.process()
@@ -134,7 +134,7 @@ class TestAPICase(unittest.TestCase):
                                            check_dtype=False)
 
     def test_egonet(self):
-        with open('test_resources/Openarms.preprocessed.jsonl', 'r') as f:
+        with open('test_resources/Openarms.sample.jsonl', 'r') as f:
             data = [json.loads(line) for line in f.readlines()[:self.num_samples]]
         preprocessor = PropagationPreprocessor(dataset=self.tmp_dataset, data=data)
         preprocessor.process()
@@ -155,7 +155,7 @@ class TestAPICase(unittest.TestCase):
         assert expected_backbone.isomorphic(actual_backbone)
 
     def test_histograms(self):
-        with open('test_resources/Openarms.preprocessed.jsonl', 'r') as f:
+        with open('test_resources/Openarms.sample.jsonl', 'r') as f:
             data = [json.loads(line) for line in f.readlines()[:self.num_samples]]
         preprocessor = PropagationPreprocessor(dataset=self.tmp_dataset, data=data)
         preprocessor.process()

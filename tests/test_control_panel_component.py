@@ -6,6 +6,7 @@ from unittest.mock import Mock
 from dash._callback_context import context_value
 from dash._utils import AttributeDict
 from dash.dcc import Dropdown, Slider, Graph, DatePickerRange
+from dash.exceptions import PreventUpdate
 from dash_holoniq_wordcloud import DashWordcloud
 
 from components.dashboard import ControlPanelComponent, RemissState
@@ -59,7 +60,7 @@ class MyTestCase(unittest.TestCase):
     def test_wordcloud(self):
         def run_callback():
             context_value.set(AttributeDict(**{"triggered_id": "dataset-dropdown"}))
-            actual = self.component.update_wordcloud('dataset2')
+            actual = self.component.update_wordcloud('dataset2', 'user1', '12/1/2023', '12/31/2023')
             return actual
 
         ctx = copy_context()
@@ -71,22 +72,23 @@ class MyTestCase(unittest.TestCase):
     def test_hashtags(self):
         def run_callback():
             context_value.set(AttributeDict(**{"triggered_id": "wordcloud"}))
-            actual = self.component.update_hashtag_storage_wordcloud(click_data=['hashtag1', 10])
+            actual = self.component.update_hashtag_storage(click_data=['hashtag1', 58.205296844244])
             return actual
 
         ctx = copy_context()
         actual = ctx.run(run_callback)
-        self.assertEqual(['hashtag1'], actual)
+        self.assertEqual((['hashtag1'], None, None), actual)
 
     def test_hashtags2(self):
         def run_callback():
             context_value.set(AttributeDict(**{"triggered_id": "wordcloud"}))
-            actual = self.component.update_hashtag_storage_wordcloud(click_data=[])
+            actual = self.component.update_hashtag_storage(click_data=[])
             return actual
 
         ctx = copy_context()
-        actual = ctx.run(run_callback)
-        self.assertEqual(None, actual)
+        with self.assertRaises(PreventUpdate):
+            ctx.run(run_callback)
+
 
     def test_start_date(self):
         def run_callback():

@@ -41,11 +41,11 @@ class RemissState(RemissComponent):
     def callbacks(self, app):
         # When dataset changes clear the rest of the stores
         app.callback(
-            Output(self.current_hashtags, 'data'),
-            Output(self.current_start_date, 'data'),
-            Output(self.current_end_date, 'data'),
-            Output(self.current_user, 'data'),
-            Output(self.current_tweet, 'data'),
+            Output(self.current_hashtags, 'data', allow_duplicate=True),
+            Output(self.current_start_date, 'data', allow_duplicate=True),
+            Output(self.current_end_date, 'data', allow_duplicate=True),
+            Output(self.current_user, 'data', allow_duplicate=True),
+            Output(self.current_tweet, 'data', allow_duplicate=True),
             [Input(self.current_dataset, 'data')],
         )(self.clear_stores_on_dataset_change)
 

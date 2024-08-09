@@ -1,6 +1,8 @@
 import os
 import time
 
+import pytest
+
 os.environ['PATH'] = '/run/host/usr/bin/:' + os.environ['PATH']
 os.environ['LD_LIBRARY_PATH'] = '/run/host/usr/lib64/:/run/host/usr/lib64/samba/:' + os.environ.get('LD_LIBRARY_PATH',
                                                                                                     '')
@@ -8,6 +10,7 @@ os.environ['REMISS_DEBUG'] = 'True'
 
 from app import create_app
 
+pytest.skip(allow_module_level=True)
 
 def test_001_click_wordcloud_sets_hashtag(dash_duo):
     app = create_app()

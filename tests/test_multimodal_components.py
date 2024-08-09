@@ -13,6 +13,7 @@ from pymongo import MongoClient
 from components.dashboard import RemissState
 from components.multimodal import MultimodalComponent
 from figures.multimodal import MultimodalPlotFactory
+from tests.test_control_panel_component import find_components
 
 
 class TestMultimodalComponentComponent(TestCase):
@@ -71,21 +72,6 @@ class TestMultimodalComponentComponent(TestCase):
     def test_layout_ids(self):
         layout = self.component.layout()
 
-        # check that among the ids are correctly patched
-        # find components recursively
-        def find_components(component, found_components):
-            if hasattr(component, 'children'):
-                if component.children is not None:
-                    if len(component.children) == 0:
-                        find_components(component.children, found_components)
-                    else:
-                        for child in component.children:
-                            find_components(child, found_components)
-            if isinstance(component, Graph):
-                found_components.append(component)
-            if isinstance(component, html.P):
-                found_components.append(component)
-
         found_components = []
         find_components(layout, found_components)
         component_ids = [component.id for component in found_components]
@@ -117,6 +103,7 @@ class TestMultimodalComponentComponent(TestCase):
                                'multimodal-visual_evidence_text1'}
         self.assertEqual(set(component_ids), set(expected_components))
 
+    @unittest.skip("Render test")
     def test_render(self):
         dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
         app = Dash(__name__,
@@ -156,6 +143,7 @@ class TestMultimodalComponentComponent(TestCase):
 
         app.run_server(debug=True, port=8050)
 
+    @unittest.skip("Render test")
     def test_render_2(self):
         self.component.plot_factory._available_datasets = [self.test_dataset]
         self.component.plot_factory.data_dir = Path('../multimodal_data')
