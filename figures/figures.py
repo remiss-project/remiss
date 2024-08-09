@@ -1,14 +1,8 @@
-import json
-import re
 from abc import ABC
 
-import plotly
-import pymongoarrow.monkey
-import requests
 from pymongo import MongoClient
-from pymongo.errors import OperationFailure
-from pymongoarrow.schema import Schema
 from pymongoarrow.monkey import patch_all
+from pymongoarrow.schema import Schema
 
 patch_all()
 
@@ -40,31 +34,13 @@ class MongoPlotFactory(ABC):
             client.close()
         return self._min_max_dates[dataset]
 
-    def get_hashtag_freqs(self, dataset):
-        if dataset not in self._available_hashtags:
-            client = MongoClient(self.host, self.port)
-            self._validate_dataset(client, dataset)
-            database = client.get_database(dataset)
-            collection = database.get_collection('raw')
-            self._available_hashtags[dataset] = self._get_hashtag_freqs(collection)
-            client.close()
-        return self._available_hashtags[dataset]
-
-    def get_hashtags_for_user(self, dataset, user_id):
-        client = MongoClient(self.host, self.port)
-        self._validate_dataset(client, dataset)
-        database = client.get_database(dataset)
-        collection = database.get_collection('raw')
-        pipeline = [
-            {'$match': {'author.id': user_id}},
-            {'$unwind': '$entities.hashtags'},
-            {'$group': {'_id': '$entities.hashtags.tag', 'count': {'$count': {}}}},
-            {'$sort': {'count': -1}}
-        ]
-        available_hashtags_freqs = list(collection.aggregate(pipeline))
-        available_hashtags_freqs = [(x['_id'], x['count']) for x in available_hashtags_freqs]
-        client.close()
-        return available_hashtags_freqs
+    def get_hashtag_freqs(self, dataset, author_id=None, start_date=None, end_date=None):
+        if author_id is None and start_date is None and end_date is None:
+            if dataset not in self._available_hashtags:
+                self._available_hashtags[dataset] = self._get_hashtag_freqs(dataset)
+            return self._available_hashtags[dataset]
+        else:
+            return self._get_hashtag_freqs(dataset, author_id, start_date, end_date)
 
     def get_users(self, dataset):
         client = MongoClient(self.host, self.port)
@@ -111,12 +87,23 @@ class MongoPlotFactory(ABC):
         max_date_allowed = collection.find_one(sort=[('created_at', -1)])['created_at'].date()
         return min_date_allowed, max_date_allowed
 
-    def _get_hashtag_freqs(self, collection):
+    def _get_hashtag_freqs(self, dataset, author_id=None, start_date=None, end_date=None):
+        client = MongoClient(self.host, self.port)
+        self._validate_dataset(client, dataset)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
         pipeline = [
             {'$unwind': '$entities.hashtags'},
             {'$group': {'_id': '$entities.hashtags.tag', 'count': {'$count': {}}}},
             {'$sort': {'count': -1}}
         ]
+        if author_id:
+            pipeline.insert(1, {'$match': {'author.id': author_id}})
+        if start_date:
+            pipeline.insert(1, {'$match': {'created_at': {'$gte': start_date}}})
+        if end_date:
+            pipeline.insert(1, {'$match': {'created_at': {'$lte': end_date}}})
         available_hashtags_freqs = list(collection.aggregate(pipeline))
         available_hashtags_freqs = [(x['_id'], x['count']) for x in available_hashtags_freqs]
+        client.close()
         return available_hashtags_freqs

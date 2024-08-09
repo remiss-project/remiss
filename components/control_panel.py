@@ -62,13 +62,9 @@ class ControlPanelComponent(RemissComponent):
             start_date=min_date_allowed,
             end_date=max_date_allowed)
 
-    def update_wordcloud(self, dataset, author_id):
-        if author_id:
-            logger.debug(f'Updating wordcloud with dataset {dataset} and user {author_id}')
-            available_hashtags_freqs = self.plot_factory.get_hashtags_for_user(dataset, author_id)
-        else:
-            logger.debug(f'Updating wordcloud with dataset {dataset}')
-            available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(dataset)
+    def update_wordcloud(self, dataset, author_id, start_date, end_date):
+        logger.debug(f'Updating wordcloud with dataset {dataset}, {author_id}, {start_date}, {end_date}')
+        available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(dataset, author_id, start_date, end_date)
         if self.max_wordcloud_words < len(available_hashtags_freqs):
             logger.debug(
                 f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
@@ -161,7 +157,9 @@ class ControlPanelComponent(RemissComponent):
             Output(self.wordcloud, 'list'),
             Output(self.wordcloud, 'weightFactor'),
             [Input(self.state.current_dataset, 'data'),
-             Input(self.state.current_user, 'data')],
+             Input(self.state.current_user, 'data'),
+             Input(self.state.current_start_date, 'data'),
+             Input(self.state.current_end_date, 'data')],
         )(self.update_wordcloud)
 
         self.filter_display.callbacks(app)
