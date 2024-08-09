@@ -141,7 +141,7 @@ class ControlPanelComponent(RemissComponent):
         )(self.update_date_range)
 
         app.callback(
-            Output(self.state.current_hashtags, 'data'),
+            Output(self.state.current_hashtags, 'data', allow_duplicate=True),
             Output(self.state.current_tweet, 'data', allow_duplicate=True),
             Output(self.state.current_user, 'data', allow_duplicate=True),
             Input(self.wordcloud, 'click'),

@@ -13,7 +13,7 @@ from propagation.histogram import Histogram
 from tests.conftest import delete_test_database
 
 
-class MyTestCase(unittest.TestCase):
+class TestAPICase(unittest.TestCase):
     def setUp(self):
         self.test_dataset = 'new_dataset'
         self.tmp_dataset = 'tmp_dataset'

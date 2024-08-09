@@ -36,7 +36,7 @@ def create_app() -> Flask:
             return jsonify({"error": f"Error: {e}"})
 
         try:
-            propagation_preprocessor = PropagationPreprocessor(dataset=dbname, data=dataset_data, host="mongo")
+            propagation_preprocessor = PropagationPreprocessor(dataset=dbname, data=dataset_data)
             propagation_preprocessor.process()
             logger.info(f"Processed dataset {dbname}")
             return jsonify({"message": f"Processed dataset {dbname}"})

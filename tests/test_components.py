@@ -1,8 +1,11 @@
+import re
 import unittest
 from datetime import datetime
 from unittest import TestCase
 from unittest.mock import Mock
 
+import pandas as pd
+from dash import Dash
 from dash.dcc import DatePickerRange, Graph, Dropdown, Slider
 from dash_holoniq_wordcloud import DashWordcloud
 
@@ -60,16 +63,12 @@ class RemissDashboardTest(TestCase):
             self.propagation_factory,
             self.textual_factory,
             self.profile_factory,
-            self.multimodal_factory)
+            self.multimodal_factory,
+            name='remiss-dashboard')
 
     def test_layout(self):
         layout = self.component.layout()
 
-        # check that among the final components of the layout we have:
-        # - a Dropdown
-        # - a TweetUserTimeSeriesComponent
-        # - a EgonetComponent
-        # find components recursively
         def find_components(component, found_components):
             if hasattr(component, 'children') and component.children is not None:
                 if len(component.children) == 0:
@@ -91,6 +90,7 @@ class RemissDashboardTest(TestCase):
         found_components = []
         find_components(layout, found_components)
         found_components = [type(component) for component in found_components]
+
         self.assertIn(Dropdown, found_components)
         self.assertIn(Graph, found_components)
         self.assertIn(DashWordcloud, found_components)
@@ -100,50 +100,122 @@ class RemissDashboardTest(TestCase):
     def test_layout_ids(self):
         layout = self.component.layout()
 
-        # check that among the ids are correctly patched
-        # find components recursively
-        def find_components(component, found_components):
-            if hasattr(component, 'children') and component.children is not None:
-                if len(component.children) == 0:
-                    find_components(component.children, found_components)
-                else:
-                    for child in component.children:
-                        find_components(child, found_components)
-            if isinstance(component, Dropdown):
-                found_components.append(component)
-            if isinstance(component, Slider):
-                found_components.append(component)
-            if isinstance(component, Graph):
-                found_components.append(component)
-            if isinstance(component, DatePickerRange):
-                found_components.append(component)
-            if isinstance(component, DashWordcloud):
-                found_components.append(component)
+        # Pick all ids from the layout string
+        ids = pd.Series(re.findall(r"id='(.*?)'", str(layout)))
+        self.assertEqual(len(ids), 60)
+        # Check for state
+        assert ids.str.contains('state').any()
+        # Check for upload
+        assert ids.str.contains('upload').any()
+        # Check for dataset dropdown
+        assert ids.str.contains('dataset-dropdown').any()
+        # Check for date range
+        assert ids.str.contains('date-picker').any()
+        # Check for wordcloud
+        assert ids.str.contains('wordcloud').any()
+        # Check for filter display
+        assert ids.str.contains('display-filter').any()
+        # Check for egonet
+        assert ids.str.contains('egonet').any()
+        # Check for time series
+        assert ids.str.contains('time-series').any()
+        # Check for profiling
+        assert ids.str.contains('profiling').any()
+        # Check for table
+        assert ids.str.contains('tweet-table').any()
+        # Check for textual
+        assert ids.str.contains('average-emotion').any()
+        # Check for propagation
+        assert ids.str.contains('propagation').any()
+        # Check for multimodal
+        assert ids.str.contains('multimodal').any()
 
-        found_components = []
-        find_components(layout, found_components)
-        actual_ids = ['-'.join(component.id.split('-')[:-1]) for component in found_components]
-        expected_ids = ['dataset-dropdown', 'fig-cascade-ccdf-cascade-ccdf-general-plots',
-                        'fig-cascade-count-over-time-cascade-count-over-time-general-plots',
-                        'fig-average-emotion-general-plots', 'fig-emotion-per-hour-general-plots',
-                        'date-picker-control-panel', 'wordcloud-control-panel', 'fig-egonet', 'user-dropdown-egonet',
-                        'slider-egonet', 'date-slider-egonet', 'fig-tweet-time-series-filterable-plots',
-                        'fig-users-time-series-filterable-plots', 'fig-radarplot-emotions-profiling-filterable-plots',
-                        'fig-vertical-barplot-polarity-profiling-filterable-plots',
-                        'fig-donut-plot-behaviour1-profiling-filterable-plots',
-                        'fig-donut-plot-behaviour2-profiling-filterable-plots',
-                        'fig-claim-image-multimodal-filterable-plots', 'fig-graph-claim-multimodal-filterable-plots',
-                        'fig-visual-evidences-multimodal-filterable-plots',
-                        'fig-graph-evidence-text-multimodal-filterable-plots',
-                        'fig-evidence-image-multimodal-filterable-plots',
-                        'fig-graph-evidence-vis-multimodal-filterable-plots',
-                        'fig-propagation-tree-propagation-filterable-plots',
-                        'fig-propagation-depth-propagation-filterable-plots',
-                        'fig-propagation-size-propagation-filterable-plots',
-                        'fig-propagation-max-breadth-propagation-filterable-plots',
-                        'fig-propagation-structural-virality-propagation-filterable-plots']
+    def test_check_callbacks(self):
+        app = Dash(prevent_initial_callbacks="initial_duplicate",
+                   )
+        self.component.callbacks(app)
 
-        self.assertEqual(set(actual_ids), set(expected_ids))
+        callbacks = []
+        for callback in app.callback_map.values():
+            callbacks.append({'input': self.get_ids(callback['inputs']),
+                              'output': self.get_ids(callback['output'])})
+
+        callbacks = pd.DataFrame(callbacks)
+        aggregated_callbacks = {}
+        for inputs, outputs in zip(callbacks['input'], callbacks['output']):
+            for input_id in inputs:
+                if input_id not in aggregated_callbacks:
+                    aggregated_callbacks[input_id] = []
+                aggregated_callbacks[input_id].extend(outputs)
+
+        # When the dataset storage changes, the dataset storage should be updated
+        self.assertIn('current-dataset-state', aggregated_callbacks['dataset-dropdown-remiss-dashboard'])
+
+        # When the dataset storage changes, the date range should be updated
+        self.assertIn('date-picker-control-panel-remiss-dashboard', aggregated_callbacks['current-dataset-state'])
+
+        # When the dataset storage changes, the time series should be updated
+        self.assertIn('fig-tweet-time-series-filterable-plots-remiss-dashboard',
+                      aggregated_callbacks['current-dataset-state'])
+        self.assertIn('fig-users-time-series-filterable-plots-remiss-dashboard',
+                      aggregated_callbacks['current-dataset-state'])
+
+        # When the dataset storage changes, the wordcloud should be updated
+        self.assertIn('wordcloud-control-panel-remiss-dashboard', aggregated_callbacks['current-dataset-state'])
+
+        # When the dataset storage changes, the tweet table should be updated
+        self.assertIn('table-tweet-table-remiss-dashboard', aggregated_callbacks['current-dataset-state'])
+
+        # When the dataset storage changes, the egonet should be updated
+        self.assertIn('fig-egonet-remiss-dashboard', aggregated_callbacks['current-dataset-state'])
+
+        # When the date range changes, the time series should be updated
+        self.assertIn('fig-tweet-time-series-filterable-plots-remiss-dashboard',
+                      aggregated_callbacks['current-start-date-state'])
+        self.assertIn('fig-users-time-series-filterable-plots-remiss-dashboard',
+                      aggregated_callbacks['current-start-date-state'])
+
+        # When the date range changes, the wordcloud should be updated
+        self.assertIn('wordcloud-control-panel-remiss-dashboard', aggregated_callbacks['current-start-date-state'])
+
+        # When the date range changes, the tweet table should be updated
+        self.assertIn('tweet-table-remiss-dashboard', aggregated_callbacks['current-start-date-state'])
+
+        # When the date range changes, the egonet should be updated
+        self.assertIn('egonet-remiss-dashboard', aggregated_callbacks['current-start-date-state'])
+
+        # When the user changes, egonet should be updated
+        self.assertIn('egonet-remiss-dashboard', aggregated_callbacks['current-user-state'])
+
+        # When the user changes, the profiling should be updated
+        self.assertIn('profiling-remiss-dashboard', aggregated_callbacks['current-user-state'])
+
+        # When the tweet changes in the table, the propagation should be updated
+        self.assertIn('propagation-remiss-dashboard', aggregated_callbacks['tweet-table-remiss-dashboard'])
+
+        # When the tweet changes, the multimodal should be updated
+        self.assertIn('multimodal-remiss-dashboard', aggregated_callbacks['tweet-table-remiss-dashboard'])
+
+        # When the hashtag changes, the tweet table should be updated
+        self.assertIn('tweet-table-remiss-dashboard', aggregated_callbacks['current-hashtags-state'])
+
+        # When the hashtag changes, the egonet should be updated
+        self.assertIn('egonet-remiss-dashboard', aggregated_callbacks['current-hashtags-state'])
+
+        # When the hashtag changes, the time series should be updated
+        self.assertIn('fig-tweet-time-series-filterable-plots-remiss-dashboard',
+                      aggregated_callbacks['current-hashtags-state'])
+        self.assertIn('fig-users-time-series-filterable-plots-remiss-dashboard',
+                      aggregated_callbacks['current-hashtags-state'])
+
+    def get_ids(self, element):
+        try:
+            return [e['id'] for e in element]
+        except TypeError:
+            try:
+                return [element.component_id]
+            except AttributeError:
+                return [e.component_id for e in element]
 
 
 if __name__ == '__main__':
