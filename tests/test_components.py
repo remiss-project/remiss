@@ -66,6 +66,23 @@ class RemissDashboardTest(TestCase):
             self.multimodal_factory,
             name='remiss-dashboard')
 
+        app = Dash(prevent_initial_callbacks="initial_duplicate",
+                   )
+        self.component.callbacks(app)
+
+        callbacks = []
+        for callback in app.callback_map.values():
+            callbacks.append({'input': self.get_ids(callback['inputs']),
+                              'output': self.get_ids(callback['output'])})
+
+        callbacks = pd.DataFrame(callbacks)
+        self.callbacks = {}
+        for inputs, outputs in zip(callbacks['input'], callbacks['output']):
+            for input_id in inputs:
+                if input_id not in self.callbacks:
+                    self.callbacks[input_id] = []
+                self.callbacks[input_id].extend(outputs)
+
     def test_layout(self):
         layout = self.component.layout()
 
@@ -130,86 +147,105 @@ class RemissDashboardTest(TestCase):
         # Check for multimodal
         assert ids.str.contains('multimodal').any()
 
-    def test_check_callbacks(self):
-        app = Dash(prevent_initial_callbacks="initial_duplicate",
-                   )
-        self.component.callbacks(app)
+    def test_check_dataset_callbacks(self):
+        # Outputs
+        # When the dataset dropdown changes, the dataset storage should be updated
+        self.assertIn('current-dataset-state', self.callbacks['dataset-dropdown-remiss-dashboard'])
 
-        callbacks = []
-        for callback in app.callback_map.values():
-            callbacks.append({'input': self.get_ids(callback['inputs']),
-                              'output': self.get_ids(callback['output'])})
-
-        callbacks = pd.DataFrame(callbacks)
-        aggregated_callbacks = {}
-        for inputs, outputs in zip(callbacks['input'], callbacks['output']):
-            for input_id in inputs:
-                if input_id not in aggregated_callbacks:
-                    aggregated_callbacks[input_id] = []
-                aggregated_callbacks[input_id].extend(outputs)
-
-        # When the dataset storage changes, the dataset storage should be updated
-        self.assertIn('current-dataset-state', aggregated_callbacks['dataset-dropdown-remiss-dashboard'])
-
+        # Inputs
+        # Control panel
         # When the dataset storage changes, the date range should be updated
-        self.assertIn('date-picker-control-panel-remiss-dashboard', aggregated_callbacks['current-dataset-state'])
+        self.assertIn('date-picker-control-panel-remiss-dashboard', self.callbacks['current-dataset-state'])
+        # When the dataset storage changes, the wordcloud should be updated
+        self.assertIn('wordcloud-control-panel-remiss-dashboard', self.callbacks['current-dataset-state'])
 
+        # Time series
         # When the dataset storage changes, the time series should be updated
         self.assertIn('fig-tweet-time-series-filterable-plots-remiss-dashboard',
-                      aggregated_callbacks['current-dataset-state'])
+                      self.callbacks['current-dataset-state'])
         self.assertIn('fig-users-time-series-filterable-plots-remiss-dashboard',
-                      aggregated_callbacks['current-dataset-state'])
+                      self.callbacks['current-dataset-state'])
 
-        # When the dataset storage changes, the wordcloud should be updated
-        self.assertIn('wordcloud-control-panel-remiss-dashboard', aggregated_callbacks['current-dataset-state'])
-
+        # Tweet table
         # When the dataset storage changes, the tweet table should be updated
-        self.assertIn('table-tweet-table-remiss-dashboard', aggregated_callbacks['current-dataset-state'])
+        self.assertIn('table-tweet-table-remiss-dashboard', self.callbacks['current-dataset-state'])
 
+        # Egonet
         # When the dataset storage changes, the egonet should be updated
-        self.assertIn('fig-egonet-remiss-dashboard', aggregated_callbacks['current-dataset-state'])
+        self.assertIn('fig-egonet-remiss-dashboard', self.callbacks['current-dataset-state'])
 
+        # Other storage
+        # When the dataset storage changes, the user should be cleared
+        self.assertIn('current-user-state', self.callbacks['current-dataset-state'])
+        # When the dataset storage changes, the hashtag should be cleared
+        self.assertIn('current-hashtags-state', self.callbacks['current-dataset-state'])
+        # When the dataset storage changes, the tweet should be cleared
+        self.assertIn('current-tweet-state', self.callbacks['current-dataset-state'])
+
+    def test_date_range_callbacks(self):
+        # Outputs
+        # When the date picker changes, the date storage should be updated
+        self.assertIn('current-start-date-state', self.callbacks['date-picker-control-panel-remiss-dashboard'])
+        self.assertIn('current-end-date-state', self.callbacks['date-picker-control-panel-remiss-dashboard'])
+
+        # Inputs
+        # Control panel
+        # When the date range changes, the wordcloud should be updated
+        self.assertIn('wordcloud-control-panel-remiss-dashboard', self.callbacks['current-start-date-state'])
+        self.assertIn('wordcloud-control-panel-remiss-dashboard', self.callbacks['current-end-date-state'])
+
+        # Time series
         # When the date range changes, the time series should be updated
         self.assertIn('fig-tweet-time-series-filterable-plots-remiss-dashboard',
-                      aggregated_callbacks['current-start-date-state'])
+                      self.callbacks['current-start-date-state'])
         self.assertIn('fig-users-time-series-filterable-plots-remiss-dashboard',
-                      aggregated_callbacks['current-start-date-state'])
+                      self.callbacks['current-start-date-state'])
+        self.assertIn('fig-tweet-time-series-filterable-plots-remiss-dashboard',
+                      self.callbacks['current-end-date-state'])
+        self.assertIn('fig-users-time-series-filterable-plots-remiss-dashboard',
+                      self.callbacks['current-end-date-state'])
 
-        # When the date range changes, the wordcloud should be updated
-        self.assertIn('wordcloud-control-panel-remiss-dashboard', aggregated_callbacks['current-start-date-state'])
-
+        # Tweet table
         # When the date range changes, the tweet table should be updated
-        self.assertIn('table-tweet-table-remiss-dashboard', aggregated_callbacks['current-start-date-state'])
+        self.assertIn('table-tweet-table-remiss-dashboard', self.callbacks['current-start-date-state'])
+        self.assertIn('table-tweet-table-remiss-dashboard', self.callbacks['current-end-date-state'])
 
+        # Egonet
         # When the date range changes, the egonet should be updated
-        self.assertIn('fig-egonet-remiss-dashboard', aggregated_callbacks['current-start-date-state'])
+        self.assertIn('fig-egonet-remiss-dashboard', self.callbacks['current-start-date-state'])
+        self.assertIn('fig-egonet-remiss-dashboard', self.callbacks['current-end-date-state'])
+
+    def test_user_callbacks(self):
+        # Output
+        # When tweet table user is selected the user storage should be updated
+        self.assertIn('current-user-state', self.callbacks['tweet-table-remiss-dashboard'])
 
         # When the user changes, egonet should be updated
-        self.assertIn('fig-egonet-remiss-dashboard', aggregated_callbacks['current-user-state'])
+        self.assertIn('fig-egonet-remiss-dashboard', self.callbacks['current-user-state'])
 
         # When the user changes, the profiling should be updated
         self.assertIn('fig-donut-plot-behaviour1-profiling-filterable-plots-remiss-dashboard',
-                      aggregated_callbacks['current-user-state'])
+                      self.callbacks['current-user-state'])
 
         # When the tweet storage changes, the propagation should be updated
         self.assertIn('fig-propagation-tree-propagation-filterable-plots-remiss-dashboard',
-                      aggregated_callbacks['current-tweet-state'])
+                      self.callbacks['current-tweet-state'])
 
         # When the tweet storage, the multimodal should be updated
         self.assertIn('multimodal-filterable-plots-remiss-dashboard-claim_text',
-                      aggregated_callbacks['current-tweet-state'])
+                      self.callbacks['current-tweet-state'])
 
         # When the hashtag changes, the tweet table should be updated
-        self.assertIn('table-tweet-table-remiss-dashboard', aggregated_callbacks['current-hashtags-state'])
+        self.assertIn('table-tweet-table-remiss-dashboard', self.callbacks['current-hashtags-state'])
 
         # When the hashtag changes, the egonet should be updated
-        self.assertIn('egonet-remiss-dashboard', aggregated_callbacks['current-hashtags-state'])
+        self.assertIn('fig-egonet-remiss-dashboard', self.callbacks['current-hashtags-state'])
 
         # When the hashtag changes, the time series should be updated
         self.assertIn('fig-tweet-time-series-filterable-plots-remiss-dashboard',
-                      aggregated_callbacks['current-hashtags-state'])
+                      self.callbacks['current-hashtags-state'])
         self.assertIn('fig-users-time-series-filterable-plots-remiss-dashboard',
-                      aggregated_callbacks['current-hashtags-state'])
+                      self.callbacks['current-hashtags-state'])
 
     def get_ids(self, element):
         try:
