@@ -179,25 +179,28 @@ class RemissDashboardTest(TestCase):
         self.assertIn('wordcloud-control-panel-remiss-dashboard', aggregated_callbacks['current-start-date-state'])
 
         # When the date range changes, the tweet table should be updated
-        self.assertIn('tweet-table-remiss-dashboard', aggregated_callbacks['current-start-date-state'])
+        self.assertIn('table-tweet-table-remiss-dashboard', aggregated_callbacks['current-start-date-state'])
 
         # When the date range changes, the egonet should be updated
-        self.assertIn('egonet-remiss-dashboard', aggregated_callbacks['current-start-date-state'])
+        self.assertIn('fig-egonet-remiss-dashboard', aggregated_callbacks['current-start-date-state'])
 
         # When the user changes, egonet should be updated
-        self.assertIn('egonet-remiss-dashboard', aggregated_callbacks['current-user-state'])
+        self.assertIn('fig-egonet-remiss-dashboard', aggregated_callbacks['current-user-state'])
 
         # When the user changes, the profiling should be updated
-        self.assertIn('profiling-remiss-dashboard', aggregated_callbacks['current-user-state'])
+        self.assertIn('fig-donut-plot-behaviour1-profiling-filterable-plots-remiss-dashboard',
+                      aggregated_callbacks['current-user-state'])
 
-        # When the tweet changes in the table, the propagation should be updated
-        self.assertIn('propagation-remiss-dashboard', aggregated_callbacks['tweet-table-remiss-dashboard'])
+        # When the tweet storage changes, the propagation should be updated
+        self.assertIn('fig-propagation-tree-propagation-filterable-plots-remiss-dashboard',
+                      aggregated_callbacks['current-tweet-state'])
 
-        # When the tweet changes, the multimodal should be updated
-        self.assertIn('multimodal-remiss-dashboard', aggregated_callbacks['tweet-table-remiss-dashboard'])
+        # When the tweet storage, the multimodal should be updated
+        self.assertIn('multimodal-filterable-plots-remiss-dashboard-claim_text',
+                      aggregated_callbacks['current-tweet-state'])
 
         # When the hashtag changes, the tweet table should be updated
-        self.assertIn('tweet-table-remiss-dashboard', aggregated_callbacks['current-hashtags-state'])
+        self.assertIn('table-tweet-table-remiss-dashboard', aggregated_callbacks['current-hashtags-state'])
 
         # When the hashtag changes, the egonet should be updated
         self.assertIn('egonet-remiss-dashboard', aggregated_callbacks['current-hashtags-state'])
