@@ -298,6 +298,7 @@ class RemissDashboard(RemissComponent):
             [Input(f'dataset-dropdown-{self.name}', 'value')],
         )(self.update_dataset_storage)
 
+        self.state.callbacks(app)
         self.general_plots_component.callbacks(app)
         self.control_panel_component.callbacks(app)
         self.egonet_component.callbacks(app)
