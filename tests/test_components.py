@@ -147,7 +147,7 @@ class RemissDashboardTest(TestCase):
         # Check for multimodal
         assert ids.str.contains('multimodal').any()
 
-    def test_check_dataset_callbacks(self):
+    def test_dataset_callbacks(self):
         # Outputs
         # When the dataset dropdown changes, the dataset storage should be updated
         self.assertIn('current-dataset-state', self.callbacks['dataset-dropdown-remiss-dashboard'])
@@ -218,8 +218,11 @@ class RemissDashboardTest(TestCase):
     def test_user_callbacks(self):
         # Output
         # When tweet table user is selected the user storage should be updated
-        self.assertIn('current-user-state', self.callbacks['tweet-table-remiss-dashboard'])
+        self.assertIn('current-user-state', self.callbacks['table-tweet-table-remiss-dashboard'])
+        # With a egonet node is clicked the user storage should be updated
+        self.assertIn('current-user-state', self.callbacks['fig-egonet-remiss-dashboard'])
 
+        # Inputs
         # When the user changes, egonet should be updated
         self.assertIn('fig-egonet-remiss-dashboard', self.callbacks['current-user-state'])
 
@@ -227,6 +230,12 @@ class RemissDashboardTest(TestCase):
         self.assertIn('fig-donut-plot-behaviour1-profiling-filterable-plots-remiss-dashboard',
                       self.callbacks['current-user-state'])
 
+    def test_tweet_callbacks(self):
+        # Output
+        # When tweet table tweet is selected the tweet storage should be updated
+        self.assertIn('current-tweet-state', self.callbacks['table-tweet-table-remiss-dashboard'])
+
+        # Input
         # When the tweet storage changes, the propagation should be updated
         self.assertIn('fig-propagation-tree-propagation-filterable-plots-remiss-dashboard',
                       self.callbacks['current-tweet-state'])
@@ -234,6 +243,13 @@ class RemissDashboardTest(TestCase):
         # When the tweet storage, the multimodal should be updated
         self.assertIn('multimodal-filterable-plots-remiss-dashboard-claim_text',
                       self.callbacks['current-tweet-state'])
+
+    def test_hastags_callbacks(self):
+        # Outputs
+        # When the wordcloud is clicked, the hashtag storage should be updated
+        self.assertIn('current-hashtags-state', self.callbacks['wordcloud-control-panel-remiss-dashboard'])
+        # When the tweet table text is selected the hashtag storage should be updated
+        self.assertIn('current-hashtags-state', self.callbacks['table-tweet-table-remiss-dashboard'])
 
         # When the hashtag changes, the tweet table should be updated
         self.assertIn('table-tweet-table-remiss-dashboard', self.callbacks['current-hashtags-state'])
