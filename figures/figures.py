@@ -1,5 +1,6 @@
 from abc import ABC
 
+import pandas as pd
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
 from pymongoarrow.schema import Schema
@@ -100,9 +101,9 @@ class MongoPlotFactory(ABC):
         if author_id:
             pipeline.insert(1, {'$match': {'author.id': author_id}})
         if start_date:
-            pipeline.insert(1, {'$match': {'created_at': {'$gte': start_date}}})
+            pipeline.insert(1, {'$match': {'created_at': {'$gte': pd.Timestamp(start_date)}}})
         if end_date:
-            pipeline.insert(1, {'$match': {'created_at': {'$lte': end_date}}})
+            pipeline.insert(1, {'$match': {'created_at': {'$lte': pd.Timestamp(end_date)}}})
         available_hashtags_freqs = list(collection.aggregate(pipeline))
         available_hashtags_freqs = [(x['_id'], x['count']) for x in available_hashtags_freqs]
         client.close()

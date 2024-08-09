@@ -1,8 +1,8 @@
 import logging
 
 import dash_bootstrap_components as dbc
-import pandas as pd
-from dash import dcc, html, Input, Output, ctx
+from dash import dcc, Input, Output, State
+from dash.exceptions import PreventUpdate
 
 from components.components import RemissComponent
 
@@ -47,7 +47,7 @@ class EgonetComponent(RemissComponent):
 
     def update(self, dataset, user, start_date, end_date, hashtags, depth):
         logger.debug(f'Updating egonet with dataset {dataset}, user {user}, '
-                    f'start date {start_date}, end date {end_date}, hashtag {hashtags}, depth {depth}')
+                     f'start date {start_date}, end date {end_date}, hashtag {hashtags}, depth {depth}')
         # Show egonet for the selected user
         try:
             fig = self.plot_factory.plot_egonet(dataset, user, depth, start_date, end_date, hashtags)
@@ -66,6 +66,22 @@ class EgonetComponent(RemissComponent):
         # fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
         return fig, title, show_depth_slider, not show_depth_slider
 
+    def update_user_storage(self, click_data, dataset):
+        if click_data is not None:
+            try:
+                text = click_data['points'][0]['text']
+                user = text.split('<br>')[0].split(':')[1].strip()
+                author_id = self.plot_factory.get_user_id(dataset, user)
+                logger.debug(f'Updating user state with {user} with author id {author_id}')
+                return author_id
+            except KeyError:
+                logger.debug(f'Error updating user without metadata from click: {click_data}')
+                raise PreventUpdate()
+            except Exception as e:
+                logger.error(f'Error updating user storage from click: {e}')
+                raise PreventUpdate()
+        raise PreventUpdate()
+
     def callbacks(self, app):
         app.callback(
             Output(f'fig-{self.name}', 'figure'),
@@ -80,3 +96,9 @@ class EgonetComponent(RemissComponent):
              Input(self.depth_slider, 'value'),
              ]
         )(self.update)
+
+        app.callback(
+            Output(self.state.current_user, 'data', allow_duplicate=True),
+            [Input(self.graph_egonet, 'clickData'),
+             State(self.state.current_dataset, 'data')],
+        )(self.update_user_storage)
