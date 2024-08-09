@@ -3,6 +3,7 @@ import time
 import unittest
 
 import igraph as ig
+import numpy as np
 import pandas as pd
 from pymongo import MongoClient
 
@@ -90,7 +91,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
         data = [trace1, trace2]
         fig = go.Figure(data=data, layout=layout)
 
-        fig.show()
+        # fig.show()
 
     def test_get_edge_positions(self):
         graph = ig.Graph()
@@ -130,7 +131,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
         graph.add_vertices(10)
         graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
         fig = self.propagation_factory.plot_graph(graph)
-        fig.show()
+        # fig.show()
 
     def test_plot_graph_text(self):
         graph = ig.Graph()
@@ -138,7 +139,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
         graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
         text = [str(i) for i in range(10)]
         fig = self.propagation_factory.plot_graph(graph, text=text)
-        fig.show()
+        # fig.show()
 
     def test_plot_graph_color(self):
         graph = ig.Graph()
@@ -146,15 +147,15 @@ class PropagationFactoryTestCase(unittest.TestCase):
         graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
         color = [random.randint(0, 100) for _ in range(10)]
         fig = self.propagation_factory.plot_graph(graph, color=color)
-        fig.show()
+        # fig.show()
 
     def test_plot_graph_size(self):
         graph = ig.Graph()
         graph.add_vertices(10)
         graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
-        size = [random.randint(0, 100) for _ in range(10)]
+        size = np.array([random.randint(0, 100) for _ in range(10)])
         fig = self.propagation_factory.plot_graph(graph, size=size)
-        fig.show()
+        # fig.show()
 
     def test_plot_graph_symbol(self):
         graph = ig.Graph()
@@ -162,7 +163,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
         graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
         symbol = [random.choice(['circle', 'square', 'diamond', 'cross', 'x']) for _ in range(10)]
         fig = self.propagation_factory.plot_graph(graph, symbol=symbol)
-        fig.show()
+        # fig.show()
 
     def test_get_metadata(self):
         metadata = self.propagation_factory.get_user_metadata(self.test_dataset)
@@ -181,19 +182,19 @@ class PropagationFactoryTestCase(unittest.TestCase):
         hidden_network = self.propagation_factory.egonet.get_hidden_network(self.test_dataset)
         layout = self.propagation_factory.get_hidden_network_layout(hidden_network, self.test_dataset)
         fig = self.propagation_factory.plot_user_graph(hidden_network, self.test_dataset, layout=layout)
-        fig.show()
+        # fig.show()
 
     def test_plot_hidden_network_2(self):
         fig = self.propagation_factory.plot_hidden_network(self.test_dataset)
-        fig.show()
+        # fig.show()
 
     def test_plot_hidden_network_highlight_user(self):
         fig = self.propagation_factory.plot_hidden_network(self.test_dataset, author_id=self.test_user_id)
-        fig.show()
+        # fig.show()
 
     def test_plot_egonet(self):
         fig = self.propagation_factory.plot_egonet(self.test_dataset, self.test_user_id, 2)
-        fig.show()
+        # fig.show()
 
     def test_plot_egonet_missing(self):
         with self.assertRaises(ValueError):
@@ -213,31 +214,31 @@ class PropagationFactoryTestCase(unittest.TestCase):
 
     def test_plot_size_over_time(self):
         fig = self.propagation_factory.plot_size_over_time(self.test_dataset, self.test_tweet_id)
-        fig.show()
+        # fig.show()
 
     def test_plot_depth_over_time(self):
         fig = self.propagation_factory.plot_depth_over_time(self.test_dataset, self.test_tweet_id)
-        fig.show()
+        # fig.show()
 
     def test_plot_max_breadth_over_time(self):
         fig = self.propagation_factory.plot_max_breadth_over_time(self.test_dataset, self.test_tweet_id)
-        fig.show()
+        # fig.show()
 
     def test_structural_virality_over_time(self):
         fig = self.propagation_factory.plot_structural_virality_over_time(self.test_dataset, self.test_tweet_id)
-        fig.show()
+        # fig.show()
 
     def _test_plot_depth_cascade_ccdf(self):
         fig = self.propagation_factory.plot_depth_cascade_ccdf(self.test_dataset)
-        fig.show()
+        # fig.show()
 
     def test_plot_size_cascade_ccdf(self):
         fig = self.propagation_factory.plot_size_cascade_ccdf(self.test_dataset)
-        fig.show()
+        # fig.show()
 
     def test_cascade_count_over_time(self):
         fig = self.propagation_factory.plot_cascade_count_over_time(self.test_dataset)
-        fig.show()
+        # fig.show()
 
     def test_legend(self):
         import plotly.graph_objects as go
@@ -294,7 +295,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
             )
         )
 
-        fig.show()
+        # fig.show()
 
 
 if __name__ == '__main__':

@@ -16,7 +16,7 @@ def test_fetch_plot_emotion_per_hour():
     # with open('test_resources/emotion_per_hour.json', 'w') as f:
     #     f.write(plotly_json)
     fig = plotly.io.from_json(plotly_json, skip_invalid=True)
-    fig.show()
+    # fig.show()
     assert isinstance(fig, Figure)
     assert len(fig.data) == 14
 
@@ -27,7 +27,7 @@ def test_plot_emotion_per_hour():
         plot_json = f.read()
     plot_factory.fetch_graph_json = Mock(return_value=plot_json)
     fig = plot_factory.plot_emotion_per_hour('madrid', 'start_time', 'end_time')
-    fig.show()
+    # fig.show()
     assert isinstance(fig, Figure)
     assert len(fig.data) == 14
 
@@ -38,7 +38,7 @@ def test_fetch_plot_average_emotion():
     # with open('test_resources/average_emotion.json', 'w') as f:
     #     f.write(plotly_json)
     fig = plotly.io.from_json(plotly_json, skip_invalid=True)
-    fig.show()
+    # fig.show()
     assert isinstance(fig, Figure)
     assert len(fig.data) == 11
 
@@ -49,7 +49,7 @@ def test_plot_average_emotion():
         plot_json = f.read()
     plot_factory.fetch_graph_json = Mock(return_value=plot_json)
     fig = plot_factory.plot_average_emotion('madrid', 'start_time', 'end_time')
-    fig.show()
+    # fig.show()
     assert isinstance(fig, Figure)
     assert len(fig.data) == 11
 
@@ -60,7 +60,7 @@ def test_fetch_plot_top_profiles():
     # with open('test_resources/top_profiles.json', 'w') as f:
     #     f.write(plotly_json)
     fig = plotly.io.from_json(plotly_json, skip_invalid=True)
-    fig.show()
+    # fig.show()
     assert isinstance(fig, Figure)
     assert len(fig.data) == 2
 
@@ -71,7 +71,7 @@ def test_plot_top_profiles():
         plot_json = f.read()
     plot_factory.fetch_graph_json = Mock(return_value=plot_json)
     fig = plot_factory.plot_top_profiles('madrid', 'start_time', 'end_time')
-    fig.show()
+    # fig.show()
     assert isinstance(fig, Figure)
     assert len(fig.data) == 2
 
@@ -82,7 +82,7 @@ def test_fetch_plot_top_hashtags():
     # with open('test_resources/top_hashtags.json', 'w') as f:
     #     f.write(plotly_json)
     fig = plotly.io.from_json(plotly_json, skip_invalid=True)
-    fig.show()
+    # fig.show()
     assert isinstance(fig, Figure)
     assert len(fig.data) == 2
 
@@ -93,7 +93,7 @@ def test_plot_top_hashtags():
         plot_json = f.read()
     plot_factory.fetch_graph_json = Mock(return_value=plot_json)
     fig = plot_factory.plot_top_hashtags('madrid', 'start_time', 'end_time')
-    fig.show()
+    # fig.show()
     assert isinstance(fig, Figure)
     assert len(fig.data) == 2
 
@@ -104,7 +104,7 @@ def test_fetch_plot_topic_ranking():
     # with open('test_resources/topic_ranking.json', 'w') as f:
     #     f.write(plotly_json)
     fig = plotly.io.from_json(plotly_json, skip_invalid=True)
-    fig.show()
+    # fig.show()
     assert isinstance(fig, Figure)
     assert len(fig.data) == 2
 
@@ -115,7 +115,7 @@ def test_plot_topic_ranking():
         plot_json = f.read()
     plot_factory.fetch_graph_json = Mock(return_value=plot_json)
     fig = plot_factory.plot_topic_ranking('madrid', 'start_time', 'end_time')
-    fig.show()
+    # fig.show()
     assert isinstance(fig, Figure)
     assert len(fig.data) == 2
 
@@ -141,7 +141,7 @@ def test_plot_network_topics():
         plot_json = f.read()
     plot_factory.fetch_graph_json = Mock(return_value=plot_json)
     # fig = plot_factory.plot_network_topics('madrid', 'start_time', 'end_time')
-    # fig.show()
+    # # fig.show()
     # assert isinstance(fig, Figure)
     # assert len(fig.data) > 1
     plot_json = json.loads(plot_json)
@@ -161,6 +161,6 @@ def test_plotly_json_to_figure():
     with open('test_resources/emotion_per_hour.json', 'r') as f:
         plot_json = f.read()
     fig = plot_factory.plotly_json_to_figure(plot_json)
-    fig.show()
+    # fig.show()
     assert isinstance(fig, Figure)
     assert len(fig.data) == 14

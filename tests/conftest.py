@@ -67,7 +67,8 @@ def populate_test_database(database_name, small=False):
     client.drop_database(database_name)
     db = client[database_name]
     collection = db.get_collection('raw')
-    path = 'test_resources/Openarms.mongoimport.jsonl' if not small else 'test_resources/Openarms.mongoimport.subset.jsonl'
+    # path = 'test_resources/Openarms.mongoimport.jsonl' if not small else 'test_resources/Openarms.mongoimport.subset.jsonl'
+
     with open(path) as f:
         test_data = []
         for line in f:

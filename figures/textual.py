@@ -62,7 +62,7 @@ class TextualFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, available_datasets=None):
         super().__init__(host, port, available_datasets)
 
-    def plot_average_emotion(self, dataset, start_time, end_time):
+    def plot_average_emotion(self, dataset):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         dataset = database.get_collection('textual')
@@ -95,7 +95,7 @@ class TextualFactory(MongoPlotFactory):
         fig.update_layout(showlegend=False)
         return fig
 
-    def get_emotion_per_hour(self, dataset, start_time, end_time):
+    def get_emotion_per_hour(self, dataset, start_time=None, end_time=None):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         dataset = database.get_collection('textual')

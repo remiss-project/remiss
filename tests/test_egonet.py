@@ -647,7 +647,7 @@ class TestEgonetCase(unittest.TestCase):
         fig = px.histogram(alphas, nbins=1000)
         fig.update_xaxes(title_text='Alpha')
         fig.update_yaxes(title_text='Count')
-        fig.show()
+        # fig.show()
 
     def test_persistence_and_loading_full(self):
         # Test the persistence and loading of the graph

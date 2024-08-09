@@ -1,3 +1,4 @@
+import pytest
 from matplotlib import pyplot as plt
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
@@ -8,7 +9,7 @@ from figures.utils_remiss import get_all_values_users, convert_dict_to_dataframe
 
 patch_all()
 
-
+# pytest.skip("Skipping tests for now", allow_module_level=True)
 
 def test_histogram_donut1():
     client = MongoClient('localhost', 27017)
@@ -24,7 +25,7 @@ def test_histogram_donut1():
         df = collection.aggregate_pandas_all(pipeline)
         df.plot(kind='bar', x='_id', y='count', title=feature, color='blue')
         plt.savefig(f'{feature}.png')
-    plt.show()
+    # plt.show()
 
 
 def test_histogram_radaplot():
@@ -39,7 +40,7 @@ def test_histogram_radaplot():
         ]
         df = collection.aggregate_pandas_all(pipeline)
         print(df.describe())
-    plt.show()
+    # plt.show()
 
 
 def test_load_data_for_user():

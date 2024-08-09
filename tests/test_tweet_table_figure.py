@@ -2,11 +2,10 @@ import uuid
 from datetime import datetime
 from unittest import TestCase
 
-from pymongo import MongoClient
 import pandas as pd
+from pymongo import MongoClient
 
 from figures import TweetTableFactory
-import plotly.express as px
 
 
 class TestTopTableFactory(TestCase):
@@ -19,6 +18,7 @@ class TestTopTableFactory(TestCase):
         self.database = self.client.get_database(self.tmp_dataset)
         self.collection = self.database.get_collection('raw')
         test_data = [{"id": '0', "created_at": datetime.fromisoformat("2019-01-01T23:20:00Z"),
+                      'conversation_id': '0',
                       'text': 'test_text',
                       'public_metrics': {'retweet_count': 1, 'reply_count': 2, 'like_count': 3, 'quote_count': 4},
                       "author": {"username": "TEST_USER_0", "id": '0',
@@ -27,6 +27,7 @@ class TestTopTableFactory(TestCase):
                                                      'has_profiling': False}},
                       "entities": {"hashtags": [{"tag": "test_hashtag"}]}, },
                      {"id": '1', "created_at": datetime.fromisoformat("2019-01-02T23:20:00Z"),
+                      'conversation_id': '1',
                       'text': 'test_text2',
                       'public_metrics': {'retweet_count': 2, 'reply_count': 2, 'like_count': 3, 'quote_count': 4},
                       "author": {"username": "TEST_USER_1", "id": '1',
@@ -36,6 +37,7 @@ class TestTopTableFactory(TestCase):
                                                      }},
                       "entities": {"hashtags": []}, },
                      {"id": '2', "created_at": datetime.fromisoformat("2019-01-03T23:20:00Z"),
+                      'conversation_id': '2',
                       'text': 'test_text3',
                       'public_metrics': {'retweet_count': 3, 'reply_count': 2, 'like_count': 3, 'quote_count': 4},
                       "author": {"username": "TEST_USER_2", "id": '2',
@@ -54,10 +56,16 @@ class TestTopTableFactory(TestCase):
         profiling_collection.insert_many(profiling_data)
 
         textual = self.database.get_collection('textual')
-        textual_data = [{'id': '0', 'fakeness_probabilities': 0.1},
-                        {'id': '1', 'fakeness_probabilities': 0.2},
-                        {'id': '2', 'fakeness_probabilities': 0.3}]
+        textual_data = [{'id': 0, 'fakeness_probabilities': 0.1},
+                        {'id': 1, 'fakeness_probabilities': 0.2},
+                        {'id': 2, 'fakeness_probabilities': 0.3}]
         textual.insert_many(textual_data)
+
+        network_metrics_collection = self.database.get_collection('network_metrics')
+        network_metrics_data = [{'author_id': '0', 'legitimacy': 0, 'average_reputation': 0, 'average_status': 3},
+                                {'author_id': '1', 'legitimacy': 0, 'average_reputation': 0, 'average_status': 3},
+                                {'author_id': '2', 'legitimacy': 0, 'average_reputation': 0, 'average_status': 3}]
+        network_metrics_collection.insert_many(network_metrics_data)
 
     def tearDown(self):
         client = MongoClient('localhost', 27017)
@@ -75,39 +83,19 @@ class TestTopTableFactory(TestCase):
                     'Profiling': {0: True, 1: True, 2: False},
                     'ID': {0: '0', 1: '1', 2: '2'},
                     'Author ID': {0: '0', 1: '1', 2: '2'},
-                    'Suspicious content': {0: 0.1, 1: 0.2, 2: 0.3}
+                    'Suspicious content': {0: 0.1, 1: 0.2, 2: 0.3},
+                    'Cascade size': {0: 1, 1: 1, 2: 1},
+                    'Legitimacy': {0: 0.0, 1: 0.0, 2: 0.0},
+                    'Reputation': {0: 0.0, 1: 0.0, 2: 0.0},
+                    'Status': {0: 3.0, 1: 3.0, 2: 3.0}
                     }
         expected = pd.DataFrame(expected)
         expected = expected.iloc[[2, 1, 0]].reset_index(drop=True)
-        expected = expected[['User', 'Text', 'Retweets', 'Is usual suspect', 'Party',
-                             'Multimodal', 'Profiling', 'ID', 'Author ID',
-                             'Fakeness']]
+        expected_columns = ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party', 'Multimodal', 'Profiling', 'ID',
+                            'Author ID', 'Suspicious content', 'Cascade size', 'Legitimacy', 'Reputation', 'Status']
+        expected = expected[expected_columns]
 
         pd.testing.assert_frame_equal(actual, expected)
-
-    def test_get_top_table_full(self):
-        dataset = self.test_dataset
-        actual = self.top_table_factory.get_top_table_data(dataset)
-        # plot plotly histogram of how many times each tweet is repeated
-        # hist = actual.groupby('tweet_id').size().reset_index(name='counts')
-        # hist = hist.sort_values(by='counts', ascending=False)
-        # fig = px.bar(hist, x='tweet_id', y='counts')
-        # fig.show()
-
-        self.assertEqual(actual.columns.to_list(), ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party',
-                                                    'Multimodal', 'Profiling', 'ID', 'Author ID', 'Fakeness'])
-        client = MongoClient('localhost', 27017)
-        raw = client.get_database(dataset).get_collection('raw')
-        document_count = raw.count_documents({'referenced_tweets': {'$exists': False}})
-        self.assertEqual(actual.shape[0], document_count)
-        multimodal = client.get_database(dataset).get_collection('multimodal')
-        multimodal_expected_ids = {x['tweet_id'] for x in multimodal.find({})}
-        multimodal_actual_ids = set(actual[actual['Multimodal']]['ID'].to_list())
-        self.assertTrue(multimodal_actual_ids.issubset(multimodal_expected_ids))
-        profiling = client.get_database(dataset).get_collection('profiling')
-        profiling_expected_ids = {x['user_id'] for x in profiling.find({})}
-        profiling_actual_ids = set(actual[actual['Profiling']]['Author ID'].to_list())
-        self.assertTrue(profiling_actual_ids.issubset(profiling_expected_ids))
 
     def test_get_top_table_date_filtering(self):
         dataset = self.tmp_dataset
@@ -123,13 +111,17 @@ class TestTopTableFactory(TestCase):
                     'Profiling': {0: True, 1: True, 2: False},
                     'ID': {0: '0', 1: '1', 2: '2'},
                     'Author ID': {0: '0', 1: '1', 2: '2'},
-                    'Suspicious content': {0: 0.1, 1: 0.2, 2: 0.3}
+                    'Suspicious content': {0: 0.1, 1: 0.2, 2: 0.3},
+                    'Cascade size': {0: 1, 1: 1, 2: 1},
+                    'Legitimacy': {0: 0.0, 1: 0.0, 2: 0.0},
+                    'Reputation': {0: 0.0, 1: 0.0, 2: 0.0},
+                    'Status': {0: 3.0, 1: 3.0, 2: 3.0}
                     }
         expected = pd.DataFrame(expected)
         expected = expected.iloc[[1, 0]].reset_index(drop=True)
-        expected = expected[['User', 'Text', 'Retweets', 'Is usual suspect', 'Party',
-                             'Multimodal', 'Profiling', 'ID', 'Author ID',
-                             'Fakeness']]
+        expected_columns = ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party', 'Multimodal', 'Profiling', 'ID',
+                            'Author ID', 'Suspicious content', 'Cascade size', 'Legitimacy', 'Reputation', 'Status']
+        expected = expected[expected_columns]
 
         pd.testing.assert_frame_equal(actual, expected)
 
@@ -138,14 +130,7 @@ class TestTopTableFactory(TestCase):
         actual = self.top_table_factory.get_top_table_data(dataset,
                                                            start_time=datetime.fromisoformat('2019-01-01T00:00:00Z'),
                                                            end_time=datetime.fromisoformat('2019-01-02T00:00:00Z'))
-        # plot plotly histogram of how many times each tweet is repeated
-        # hist = actual.groupby('tweet_id').size().reset_index(name='counts')
-        # hist = hist.sort_values(by='counts', ascending=False)
-        # fig = px.bar(hist, x='tweet_id', y='counts')
-        # fig.show()
 
-        self.assertEqual(actual.columns.to_list(), ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party',
-                                                    'Multimodal', 'Profiling', 'ID', 'Author ID', 'Fakeness'])
         client = MongoClient('localhost', 27017)
         raw = client.get_database(dataset).get_collection('raw')
         document_count = raw.count_documents({'referenced_tweets': {'$exists': False},

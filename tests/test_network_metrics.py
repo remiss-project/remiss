@@ -188,11 +188,11 @@ class NetworkMetricsTestCase(unittest.TestCase):
         mean_status = self.network_metrics.compute_status(self.test_dataset).mean(axis=1)
 
         fig = px.histogram(x=legitimacy, title='Legitimacy')
-        fig.show()
+        # fig.show()
         fig = px.histogram(x=mean_reputation, title='Reputation')
-        fig.show()
+        # fig.show()
         fig = px.histogram(x=mean_status, title='Status')
-        fig.show()
+        # fig.show()
 
     def test_plot_kde(self):
         # Test the plotting of histograms
@@ -201,11 +201,11 @@ class NetworkMetricsTestCase(unittest.TestCase):
         mean_status = self.network_metrics.compute_status(self.test_dataset).mean(axis=1)
 
         fig = ff.create_distplot([legitimacy], group_labels=['Legitimacy'])
-        fig.show()
+        # fig.show()
         fig = ff.create_distplot([mean_reputation], group_labels=['Reputation'])
-        fig.show()
+        # fig.show()
         fig = ff.create_distplot([mean_status], group_labels=['Status'])
-        fig.show()
+        # fig.show()
 
 
 if __name__ == '__main__':

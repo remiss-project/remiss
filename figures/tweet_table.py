@@ -13,7 +13,7 @@ class TweetTableFactory(MongoPlotFactory):
     def get_top_table_data(self, dataset, start_time=None, end_time=None, hashtags=None):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
-        dataset = database.get_collection('raw')
+        collection = database.get_collection('raw')
         pipeline = [
             # Exclude RTs
             {'$match': {'referenced_tweets': {'$exists': False}}},
@@ -70,8 +70,8 @@ class TweetTableFactory(MongoPlotFactory):
             'Reputation': float,
             'Status': float
         })
-        # df = list(dataset.aggregate(pipeline))
-        df = dataset.aggregate_pandas_all(pipeline, schema=schema)
+        # df_list = list(collection.aggregate(pipeline))
+        df = collection.aggregate_pandas_all(pipeline, schema=schema)
         client.close()
 
         return df

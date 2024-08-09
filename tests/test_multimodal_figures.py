@@ -8,7 +8,7 @@ from pymongo import MongoClient
 
 from figures.multimodal import MultimodalPlotFactory
 
-
+# @unittest.skip("Skip test")
 class TestMultimodalPlotFactory(unittest.TestCase):
 
     def tearDown(self):

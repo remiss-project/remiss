@@ -29,9 +29,7 @@ def test_emotion_per_hour_component():
     assert list(dash_app.callback_map.keys()) == [component.graph.id + '.figure']
     assert dash_app.callback_map[component.graph.id + '.figure']['callback'].__name__ == component.update.__name__
     assert dash_app.callback_map[component.graph.id + '.figure']['inputs'] == [
-        {'id': component.state.current_dataset.id, 'property': 'data'},
-        {'id': component.state.current_start_date.id, 'property': 'data'},
-        {'id': component.state.current_end_date.id, 'property': 'data'}]
+        {'id': component.state.current_dataset.id, 'property': 'data'}]
     assert dash_app.callback_map[component.graph.id + '.figure']['output'].component_id == component.graph.id
 
 
@@ -80,9 +78,7 @@ def test_average_emotion_bar_component():
     assert list(dash_app.callback_map.keys()) == [component.graph.id + '.figure']
     assert dash_app.callback_map[component.graph.id + '.figure']['callback'].__name__ == component.update.__name__
     assert dash_app.callback_map[component.graph.id + '.figure']['inputs'] == [
-        {'id': component.state.current_dataset.id, 'property': 'data'},
-        {'id': component.state.current_start_date.id, 'property': 'data'},
-        {'id': component.state.current_end_date.id, 'property': 'data'}]
+        {'id': component.state.current_dataset.id, 'property': 'data'}]
     assert dash_app.callback_map[component.graph.id + '.figure']['output'].component_id == component.graph.id
 
 

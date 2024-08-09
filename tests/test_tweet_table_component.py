@@ -1,18 +1,15 @@
-import unittest
 import uuid
-
 from datetime import datetime
 from unittest import TestCase
 
+import dash_bootstrap_components as dbc
 from dash import Dash
 from pymongo import MongoClient
-import pandas as pd
 
 from components.control_panel import ControlPanelComponent
 from components.dashboard import RemissState
 from components.tweet_table import TweetTableComponent
 from figures import TweetTableFactory
-import dash_bootstrap_components as dbc
 
 
 class TestTopTableComponent(TestCase):
@@ -88,7 +85,7 @@ class TestTopTableComponent(TestCase):
         self.assertEqual(callback['inputs'], [{'id': 'current-dataset-state', 'property': 'data'},
                                               {'id': 'current-start-date-state', 'property': 'data'},
                                               {'id': 'current-end-date-state', 'property': 'data'},
-                                              ])
+                                              {'id': 'current-hashtags-state', 'property': 'data'}])
         actual_output = callback['output']
         self.assertEqual(actual_output.component_id, 'table-table_test')
         self.assertEqual(actual_output.component_property, 'data')
@@ -103,7 +100,7 @@ class TestTopTableComponent(TestCase):
                 callback = cb
                 break
 
-        self.assertEqual(callback['inputs'], [{'id': 'table-table_test', 'property': 'selected_rows'}])
+        self.assertEqual(callback['inputs'], [{'id': 'table-table_test', 'property': 'active_cell'}])
         actual_output = callback['output']
         self.assertEqual(actual_output.component_id, 'current-user-state')
         self.assertEqual(actual_output.component_property, 'data')
@@ -118,7 +115,7 @@ class TestTopTableComponent(TestCase):
                 callback = cb
                 break
 
-        self.assertEqual(callback['inputs'], [{'id': 'table-table_test', 'property': 'selected_rows'}])
+        self.assertEqual(callback['inputs'], [{'id': 'table-table_test', 'property': 'active_cell'}])
         actual_output = callback['output']
         self.assertEqual(actual_output.component_id, 'current-tweet-state')
         self.assertEqual(actual_output.component_property, 'data')
@@ -133,7 +130,7 @@ class TestTopTableComponent(TestCase):
                 callback = cb
                 break
 
-        self.assertEqual(callback['inputs'], [{'id': 'table-table_test', 'property': 'selected_rows'}])
+        self.assertEqual(callback['inputs'], [{'id': 'table-table_test', 'property': 'active_cell'}])
         actual_output = callback['output']
         self.assertEqual(actual_output.component_id, 'current-hashtags-state')
         self.assertEqual(actual_output.component_property, 'data')

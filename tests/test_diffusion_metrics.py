@@ -39,7 +39,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
                     break
             except Exception as e:
                 pass
-        plt.show()
+        # plt.show()
 
     def test_get_propagation_tree(self):
         graph = self.diffusion_metrics.get_propagation_tree(self.test_dataset, self.test_tweet_id)
@@ -53,7 +53,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         layout = graph.layout('fr')
         fig, ax = plt.subplots()
         ig.plot(graph, layout=layout, target=ax)
-        plt.show()
+        # plt.show()
 
     def test_compute_propagation_tree(self):
         graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, self.test_tweet_id)
@@ -67,7 +67,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         layout = graph.layout('fr')
         fig, ax = plt.subplots()
         ig.plot(graph, layout=layout, target=ax)
-        plt.show()
+        # plt.show()
 
     def test_all_connected_to_conversation_id(self):
         graph = self.diffusion_metrics.get_propagation_tree(self.test_dataset, self.test_tweet_id)
@@ -116,7 +116,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         fig, ax = plt.subplots()
         layout = graph.layout('fr')
         ig.plot(graph, layout=layout, target=ax)
-        plt.show()
+        # plt.show()
         actual_edges = set(
             (graph.vs['author_id'][edge.source], graph.vs['author_id'][edge.target]) for edge in graph.es)
         expected_edges = {(f'author_id_{source}', f'author_id_{target}') for source, target in edges}
@@ -168,7 +168,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         fig, ax = plt.subplots()
         layout = graph.layout('fr')
         ig.plot(graph, layout=layout, target=ax)
-        plt.show()
+        # plt.show()
         actual_edges = set(
             (graph.vs['author_id'][edge.source], graph.vs['author_id'][edge.target]) for edge in graph.es)
         expected_edges = {(f'author_id_{source}', f'author_id_{target}') for source, target in edges}
@@ -225,7 +225,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         fig, ax = plt.subplots()
         layout = graph.layout('kk')
         ig.plot(graph, layout=layout, target=ax)
-        plt.show()
+        # plt.show()
         actual_edges = pd.DataFrame(
             [(graph.vs['author_id'][edge.source], graph.vs['author_id'][edge.target]) for edge in graph.es],
             columns=['source', 'target'])
