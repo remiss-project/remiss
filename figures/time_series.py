@@ -27,7 +27,7 @@ class TimeSeriesFactory(MongoPlotFactory):
                 logger.debug(f'Tweet series computed in {time.time() - start_computing_time} seconds')
             except Exception as e:
                 logger.error(f'Error computing tweet series: {e}')
-                raise RuntimeError('Error computing tweet series') from e
+                raise RuntimeError(f'Error computing tweet series: {e}') from e
         else:
             try:
                 df = self.histogram.load_histogram(dataset, 'tweet')

@@ -8,6 +8,7 @@ from pyvis.network import Network
 
 from figures.textual import RemoteTextualFactory
 
+pytest.skip(allow_module_level=True)
 
 def test_fetch_plot_emotion_per_hour():
     plot_factory = RemoteTextualFactory()

@@ -1,10 +1,9 @@
 import logging
 
-from dash import dcc, Output, Input
 import dash_bootstrap_components as dbc
+from dash import dcc, Output, Input
 
 from .components import RemissComponent
-import plotly.express as px
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +24,11 @@ class EmotionPerHourComponent(RemissComponent):
             dbc.CardFooter('Average emotion per hour of the day.')
         ])
 
-    def update(self, dataset, start_date, end_date):
+    def update(self, dataset):
         try:
             logger.debug(
-                f'Updating emotion per hour with dataset {dataset}, start date {start_date}, end date {end_date}')
-            return self.plot_factory.plot_emotion_per_hour(dataset, start_date, end_date)
+                f'Updating emotion per hour with dataset {dataset}')
+            return self.plot_factory.plot_emotion_per_hour(dataset)
         except (IndexError, ValueError) as e:
             logger.error(f'Error updating emotion per hour: {e}')
             return {}
@@ -37,9 +36,7 @@ class EmotionPerHourComponent(RemissComponent):
     def callbacks(self, app):
         app.callback(
             Output(self.graph, 'figure'),
-            [Input(self.state.current_dataset, 'data'),
-             Input(self.state.current_start_date, 'data'),
-             Input(self.state.current_end_date, 'data')],
+            [Input(self.state.current_dataset, 'data')],
 
         )(self.update)
 
@@ -60,11 +57,11 @@ class AverageEmotionBarComponent(RemissComponent):
             dbc.CardFooter('Average emotion over the entire dataset')
         ])
 
-    def update(self, dataset, start_date, end_date):
+    def update(self, dataset):
         try:
             logger.debug(
-                f'Updating average emotion with dataset {dataset}, start date {start_date}, end date {end_date}')
-            return self.plot_factory.plot_average_emotion(dataset, start_date, end_date)
+                f'Updating average emotion with dataset {dataset}')
+            return self.plot_factory.plot_average_emotion(dataset)
         except (IndexError, ValueError) as e:
             logger.error(f'Error updating average emotion: {e}')
             return {}
@@ -72,9 +69,7 @@ class AverageEmotionBarComponent(RemissComponent):
     def callbacks(self, app):
         app.callback(
             Output(self.graph, 'figure'),
-            [Input(self.state.current_dataset, 'data'),
-             Input(self.state.current_start_date, 'data'),
-             Input(self.state.current_end_date, 'data')],
+            [Input(self.state.current_dataset, 'data')],
         )(self.update)
 
 

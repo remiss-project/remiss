@@ -3,6 +3,10 @@ import random
 from datetime import datetime, timedelta
 
 import pandas as pd
+from dash.dcc import Dropdown, Slider, Graph, DatePickerRange
+from dash.html import P
+from dash_bootstrap_components import Stack
+from dash_holoniq_wordcloud import DashWordcloud
 from pymongo import MongoClient
 
 from preprocess import unfix_timestamps
@@ -225,6 +229,27 @@ def create_test_data(data_size=100, day_range=10,
 
     return test_data
 
+
+def find_components(component, found_components):
+    if hasattr(component, 'children') and component.children is not None:
+        if len(component.children) == 0 or isinstance(component.children, Stack):
+            find_components(component.children, found_components)
+        else:
+            if not isinstance(component.children, str):
+                for child in component.children:
+                    find_components(child, found_components)
+    if isinstance(component, Dropdown):
+        found_components.append(component)
+    if isinstance(component, Slider):
+        found_components.append(component)
+    if isinstance(component, Graph):
+        found_components.append(component)
+    if isinstance(component, DatePickerRange):
+        found_components.append(component)
+    if isinstance(component, DashWordcloud):
+        found_components.append(component)
+    if isinstance(component, P):
+        found_components.append(component)
 
 # populate_test_database('test_dataset')
 

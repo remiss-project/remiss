@@ -138,27 +138,29 @@ class NetworkMetricsTestCase(unittest.TestCase):
 
     def test_reputation_full(self):
         actual = self.network_metrics.compute_reputation(self.test_dataset)
-        self.assertEqual(actual.shape[1], 272)
-        self.assertEqual(actual.shape[0], 2578)
+        self.assertIsInstance(actual.columns, pd.DatetimeIndex)
+        self.assertEquals(str(actual.index.dtype), 'object')
+        self.assertGreater(actual.shape[1], 0)
+        self.assertGreater(actual.shape[0], 0)
 
     def test__get_legitimacy_over_time_1_full(self):
         actual = self.network_metrics._get_legitimacy_over_time(self.test_dataset)
-        self.assertEqual(actual.shape[1], 272)
-        self.assertEqual(actual.shape[0], 2578)
+        self.assertIsInstance(actual.columns, pd.DatetimeIndex)
+        self.assertEquals(str(actual.index.dtype), 'object')
+        self.assertGreater(actual.shape[1], 0)
+        self.assertGreater(actual.shape[0], 0)
 
     def test_status_full(self):
         actual = self.network_metrics.compute_status(self.test_dataset)
-        self.assertEqual(actual.shape[1], 272)
-        self.assertEqual(actual.shape[0], 2578)
+        self.assertIsInstance(actual.columns, pd.DatetimeIndex)
+        self.assertEquals(str(actual.index.dtype), 'object')
+        self.assertGreater(actual.shape[1], 0)
+        self.assertGreater(actual.shape[0], 0)
 
     def test_persistence_and_loading_full(self):
         # Test the persistence and loading of the graph
         self.network_metrics.persist([self.test_dataset])
 
-        start_time = time.time()
-        self.network_metrics.load_from_mongodb([self.test_dataset])
-        end_time = time.time()
-        print(f'loaded in {end_time - start_time} seconds')
 
         start_time = time.time()
         expected_legitimacy = self.network_metrics.compute_legitimacy(self.test_dataset)

@@ -38,7 +38,7 @@ class TestProfilingComponents(TestCase):
         cvc_plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
         state = RemissState()
         component = UserInfoComponent(cvc_plot_factory, state)
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
 
         assert len(dash_app.callback_map) == 1
@@ -51,12 +51,12 @@ class TestProfilingComponents(TestCase):
 
     def test_plot_user_info_component_run_callback(self):
         plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
-        time_series_factory = TimeSeriesFactory()
+        time_series_factory = TimeSeriesFactory(available_datasets=[self.test_dataset])
         state = RemissState()
         component = UserInfoComponent(plot_factory, state)
         control_panel = ControlPanelComponent(time_series_factory, state)
 
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
         control_panel.callbacks(dash_app)
         dash_app.layout = dbc.Container([
@@ -78,7 +78,7 @@ class TestProfilingComponents(TestCase):
         cvc_plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
         state = RemissState()
         component = TopicVerticalBarplotComponent(cvc_plot_factory, state)
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
 
         assert len(dash_app.callback_map) == 1
@@ -91,12 +91,12 @@ class TestProfilingComponents(TestCase):
 
     def test_plot_vertical_barplot_topics_component_run_callback(self):
         plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
-        time_series_factory = TimeSeriesFactory()
+        time_series_factory = TimeSeriesFactory(available_datasets=[self.test_dataset])
         state = RemissState()
         component = TopicVerticalBarplotComponent(plot_factory, state)
         control_panel = ControlPanelComponent(time_series_factory, state)
 
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
         control_panel.callbacks(dash_app)
         dash_app.layout = dbc.Container([
@@ -118,7 +118,7 @@ class TestProfilingComponents(TestCase):
         cvc_plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
         state = RemissState()
         component = RadarplotEmotionsComponent(cvc_plot_factory, state)
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
 
         assert len(dash_app.callback_map) == 1
@@ -131,12 +131,12 @@ class TestProfilingComponents(TestCase):
 
     def test_plot_radarplot_emotions_run_callback(self):
         plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
-        time_series_factory = TimeSeriesFactory()
+        time_series_factory = TimeSeriesFactory(available_datasets=[self.test_dataset])
         state = RemissState()
         component = RadarplotEmotionsComponent(plot_factory, state)
         control_panel = ControlPanelComponent(time_series_factory, state)
 
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
         control_panel.callbacks(dash_app)
         dash_app.layout = dbc.Container([
@@ -158,19 +158,19 @@ class TestProfilingComponents(TestCase):
         cvc_plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
         state = RemissState()
         component = VerticalAccumulatedBarplotAge(cvc_plot_factory, state)
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
 
         assert len(dash_app.callback_map) == 0
 
     def test_plot_vertical_accumulated_barplot_age_run_callback(self):
         plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
-        time_series_factory = TimeSeriesFactory()
+        time_series_factory = TimeSeriesFactory(available_datasets=[self.test_dataset])
         state = RemissState()
         component = VerticalAccumulatedBarplotAge(plot_factory, state)
         control_panel = ControlPanelComponent(time_series_factory, state)
 
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
         control_panel.callbacks(dash_app)
         dash_app.layout = dbc.Container([
@@ -192,19 +192,19 @@ class TestProfilingComponents(TestCase):
         cvc_plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
         state = RemissState()
         component = VerticalAccumulatedBarplotGenre(cvc_plot_factory, state)
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
 
         assert len(dash_app.callback_map) == 0
 
     def test_plot_vertical_accumulated_barplot_genre_run_callback(self):
         plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
-        time_series_factory = TimeSeriesFactory()
+        time_series_factory = TimeSeriesFactory(available_datasets=[self.test_dataset])
         state = RemissState()
         component = VerticalAccumulatedBarplotGenre(plot_factory, state)
         control_panel = ControlPanelComponent(time_series_factory, state)
 
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
         control_panel.callbacks(dash_app)
         dash_app.layout = dbc.Container([
@@ -226,7 +226,7 @@ class TestProfilingComponents(TestCase):
         cvc_plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
         state = RemissState()
         component = VerticalBarplotPolarityComponent(cvc_plot_factory, state)
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
 
         assert len(dash_app.callback_map) == 1
@@ -239,12 +239,12 @@ class TestProfilingComponents(TestCase):
 
     def test_plot_vertical_barplot_polarity_run_callback(self):
         plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
-        time_series_factory = TimeSeriesFactory()
+        time_series_factory = TimeSeriesFactory(available_datasets=[self.test_dataset])
         state = RemissState()
         component = VerticalBarplotPolarityComponent(plot_factory, state)
         control_panel = ControlPanelComponent(time_series_factory, state)
 
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
         control_panel.callbacks(dash_app)
         dash_app.layout = dbc.Container([
@@ -266,7 +266,7 @@ class TestProfilingComponents(TestCase):
         cvc_plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
         state = RemissState()
         component = HorizontalBarplotInteraction1(cvc_plot_factory, state)
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
 
         assert len(dash_app.callback_map) == 1
@@ -279,12 +279,12 @@ class TestProfilingComponents(TestCase):
 
     def test_plot_horizontal_bars_plot_interactions_run_callback(self):
         plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
-        time_series_factory = TimeSeriesFactory()
+        time_series_factory = TimeSeriesFactory(available_datasets=[self.test_dataset])
         state = RemissState()
         component = HorizontalBarplotInteraction1(plot_factory, state)
         control_panel = ControlPanelComponent(time_series_factory, state)
 
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
         control_panel.callbacks(dash_app)
         dash_app.layout = dbc.Container([
@@ -306,7 +306,7 @@ class TestProfilingComponents(TestCase):
         cvc_plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
         state = RemissState()
         component = HorizontalBarplotInteraction2(cvc_plot_factory, state)
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
 
         assert len(dash_app.callback_map) == 1
@@ -319,12 +319,12 @@ class TestProfilingComponents(TestCase):
 
     def test_plot_horizontal_bars_plot_interactions_2_run_callback(self):
         plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
-        time_series_factory = TimeSeriesFactory()
+        time_series_factory = TimeSeriesFactory(available_datasets=[self.test_dataset])
         state = RemissState()
         component = HorizontalBarplotInteraction2(plot_factory, state)
         control_panel = ControlPanelComponent(time_series_factory, state)
 
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
         control_panel.callbacks(dash_app)
         dash_app.layout = dbc.Container([
@@ -346,7 +346,7 @@ class TestProfilingComponents(TestCase):
         cvc_plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
         state = RemissState()
         component = DonutPlotBehaviour1Component(cvc_plot_factory, state)
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
 
         assert len(dash_app.callback_map) == 1
@@ -359,12 +359,12 @@ class TestProfilingComponents(TestCase):
 
     def test_plot_donut_plot_behaviour1_run_callback(self):
         plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
-        time_series_factory = TimeSeriesFactory()
+        time_series_factory = TimeSeriesFactory(available_datasets=[self.test_dataset])
         state = RemissState()
         component = DonutPlotBehaviour1Component(plot_factory, state)
         control_panel = ControlPanelComponent(time_series_factory, state)
 
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
         control_panel.callbacks(dash_app)
         dash_app.layout = dbc.Container([
@@ -386,7 +386,7 @@ class TestProfilingComponents(TestCase):
         cvc_plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
         state = RemissState()
         component = DonutPlotBehaviour2Component(cvc_plot_factory, state)
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
 
         assert len(dash_app.callback_map) == 1
@@ -399,12 +399,12 @@ class TestProfilingComponents(TestCase):
 
     def test_plot_donut_plot_behaviour2_run_callback(self):
         plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
-        time_series_factory = TimeSeriesFactory()
+        time_series_factory = TimeSeriesFactory(available_datasets=[self.test_dataset])
         state = RemissState()
         component = DonutPlotBehaviour2Component(plot_factory, state)
         control_panel = ControlPanelComponent(time_series_factory, state)
 
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         component.callbacks(dash_app)
         control_panel.callbacks(dash_app)
         dash_app.layout = dbc.Container([
@@ -440,7 +440,7 @@ class TestProfilingComponents(TestCase):
         donut_plot_behaviour2 = DonutPlotBehaviour2Component(cvc_plot_factory, state)
         # create control panel
         # create dash app
-        dash_app = Dash(__name__)
+        dash_app = Dash(__name__, prevent_initial_callbacks=True)
         # add callbacks
         user_info_component.callbacks(dash_app)
         topic_vertical_barplot_component.callbacks(dash_app)

@@ -10,6 +10,7 @@ from dash.exceptions import PreventUpdate
 from dash_holoniq_wordcloud import DashWordcloud
 
 from components.dashboard import ControlPanelComponent, RemissState
+from tests.conftest import find_components
 
 
 class MyTestCase(unittest.TestCase):
@@ -138,24 +139,6 @@ class MyTestCase(unittest.TestCase):
         self.assertIn(self.component.name, found_main_ids)
         self.assertEqual(len(set(found_main_ids)), 1)
 
-
-def find_components(component, found_components):
-    if hasattr(component, 'children') and component.children is not None:
-        if len(component.children) == 0:
-            find_components(component.children, found_components)
-        else:
-            for child in component.children:
-                find_components(child, found_components)
-    if isinstance(component, Dropdown):
-        found_components.append(component)
-    if isinstance(component, Slider):
-        found_components.append(component)
-    if isinstance(component, Graph):
-        found_components.append(component)
-    if isinstance(component, DatePickerRange):
-        found_components.append(component)
-    if isinstance(component, DashWordcloud):
-        found_components.append(component)
 
 
 if __name__ == '__main__':

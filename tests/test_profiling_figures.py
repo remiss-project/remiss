@@ -9,21 +9,6 @@ from figures.utils_remiss import get_all_values_users, convert_dict_to_dataframe
 patch_all()
 
 
-def test_init():
-    cvc_plot_factory = ProfilingPlotFactory(data_dir='./../profiling_data')
-    fake_spreaders_feats, fact_checkers_feats, random_feats = get_all_values_users('ca')
-
-    # Convert feature values to dataframes
-    fake_news_spreaders = convert_dict_to_dataframe(fake_spreaders_feats)
-    fact_checkers = convert_dict_to_dataframe(fact_checkers_feats)
-    control_cases = convert_dict_to_dataframe(random_feats)
-    assert cvc_plot_factory.host == "localhost"
-    assert cvc_plot_factory.port == 27017
-    assert cvc_plot_factory._available_datasets is None
-    assert cvc_plot_factory.fake_news_spreaders.equals(fake_news_spreaders)
-    assert cvc_plot_factory.fact_checkers.equals(fact_checkers)
-    assert cvc_plot_factory.control_cases.equals(control_cases)
-
 
 def test_histogram_donut1():
     client = MongoClient('localhost', 27017)

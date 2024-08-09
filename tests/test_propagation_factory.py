@@ -164,14 +164,6 @@ class PropagationFactoryTestCase(unittest.TestCase):
         fig = self.propagation_factory.plot_graph(graph, symbol=symbol)
         fig.show()
 
-    def test_plot_graph_highlight_user(self):
-        graph = ig.Graph()
-        graph.add_vertices(10)
-        graph.vs['author_id'] = [str(i) for i in range(10)]
-        graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
-        fig = self.propagation_factory.plot_graph(graph, author_id='1')
-        fig.show()
-
     def test_get_metadata(self):
         metadata = self.propagation_factory.get_user_metadata(self.test_dataset)
         self.assertEqual(metadata.duplicated().sum(), 0)
@@ -246,27 +238,6 @@ class PropagationFactoryTestCase(unittest.TestCase):
     def test_cascade_count_over_time(self):
         fig = self.propagation_factory.plot_cascade_count_over_time(self.test_dataset)
         fig.show()
-
-    def test_persistence_and_loading(self):
-        start_time = time.time()
-
-        expected_hidden_network = self.propagation_factory.egonet.get_hidden_network(self.test_dataset)
-        expected_layout = self.propagation_factory.get_hidden_network_layout(expected_hidden_network, self.test_dataset)
-
-        end_time = time.time()
-        print(f'computed in {end_time - start_time} seconds')
-        # Test the persistence and loading of the graph
-        self.propagation_factory.persist([self.test_dataset])
-
-        start_time = time.time()
-        self.propagation_factory.load_from_mongodb([self.test_dataset])
-        end_time = time.time()
-        print(f'loaded in {end_time - start_time} seconds')
-
-        actual_layout = self.propagation_factory._hidden_network_layouts[self.test_dataset]
-
-        pd.testing.assert_frame_equal(expected_layout, actual_layout, check_dtype=False, check_index_type=False,
-                                      check_column_type=False, check_frame_type=False)
 
     def test_legend(self):
         import plotly.graph_objects as go

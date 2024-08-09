@@ -17,7 +17,7 @@ class TestAPICase(unittest.TestCase):
     def setUp(self):
         self.test_dataset = 'new_dataset'
         self.tmp_dataset = 'tmp_dataset'
-        self.num_samples = 100
+        self.num_samples = 20
 
     def test_store_raw(self):
         with open('test_resources/Openarms.sample.jsonl', 'r') as f:

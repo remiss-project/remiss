@@ -109,14 +109,14 @@ class TextualFactory(MongoPlotFactory):
             {'$group': {'_id': '$hour', **{emotion: {'$avg': f'${emotion}'} for emotion in emotions}}},
             {'$project': {'_id': 0}}
         ]
-        # if start_time:
-        #     pipeline.insert(2, {'$match': {'date': {'$gte': start_time}}})
-        # if end_time:
-        #     pipeline.insert(2, {'$match': {'date': {'$lte': end_time}}})
+        if start_time:
+            pipeline.insert(2, {'$match': {'date': {'$gte': start_time}}})
+        if end_time:
+            pipeline.insert(2, {'$match': {'date': {'$lte': end_time}}})
         df = dataset.aggregate_pandas_all(pipeline)
         return df
 
-    def plot_emotion_per_hour(self, dataset, start_time, end_time):
+    def plot_emotion_per_hour(self, dataset, start_time=None, end_time=None):
         df = self.get_emotion_per_hour(dataset, start_time, end_time)
         translations = {
             'Agresividad': 'Aggressiveness',
