@@ -18,7 +18,7 @@ def prepopulate_propagation(config_file='dev_config.yaml'):
     network_metrics = NetworkMetrics(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                      reference_types=config['reference_types'])
     egonet = Egonet(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                    reference_types=config['reference_types'])
+                    reference_types=config['reference_types'], threshold=config['graph_simplification']['threshold'])
     histogram = Histogram(host=config['mongodb']['host'], port=config['mongodb']['port'])
     available_datasets = config['available_datasets']
     logger.info(f"Prepopulating datasets: {available_datasets}")

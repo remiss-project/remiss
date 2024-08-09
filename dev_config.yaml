@@ -8,7 +8,9 @@ graph_simplification:
 available_datasets:
   - test_dataset_2
 #  - test_dataset
-
+reference_types:
+  - retweeted
+  - quoted
 theme: PULSE
 debug: True
 frequency: 1D
