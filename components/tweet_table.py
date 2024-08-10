@@ -77,7 +77,7 @@ class TweetTableComponent(RemissComponent):
             self.data['id'] = self.data['ID']
 
             page_count = len(self.data) // PAGE_SIZE if self.data is not None else 0
-            return self.data.iloc[:, PAGE_SIZE].to_dict(orient='records'), page_count
+            return self.data.iloc[:PAGE_SIZE].to_dict(orient='records'), page_count
         else:
 
             self.displayed_data = self.data
