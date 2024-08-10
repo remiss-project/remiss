@@ -54,6 +54,18 @@ class MongoPlotFactory(ABC):
         else:
             raise RuntimeError(f'User {username} not found')
 
+    def get_username(self, dataset, user_id):
+        client = MongoClient(self.host, self.port)
+        self._validate_dataset(client, dataset)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
+        tweet = collection.find_one({'author.id': user_id})
+        client.close()
+        if tweet:
+            return tweet['author']['username']
+        else:
+            raise RuntimeError(f'User {user_id} not found')
+
     @property
     def available_datasets(self):
         if not self._available_datasets:

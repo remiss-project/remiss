@@ -23,7 +23,7 @@ class ControlPanelComponent(RemissComponent):
         self.max_wordcloud_words = max_wordcloud_words
         self.date_picker = self.get_date_picker_component()
         self.wordcloud = self.get_wordcloud_component()
-        self.filter_display = FilterDisplayComponent(state, name=f'filter-display-{self.name}')
+        self.filter_display = FilterDisplayComponent(plot_factory, state, name=f'filter-display-{self.name}')
 
     @property
     def reset_button(self):
@@ -166,9 +166,10 @@ class ControlPanelComponent(RemissComponent):
 
 
 class FilterDisplayComponent(RemissComponent):
-    def __init__(self, state, name=None, gap=2):
+    def __init__(self, plot_factory, state, name=None, gap=2):
         super().__init__(name)
         self.state = state
+        self.plot_factory = plot_factory
         self.tweet_display = html.P(id=f'tweet-display-{self.name}', children='')
         self.hashtags_display = html.P(id=f'hashtags-display-{self.name}', children='')
         self.user_display = html.P(id=f'user-display-{self.name}', children='')
@@ -224,8 +225,12 @@ class FilterDisplayComponent(RemissComponent):
         else:
             return '', False
 
-    def update_user_display(self, user):
+    def update_user_display(self, dataset, user):
         if user:
+            try:
+                user = self.plot_factory.get_username(dataset, user)
+            except RuntimeError as e:
+                logger.warning(f'Error getting username: {e}')
             return user, True
         else:
             return '', False
@@ -255,8 +260,8 @@ class FilterDisplayComponent(RemissComponent):
         app.callback(
             Output(self.user_display, 'children'),
             Output(self.user_toast, 'is_open'),
-
-            [Input(self.state.current_user, 'data')],
+            [Input(self.state.current_dataset, 'data'),
+             Input(self.state.current_user, 'data')],
         )(self.update_user_display)
 
         app.callback(
