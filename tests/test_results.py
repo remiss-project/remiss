@@ -51,5 +51,23 @@ class ResultsTestCase(unittest.TestCase):
         files = list(self.results.output_dir.glob('status*.png'))
         self.assertTrue(files)
 
+    def test_cascades(self):
+        self.results.plot_cascades()
+        # check the plot is there
+        files = list(self.results.output_dir.glob('normal_cascade*.png'))
+        self.assertTrue(files)
+        # files = list(self.results.output_dir.glob('suspect_cascade*.png'))
+        # self.assertTrue(files)
+        files = list(self.results.output_dir.glob('politician_cascade*.png'))
+        self.assertTrue(files)
+        # files = list(self.results.output_dir.glob('suspect_politician_cascade*.png'))
+        # self.assertTrue(files)
+
+    def test_nodes_edges(self):
+        self.results.generate_nodes_and_edges_table()
+        # check the plot is there
+        files = list(self.results.output_dir.glob('nodes_edges.csv'))
+        self.assertTrue(files)
+
 if __name__ == '__main__':
     unittest.main()

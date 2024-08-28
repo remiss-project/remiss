@@ -1,6 +1,7 @@
 from collections import defaultdict
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 from pymongo import MongoClient
@@ -23,20 +24,13 @@ class Results:
         self.egonet_depth = egonet_depth
 
     def plot_propagation_tree(self):
-        conversation_sizes = {}
-        for dataset in self.datasets:
-            conversation_sizes[dataset] = self.propagation_factory.diffusion_metrics.get_conversation_sizes(dataset)
-
-        # merge dfs with the dataset as a additional column
-        conversation_sizes = pd.concat(conversation_sizes, names=['dataset'])
-        # Sort by size
-        top_conversations = conversation_sizes.sort_values(ascending=False, by='size').reset_index()
+        conversations = self._get_conversations()
 
         # Since some  might fail because the original conversation id tweet is not present, just keep sampling
         # until we have the top_n
         count = 0
         figures = []
-        for i, (dataset, conversation_id) in top_conversations[['dataset', 'conversation_id']].iterrows():
+        for i, (dataset, conversation_id) in conversations[['dataset', 'conversation_id']].iterrows():
             if count == self.top_n:
                 break
             try:
@@ -50,6 +44,27 @@ class Results:
         # save the plotly figures as png
         for i, fig in enumerate(figures):
             fig.write_image(f'{self.output_dir}/propagation_tree_{i}.png')
+
+    def _get_conversations(self):
+        conversation_sizes = {}
+        for dataset in self.datasets:
+            conversation_sizes[dataset] = self.propagation_factory.diffusion_metrics.get_conversation_sizes(dataset)
+
+        # merge dfs with the dataset as a additional column
+        conversation_sizes = pd.concat(conversation_sizes, names=['dataset'])
+        # Sort by size
+        conversations = conversation_sizes.sort_values(ascending=False, by='size').reset_index()
+        def get_user_type(row):
+            if row['is_usual_suspect']:
+                if row['party']:
+                    return 'suspect_politician'
+                return 'suspect'
+            if row['party']:
+                return 'politician'
+            return 'normal'
+
+        conversations['user_type'] = conversations.apply(get_user_type, axis=1)
+        return conversations
 
     def plot_egonet_and_backbone(self):
         degrees = self._get_degrees()
@@ -194,13 +209,35 @@ class Results:
         # fig.update_layout(title=title)
         return fig
 
-    def plot_nodes_and_edges_table(self):
-        pass
+    def plot_cascades(self):
+        conversations = self._get_conversations()
+        cascades = defaultdict(list)
+        for user_type, group in conversations.groupby('user_type'):
+            count = 0
+            for i, row in group.iterrows():
+                if count == self.top_n:
+                    break
+                try:
+                    cascade = self.propagation_factory.plot_propagation_tree(row['dataset'], row['conversation_id'])
+                    cascades[user_type].append(cascade)
+                    count += 1
+                except Exception as e:
+                    print(f'Failed to plot cascade for conversation {row["conversation_id"]} from dataset {row["dataset"]}')
+
+        for user_type, group in cascades.items():
+            for i, cascade in enumerate(group):
+                cascade.write_image(f'{self.output_dir}/{user_type}_cascade_{i}.png')
 
 
-if __name__ == '__main__':
-    results = Results()
-    results.plot_propagation_tree()
-    results.plot_egonet_and_backbone()
-    results.plot_legitimacy_status_and_reputation()
-    results.plot_nodes_and_edges_table()
+    def generate_nodes_and_edges_table(self):
+        num_nodes_edges = {}
+        for dataset in self.datasets:
+            hidden_network = self.propagation_factory.egonet.get_hidden_network(dataset)
+            num_nodes = hidden_network.vcount()
+            num_edges = hidden_network.ecount()
+            num_nodes_edges[dataset] = {'num_nodes': num_nodes, 'num_edges': num_edges,
+                                        'closeness': np.mean(hidden_network.closeness())}
+
+        num_nodes_edges = pd.DataFrame(num_nodes_edges).T
+        num_nodes_edges.to_csv(self.output_dir / 'nodes_edges.csv')
+

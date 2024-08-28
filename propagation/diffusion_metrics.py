@@ -350,7 +350,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         if tweet:
             return tweet
         else:
-            raise RuntimeError(f'Tweet {tweet_id} not found')
+            raise RuntimeError(f'Tweet {tweet_id} not found in dataset {dataset}')
 
     @staticmethod
     def get_shortest_paths_to_conversation_id(graph):
