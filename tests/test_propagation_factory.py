@@ -212,6 +212,10 @@ class PropagationFactoryTestCase(unittest.TestCase):
 
         self.assertEqual(3321, len(fig.data[1].x))
 
+    def test_plot_progagation_tree(self):
+        fig = self.propagation_factory.plot_propagation_tree(self.test_dataset, self.test_tweet_id)
+        fig.show()
+
     def test_plot_size_over_time(self):
         fig = self.propagation_factory.plot_size_over_time(self.test_dataset, self.test_tweet_id)
         # fig.show()

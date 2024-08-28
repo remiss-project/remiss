@@ -1,5 +1,5 @@
 mongodb:
-  host: localhost
+  host: http://srvinv02.esade.es
   port: 27017
 cache_dir: /shared/remiss/data/Twitter/.cache/
 graph_layout: fruchterman_reingold

@@ -63,11 +63,6 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         self.assertIsInstance(graph.vs['author_id'][0], str)
         self.assertIsInstance(graph.vs['created_at'][0], Timestamp)
 
-        # Display the igraph graph with matplotlib
-        layout = graph.layout('fr')
-        fig, ax = plt.subplots()
-        ig.plot(graph, layout=layout, target=ax)
-        # plt.show()
 
     def test_all_connected_to_conversation_id(self):
         graph = self.diffusion_metrics.get_propagation_tree(self.test_dataset, self.test_tweet_id)
