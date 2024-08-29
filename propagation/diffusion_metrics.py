@@ -405,12 +405,12 @@ class DiffusionMetrics(BasePropagationMetrics):
                 logger.error(f'Error converting {conversation_id} size over time to json: {e}')
                 size_over_time = None
 
-            try:
-                depth_over_time = depth_over_time.to_dict()
-                depth_over_time = {str(key): value for key, value in depth_over_time.items()}
-            except Exception as e:
-                logger.error(f'Error converting {conversation_id} depth over time to json: {e}')
-                depth_over_time = None
+            # try:
+            #     depth_over_time = depth_over_time.to_dict()
+            #     depth_over_time = {str(key): value for key, value in depth_over_time.items()}
+            # except Exception as e:
+            #     logger.error(f'Error converting {conversation_id} depth over time to json: {e}')
+            #     depth_over_time = None
 
             try:
                 max_breadth_over_time = max_breadth_over_time.to_dict()
@@ -431,7 +431,7 @@ class DiffusionMetrics(BasePropagationMetrics):
                                    'edges': graph.get_edgelist(),
                                    'vs_attributes': attributes,
                                    'size_over_time': size_over_time,
-                                   'depth_over_time': depth_over_time,
+                                   # 'depth_over_time': depth_over_time,
                                    'max_breadth_over_time': max_breadth_over_time,
                                    'structural_virality_over_time': structural_virality_over_time})
             client.close()
