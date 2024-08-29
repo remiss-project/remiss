@@ -270,6 +270,11 @@ class RemissDashboard(RemissComponent):
                         self.filterable_plots_component.layout(params)
                     ]),
                 ]),
+                dbc.Row([
+                    dbc.Col([
+                        html.Footer('Holaaa')
+                   ])
+                ])
             ], gap=self.gap),
 
         ], fluid=True, )
