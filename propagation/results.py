@@ -6,8 +6,11 @@ import pandas as pd
 import plotly.express as px
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
+from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
 
 from figures.propagation import PropagationPlotFactory
+from models.propagation import PropagationCascadeModel, PropagationDatasetGenerator
 
 
 class Results:
@@ -54,6 +57,7 @@ class Results:
         conversation_sizes = pd.concat(conversation_sizes, names=['dataset'])
         # Sort by size
         conversations = conversation_sizes.sort_values(ascending=False, by='size').reset_index()
+
         def get_user_type(row):
             if row['is_usual_suspect']:
                 if row['party']:
@@ -199,7 +203,6 @@ class Results:
             figures.append(fig)
         return figures
 
-
     def _plot_time_series(self, data, title, x_label, y_label):
         # Assume data is a pd.Series
         data.name = y_label
@@ -222,12 +225,12 @@ class Results:
                     cascades[user_type].append(cascade)
                     count += 1
                 except Exception as e:
-                    print(f'Failed to plot cascade for conversation {row["conversation_id"]} from dataset {row["dataset"]}')
+                    print(
+                        f'Failed to plot cascade for conversation {row["conversation_id"]} from dataset {row["dataset"]}')
 
         for user_type, group in cascades.items():
             for i, cascade in enumerate(group):
                 cascade.write_image(f'{self.output_dir}/{user_type}_cascade_{i}.png')
-
 
     def generate_nodes_and_edges_table(self):
         num_nodes_edges = {}
@@ -241,3 +244,45 @@ class Results:
         num_nodes_edges = pd.DataFrame(num_nodes_edges).T
         num_nodes_edges.to_csv(self.output_dir / 'nodes_edges.csv')
 
+    def generate_performance_table(self):
+        results = {}
+        for dataset in self.datasets:
+            results[dataset] = self._test_dataset(dataset)
+
+        results = pd.DataFrame(results).T
+        results.to_csv(self.output_dir / 'model_performance.csv')
+
+    def _test_dataset(self, dataset):
+        dataset_generator = PropagationDatasetGenerator(dataset)
+        features = dataset_generator.generate_propagation_dataset()
+        y = features['propagated']
+        X = features.drop(columns=['propagated'])
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        model = PropagationCascadeModel()
+        model.fit(X_train, y_train)
+        y_train_pred = model.predict(X_train)
+        y_test_pred = model.predict(X_test)
+
+        train_metrics = self._get_metrics(y_train, y_train_pred)
+        test_metrics = self._get_metrics(y_test, y_test_pred)
+
+        results = {
+            'train': train_metrics,
+            'test': test_metrics
+        }
+        results = pd.DataFrame(results).stack().swaplevel().sort_index(ascending=False)
+        results.name = dataset
+        return results
+
+    def _get_metrics(self, y_true, y_pred):
+        report = classification_report(y_true, y_pred, output_dict=True)
+        metrics = {'accuracy': report['accuracy'],
+                   'precision': report['macro avg']['precision'],
+                   'recall': report['macro avg']['recall'],
+                   'f1_score': report['macro avg']['f1-score'],
+                   'No Propagation support': report['0']['support'],
+                   'Propagation support': report['1']['support']
+                   }
+
+        return metrics

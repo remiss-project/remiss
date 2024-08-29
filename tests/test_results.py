@@ -69,5 +69,11 @@ class ResultsTestCase(unittest.TestCase):
         files = list(self.results.output_dir.glob('nodes_edges.csv'))
         self.assertTrue(files)
 
+    def test_performance(self):
+        self.results.generate_performance_table()
+        # check the table is there
+        files = list(self.results.output_dir.glob('model_performance.csv'))
+        self.assertTrue(files)
+
 if __name__ == '__main__':
     unittest.main()
