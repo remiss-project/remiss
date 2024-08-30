@@ -272,32 +272,52 @@ class RemissDashboard(RemissComponent):
                 ]),
                 dbc.Row([
                     dbc.Col([
-                        html.Footer(
+                        html.Footer([
                             html.Div([
-                                html.H3("Project partners: "),
-                                html.Img(src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSIW2tDTEGohZ7lnnZWtVyW2DJeZXgn6jUSAQ&s", style={
+                                html.H3("Consortium formed by: "),
+                                html.Img(src="/assets/logo-eurecat.png", style={
                                     "height": "40px",
                                     "width": "85px"
                                 }),
-                                html.Img(src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQq06i1Q0tFiN5nyySOmeeYuaAbBOKHGOJFCg&s", style={
+                                html.Img(src="/assets/logo-uv.png", style={
                                     "height": "40px",
                                     "width": "85px"
                                 }),
-                                html.Img(src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSWRIfGrsv-G5bJBvKjTCpJaNNTUmEmWJQpIQ&s", style={
+                                html.Img(src="/assets/logo-esade.png", style={
                                     "height": "40px",
                                     "width": "85px"
                                 }),
-                                html.Img(src="https://upload.wikimedia.org/wikipedia/commons/e/ed/Esade_logo_nuevo.png", style={
+                                html.Img(src="/assets/logo-ccma.png", style={
+                                    "height": "40px",
+                                    "width": "85px"
+                                }),
+                                html.Img(src="/assets/logo-cvc.png", style={
+                                    "height": "40px",
+                                    "width": "85px"
+                                }),
+                                html.Img(src="/assets/logo-verificat.png", style={
                                     "height": "40px",
                                     "width": "85px"
                                 }),
                             ], style={
                                  "display": "flex",
-                                 "justify-content": "flex-end",
+                                 "justify-content": "center",
+                                 "align-items": "center",
                                  "gap": "10px"
                                }
                             ),
-                        )
+                            html.Div([
+                                html.H3("Project PLEC2021-007850 funded by: "),
+                                html.Img(src="/assets/logos-funders.jpg", style={
+                                    "height": "40px",
+                                }),
+                            ],style={
+                                 "display": "flex",
+                                 "justify-content": "center",
+                                 "align-items": "center",
+                                 "gap": "10px"
+                               })
+                        ])
                    ])
                 ])
             ], gap=self.gap),
