@@ -272,7 +272,32 @@ class RemissDashboard(RemissComponent):
                 ]),
                 dbc.Row([
                     dbc.Col([
-                        html.Footer('Holaaa')
+                        html.Footer(
+                            html.Div([
+                                html.H3("Project partners: "),
+                                html.Img(src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSIW2tDTEGohZ7lnnZWtVyW2DJeZXgn6jUSAQ&s", style={
+                                    "height": "40px",
+                                    "width": "85px"
+                                }),
+                                html.Img(src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQq06i1Q0tFiN5nyySOmeeYuaAbBOKHGOJFCg&s", style={
+                                    "height": "40px",
+                                    "width": "85px"
+                                }),
+                                html.Img(src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSWRIfGrsv-G5bJBvKjTCpJaNNTUmEmWJQpIQ&s", style={
+                                    "height": "40px",
+                                    "width": "85px"
+                                }),
+                                html.Img(src="https://upload.wikimedia.org/wikipedia/commons/e/ed/Esade_logo_nuevo.png", style={
+                                    "height": "40px",
+                                    "width": "85px"
+                                }),
+                            ], style={
+                                 "display": "flex",
+                                 "justify-content": "flex-end",
+                                 "gap": "10px"
+                               }
+                            ),
+                        )
                    ])
                 ])
             ], gap=self.gap),
