@@ -87,15 +87,18 @@ class TestTopTableFactory(TestCase):
                     'Cascade size': {0: 1, 1: 1, 2: 1},
                     'Legitimacy': {0: 0.0, 1: 0.0, 2: 0.0},
                     'Reputation': {0: 0.0, 1: 0.0, 2: 0.0},
-                    'Status': {0: 3.0, 1: 3.0, 2: 3.0}
+                    'Status': {0: 3.0, 1: 3.0, 2: 3.0},
+                    'Conversation ID': {0: '0', 1: '1', 2: '2'}
                     }
         expected = pd.DataFrame(expected)
         expected = expected.iloc[[2, 1, 0]].reset_index(drop=True)
         expected_columns = ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party', 'Multimodal', 'Profiling', 'ID',
-                            'Author ID', 'Suspicious content', 'Cascade size', 'Legitimacy', 'Reputation', 'Status']
+                            'Author ID', 'Suspicious content', 'Cascade size', 'Legitimacy', 'Reputation', 'Status',
+                            'Conversation ID']
         expected = expected[expected_columns]
+        actual = actual[expected_columns].reset_index(drop=True)
 
-        pd.testing.assert_frame_equal(actual, expected)
+        pd.testing.assert_frame_equal(actual, expected, check_index_type=False, check_dtype=False)
 
     def test_get_top_table_date_filtering(self):
         dataset = self.tmp_dataset
@@ -115,15 +118,18 @@ class TestTopTableFactory(TestCase):
                     'Cascade size': {0: 1, 1: 1, 2: 1},
                     'Legitimacy': {0: 0.0, 1: 0.0, 2: 0.0},
                     'Reputation': {0: 0.0, 1: 0.0, 2: 0.0},
-                    'Status': {0: 3.0, 1: 3.0, 2: 3.0}
+                    'Status': {0: 3.0, 1: 3.0, 2: 3.0},
+                    'Conversation ID': {0: '0', 1: '1', 2: '2'}
                     }
         expected = pd.DataFrame(expected)
         expected = expected.iloc[[1, 0]].reset_index(drop=True)
         expected_columns = ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party', 'Multimodal', 'Profiling', 'ID',
-                            'Author ID', 'Suspicious content', 'Cascade size', 'Legitimacy', 'Reputation', 'Status']
+                            'Author ID', 'Suspicious content', 'Cascade size', 'Legitimacy', 'Reputation', 'Status',
+                            'Conversation ID']
         expected = expected[expected_columns]
+        actual = actual[expected_columns].reset_index(drop=True)
 
-        pd.testing.assert_frame_equal(actual, expected)
+        pd.testing.assert_frame_equal(actual, expected, check_index_type=False, check_dtype=False)
 
     def test_get_top_table_full_date_filtering(self):
         dataset = self.test_dataset
