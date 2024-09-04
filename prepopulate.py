@@ -3,6 +3,7 @@ import logging
 import fire
 from pyaml_env import parse_config
 
+from figures.propagation import PropagationPlotFactory
 from propagation import Egonet, NetworkMetrics, DiffusionMetrics
 from propagation.histogram import Histogram
 
@@ -20,8 +21,17 @@ def prepopulate_propagation(config_file='dev_config.yaml'):
     egonet = Egonet(host=config['mongodb']['host'], port=config['mongodb']['port'],
                     reference_types=config['reference_types'], threshold=config['graph_simplification']['threshold'])
     histogram = Histogram(host=config['mongodb']['host'], port=config['mongodb']['port'])
+    propagation_factory = PropagationPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                                    available_datasets=config['available_datasets'])
     available_datasets = config['available_datasets']
     logger.info(f"Prepopulating datasets: {available_datasets}")
+
+    logger.info('Generating propagation metrics and graphs')
+    try:
+        propagation_factory.persist(available_datasets)
+    except Exception as e:
+        logger.error(f"Error generating propagation metrics and graphs: {e}")
+        raise RuntimeError(f"Error generating propagation metrics and graphs: {e}") from e
 
     logger.info('Generating diffusion metrics')
     try:
