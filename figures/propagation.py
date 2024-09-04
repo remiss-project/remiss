@@ -7,8 +7,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from igraph import Layout
 from pymongo import MongoClient
-from pymongoarrow.schema import Schema
 from pymongoarrow.monkey import patch_all
+from pymongoarrow.schema import Schema
 from sklearn import set_config
 
 from figures.figures import MongoPlotFactory
@@ -59,16 +59,23 @@ class PropagationPlotFactory(MongoPlotFactory):
         # if start_date, end_date or hashtag are not none we need to recompute the layout
         start_date, end_date = self._validate_dates(collection, start_date, end_date)
         if start_date or end_date or hashtags:
-            if self.egonet.threshold > 0:
-                hidden_network = self.egonet.get_hidden_network_backbone(collection, start_date, end_date, hashtags)
-            else:
-                hidden_network = self.egonet.get_hidden_network(collection, start_date, end_date, hashtags)
-            layout = self.compute_layout(hidden_network)
-            layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
+            layout = self.compute_filtered_layout(hidden_network, collection, start_date, end_date, hashtags)
             return layout
         else:
-            layout = self._load_layout_from_mongodb(collection, 'hidden_network_layout')
+            try:
+                layout = self._load_layout_from_mongodb(collection, 'hidden_network_layout')
+            except ValueError:
+                layout = self.compute_filtered_layout(hidden_network, collection, start_date, end_date, hashtags)
             return layout
+
+    def compute_filtered_layout(self, hidden_network, collection, start_date=None, end_date=None, hashtags=None):
+        if self.egonet.threshold > 0:
+            hidden_network = self.egonet.get_hidden_network_backbone(collection, start_date, end_date, hashtags)
+        else:
+            hidden_network = self.egonet.get_hidden_network(collection, start_date, end_date, hashtags)
+        layout = self.compute_layout(hidden_network)
+        layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
+        return layout
 
     def _validate_dates(self, dataset, start_date, end_date):
         dataset_start_date, dataset_end_date = self.get_date_range(dataset)
@@ -214,26 +221,35 @@ class PropagationPlotFactory(MongoPlotFactory):
                         'is_usual_suspect': {'$addToSet': '$is_usual_suspect'},
                         'party': {'$addToSet': '$party'},
                         }},
-            {'$lookup': {'from': 'network_metrics', 'localField': '_id', 'foreignField': 'author_id',
-                         'as': 'network_metrics'}},
             {'$project': {'_id': 0,
                           'author_id': '$_id',
                           'username': 1,
                           'is_usual_suspect': {'$anyElementTrue': '$is_usual_suspect'},
                           'party': {'$arrayElemAt': ['$party', 0]},
-                          'legitimacy': {'$arrayElemAt': ['$network_metrics.legitimacy', 0]},
-                          'reputation': {'$arrayElemAt': ['$network_metrics.average_reputation', 0]},
-                          'status': {'$arrayElemAt': ['$network_metrics.average_status', 0]},
+
                           }}
 
         ]
+
         if author_ids:
             pipeline.insert(0, {'$match': {'author.id': {'$in': author_ids}}})
-        schema = Schema({'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str,
-                         'legitimacy': float, 'reputation': float, 'status': float})
+        schema = Schema({'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str})
         metadata = database.get_collection('raw').aggregate_pandas_all(pipeline, schema=schema)
+        network_metrics_pipeline = [
+            {'$project': {'_id': 0,
+                          'author_id': 1,
+                          'legitimacy': 1,
+                          'reputation': '$average_reputation',
+                          'status': '$average_status'}
+             },
+        ]
+        network_metrics_schema = Schema({'author_id': str, 'legitimacy': float,
+                                         'reputation': float, 'status': float})
+        network_metrics = database.get_collection('network_metrics').aggregate_pandas_all(network_metrics_pipeline,
+                                                                                          schema=network_metrics_schema)
         client.close()
         metadata = metadata.set_index('author_id')
+        metadata = metadata.join(network_metrics.set_index('author_id'))
         metadata['User type'] = metadata.apply(transform_user_type, axis=1).fillna('Unknown')
 
         return metadata
@@ -436,6 +452,10 @@ class PropagationPlotFactory(MongoPlotFactory):
     def _load_layout_from_mongodb(self, dataset, collection_name):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
+        # Check collection actually exists
+        if collection_name not in database.list_collection_names():
+            logger.error(f'Layout collection {collection_name} not found for dataset {dataset}. Is it persisted?')
+            raise ValueError(f'Layout collection {collection_name} not found for dataset {dataset}')
         collection = database.get_collection(collection_name)
         layout = collection.aggregate_pandas_all([{'$project': {'_id': 0}}])
         client.close()

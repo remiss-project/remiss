@@ -11,7 +11,7 @@ logger = logging.getLogger('main')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
-def prepopulate_propagation(config_file='dev_config.yaml'):
+def prepopulate_propagation(config_file='remote_prod_config.yaml'):
     logger.debug(f'Prepopulating propagation metrics and graphs from {config_file}...')
     config = parse_config(config_file)
     diffusion_metrics = DiffusionMetrics(host=config['mongodb']['host'], port=config['mongodb']['port'],
@@ -61,5 +61,5 @@ def prepopulate_propagation(config_file='dev_config.yaml'):
 
 
 if __name__ == '__main__':
-    fire.Fire(prepopulate_propagation)
-
+    # fire.Fire(prepopulate_propagation)
+    prepopulate_propagation()
