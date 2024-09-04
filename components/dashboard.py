@@ -272,7 +272,52 @@ class RemissDashboard(RemissComponent):
                 ]),
                 dbc.Row([
                     dbc.Col([
-                        html.Footer('Holaaa')
+                        html.Footer([
+                            html.Div([
+                                html.H3("Consortium formed by: "),
+                                html.Img(src="/assets/logo-eurecat.png", style={
+                                    "height": "40px",
+                                    "width": "85px"
+                                }),
+                                html.Img(src="/assets/logo-uv.png", style={
+                                    "height": "40px",
+                                    "width": "85px"
+                                }),
+                                html.Img(src="/assets/logo-esade.png", style={
+                                    "height": "40px",
+                                    "width": "85px"
+                                }),
+                                html.Img(src="/assets/logo-ccma.png", style={
+                                    "height": "40px",
+                                    "width": "85px"
+                                }),
+                                html.Img(src="/assets/logo-cvc.png", style={
+                                    "height": "40px",
+                                    "width": "85px"
+                                }),
+                                html.Img(src="/assets/logo-verificat.png", style={
+                                    "height": "40px",
+                                    "width": "85px"
+                                }),
+                            ], style={
+                                 "display": "flex",
+                                 "justify-content": "center",
+                                 "align-items": "center",
+                                 "gap": "10px"
+                               }
+                            ),
+                            html.Div([
+                                html.H3("Project PLEC2021-007850 funded by: "),
+                                html.Img(src="/assets/logos-funders.jpg", style={
+                                    "height": "40px",
+                                }),
+                            ],style={
+                                 "display": "flex",
+                                 "justify-content": "center",
+                                 "align-items": "center",
+                                 "gap": "10px"
+                               })
+                        ])
                    ])
                 ])
             ], gap=self.gap),
