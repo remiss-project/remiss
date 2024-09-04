@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from sklearn.model_selection import train_test_split
 from figures.propagation import PropagationPlotFactory
 from models.propagation import PropagationCascadeModel, PropagationDatasetGenerator
 
+logger = logging.getLogger(__name__)
 
 class Results:
 
@@ -286,3 +288,28 @@ class Results:
                    }
 
         return metrics
+
+    def process(self):
+        logger.info('Processing results')
+        logger.info('Plotting propagation trees')
+        self.plot_propagation_tree()
+        logger.info('Plotting egonets and backbones')
+        self.plot_egonet_and_backbone()
+        logger.info('Plotting legitimacy, status and reputation')
+        self.plot_legitimacy_status_and_reputation()
+        logger.info('Plotting cascades')
+        self.plot_cascades()
+        logger.info('Generating nodes and edges table')
+        self.generate_nodes_and_edges_table()
+        logger.info('Generating performance table')
+        self.generate_performance_table()
+        logger.info('Results processed')
+
+
+if __name__ == '__main__':
+    output_dir = Path('../results/final')
+    output_dir.mkdir(parents=True, exist_ok=True)
+    datasets = ['MENA_Agressions', 'MENA_Ajudes', 'Openarms']
+    results = Results(datasets=datasets, host='mongodb://srvinv02.esade.es', port=27017,
+                      output_dir=output_dir, top_n=3)
+    results.process()

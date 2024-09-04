@@ -18,8 +18,14 @@ from propagation.results import Results
 
 class ResultsTestCase(unittest.TestCase):
     def setUp(self):
-        self.results = Results(datasets=['test_dataset_2'], host='localhost', port=27017,
-                               output_dir=Path('../results'), top_n=1)
+        #   - MENA_Agressions
+        #   - MENA_Ajudes
+        #   - Openarms
+        output_dir = Path('../results/final')
+        output_dir.mkdir(parents=True, exist_ok=True)
+        datasets = ['MENA_Agressions', 'MENA_Ajudes', 'Openarms']
+        self.results = Results(datasets=datasets, host='http://srvinv02.esade.es', port=27017,
+                               output_dir=output_dir, top_n=3)
         self.test_dataset = 'test_dataset_2'
         self.tmp_dataset = str(uuid.uuid4().hex)
         self.test_tweet_id = '1167074391315890176'

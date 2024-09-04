@@ -1,0 +1,33 @@
+mongodb:
+  host: 'mongodb://srvinv02.esade.es'
+  port: 27017
+cache_dir: /shared/remiss/data/Twitter/.cache/
+graph_layout: fruchterman_reingold
+graph_simplification:
+  threshold: 0.95
+available_datasets:
+#  - Andalucia_2022
+#  - MENA_Agressions
+#  - MENA_Ajudes
+  - Openarms
+#  - Barcelona_2019
+#  - Generales_2019
+#  - Generalitat_2021
+
+reference_types:
+  - retweeted
+  - quoted
+theme: PULSE
+debug: "True"
+frequency: 1D
+textual:
+  api_url: 'http://srvinv02.esade.es:5005/api'
+profiling:
+  data_dir: './profiling_data/'
+multimodal:
+  data_dir: './multimodal_data/'
+wordcloud:
+  max_words: 50
+  width: 400
+  height: 400
+  match_width: True
