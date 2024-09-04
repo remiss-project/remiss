@@ -17,7 +17,8 @@ from figures.textual import TextualFactory
 
 
 logger = logging.getLogger('app')
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
 
 banner = \
 '''
