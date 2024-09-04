@@ -19,6 +19,7 @@ patch_all()
 set_config(transform_output="pandas")
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 class PropagationPlotFactory(MongoPlotFactory):
@@ -419,7 +420,10 @@ class PropagationPlotFactory(MongoPlotFactory):
             else:
                 hidden_network = self.egonet.get_hidden_network(dataset)
             layout = self.get_hidden_network_layout(hidden_network, dataset)
-            self._persist_layout_to_mongodb(layout, dataset, 'hidden_network_layout')
+            if not layout.empty:
+                self._persist_layout_to_mongodb(layout, dataset, 'hidden_network_layout')
+            else:
+                logger.error(f'Empty layout for dataset {dataset}')
 
     def _persist_layout_to_mongodb(self, layout, dataset, collection_name):
         client = MongoClient(self.host, self.port)
