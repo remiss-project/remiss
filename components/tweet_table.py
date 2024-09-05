@@ -54,8 +54,8 @@ class TweetTableComponent(RemissComponent):
                                    'maxWidth': 0,
                                },
                                style_cell_conditional=[
-                                   {'if': {'column_id': 'ID'},
-                                    'width': '40%'},
+                                   {'if': {'column_id': 'Text'},
+                                    'width': '30%'},
                                ]
                                )
 
