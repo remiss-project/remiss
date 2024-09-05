@@ -7,7 +7,7 @@ graph_simplification:
   threshold: 0.95
 available_datasets:
 #  - Andalucia_2022
-  - Openarms
+#  - Openarms
   - MENA_Agressions
   - MENA_Ajudes
 #  - Barcelona_2019
