@@ -14,6 +14,9 @@ from figures.propagation import PropagationPlotFactory
 from models.propagation import PropagationCascadeModel, PropagationDatasetGenerator
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler())
+logger.setLevel(logging.DEBUG)
+
 
 class Results:
 
@@ -29,10 +32,13 @@ class Results:
         self.egonet_depth = egonet_depth
 
     def plot_propagation_tree(self):
+        logger.info('Plotting propagation trees')
+        logger.info('Getting conversations')
         conversations = self._get_conversations()
 
         # Since some  might fail because the original conversation id tweet is not present, just keep sampling
         # until we have the top_n
+        logger.info('Plotting propagation trees')
         count = 0
         figures = []
         for i, (dataset, conversation_id) in conversations[['dataset', 'conversation_id']].iterrows():
@@ -43,8 +49,9 @@ class Results:
                 figures.append(plot)
 
                 count += 1
+                logger.info(f'Plotted conversation {conversation_id} from dataset {dataset} count {count}')
             except Exception as e:
-                print(f'Failed to plot conversation {conversation_id} from dataset {dataset}')
+                logger.warning(f'Failed to plot conversation {conversation_id} from dataset {dataset} due to {e}')
 
         # save the plotly figures as png
         for i, fig in enumerate(figures):
@@ -73,8 +80,11 @@ class Results:
         return conversations
 
     def plot_egonet_and_backbone(self):
+        logger.info('Plotting egonets and backbones')
+        logger.info('Getting degrees')
         degrees = self._get_degrees()
 
+        logger.info('Plotting egonets')
         # group by user type and plot the egonet for each user
         for user_type, group in degrees.groupby('user_type'):
             count = 0
@@ -87,8 +97,10 @@ class Results:
                     plot = self.propagation_factory.plot_egonet(row['dataset'], row['author_id'], self.egonet_depth)
                     figures.append(plot)
                     count += 1
+                    logger.info(
+                        f'Plotted egonet for user {row["author_id"]} from dataset {row["dataset"]} count {count}')
                 except Exception as e:
-                    print(f'Failed to plot egonet for user {row["author_id"]} from dataset {row["dataset"]}')
+                    logger.warning(f'Failed to plot egonet for user {row["author_id"]} from dataset {row["dataset"]} due to {e}')
 
             # save the plotly figures as png
             for i, fig in enumerate(figures):
@@ -135,10 +147,11 @@ class Results:
         return df
 
     def plot_legitimacy_status_and_reputation(self):
+        logger.info('Plotting legitimacy, status and reputation')
         legitimacies = {}
         reputations = {}
         statuses = {}
-        metadatas = {}
+        logger.info('Getting legitimacy, status and reputation')
         for dataset in self.datasets:
             legitimacy = self.propagation_factory.network_metrics.get_legitimacy(dataset)
             reputation = self.propagation_factory.network_metrics.get_reputation(dataset)
@@ -152,11 +165,10 @@ class Results:
         reputations = pd.concat(reputations, names=['dataset', 'author_id'])
         statuses = pd.concat(statuses, names=['dataset', 'author_id'])
 
+        logger.info('Getting degrees')
         # get degrees and metadata
         degrees = self._get_degrees()
-
         legitimacy_figures_data = defaultdict(list)
-
         # group by user type and plot the egonet for each user
         for user_type, group in degrees.groupby('user_type'):
             count = 0
@@ -176,9 +188,11 @@ class Results:
                     legitimacy_figures_data[user_type].append(legitimacy)
 
                     count += 1
+                    logger.info(f'Plotted legitimacy, reputation and status for '
+                                f'user {row["author_id"]} from dataset {row["dataset"]} count {count}')
                 except Exception as e:
-                    print(
-                        f'Failed to plot legitimacy, reputation and status for user {row["author_id"]} from dataset {row["dataset"]}')
+                    logger.warning(
+                        f'Failed to plot legitimacy, reputation and status for user {row["author_id"]} from dataset {row["dataset"]} due to {e}')
 
             # save the plotly figures as png
             for i, fig in enumerate(reputation_figures):
@@ -215,6 +229,7 @@ class Results:
         return fig
 
     def plot_cascades(self):
+        logger.info('Plotting cascades')
         conversations = self._get_conversations()
         cascades = defaultdict(list)
         for user_type, group in conversations.groupby('user_type'):
@@ -226,8 +241,9 @@ class Results:
                     cascade = self.propagation_factory.plot_propagation_tree(row['dataset'], row['conversation_id'])
                     cascades[user_type].append(cascade)
                     count += 1
+                    logger.info(f'Plotted cascade for conversation {row["conversation_id"]} from dataset {row["dataset"]} count {count}')
                 except Exception as e:
-                    print(
+                    logger.warning(
                         f'Failed to plot cascade for conversation {row["conversation_id"]} from dataset {row["dataset"]}')
 
         for user_type, group in cascades.items():
@@ -235,6 +251,7 @@ class Results:
                 cascade.write_image(f'{self.output_dir}/{user_type}_cascade_{i}.png')
 
     def generate_nodes_and_edges_table(self):
+        logger.info('Generating nodes and edges table')
         num_nodes_edges = {}
         for dataset in self.datasets:
             hidden_network = self.propagation_factory.egonet.get_hidden_network(dataset)
@@ -247,15 +264,17 @@ class Results:
         num_nodes_edges.to_csv(self.output_dir / 'nodes_edges.csv')
 
     def generate_performance_table(self):
+        logger.info('Generating performance table')
         results = {}
         for dataset in self.datasets:
+            logger.info(f'Testing dataset {dataset}')
             results[dataset] = self._test_dataset(dataset)
 
         results = pd.DataFrame(results).T
         results.to_csv(self.output_dir / 'model_performance.csv')
 
     def _test_dataset(self, dataset):
-        dataset_generator = PropagationDatasetGenerator(dataset)
+        dataset_generator = PropagationDatasetGenerator(dataset, host=self.host, port=self.port)
         features = dataset_generator.generate_propagation_dataset()
         y = features['propagated']
         X = features.drop(columns=['propagated'])
@@ -291,17 +310,11 @@ class Results:
 
     def process(self):
         logger.info('Processing results')
-        logger.info('Plotting propagation trees')
-        self.plot_propagation_tree()
-        logger.info('Plotting egonets and backbones')
-        self.plot_egonet_and_backbone()
-        logger.info('Plotting legitimacy, status and reputation')
-        self.plot_legitimacy_status_and_reputation()
-        logger.info('Plotting cascades')
-        self.plot_cascades()
-        logger.info('Generating nodes and edges table')
-        self.generate_nodes_and_edges_table()
-        logger.info('Generating performance table')
+        # self.plot_propagation_tree()
+        # self.plot_egonet_and_backbone()
+        # self.plot_legitimacy_status_and_reputation()
+        # self.plot_cascades()
+        # self.generate_nodes_and_edges_table()
         self.generate_performance_table()
         logger.info('Results processed')
 
