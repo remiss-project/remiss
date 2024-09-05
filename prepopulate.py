@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 
 
 class Prepopulator:
-    def __init__(self, config_file='remote_prod_config.yaml',
+    def __init__(self, config_file='prod_config.yaml',
                  metrics=('propagation', 'diffusion', 'network', 'egonet', 'histogram')):
         self.metrics = metrics
         self.config_file = config_file
