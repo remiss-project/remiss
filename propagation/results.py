@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 from pathlib import Path
 
+import fire
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -20,7 +21,9 @@ logger.setLevel(logging.DEBUG)
 
 class Results:
 
-    def __init__(self, datasets, host='localhost', port=27017, output_dir='./results', top_n=10, egonet_depth=2):
+    def __init__(self, datasets, host='localhost', port=27017, output_dir='./results', top_n=10, egonet_depth=2,
+                 features=('propagation_tree', 'egonet', 'legitimacy_status_reputation', 'cascades', 'nodes_edges',
+                           'performance')):
         self.top_n = top_n
         self.host = host
         self.port = port
@@ -30,6 +33,7 @@ class Results:
         self.propagation_factory = PropagationPlotFactory(available_datasets=self.datasets, host=self.host,
                                                           port=self.port)
         self.egonet_depth = egonet_depth
+        self.features = features
 
     def plot_propagation_tree(self):
         logger.info('Plotting propagation trees')
@@ -310,19 +314,38 @@ class Results:
 
     def process(self):
         logger.info('Processing results')
-        # self.plot_propagation_tree()
-        # self.plot_egonet_and_backbone()
-        # self.plot_legitimacy_status_and_reputation()
-        # self.plot_cascades()
-        # self.generate_nodes_and_edges_table()
-        self.generate_performance_table()
+        for feature in self.features:
+            match feature:
+                case 'propagation_tree':
+                    self.plot_propagation_tree()
+                case 'egonet':
+                    self.plot_egonet_and_backbone()
+                case 'legitimacy_status_reputation':
+                    self.plot_legitimacy_status_and_reputation()
+                case 'cascades':
+                    self.plot_cascades()
+                case 'nodes_edges':
+                    self.generate_nodes_and_edges_table()
+                case 'performance':
+                    self.generate_performance_table()
+                case _:
+                    logger.error(f'Feature {feature} not recognized')
+
         logger.info('Results processed')
 
 
-if __name__ == '__main__':
-    output_dir = Path('../results/final')
-    output_dir.mkdir(parents=True, exist_ok=True)
-    datasets = ['MENA_Agressions', 'MENA_Ajudes', 'Openarms']
-    results = Results(datasets=datasets, host='mongodb://srvinv02.esade.es', port=27017,
-                      output_dir=output_dir, top_n=3)
+def run_results(datasets, host='localhost', port=27017, output_dir='./results', top_n=10, egonet_depth=2,
+                features=('propagation_tree', 'egonet', 'legitimacy', 'cascades', 'nodes_edges', 'performance')):
+    logger.info('Running results')
+    logger.info(f'Datasets: {datasets}')
+    logger.info(f'Host: {host}')
+    logger.info(f'Port: {port}')
+    logger.info(f'Output directory: {output_dir}')
+    logger.info(f'Top n: {top_n}')
+    logger.info(f'Egonet depth: {egonet_depth}')
+    results = Results(datasets=datasets, host=host, port=port, output_dir=output_dir, top_n=top_n, egonet_depth=egonet_depth,
+                      features=features)
     results.process()
+
+if __name__ == '__main__':
+    fire.Fire(run_results)
