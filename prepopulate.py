@@ -79,9 +79,7 @@ class Prepopulator:
         )
 
     def prepopulate(self):
-        logger.debug(f'Prepopulating from {self.config_file}')
-        logger.debug(f'Available datasets: {self.available_datasets}')
-        logger.debug(f'Modules: {self.modules}')
+        logger.debug(f'Prepopulating')
         for module in self.modules:
             match module:
                 case 'layout':
@@ -101,9 +99,9 @@ class Prepopulator:
 
 def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
                      modules=('layout', 'diffusion', 'network', 'egonet', 'histogram')):
-    print(f'Prepopulating from {config_file}')
-    print(f'Available datasets: {available_datasets}')
-    print(f'Modules: {modules}')
+    logger.info(f'Running prepopulator with config file: {config_file}')
+    logger.info(f'Available datasets: {available_datasets}')
+    logger.info(f'Modules: {modules}')
     prepopulator = Prepopulator(config_file=config_file, available_datasets=available_datasets, modules=modules)
     prepopulator.prepopulate()
 
