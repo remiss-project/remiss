@@ -6,10 +6,10 @@ graph_layout: fruchterman_reingold
 graph_simplification:
   threshold: 0.95
 available_datasets:
-#  - Andalucia_2022
   - MENA_Agressions
   - MENA_Ajudes
   - Openarms
+  - Andalucia_2022
 reference_types:
   - retweeted
   - quoted
