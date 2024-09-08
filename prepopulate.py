@@ -1,5 +1,6 @@
 import logging
 
+import fire
 from pyaml_env import parse_config
 
 from figures.propagation import PropagationPlotFactory
@@ -11,9 +12,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 
 
 class Prepopulator:
-    def __init__(self, config_file='prod_config.yaml',
-                 metrics=('propagation', 'diffusion', 'network', 'egonet', 'histogram')):
-        self.metrics = metrics
+    def __init__(self, config_file='prod_config.yaml', available_datasets=None,
+                 modules=('layout', 'diffusion', 'network', 'egonet', 'histogram')):
+        self.modules = modules
         self.config_file = config_file
         config = parse_config(config_file)
         self.diffusion_metrics = DiffusionMetrics(host=config['mongodb']['host'], port=config['mongodb']['port'],
@@ -27,7 +28,7 @@ class Prepopulator:
         self.propagation_factory = PropagationPlotFactory(host=config['mongodb']['host'],
                                                           port=config['mongodb']['port'],
                                                           available_datasets=config['available_datasets'])
-        self.available_datasets = config['available_datasets']
+        self.available_datasets = config['available_datasets'] if available_datasets is None else available_datasets
 
     def _execute_with_logging(self, metric_type, persist_method, available_datasets, error_message):
         logger.info(f'Generating {metric_type}')
@@ -37,61 +38,70 @@ class Prepopulator:
             logger.error(f"{error_message}: {e}")
             raise RuntimeError(f"{error_message}: {e}") from e
 
-    def generate_propagation_factory_metrics(self, available_datasets):
+    def generate_layout(self):
         self._execute_with_logging(
             "propagation metrics and graphs",
             self.propagation_factory.persist,
-            available_datasets,
+            self.available_datasets,
             "Error generating propagation metrics and graphs"
         )
 
-    def generate_diffusion_metrics(self, available_datasets):
+    def generate_diffusion_metrics(self):
         self._execute_with_logging(
             "diffusion metrics",
             self.diffusion_metrics.persist,
-            available_datasets,
+            self.available_datasets,
             "Error generating diffusion metrics"
         )
 
-    def generate_network_metrics(self, available_datasets):
+    def generate_network_metrics(self):
         self._execute_with_logging(
             "network metrics",
             self.network_metrics.persist,
-            available_datasets,
+            self.available_datasets,
             "Error generating network metrics"
         )
 
-    def generate_egonet_metrics(self, available_datasets):
+    def generate_egonet_metrics(self):
         self._execute_with_logging(
             "egonet metrics",
             self.egonet.persist,
-            available_datasets,
+            self.available_datasets,
             "Error generating egonet metrics"
         )
 
-    def generate_histograms(self, available_datasets):
+    def generate_histograms(self):
         self._execute_with_logging(
             "histograms",
             self.histogram.persist,
-            available_datasets,
+            self.available_datasets,
             "Error generating histograms"
         )
 
     def prepopulate(self):
         logger.debug(f'Prepopulating propagation metrics and graphs from {self.config_file}...')
-        if 'propagation' in self.metrics:
-            self.generate_propagation_factory_metrics(self.available_datasets)
-        if 'diffusion' in self.metrics:
-            self.generate_diffusion_metrics(self.available_datasets)
-        if 'network' in self.metrics:
-            self.generate_network_metrics(self.available_datasets)
-        if 'egonet' in self.metrics:
-            self.generate_egonet_metrics(self.available_datasets)
-        if 'histogram' in self.metrics:
-            self.generate_histograms(self.available_datasets)
+        for module in self.modules:
+            match module:
+                case 'layout':
+                    self.generate_layout()
+                case 'diffusion':
+                    self.generate_diffusion_metrics()
+                case 'network':
+                    self.generate_network_metrics()
+                case 'egonet':
+                    self.generate_egonet_metrics()
+                case 'histogram':
+                    self.generate_histograms()
+                case _:
+                    raise ValueError(f"Invalid metric: {module}")
         logger.debug('All metrics and graphs prepopulated')
 
 
-if __name__ == '__main__':
-    prepopulator = Prepopulator(metrics=('propagation',))
+def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
+                     modules=('layout', 'diffusion', 'network', 'egonet', 'histogram')):
+    prepopulator = Prepopulator(config_file=config_file, available_datasets=available_datasets, modules=modules)
     prepopulator.prepopulate()
+
+
+if __name__ == '__main__':
+    fire.Fire(run_prepopulator)
