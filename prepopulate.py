@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 
 class Prepopulator:
     def __init__(self, config_file='prod_config.yaml', available_datasets=None,
-                 modules=('layout', 'diffusion', 'network', 'egonet', 'histogram')):
+                 modules=( 'diffusion', 'network', 'egonet', 'layout', 'histogram')):
         self.modules = modules
         self.config_file = config_file
         config = parse_config(config_file)
@@ -79,7 +79,9 @@ class Prepopulator:
         )
 
     def prepopulate(self):
-        logger.debug(f'Prepopulating propagation metrics and graphs from {self.config_file}...')
+        logger.debug(f'Prepopulating from {self.config_file}')
+        logger.debug(f'Available datasets: {self.available_datasets}')
+        logger.debug(f'Modules: {self.modules}')
         for module in self.modules:
             match module:
                 case 'layout':
@@ -99,6 +101,9 @@ class Prepopulator:
 
 def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
                      modules=('layout', 'diffusion', 'network', 'egonet', 'histogram')):
+    print(f'Prepopulating from {config_file}')
+    print(f'Available datasets: {available_datasets}')
+    print(f'Modules: {modules}')
     prepopulator = Prepopulator(config_file=config_file, available_datasets=available_datasets, modules=modules)
     prepopulator.prepopulate()
 
