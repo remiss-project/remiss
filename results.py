@@ -275,8 +275,11 @@ class Results:
         else:
             results = {}
         for dataset in self.datasets:
-            logger.info(f'Testing dataset {dataset}')
-            results[dataset] = self._test_dataset(dataset)
+            if dataset in results:
+                logger.warning(f'Dataset {dataset} already processed. Skipping.')
+            else:
+                logger.info(f'Testing dataset {dataset}')
+                results[dataset] = self._test_dataset(dataset)
 
         results = pd.DataFrame(results).T
         results.to_csv()
