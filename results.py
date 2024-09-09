@@ -269,13 +269,17 @@ class Results:
 
     def generate_performance_table(self):
         logger.info('Generating performance table')
-        results = {}
+        results_filepath = self.output_dir / 'model_performance.csv'
+        if results_filepath.exists():
+            results = pd.read_csv(results_filepath, index_col=0).to_dict()
+        else:
+            results = {}
         for dataset in self.datasets:
             logger.info(f'Testing dataset {dataset}')
             results[dataset] = self._test_dataset(dataset)
 
         results = pd.DataFrame(results).T
-        results.to_csv(self.output_dir / 'model_performance.csv')
+        results.to_csv()
 
     def _test_dataset(self, dataset):
         dataset_generator = PropagationDatasetGenerator(dataset, host=self.host, port=self.port)
