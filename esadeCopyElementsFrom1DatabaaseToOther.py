@@ -51,16 +51,17 @@ def main():
     # uriDestiny = "mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.0.0"
     uriDestiny = "mongodb://srvinv02.esade.es:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.0.0"
 
-    source_collection = "CVCFeatures"
+    source_collection = "CVCFeatures1"
     target_collection = "profiling"
 
     database_mapping = {
-        "Barcelona_2019": "CVCUI_BCN19",
-        "Generales_2019": "CVCUI_ESP19",
-        "Generalitat_2021": "CVCUI_GEN21",
-        "MENA_Agressions": "CVCUI_VIOLA",
-        "MENA_Ajudes": "CVCUI_AJUDES",
-        "Openarms": "CVCUI_OPENMAFIA"
+        # "Barcelona_2019": "CVCUI_BCN19",
+        # "Generales_2019": "CVCUI_ESP19",
+        # "Generalitat_2021": "CVCUI_GEN21",
+        # "MENA_Agressions": "CVCUI_VIOLA",
+        # "MENA_Ajudes": "CVCUI_AJUDES",
+        # "Openarms": "CVCUI_OPENMAFIA"
+        'Andalucia_2022': 'CVCUI_AND22',
     }
 
     for target_database, source_database in database_mapping.items():
