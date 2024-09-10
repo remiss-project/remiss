@@ -119,8 +119,9 @@ class TweetTableFactory(MongoPlotFactory):
 
         df_final = df_final.drop(columns=['tweet_id_int', 'user_id', 'id'])
         # Fill missing values and sort
-        df_final['Multimodal'] = df_final['Multimodal'].astype(bool).fillna(False)
-        df_final['Profiling'] = df_final['Profiling'].astype(bool).fillna(False)
+        with pd.option_context("future.no_silent_downcasting", True):
+            df_final['Multimodal'] = df_final['Multimodal'].fillna(False).infer_objects(copy=False)
+            df_final['Profiling'] = df_final['Profiling'].fillna(False).infer_objects(copy=False)
         df_final.sort_values(by='retweets', ascending=False, inplace=True)
 
         df_final = df_final.rename(columns={'username': 'User', 'text': 'Text', 'retweets': 'Retweets',
