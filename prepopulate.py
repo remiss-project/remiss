@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 
 class Prepopulator:
     def __init__(self, config_file='prod_config.yaml', available_datasets=None,
-                 modules=( 'diffusion', 'network', 'egonet', 'layout', 'histogram')):
+                 modules=('diffusion', 'network', 'egonet', 'layout', 'histogram')):
         self.modules = modules
         self.config_file = config_file
         config = parse_config(config_file)
@@ -98,7 +98,7 @@ class Prepopulator:
 
 
 def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
-                     modules=('layout', 'diffusion', 'network', 'egonet', 'histogram')):
+                     modules=('egonet', 'layout', 'diffusion', 'network', 'histogram')):
     logger.info(f'Running prepopulator with config file: {config_file}')
     logger.info(f'Available datasets: {available_datasets}')
     logger.info(f'Modules: {modules}')
