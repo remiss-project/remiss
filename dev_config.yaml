@@ -21,7 +21,7 @@ profiling:
 multimodal:
   data_dir: './multimodal_data/'
 wordcloud:
-  max_words: 50
+  max_words: 15
   width: 400
   height: 400
   match_width: True

@@ -1,6 +1,5 @@
 import logging
 import time
-from pathlib import Path
 
 import dash
 import dash_bootstrap_components as dbc
@@ -15,19 +14,17 @@ from figures.profiling import ProfilingPlotFactory
 from figures.propagation import PropagationPlotFactory
 from figures.textual import TextualFactory
 
-
 logger = logging.getLogger('app')
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 banner = \
-'''
- ______     ______     __    __     __     ______     ______    
-/\  == \   /\  ___\   /\ "-./  \   /\ \   /\  ___\   /\  ___\   
-\ \  __<   \ \  __\   \ \ \-./\ \  \ \ \  \ \___  \  \ \___  \  
- \ \_\ \_\  \ \_____\  \ \_\ \ \_\  \ \_\  \/\_____\  \/\_____\ 
-  \/_/ /_/   \/_____/   \/_/  \/_/   \/_/   \/_____/   \/_____/ 
-'''
+    '''
+     ______     ______     __    __     __     ______     ______    
+    /\  == \   /\  ___\   /\ "-./  \   /\ \   /\  ___\   /\  ___\   
+    \ \  __<   \ \  __\   \ \ \-./\ \  \ \ \  \ \___  \  \ \___  \  
+     \ \_\ \_\  \ \_____\  \ \_\ \ \_\  \ \_\  \/\_____\  \/\_____\ 
+      \/_/ /_/   \/_____/   \/_/  \/_/   \/_/   \/_____/   \/_____/ 
+    '''
 
 available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
                        'CERULEAN': dbc.themes.CERULEAN,
@@ -56,8 +53,6 @@ available_theme_css = {'BOOTSTRAP': dbc.themes.BOOTSTRAP,
                        'YETI': dbc.themes.YETI,
                        'ZEPHYR': dbc.themes.ZEPHYR
                        }
-
-
 
 
 def create_app(config):
@@ -100,7 +95,8 @@ def create_app(config):
                                 match_wordcloud_width=config['wordcloud']['match_width'],
                                 target_api_url=config.get('target_api_url', 'http://localhost:5000/process_dataset'),
                                 name='dashboard',
-                                debug=config['debug'])
+                                debug=config['debug'],
+                                page_size=config.get('page_size', 10), )
     logger.info(f'Plot factories created in {time.time() - start_time} seconds.')
     logger.info('Creating app...')
     start_time = time.time()

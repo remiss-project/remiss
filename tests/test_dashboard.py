@@ -244,7 +244,7 @@ class RemissDashboardTest(TestCase):
         self.assertIn('multimodal-filterable-plots-remiss-dashboard-claim_text',
                       self.callbacks['current-tweet-state'])
 
-    def test_hastags_callbacks(self):
+    def test_hashtags_callbacks(self):
         # Outputs
         # When the wordcloud is clicked, the hashtag storage should be updated
         self.assertIn('current-hashtags-state', self.callbacks['wordcloud-control-panel-remiss-dashboard'])

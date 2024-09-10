@@ -3,20 +3,23 @@ import logging
 import dash_bootstrap_components as dbc
 from dash import Input, Output, ctx
 from dash.dash_table import DataTable
+from dash.exceptions import PreventUpdate
 
 from components.components import RemissComponent
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
-PAGE_SIZE = 10
 
 
 class TweetTableComponent(RemissComponent):
     def __init__(self, plot_factory, state, name=None,
                  top_table_columns=(
                          'ID', 'User', 'Text', 'Retweets', 'Party', 'Multimodal', 'Profiling',
-                         'Suspicious content', 'Cascade size', 'Legitimacy', 'Reputation', 'Status')):
+                         'Suspicious content', 'Cascade size', 'Legitimacy', 'Reputation', 'Status'),
+                 page_size=10):
         super().__init__(name=name)
+        self.page_size = page_size
         self.plot_factory = plot_factory
         self.data = None
         self.displayed_data = None
@@ -38,7 +41,7 @@ class TweetTableComponent(RemissComponent):
                                row_selectable=False,
 
                                page_current=0,
-                               page_size=PAGE_SIZE,
+                               page_size=self.page_size,
                                page_action='custom',
 
                                filter_action='custom',
@@ -56,6 +59,11 @@ class TweetTableComponent(RemissComponent):
                                style_cell_conditional=[
                                    {'if': {'column_id': 'Text'},
                                     'width': '30%'},
+                                   {'if': {'column_id': 'ID'},
+                                    'overflow': 'visible',
+                                    'textOverflow': 'visible',
+                                    'whiteSpace': 'normal',
+                                    'width': '10%'},
                                ]
                                )
 
@@ -69,15 +77,16 @@ class TweetTableComponent(RemissComponent):
     def update(self, dataset, start_date, end_date, hashtags, page_current, sort_by, filter_query):
         logger.debug(f'Updating tweet table with dataset {dataset}, start date {start_date}, end date {end_date}')
         if ctx.triggered_id in {f'{self.state.current_dataset}.data', f'{self.state.current_start_date}.data',
-                                f'{self.state.current_end_date}.data', f'{self.state.current_hashtags}.data'} or self.data is None:
+                                f'{self.state.current_end_date}.data',
+                                f'{self.state.current_hashtags}.data'} or self.data is None:
             self.data = self.plot_factory.get_top_table_data(dataset, start_date, end_date, hashtags)
             self.data = self.data.round(2)
             self.data['Multimodal'] = self.data['Multimodal'].apply(lambda x: 'Yes' if x else 'No')
             self.data['Profiling'] = self.data['Profiling'].apply(lambda x: 'Yes' if x else 'No')
             self.data['id'] = self.data['ID']
 
-            page_count = len(self.data) // PAGE_SIZE if self.data is not None else 0
-            return self.data.iloc[:PAGE_SIZE].to_dict(orient='records'), page_count
+            page_count = len(self.data) // self.page_size if self.data is not None else 0
+            return self.data.iloc[:self.page_size].to_dict(orient='records'), page_count
         else:
 
             self.displayed_data = self.data
@@ -109,9 +118,9 @@ class TweetTableComponent(RemissComponent):
                     inplace=False
                 )
 
-            page_count = len(self.displayed_data) // PAGE_SIZE if self.displayed_data is not None else 0
-            start_row = page_current * PAGE_SIZE
-            end_row = (page_current + 1) * PAGE_SIZE
+            page_count = len(self.displayed_data) // self.page_size if self.displayed_data is not None else 0
+            start_row = page_current * self.page_size
+            end_row = (page_current + 1) * self.page_size
             return self.displayed_data.iloc[start_row:end_row].to_dict(orient='records'), page_count
 
     def split_filter_part(self, filter_part):
@@ -137,30 +146,30 @@ class TweetTableComponent(RemissComponent):
 
         return [None] * 3
 
-    def update_hashtags(self, active_cell):
+    def update_hashtags_state(self, active_cell):
         if active_cell and active_cell['column_id'] == 'Text':
             text = self.data[self.data['ID'] == active_cell['row_id']]['Text'].values[0]
             hashtags = self.extract_hashtag_from_tweet_text(text)
             logger.debug(f'Updating hashtags state with {hashtags}')
             return hashtags
 
-        return None
+        raise PreventUpdate()
 
-    def update_tweet(self, active_cell):
+    def update_tweet_state(self, active_cell):
         if active_cell and active_cell['column_id'] == 'ID':
             tweet_id = active_cell['row_id']
             logger.debug(f'Updating tweet state with {tweet_id}')
             return tweet_id
 
-        return None
+        raise PreventUpdate()
 
-    def update_user(self, active_cell):
+    def update_user_state(self, active_cell):
         if active_cell and active_cell['column_id'] == 'User':
             user = self.data[self.data['ID'] == active_cell['row_id']]['Author ID'].values[0]
             logger.debug(f'Updating user state with {user}')
             return user
 
-        return None
+        raise PreventUpdate()
 
     def extract_hashtag_from_tweet_text(self, text):
         hashtags = [x[1:] for x in text.split() if x.startswith('#')]
@@ -183,12 +192,12 @@ class TweetTableComponent(RemissComponent):
         app.callback(
             Output(self.state.current_hashtags, 'data', allow_duplicate=True),
             [Input(self.table, 'active_cell')],
-        )(self.update_hashtags)
+        )(self.update_hashtags_state)
         app.callback(
             Output(self.state.current_user, 'data'),
             [Input(self.table, 'active_cell')],
-        )(self.update_user)
+        )(self.update_user_state)
         app.callback(
             Output(self.state.current_tweet, 'data'),
             [Input(self.table, 'active_cell')],
-        )(self.update_tweet)
+        )(self.update_tweet_state)
