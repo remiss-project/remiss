@@ -27,3 +27,9 @@ wordcloud:
   width: 400
   height: 400
   match_width: True
+tweet_table:
+  page_size: 10
+  cut_bins:
+    - Low
+    - Medium
+    - High

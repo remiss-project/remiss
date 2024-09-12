@@ -183,7 +183,7 @@ class RemissDashboard(RemissComponent):
                  name=None,
                  max_wordcloud_words=50, wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=False,
                  debug=False, gap=2, target_api_url='http://localhost:5000/process_dataset',
-                 page_size=10):
+                 page_size=10, cut_bins=None):
         super().__init__(name=name)
         self.debug = debug
         self.available_datasets = tweet_user_plot_factory.available_datasets
@@ -201,7 +201,8 @@ class RemissDashboard(RemissComponent):
         self.egonet_component = EgonetComponent(propagation_factory, self.state, name=f'egonet-{self.name}')
         self.tweet_table_component = TweetTableComponent(tweet_table_factory, self.state,
                                                          name=f'tweet-table-{self.name}',
-                                                         page_size=page_size)
+                                                         page_size=page_size,
+                                                         cut_bins=cut_bins)
         self.filterable_plots_component = FilterablePlotsComponent(tweet_user_plot_factory,
                                                                    textual_factory,
                                                                    profile_factory,

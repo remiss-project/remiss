@@ -1,6 +1,7 @@
 import logging
 
 import dash_bootstrap_components as dbc
+import pandas as pd
 from dash import Input, Output, ctx
 from dash.dash_table import DataTable
 from dash.exceptions import PreventUpdate
@@ -11,14 +12,14 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-
 class TweetTableComponent(RemissComponent):
     def __init__(self, plot_factory, state, name=None,
                  top_table_columns=(
                          'ID', 'User', 'Text', 'Retweets', 'Party', 'Multimodal', 'Profiling',
                          'Suspicious content', 'Cascade size', 'Legitimacy', 'Reputation', 'Status'),
-                 page_size=10):
+                 page_size=10, cut_bins=None):
         super().__init__(name=name)
+        self.cut_bins = cut_bins
         self.page_size = page_size
         self.plot_factory = plot_factory
         self.data = None
@@ -81,6 +82,10 @@ class TweetTableComponent(RemissComponent):
                                 f'{self.state.current_hashtags}.data'} or self.data is None:
             self.data = self.plot_factory.get_top_table_data(dataset, start_date, end_date, hashtags)
             self.data = self.data.round(2)
+            if self.cut_bins is not None:
+                self.data['Legitimacy'] = pd.qcut(self.data['Legitimacy'], len(self.cut_bins), self.cut_bins)
+                self.data['Reputation'] = pd.qcut(self.data['Reputation'], len(self.cut_bins), self.cut_bins)
+                self.data['Status'] = pd.qcut(self.data['Status'], len(self.cut_bins), self.cut_bins)
             self.data['Multimodal'] = self.data['Multimodal'].apply(lambda x: 'Yes' if x else 'No')
             self.data['Profiling'] = self.data['Profiling'].apply(lambda x: 'Yes' if x else 'No')
             self.data['id'] = self.data['ID']

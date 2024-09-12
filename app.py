@@ -96,7 +96,8 @@ def create_app(config):
                                 target_api_url=config.get('target_api_url', 'http://localhost:5000/process_dataset'),
                                 name='dashboard',
                                 debug=config['debug'],
-                                page_size=config.get('page_size', 10), )
+                                page_size=config['tweet_table']['page_size'],
+                                cut_bins=config['tweet_table']['cut_bins'])
     logger.info(f'Plot factories created in {time.time() - start_time} seconds.')
     logger.info('Creating app...')
     start_time = time.time()
