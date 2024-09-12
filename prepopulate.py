@@ -107,4 +107,5 @@ def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
 
 
 if __name__ == '__main__':
-    fire.Fire(run_prepopulator)
+    # fire.Fire(run_prepopulator)
+    run_prepopulator(available_datasets=['Barcelona_2019'], modules=['diffusion'], config_file='remote_prod_config.yaml')
