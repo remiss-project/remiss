@@ -39,6 +39,9 @@ class PropagationComponent(RemissComponent):
                             dbc.CardHeader('Propagation Tree'),
                             dbc.CardBody([
                                 self.graph_propagation_tree
+                            ]),
+                            dbc.CardFooter([
+                                'Propagation tree showing the structure of the cascade.'
                             ])
                         ]),
                     ]),
@@ -49,6 +52,9 @@ class PropagationComponent(RemissComponent):
                             dbc.CardHeader('Propagation Depth'),
                             dbc.CardBody([
                                 self.graph_propagation_depth
+                            ]),
+                            dbc.CardFooter([
+                                "Propagation depth over time indicates the maximum number of jumps or levels in the cascade as it grows."
                             ])
                         ]),
                     ], width=6),
@@ -57,6 +63,9 @@ class PropagationComponent(RemissComponent):
                             dbc.CardHeader('Propagation Size'),
                             dbc.CardBody([
                                 self.graph_propagation_size
+                            ]),
+                            dbc.CardFooter([
+                                'Propagation size over time shows the number of tweets in the cascade as it grows.'
                             ])
                         ]),
                     ], width=6),
@@ -67,6 +76,10 @@ class PropagationComponent(RemissComponent):
                             dbc.CardHeader('Propagation Max Breadth'),
                             dbc.CardBody([
                                 self.graph_propagation_max_breadth
+                            ]),
+                            dbc.CardFooter([
+                                'Propagation max breadth over time shows the maximum number of tweets that are '
+                                'shared at a given time.'
                             ])
                         ]),
                     ], width=6),
@@ -75,6 +88,10 @@ class PropagationComponent(RemissComponent):
                             dbc.CardHeader('Propagation Structural Virality'),
                             dbc.CardBody([
                                 self.graph_propagation_structural_virality
+                            ]),
+                            dbc.CardFooter([
+                                'Propagation structural virality over time shows the average structural virality of the cascade'
+                                ' at a given time.'
                             ])
                         ]),
                     ], width=6),
