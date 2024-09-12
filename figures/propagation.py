@@ -140,7 +140,11 @@ class PropagationPlotFactory(MongoPlotFactory):
         return self.plot_graph(user_graph, layout=layout, text=text, size=size, color=color, symbol=symbol)
 
     def plot_propagation_tree(self, dataset, tweet_id):
-        propagation_tree = self.diffusion_metrics.get_propagation_tree(dataset, tweet_id)
+        try:
+            propagation_tree = self.diffusion_metrics.get_propagation_tree(dataset, tweet_id)
+        except Exception as e:
+            logger.error(f'Error getting propagation tree: {e}. Recomputing')
+            propagation_tree = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
         metadata = self.get_user_metadata(dataset)
         metadata = metadata.reindex(propagation_tree.vs['author_id'])
         metadata['User type'] = metadata['User type'].fillna('Unknown')
@@ -177,19 +181,39 @@ class PropagationPlotFactory(MongoPlotFactory):
         return self.plot_graph(propagation_tree, layout=None, text=text, size=size, color=color, symbol=symbol)
 
     def plot_size_over_time(self, dataset, tweet_id):
-        size_over_time = self.diffusion_metrics.get_size_over_time(dataset, tweet_id)
+        try:
+            size_over_time = self.diffusion_metrics.get_size_over_time(dataset, tweet_id)
+        except Exception as e:
+            logger.error(f'Error getting size over time: {e}. Recomputing')
+            graph = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
+            size_over_time = self.diffusion_metrics.compute_size_over_time(graph)
         return self.plot_time_series(size_over_time, 'Size over time', 'Time', 'Size')
 
     def plot_depth_over_time(self, dataset, tweet_id):
-        depth_over_time = self.diffusion_metrics.get_depth_over_time(dataset, tweet_id)
+        try:
+            depth_over_time = self.diffusion_metrics.get_depth_over_time(dataset, tweet_id)
+        except Exception as e:
+            logger.error(f'Error getting depth over time: {e}. Recomputing')
+            graph = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
+            depth_over_time = self.diffusion_metrics.compute_depth_over_time(graph)
         return self.plot_time_series(depth_over_time, 'Depth over time', 'Time', 'Depth')
 
     def plot_max_breadth_over_time(self, dataset, tweet_id):
-        max_breadth_over_time = self.diffusion_metrics.get_max_breadth_over_time(dataset, tweet_id)
+        try:
+            max_breadth_over_time = self.diffusion_metrics.get_max_breadth_over_time(dataset, tweet_id)
+        except Exception as e:
+            logger.error(f'Error getting max breadth over time: {e}. Recomputing')
+            graph = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
+            max_breadth_over_time = self.diffusion_metrics.compute_max_breadth_over_time(graph)
         return self.plot_time_series(max_breadth_over_time, 'Max breadth over time', 'Time', 'Max breadth')
 
     def plot_structural_virality_over_time(self, dataset, tweet_id):
-        structural_virality_over_time = self.diffusion_metrics.get_structural_virality_over_time(dataset, tweet_id)
+        try:
+            structural_virality_over_time = self.diffusion_metrics.get_structural_virality_over_time(dataset, tweet_id)
+        except Exception as e:
+            logger.error(f'Error getting structural virality over time: {e}. Recomputing')
+            graph = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
+            structural_virality_over_time = self.diffusion_metrics.compute_structural_virality_over_time(graph)
         return self.plot_time_series(structural_virality_over_time, 'Structural virality over time', 'Time',
                                      'Structural virality')
 
