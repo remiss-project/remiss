@@ -385,32 +385,28 @@ class DiffusionMetrics(BasePropagationMetrics):
             conversation_ids = self.get_conversation_ids(dataset)
             for conversation_id in tqdm(conversation_ids['conversation_id']):
                 jobs.append(delayed(self._persist_conversation_metrics)(dataset, conversation_id))
-        Parallel(n_jobs=-2, backend='threading', verbose=10)(jobs)
+            results = Parallel(n_jobs=-2, backend='threading', verbose=10)(jobs)
+
+            client = MongoClient(self.host, self.port)
+            database = client.get_database(dataset)
+            collection = database.get_collection('diffusion_metrics')
+            collection.insert_many(results)
+            client.close()
 
     def _persist_conversation_metrics(self, dataset, conversation_id):
         try:
             graph = self.compute_propagation_tree(dataset, conversation_id)
             size_over_time = self.compute_size_over_time(graph)
-            # depth_over_time = self.compute_depth_over_time(graph)
             max_breadth_over_time = self.compute_max_breadth_over_time(graph)
             structural_virality_over_time = self.compute_structural_virality_over_time(graph)
 
-            client = MongoClient(self.host, self.port)
-            database = client.get_database(dataset)
-            collection = database.get_collection('diffusion_metrics')
+
             try:
                 size_over_time = size_over_time.to_dict()
                 size_over_time = {str(key): value for key, value in size_over_time.items()}
             except Exception as e:
                 logger.error(f'Error converting {conversation_id} size over time to json: {e}')
                 size_over_time = None
-
-            # try:
-            #     depth_over_time = depth_over_time.to_dict()
-            #     depth_over_time = {str(key): value for key, value in depth_over_time.items()}
-            # except Exception as e:
-            #     logger.error(f'Error converting {conversation_id} depth over time to json: {e}')
-            #     depth_over_time = None
 
             try:
                 max_breadth_over_time = max_breadth_over_time.to_dict()
@@ -421,23 +417,23 @@ class DiffusionMetrics(BasePropagationMetrics):
 
             try:
                 structural_virality_over_time = structural_virality_over_time.to_dict()
-                structural_virality_over_time = {str(key): value for key, value in structural_virality_over_time.items()}
+                structural_virality_over_time = {str(key): value for key, value in
+                                                 structural_virality_over_time.items()}
             except Exception as e:
                 logger.error(f'Error converting {conversation_id} structural virality over time to json: {e}')
                 structural_virality_over_time = None
 
             attributes = {attribute: graph.vs[attribute] for attribute in graph.vs.attributes()}
-            collection.insert_one({'conversation_id': conversation_id,
+            return {'conversation_id': conversation_id,
                                    'edges': graph.get_edgelist(),
                                    'vs_attributes': attributes,
                                    'size_over_time': size_over_time,
-                                   # 'depth_over_time': depth_over_time,
                                    'max_breadth_over_time': max_breadth_over_time,
-                                   'structural_virality_over_time': structural_virality_over_time})
-            client.close()
+                                   'structural_virality_over_time': structural_virality_over_time}
 
         except Exception as e:
             logger.error(f'Error processing conversation {conversation_id}: {e}')
+
 
 def transform_user_type(x):
     if x['is_usual_suspect'] and x['party'] is not None:
