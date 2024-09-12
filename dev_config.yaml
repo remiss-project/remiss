@@ -7,7 +7,7 @@ graph_simplification:
   threshold: 0.95
 available_datasets:
   - test_dataset_2
-#  - test_dataset
+  - test_dataset_3
 reference_types:
   - retweeted
   - quoted

@@ -2,7 +2,7 @@ import logging
 
 import dash_bootstrap_components as dbc
 import pandas as pd
-from dash import Input, Output, ctx
+from dash import Input, Output, ctx, dcc
 from dash.dash_table import DataTable
 from dash.exceptions import PreventUpdate
 
@@ -34,6 +34,9 @@ class TweetTableComponent(RemissComponent):
                           ['eq ', '='],
                           ['contains '],
                           ['datestartswith ']]
+
+        self._state_ids = {self.state.current_dataset.id, self.state.current_start_date.id,
+                           self.state.current_end_date.id, self.state.current_hashtags.id}
 
         self.table = DataTable(data=[], id=f'table-{self.name}',
                                columns=[{"name": i, "id": i} for i in self.top_table_columns],
@@ -71,21 +74,24 @@ class TweetTableComponent(RemissComponent):
     def layout(self, params=None):
         return dbc.Row([
             dbc.Col([
-                self.table
+                dcc.Loading([
+                    self.table
+                ])
             ], width=12),
         ], justify='center', style={'margin-bottom': '1rem'})
 
     def update(self, dataset, start_date, end_date, hashtags, page_current, sort_by, filter_query):
         logger.debug(f'Updating tweet table with dataset {dataset}, start date {start_date}, end date {end_date}')
-        if ctx.triggered_id in {f'{self.state.current_dataset}.data', f'{self.state.current_start_date}.data',
-                                f'{self.state.current_end_date}.data',
-                                f'{self.state.current_hashtags}.data'} or self.data is None:
+        if ctx.triggered_id in self._state_ids or self.data is None:
             self.data = self.plot_factory.get_top_table_data(dataset, start_date, end_date, hashtags)
             self.data = self.data.round(2)
             if self.cut_bins is not None:
-                self.data['Legitimacy'] = pd.qcut(self.data['Legitimacy'], len(self.cut_bins), self.cut_bins)
-                self.data['Reputation'] = pd.qcut(self.data['Reputation'], len(self.cut_bins), self.cut_bins)
-                self.data['Status'] = pd.qcut(self.data['Status'], len(self.cut_bins), self.cut_bins)
+                if not self.data['Legitimacy'].isnull().all():
+                    self.data['Legitimacy'] = pd.qcut(self.data['Legitimacy'], len(self.cut_bins), self.cut_bins)
+                if not self.data['Reputation'].isnull().all():
+                    self.data['Reputation'] = pd.qcut(self.data['Reputation'], len(self.cut_bins), self.cut_bins)
+                if not self.data['Status'].isnull().all():
+                    self.data['Status'] = pd.qcut(self.data['Status'], len(self.cut_bins), self.cut_bins)
             self.data['Multimodal'] = self.data['Multimodal'].apply(lambda x: 'Yes' if x else 'No')
             self.data['Profiling'] = self.data['Profiling'].apply(lambda x: 'Yes' if x else 'No')
             self.data['id'] = self.data['ID']
