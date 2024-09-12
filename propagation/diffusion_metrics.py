@@ -390,7 +390,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         try:
             graph = self.compute_propagation_tree(dataset, conversation_id)
             size_over_time = self.compute_size_over_time(graph)
-            depth_over_time = self.compute_depth_over_time(graph)
+            # depth_over_time = self.compute_depth_over_time(graph)
             max_breadth_over_time = self.compute_max_breadth_over_time(graph)
             structural_virality_over_time = self.compute_structural_virality_over_time(graph)
 
