@@ -384,8 +384,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         for dataset in datasets:
             conversation_ids = self.get_conversation_ids(dataset)
             for conversation_id in tqdm(conversation_ids['conversation_id']):
-                jobs.append(delayed(self._persist_conversation_metrics)(dataset, conversation_id))
-        Parallel(n_jobs=-2, backend='threading')(jobs)
+               self._persist_conversation_metrics(dataset, conversation_id)
 
     def _persist_conversation_metrics(self, dataset, conversation_id):
         try:
