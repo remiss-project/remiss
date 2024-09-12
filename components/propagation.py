@@ -54,7 +54,7 @@ class PropagationComponent(RemissComponent):
                                 self.graph_propagation_depth
                             ]),
                             dbc.CardFooter([
-                                "Propagation depth over time indicates the maximum number of jumps or levels in the cascade as it grows."
+                                "The depth of a cascade describes the longest path from the initial node(s) to the farthest affected node. It measures how deep the cascade penetrates the network, reflecting the number of layers or levels the effect reaches. A cascade with greater depth indicates that the influence of the initial event has traveled through many intermediary steps, affecting nodes that are several degrees of separation away from the origin. "
                             ])
                         ]),
                     ], width=6),
@@ -65,7 +65,7 @@ class PropagationComponent(RemissComponent):
                                 self.graph_propagation_size
                             ]),
                             dbc.CardFooter([
-                                'Propagation size over time shows the number of tweets in the cascade as it grows.'
+                                'The size of a cascade refers to the total number of nodes that are affected by the cascade. This metric provides a measure of the overall impact of the cascade on the network, indicating how widespread the effect has been. For instance, in the context of a failure cascade, the size would represent the number of nodes that experience failure because of the initial event. '
                             ])
                         ]),
                     ], width=6),
@@ -78,8 +78,7 @@ class PropagationComponent(RemissComponent):
                                 self.graph_propagation_max_breadth
                             ]),
                             dbc.CardFooter([
-                                'Propagation max breadth over time shows the maximum number of tweets that are '
-                                'shared at a given time.'
+                                'The maximum breadth of a cascade is the largest number of nodes affected at any single level of the cascade. This metric highlights the peak level of simultaneous impact, showing where the cascade has the widest reach in terms of the number of nodes affected at once. Maximum breadth is crucial for understanding the points of maximum network stress or influence during the cascade. '
                             ])
                         ]),
                     ], width=6),
@@ -90,8 +89,7 @@ class PropagationComponent(RemissComponent):
                                 self.graph_propagation_structural_virality
                             ]),
                             dbc.CardFooter([
-                                'Propagation structural virality over time shows the average structural virality of the cascade'
-                                ' at a given time.'
+                                'Structural virality is a measure that combines elements of both breadth and depth, providing a nuanced view of how the cascade spreads through the network. It captures the overall shape and complexity of the cascade, reflecting how far and how wide the cascade spreads. Structural virality considers both the extent of the spread (like depth) and the distribution of the spread across different nodes (like breadth). A cascade with high structural virality indicates a complex, tree-like spread with many branches, as opposed to a simple, linear spread. '
                             ])
                         ]),
                     ], width=6),

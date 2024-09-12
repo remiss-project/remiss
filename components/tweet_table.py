@@ -2,7 +2,7 @@ import logging
 
 import dash_bootstrap_components as dbc
 import pandas as pd
-from dash import Input, Output, ctx, dcc
+from dash import Input, Output, ctx, dcc, html
 from dash.dash_table import DataTable
 from dash.exceptions import PreventUpdate
 
@@ -74,9 +74,48 @@ class TweetTableComponent(RemissComponent):
     def layout(self, params=None):
         return dbc.Row([
             dbc.Col([
-                dcc.Loading([
-                    self.table
-                ])
+                dbc.Card([
+                    dbc.CardHeader('Tweets', id=f'title-{self.name}'),
+                    dbc.CardBody([
+                        dcc.Loading([
+                            self.table
+                        ])
+                    ], style={'height': '100%', 'margin': '0'}),
+                    dbc.CardFooter(
+                        dbc.Row([
+                            dbc.Col([
+                                html.H6("Legitimacy"),
+                                html.P(
+                                    "This metric evaluates users' perceived trustworthiness and acceptance "
+                                    "within the network. It reflects the community’s confidence in a user, "
+                                    "derived from their interaction history. Legitimacy is measured by the "
+                                    "number of times an author's tweets have been interacted with, such as "
+                                    "retweets or quotes."
+                                )
+                            ]),
+                            dbc.Col([
+                                html.H6("Reputation"),
+                                html.P(
+                                    "Reputation reflects the collective impression of a user based on their "
+                                    "interactions, content quality, and alignment with network trends. It is "
+                                    "a composite score indicating the user’s standing within the network. "
+                                    "Reputation is calculated as the cumulative summation of Legitimacy over "
+                                    "a given time period."
+                                )
+                            ]),
+                            dbc.Col([
+                                html.H6("Status"),
+                                html.P(
+                                    "Status measures a user’s influence and the breadth of their impact across "
+                                    "the network. It assesses their ability to reach and engage a broad audience. "
+                                    "Status is computed by ranking authors based on the cumulative summation "
+                                    "of Legitimacy over time, relative to other users."
+                                )
+                            ])
+                        ])
+                    )
+                ], style={'height': '100%'}),
+
             ], width=12),
         ], justify='center', style={'margin-bottom': '1rem'})
 
