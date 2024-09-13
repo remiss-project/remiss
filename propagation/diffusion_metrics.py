@@ -376,7 +376,15 @@ class DiffusionMetrics(BasePropagationMetrics):
         return df
 
     def get_cascade_size(self, dataset, tweet_id):
-        graph = self.get_propagation_tree(dataset, tweet_id)
+        try:
+            graph = self.get_propagation_tree(dataset, tweet_id)
+        except RuntimeError as e:
+            if 'not found in dataset' in str(e):
+                # The tweet is not in the dataset, so we can't compute the cascade size
+                raise e
+            logger.error(f'Error getting cascade size for {tweet_id}: {e}. Recomputing.')
+            graph = self.compute_propagation_tree(dataset, tweet_id)
+
         return graph.vcount()
 
     def persist(self, datasets):

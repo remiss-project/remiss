@@ -9,10 +9,12 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from pandas import Timestamp
 from pymongo import MongoClient
+from pymongoarrow.monkey import patch_all
 from tqdm import tqdm
 
 from propagation import DiffusionMetrics
 
+patch_all()
 
 class DiffusionMetricsTestCase(unittest.TestCase):
     def setUp(self):
@@ -369,6 +371,29 @@ class DiffusionMetricsTestCase(unittest.TestCase):
                 self.assertEqual(expected_structural_virality.shape, actual_structural_virality.shape)
                 pd.testing.assert_series_equal(expected_structural_virality, actual_structural_virality,
                                                check_dtype=False, atol=1e-6, rtol=1e-6)
+
+    def test_missing_rts(self):
+        test_tweet_id = '1111987953620918274'
+        reference_types = ['retweeted', 'quoted', 'replied_to']
+
+        client = MongoClient('mongodb://srvinv02.esade.es', 27017)
+        raw = client.get_database('Generales_2019').get_collection('raw')
+        tweet = raw.find_one({'id': test_tweet_id})
+        conversation_id = tweet['conversation_id']
+
+        pipeline = [
+            {'$match': {'conversation_id': conversation_id}},
+            {'$unwind': '$referenced_tweets'},
+            {'$match': {'referenced_tweets.type': {'$in': reference_types},
+                        }},
+            {'$project': {'_id': 0, 'id': 1, 'type': '$referenced_tweets.type'}},
+        ]
+        df = raw.aggregate_pandas_all(pipeline)
+        self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
+        propagation_tree = self.diffusion_metrics.compute_propagation_tree('Generales_2019', test_tweet_id)
+        self.assertEqual(propagation_tree.vcount(), len(df)+1)
+
+
 
 
 if __name__ == '__main__':

@@ -418,7 +418,7 @@ class PropagationPlotFactory(MongoPlotFactory):
             eye=dict(x=0.75, y=0.75, z=0.75),
         )
         fig.update_layout(scene_camera=camera)
-        logger.debug(f'Plot computed in {time.time() - start_time} seconds')
+        logger.debug(f'Graph plot computed in {time.time() - start_time} seconds')
         return fig
 
     def _get_edge_positions(self, graph, layout):

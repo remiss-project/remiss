@@ -1,13 +1,15 @@
 import random
-import time
 import unittest
 
 import igraph as ig
 import numpy as np
 import pandas as pd
 from pymongo import MongoClient
+from pymongoarrow.monkey import patch_all
 
 from figures.propagation import PropagationPlotFactory
+
+patch_all()
 
 
 class PropagationFactoryTestCase(unittest.TestCase):
@@ -300,6 +302,8 @@ class PropagationFactoryTestCase(unittest.TestCase):
         )
 
         # fig.show()
+
+
 
 
 if __name__ == '__main__':
