@@ -1,8 +1,8 @@
 import logging
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 
-import fire
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -104,7 +104,8 @@ class Results:
                     logger.info(
                         f'Plotted egonet for user {row["author_id"]} from dataset {row["dataset"]} count {count}')
                 except Exception as e:
-                    logger.warning(f'Failed to plot egonet for user {row["author_id"]} from dataset {row["dataset"]} due to {e}')
+                    logger.warning(
+                        f'Failed to plot egonet for user {row["author_id"]} from dataset {row["dataset"]} due to {e}')
 
             # save the plotly figures as png
             for i, fig in enumerate(figures):
@@ -245,7 +246,8 @@ class Results:
                     cascade = self.propagation_factory.plot_propagation_tree(row['dataset'], row['conversation_id'])
                     cascades[user_type].append(cascade)
                     count += 1
-                    logger.info(f'Plotted cascade for conversation {row["conversation_id"]} from dataset {row["dataset"]} count {count}')
+                    logger.info(
+                        f'Plotted cascade for conversation {row["conversation_id"]} from dataset {row["dataset"]} count {count}')
                 except Exception as e:
                     logger.warning(
                         f'Failed to plot cascade for conversation {row["conversation_id"]} from dataset {row["dataset"]}')
@@ -258,11 +260,17 @@ class Results:
         logger.info('Generating nodes and edges table')
         num_nodes_edges = {}
         for dataset in self.datasets:
-            hidden_network = self.propagation_factory.egonet.get_hidden_network(dataset)
+            logger.info(f'Getting hidden network for dataset {dataset}')
+            # hidden_network = self.propagation_factory.egonet.load_hidden_network_backbone(dataset)
+            hidden_network = self.propagation_factory.egonet.load_hidden_network(dataset)
             num_nodes = hidden_network.vcount()
             num_edges = hidden_network.ecount()
+            start_time = datetime.now()
+            logger.info('Computing closeness')
+            closeness = np.mean(hidden_network.closeness())
+            logger.info(f'Closeness computed in {datetime.now() - start_time}')
             num_nodes_edges[dataset] = {'num_nodes': num_nodes, 'num_edges': num_edges,
-                                        'closeness': np.mean(hidden_network.closeness())}
+                                        'closeness': closeness}
 
         num_nodes_edges = pd.DataFrame(num_nodes_edges).T
         num_nodes_edges.to_csv(self.output_dir / 'nodes_edges.csv')
@@ -350,9 +358,24 @@ def run_results(datasets, host='localhost', port=27017, output_dir='./results', 
     logger.info(f'Output directory: {output_dir}')
     logger.info(f'Top n: {top_n}')
     logger.info(f'Egonet depth: {egonet_depth}')
-    results = Results(datasets=datasets, host=host, port=port, output_dir=output_dir, top_n=top_n, egonet_depth=egonet_depth,
+    results = Results(datasets=datasets, host=host, port=port, output_dir=output_dir, top_n=top_n,
+                      egonet_depth=egonet_depth,
                       features=features)
     results.process()
 
+
 if __name__ == '__main__':
-    fire.Fire(run_results)
+    # fire.Fire(run_results)
+    #  - Openarms
+    # - MENA_Agressions
+    # - MENA_Ajudes
+    # - Barcelona_2019
+    # - Generales_2019
+    # - Generalitat_2021
+    # - Andalucia_2022
+    run_results(['Openarms', 'MENA_Agressions', 'MENA_Ajudes',
+                 'Andalucia_2022', 'Generalitat_2021', 'Generales_2019', 'Barcelona_2019'],
+                host='mongodb://srvinv02.esade.es',
+                top_n=1,
+                features=('nodes_edges',),
+                output_dir='results')
