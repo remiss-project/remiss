@@ -4,6 +4,7 @@ import dash_bootstrap_components as dbc
 from dash import dcc, Input, Output, html
 from dash.exceptions import PreventUpdate
 from dash_holoniq_wordcloud import DashWordcloud
+from dash import ctx
 
 from components.components import RemissComponent
 
