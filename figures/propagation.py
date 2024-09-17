@@ -92,7 +92,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         return start_date, end_date
 
     def compute_layout(self, network):
-        logger.debug(f'Computing {self.layout} layout')
+        logger.debug(f'Computing {self.layout} layout for graph {network}')
         start_time = time.time()
         layout = network.layout(self.layout, dim=3)
         logger.debug(f'Layout computed in {time.time() - start_time} seconds')
