@@ -22,7 +22,7 @@ class EgonetComponent(RemissComponent):
                                       responsive=True,
                                       style={'height': '100%', 'width': '100%'},
                                       )
-        self.depth_slider = dcc.Slider(min=1, max=5, step=1, value=2, id=f'slider-{self.name}')
+        self.depth_slider = dcc.Slider(min=1, max=5, step=1, value=1, id=f'slider-{self.name}')
         self._figure_cache = {}
 
     def layout(self, params=None):
