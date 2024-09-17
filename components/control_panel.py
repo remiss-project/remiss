@@ -30,24 +30,14 @@ class ControlPanelComponent(RemissComponent):
         return self.filter_display.reset_button
 
     def get_wordcloud_component(self):
-        available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(self.available_datasets[0])
-        if available_hashtags_freqs:
-            if self.max_wordcloud_words:
-                logger.debug(
-                    f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
-                available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
-            min_freq = min([x[1] for x in available_hashtags_freqs])
-        else:
-            min_freq = 1
-            available_hashtags_freqs = [('No hashtags found', 1)]
+        available_hashtags_freqs = [('No hashtags found', 1)]
 
         return DashWordcloud(
             list=available_hashtags_freqs,
             width=self.wordcloud_width, height=self.wordcloud_height,
             rotateRatio=0.5,
             shrinkToFit=True,
-            weightFactor=10 / min_freq,
-            hover=True,
+            hover=False,
             id=f'wordcloud-{self.name}'
             ,
         )
@@ -63,18 +53,15 @@ class ControlPanelComponent(RemissComponent):
             end_date=max_date_allowed)
 
     def update_wordcloud(self, dataset, author_id, start_date, end_date):
-        logger.debug(f'Updating wordcloud with dataset {dataset}, {author_id}, {start_date}, {end_date}')
         available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(dataset, author_id, start_date, end_date)
         if self.max_wordcloud_words < len(available_hashtags_freqs):
-            logger.debug(
-                f'Using {self.max_wordcloud_words} most frequent hashtags out of {len(available_hashtags_freqs)}.')
             available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
         if available_hashtags_freqs:
-            min_freq = min([x[1] for x in available_hashtags_freqs])
+            logger.debug(f'Updating wordcloud for dataset {dataset}, {author_id}, {start_date}, {end_date} with {len(available_hashtags_freqs)} hashtags')
 
-            return available_hashtags_freqs, 10 / min_freq
+            return available_hashtags_freqs
         else:
-            return [('No hashtags found', 1)], 1
+            return [('No hashtags found', 1)]
 
     def update_date_range(self, dataset):
         logger.debug(f'Updating date range with dataset {dataset}')
@@ -155,7 +142,6 @@ class ControlPanelComponent(RemissComponent):
 
         app.callback(
             Output(self.wordcloud, 'list'),
-            Output(self.wordcloud, 'weightFactor'),
             [Input(self.state.current_dataset, 'data'),
              Input(self.state.current_user, 'data'),
              Input(self.state.current_start_date, 'data'),

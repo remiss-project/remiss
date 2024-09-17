@@ -101,6 +101,6 @@ class MongoPlotFactory(ABC):
         if end_date:
             pipeline.insert(1, {'$match': {'created_at': {'$lte': pd.Timestamp(end_date)}}})
         available_hashtags_freqs = list(collection.aggregate(pipeline))
-        available_hashtags_freqs = [(x['_id'], x['count']) for x in available_hashtags_freqs]
+        available_hashtags_freqs = [(x['_id'], int(x['count'])) for x in available_hashtags_freqs]
         client.close()
         return available_hashtags_freqs
