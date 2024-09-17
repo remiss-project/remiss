@@ -120,7 +120,7 @@ class TestMultimodalComponentComponent(TestCase):
 
         app.run_server(debug=True, port=8050)
 
-    @unittest.skip("Render test")
+    # @unittest.skip("Render test")
     def test_render_2(self):
         self.component.plot_factory._available_datasets = [self.test_dataset]
         self.component.plot_factory.data_dir = Path('../multimodal_data')
@@ -142,8 +142,9 @@ class TestMultimodalComponentComponent(TestCase):
                                         value=self.test_dataset)
         tweet_dropdown = dcc.Dropdown(id='tweet-dropdown',
                                       options=[{'label': '1347870778977628161', 'value': '1347870778977628161'},
+                                               {'label': '1164214294004846592', 'value': '1164214294004846592'},
                                                ],
-                                      value='1347870778977628161')
+                                      value='1164214294004846592')
 
         app.callback(Output(self.state.current_dataset, 'data'),
                      [Input('dataset-dropdown', 'value')])(lambda x: x)
@@ -188,6 +189,8 @@ class TestMultimodalComponentComponent(TestCase):
                                          {'component_id': 'fig-multimodal-claim_image', 'property': 'figure'},
                                          {'component_id': 'fig-multimodal-evidence_image', 'property': 'figure'},
                                          {'component_id': 'multimodal-collapse', 'property': 'is_open'}])
+
+
 
 
 if __name__ == '__main__':

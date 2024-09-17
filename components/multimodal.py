@@ -1,11 +1,13 @@
 import logging
-from pathlib import Path
 
 import dash_bootstrap_components as dbc
 from dash import dcc, html, Output, Input
+from dash.exceptions import PreventUpdate
+
 from components.components import RemissComponent
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 class MultimodalComponent(RemissComponent):
@@ -14,9 +16,9 @@ class MultimodalComponent(RemissComponent):
         super().__init__(name=name)
         self.gap = gap
         self.claim_text = html.P(id=f'{self.name}-claim_text')
-        self.claim_image = dcc.Graph(figure={}, id=f'fig-{self.name}-claim_image')
+        self.claim_image = dcc.Graph(figure={}, id=f'{self.name}-claim_image')
         self.visual_evidence_text = html.P(id=f'{self.name}-visual_evidence_text')
-        self.evidence_image = dcc.Graph(figure={}, id=f'fig-{self.name}-evidence_image')
+        self.evidence_image = dcc.Graph(figure={}, id=f'{self.name}-evidence_image')
         self.text_evidence_similarity_score = html.P(id=f'{self.name}-text_evidence_similarity_score')
         self.visual_evidence_similarity_score = html.P(id=f'{self.name}-visual_evidence_similarity_score')
         self.visual_evidence_graph_similarity_score = html.P(id=f'{self.name}-visual_evidence_graph_similarity_score')
@@ -38,7 +40,8 @@ class MultimodalComponent(RemissComponent):
                 dbc.Card([
                     dbc.CardHeader('Claim Image'),
                     dbc.CardBody([
-                        self.claim_image,
+                        dcc.Loading(id=f'{self.name}-claim_image_loading', children=[
+                            self.claim_image], type='default')
                     ]),
                     dbc.CardFooter('Claim image extracted from the tweet')
                 ]),
@@ -62,7 +65,9 @@ class MultimodalComponent(RemissComponent):
                                 dbc.Card([
                                     dbc.CardHeader('Evidence Image'),
                                     dbc.CardBody([
-                                        self.evidence_image,
+                                        dcc.Loading(id=f'{self.name}-evidence_image_loading', children=[
+                                            self.evidence_image], type='default')
+
                                     ]),
                                     dbc.CardFooter('Visual evidence image extracted from the tweet')
                                 ]),
@@ -131,26 +136,29 @@ class MultimodalComponent(RemissComponent):
             evidence_image = self.plot_factory.plot_evidence_image(dataset, tweet_id)
 
             is_open = True
-            return (claim_text, visual_evidence_text, text_evidence_similarity_score, visual_evidence_similarity_score,
-                    visual_evidence_graph_similarity_score, visual_evidence_domain, claim_image, evidence_image,
+            logger.debug(f'Updating multimodal component for tweet {tweet_id}')
+
+            return (claim_image, evidence_image,
+                    claim_text, visual_evidence_text, text_evidence_similarity_score, visual_evidence_similarity_score,
+                    visual_evidence_graph_similarity_score, visual_evidence_domain,
                     is_open)
         except Exception as e:
             if 'not found in dataset' in str(e):
                 logger.debug(f'No multimodal data found for tweet {tweet_id}')
             else:
                 logger.error(f'Error updating multimodal component: {e}')
-            return None, None, None, None, None, None, None, None, False
+            raise PreventUpdate()
 
     def callbacks(self, app):
         app.callback(
-            [Output(f'{self.name}-claim_text', 'children'),
-             Output(f'{self.name}-visual_evidence_text', 'children'),
-             Output(f'{self.name}-text_evidence_similarity_score', 'children'),
-             Output(f'{self.name}-visual_evidence_similarity_score', 'children'),
-             Output(f'{self.name}-visual_evidence_graph_similarity_score', 'children'),
-             Output(f'{self.name}-visual_evidence_domain', 'children'),
-             Output(f'fig-{self.name}-claim_image', 'figure'),
-             Output(f'fig-{self.name}-evidence_image', 'figure'),
+            [Output(self.claim_image, 'figure'),
+             Output(self.evidence_image, 'figure'),
+             Output(self.claim_text, 'children'),
+             Output(self.visual_evidence_text, 'children'),
+             Output(self.text_evidence_similarity_score, 'children'),
+             Output(self.visual_evidence_similarity_score, 'children'),
+             Output(self.visual_evidence_graph_similarity_score, 'children'),
+             Output(self.visual_evidence_domain, 'children'),
              Output(f'{self.name}-collapse', 'is_open')],
             [Input(self.state.current_dataset, 'data'),
              Input(self.state.current_tweet, 'data')],
