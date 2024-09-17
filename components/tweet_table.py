@@ -62,7 +62,10 @@ class TweetTableComponent(RemissComponent):
                                },
                                style_cell_conditional=[
                                    {'if': {'column_id': 'Text'},
-                                    'width': '30%'},
+                                    'width': '30%',
+                                    'textOverflow': 'visible',
+                                    'whiteSpace': 'normal',
+                                    'overflow': 'visible',},
                                    {'if': {'column_id': 'ID'},
                                     'overflow': 'visible',
                                     'textOverflow': 'visible',
