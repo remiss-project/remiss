@@ -106,9 +106,9 @@ class PropagationPlotFactory(MongoPlotFactory):
         def user_hover(x):
             username = x['username']
             user_type = x['User type']
-            legitimacy = x['legitimacy'] if x['legitimacy'] else ''
-            reputation = x['reputation'] if x['reputation'] else ''
-            status = x['status'] if x['status'] else ''
+            legitimacy = x['legitimacy_level'] if x['legitimacy_level'] else ''
+            reputation = x['reputation_level'] if x['reputation_level'] else ''
+            status = x['status_level'] if x['status_level'] else ''
             hover_template = (f'Username: {username}<br>User type: {user_type}<br>'
                               f'Legitimacy: {legitimacy}<br>Reputation: {reputation}<br>Status: {status}')
             return hover_template
@@ -264,11 +264,15 @@ class PropagationPlotFactory(MongoPlotFactory):
                           'author_id': 1,
                           'legitimacy': 1,
                           'reputation': '$average_reputation',
-                          'status': '$average_status'}
+                          'status': '$average_status',
+                          'legitimacy_level': 1,
+                          'reputation_level': 1,
+                          'status_level': 1,}
              },
         ]
         network_metrics_schema = Schema({'author_id': str, 'legitimacy': float,
-                                         'reputation': float, 'status': float})
+                                         'reputation': float, 'status': float,
+                                         'legitimacy_level': str, 'reputation_level': str, 'status_level': str})
         network_metrics = database.get_collection('network_metrics').aggregate_pandas_all(network_metrics_pipeline,
                                                                                           schema=network_metrics_schema)
         client.close()

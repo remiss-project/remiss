@@ -97,7 +97,7 @@ def create_app(config):
                                 name='dashboard',
                                 debug=config['debug'],
                                 page_size=config['tweet_table']['page_size'],
-                                cut_bins=config['tweet_table']['cut_bins'])
+                                )
     logger.info(f'Plot factories created in {time.time() - start_time} seconds.')
     logger.info('Creating app...')
     start_time = time.time()

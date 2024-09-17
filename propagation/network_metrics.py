@@ -12,8 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 class NetworkMetrics(BasePropagationMetrics):
-    def __init__(self, host='localhost', port=27017, reference_types=('retweeted', 'quoted'), frequency='1D'):
+    def __init__(self, host='localhost', port=27017, reference_types=('retweeted', 'quoted'), frequency='1D',
+                 cut_bins=('Low', 'Medium', 'High')):
         super().__init__(host, port, reference_types)
+        self.cut_bins = cut_bins
         self.bin_size = int(frequency[:-1])
         pd_units = {'D': 'day', 'W': 'week', 'M': 'month', 'Y': 'year'}
         self.unit = pd_units[frequency[-1]]
@@ -128,10 +130,22 @@ class NetworkMetrics(BasePropagationMetrics):
         database = client.get_database(dataset)
         collection = database.get_collection('network_metrics')
         collection.drop()
+
+        average_reputation = reputation.mean(axis=1)
+        average_status = status.mean(axis=1)
+
+        legitimacy_level = pd.cut(legitimacy, len(self.cut_bins), labels=self.cut_bins)
+        reputation_level = pd.cut(average_reputation, len(self.cut_bins), labels=self.cut_bins)
+        status_level = pd.cut(average_status, len(self.cut_bins), labels=self.cut_bins)
         data = []
         for author_id in legitimacy.index:
-            average_reputation = float(reputation.loc[author_id].mean())
-            average_status = float(status.loc[author_id].mean())
+            current_average_reputation = average_reputation.loc[author_id]
+            current_average_status = average_status.loc[author_id]
+
+            current_legitimacy_level = legitimacy_level.loc[author_id]
+            current_reputation_level = reputation_level.loc[author_id]
+            current_status_level = status_level.loc[author_id]
+
             current_reputation = self._serialize_date_metric(reputation.loc[author_id], 'reputation')
             current_status = self._serialize_date_metric(status.loc[author_id], 'status')
 
@@ -139,8 +153,11 @@ class NetworkMetrics(BasePropagationMetrics):
                          'legitimacy': float(legitimacy[author_id]),
                          'reputation': current_reputation,
                          'status': current_status,
-                         'average_reputation': average_reputation,
-                         'average_status': average_status})
+                         'average_reputation': current_average_reputation,
+                         'average_status': current_average_status,
+                         'legitimacy_level': current_legitimacy_level,
+                         'reputation_level': current_reputation_level,
+                         'status_level': current_status_level})
         collection.insert_many(data)
         client.close()
 

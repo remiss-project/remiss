@@ -97,15 +97,15 @@ class TweetTableFactory(MongoPlotFactory):
             {'$project': {
                 '_id': 0,
                 'author_id': 1,
-                'Legitimacy': '$legitimacy',
-                'Reputation': '$average_reputation',
-                'Status': '$average_status'}}
+                'Legitimacy': '$legitimacy_level',
+                'Reputation': '$reputation_level',
+                'Status': '$status_level'}}
         ]
         network_metrics_schema = Schema({
             'author_id': str,
-            'Legitimacy': float,
-            'Reputation': float,
-            'Status': float
+            'Legitimacy': str,
+            'Reputation': str,
+            'Status': str
         })
         df_network_metrics = collection_network_metrics.aggregate_pandas_all(pipeline_network_metrics,
                                                                              schema=network_metrics_schema)

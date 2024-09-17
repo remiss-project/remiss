@@ -29,7 +29,7 @@ wordcloud:
   match_width: True
 tweet_table:
   page_size: 10
-  cut_bins:
-    - Low
-    - Medium
-    - High
+cut_bins:
+  - Low
+  - Medium
+  - High

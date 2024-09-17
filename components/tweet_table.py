@@ -17,9 +17,8 @@ class TweetTableComponent(RemissComponent):
                  top_table_columns=(
                          'ID', 'User', 'Text', 'Retweets', 'Party', 'Multimodal', 'Profiling',
                          'Suspicious content', 'Legitimacy', 'Reputation', 'Status'),
-                 page_size=10, cut_bins=None):
+                 page_size=10):
         super().__init__(name=name)
-        self.cut_bins = cut_bins
         self.page_size = page_size
         self.plot_factory = plot_factory
         self.data = None
@@ -127,13 +126,6 @@ class TweetTableComponent(RemissComponent):
         if ctx.triggered_id in self._state_ids or self.data is None:
             self.data = self.plot_factory.get_top_table_data(dataset, start_date, end_date, hashtags)
             self.data = self.data.round(2)
-            if self.cut_bins is not None:
-                if not self.data['Legitimacy'].isnull().all():
-                    self.data['Legitimacy'] = pd.qcut(self.data['Legitimacy'], len(self.cut_bins), self.cut_bins)
-                if not self.data['Reputation'].isnull().all():
-                    self.data['Reputation'] = pd.qcut(self.data['Reputation'], len(self.cut_bins), self.cut_bins)
-                if not self.data['Status'].isnull().all():
-                    self.data['Status'] = pd.qcut(self.data['Status'], len(self.cut_bins), self.cut_bins)
             self.data['Multimodal'] = self.data['Multimodal'].apply(lambda x: 'Yes' if x else 'No')
             self.data['Profiling'] = self.data['Profiling'].apply(lambda x: 'Yes' if x else 'No')
             self.data['id'] = self.data['ID']
