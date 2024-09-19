@@ -16,7 +16,7 @@ class Egonet(BasePropagationMetrics):
     def __init__(self, host='localhost', port=27017, threshold=0, delete_vertices=True,
                  reference_types=('retweeted', 'quoted'), max_edges=None):
         super().__init__(host, port, reference_types)
-        self.max_nodes = max_edges
+        self.max_edges = max_edges
         self.threshold = threshold
         self.delete_vertices = delete_vertices
         self._hidden_network_cache = {}
@@ -37,10 +37,10 @@ class Egonet(BasePropagationMetrics):
         node = hidden_network.vs.find(author_id=author_id)
         neighbours = hidden_network.neighborhood(node, order=depth)
         egonet = hidden_network.induced_subgraph(neighbours)
-        if self.max_nodes and egonet.vcount() > self.max_nodes:
-            logger.warning(f'Egonet for {author_id} has {egonet.vcount()} nodes, reducing to {self.max_nodes}')
+        if self.max_edges and egonet.ecount() > self.max_edges:
+            logger.warning(f'Egonet for {author_id} has {egonet.ecount()} edges, reducing to {self.max_edges}')
             egonet = self.compute_backbone(egonet, alpha=0, delete_vertices=self.delete_vertices,
-                                           max_edges=self.max_nodes)
+                                           max_edges=self.max_edges)
         logger.debug(f'Egonet computed in {time.time() - start_time} seconds')
         return egonet
 
