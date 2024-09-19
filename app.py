@@ -15,7 +15,7 @@ from figures.propagation import PropagationPlotFactory
 from figures.textual import TextualFactory
 
 logger = logging.getLogger('app')
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 banner = \
     '''
@@ -72,7 +72,7 @@ def create_app(config):
                                                  threshold=config['graph_simplification']['threshold'],
                                                  frequency=config['frequency'],
                                                  available_datasets=config['available_datasets'],
-
+                                                 max_edges=config['max_edges']
                                                  )
     textual_factory = TextualFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                      available_datasets=config['available_datasets'])

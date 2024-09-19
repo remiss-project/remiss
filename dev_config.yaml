@@ -31,3 +31,4 @@ cut_bins:
   - Low
   - Medium
   - High
+max_edges: 100

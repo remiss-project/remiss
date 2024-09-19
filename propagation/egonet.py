@@ -14,10 +14,13 @@ logger = logging.getLogger(__name__)
 
 class Egonet(BasePropagationMetrics):
     def __init__(self, host='localhost', port=27017, threshold=0, delete_vertices=True,
-                 reference_types=('retweeted', 'quoted')):
+                 reference_types=('retweeted', 'quoted'), max_edges=None):
         super().__init__(host, port, reference_types)
+        self.max_nodes = max_edges
         self.threshold = threshold
         self.delete_vertices = delete_vertices
+        self._hidden_network_cache = {}
+        self.hidden_network_backbone_cache = {}
 
     def get_egonet(self, dataset, author_id, depth, start_date=None, end_date=None, hashtags=None):
         """
@@ -28,10 +31,17 @@ class Egonet(BasePropagationMetrics):
         :param depth:
         :return:
         """
+        start_time = time.time()
+        logger.debug(f'Getting egonet for {author_id} with depth {depth}')
         hidden_network = self.get_hidden_network(dataset, start_date=start_date, end_date=end_date, hashtags=hashtags)
         node = hidden_network.vs.find(author_id=author_id)
         neighbours = hidden_network.neighborhood(node, order=depth)
         egonet = hidden_network.induced_subgraph(neighbours)
+        if self.max_nodes and egonet.vcount() > self.max_nodes:
+            logger.warning(f'Egonet for {author_id} has {egonet.vcount()} nodes, reducing to {self.max_nodes}')
+            egonet = self.compute_backbone(egonet, alpha=0, delete_vertices=self.delete_vertices,
+                                           max_edges=self.max_nodes)
+        logger.debug(f'Egonet computed in {time.time() - start_time} seconds')
         return egonet
 
     def get_hidden_network(self, dataset, start_date=None, end_date=None, hashtags=None):
@@ -39,7 +49,9 @@ class Egonet(BasePropagationMetrics):
         if start_date or end_date or hashtags:
             network = self._compute_hidden_network(dataset, start_date=start_date, end_date=end_date, hashtags=hashtags)
         else:
-            network = self.load_hidden_network(dataset)
+            if dataset not in self._hidden_network_cache:
+                self._hidden_network_cache[dataset] = self.load_hidden_network(dataset)
+            network = self._hidden_network_cache[dataset]
 
         return network
 
@@ -49,7 +61,10 @@ class Egonet(BasePropagationMetrics):
             network = self._compute_hidden_network_backbone(dataset, start_date=start_date, end_date=end_date,
                                                             hashtags=hashtags)
         else:
-            network = self.load_hidden_network_backbone(dataset)
+            if dataset not in self.hidden_network_backbone_cache:
+                self.hidden_network_backbone_cache[dataset] = self.load_hidden_network_backbone(dataset)
+            network = self.hidden_network_backbone_cache[dataset]
+
         return network
 
     def load_hidden_network(self, dataset):
@@ -214,9 +229,11 @@ class Egonet(BasePropagationMetrics):
         return alphas
 
     @staticmethod
-    def compute_backbone(graph, alpha=0.05, delete_vertices=True):
+    def compute_backbone(graph, alpha=0.05, delete_vertices=True, max_edges=None):
         alphas = Egonet.compute_alphas(graph)
         good = np.nonzero(alphas > alpha)[0]
+        if max_edges:
+            good = good[:max_edges]
         backbone = graph.subgraph_edges(graph.es.select(good), delete_vertices=delete_vertices)
 
         return backbone

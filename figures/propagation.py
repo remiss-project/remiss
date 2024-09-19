@@ -27,7 +27,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                  reference_types=('quoted', 'retweeted'), layout='fruchterman_reingold',
                  threshold=0.2, delete_vertices=True, frequency='1D',
                  available_datasets=None, small_size_multiplier=15, big_size_multiplier=50,
-                 user_highlight_color='rgb(0, 0, 255)'):
+                 user_highlight_color='rgb(0, 0, 255)', max_edges=None):
         super().__init__(host, port, available_datasets)
         self.big_size_multiplier = big_size_multiplier
         self.small_size_multiplier = small_size_multiplier
@@ -35,7 +35,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         self.layout = layout
         self.frequency = frequency
         self.egonet = Egonet(reference_types=reference_types, host=host, port=port,
-                             threshold=threshold, delete_vertices=delete_vertices)
+                             threshold=threshold, delete_vertices=delete_vertices, max_edges=max_edges)
 
         self.network_metrics = NetworkMetrics(host=host, port=port, reference_types=reference_types,
                                               frequency=frequency)
@@ -92,7 +92,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         return start_date, end_date
 
     def compute_layout(self, network):
-        logger.debug(f'Computing {self.layout} layout for graph {network}')
+        logger.debug(f'Computing {self.layout} layout for graph {network.vcount()} vertices and {network.ecount()} edges')
         start_time = time.time()
         layout = network.layout(self.layout, dim=3)
         logger.debug(f'Layout computed in {time.time() - start_time} seconds')
@@ -267,7 +267,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                           'status': '$average_status',
                           'legitimacy_level': 1,
                           'reputation_level': 1,
-                          'status_level': 1,}
+                          'status_level': 1, }
              },
         ]
         network_metrics_schema = Schema({'author_id': str, 'legitimacy': float,
