@@ -568,7 +568,14 @@ class TestEgonetCase(unittest.TestCase):
     # Test dataset
 
     def test_compute_hidden_network_full(self):
-        actual = self.egonet.get_hidden_network(self.test_dataset)
+        actual = self.egonet._compute_hidden_network(self.test_dataset)
+
+        self.assertEqual(3321, actual.vcount())
+        self.assertEqual(5847, actual.ecount())
+
+    def test_compute_hidden_network_full_no_unknown_authors(self):
+        self.egonet.include_unknown_authors = False
+        actual = self.egonet._compute_hidden_network(self.test_dataset)
 
         self.assertEqual(3321, actual.vcount())
         self.assertEqual(5847, actual.ecount())

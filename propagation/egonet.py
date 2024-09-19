@@ -4,6 +4,7 @@ import time
 import igraph as ig
 import numpy as np
 import pandas as pd
+from fontTools.subset import subset
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
 
@@ -14,8 +15,9 @@ logger = logging.getLogger(__name__)
 
 class Egonet(BasePropagationMetrics):
     def __init__(self, host='localhost', port=27017, threshold=0, delete_vertices=True,
-                 reference_types=('retweeted', 'quoted'), max_edges=None):
+                 reference_types=('retweeted', 'quoted'), include_unknown_authors=False, max_edges=None):
         super().__init__(host, port, reference_types)
+        self.include_unknown_authors = include_unknown_authors
         self.max_edges = max_edges
         self.threshold = threshold
         self.delete_vertices = delete_vertices
@@ -102,6 +104,26 @@ class Egonet(BasePropagationMetrics):
 
         return backbone
 
+    def _get_authors(self, dataset, start_date=None, end_date=None, hashtags=None):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
+
+        authors_pipeline = [
+            {'$project': {'_id': 0, 'author_id': '$author.id', 'username': '$author.username'}},
+            {'$group': {'_id': '$author_id', 'username': {'$first': '$username'}}},
+            {'$sort': {'username': 1}},
+            {'$project': {'_id': 0, 'author_id': '$_id', 'username': 1}}
+        ]
+        self._add_filters(authors_pipeline, start_date, end_date, hashtags)
+        logger.debug('Computing authors')
+        start_time = time.time()
+        schema = Schema({'author_id': str, 'username': str})
+        authors = collection.aggregate_pandas_all(authors_pipeline, schema=schema)
+        logger.debug(f'Authors computed in {time.time() - start_time} seconds')
+        client.close()
+        return authors
+
     def _get_references(self, dataset, start_date=None, end_date=None, hashtags=None):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
@@ -141,7 +163,7 @@ class Egonet(BasePropagationMetrics):
         :return: a networkx graph with the users as nodes and the edges representing interactions between users
         """
         references = self._get_references(dataset, start_date=start_date, end_date=end_date, hashtags=hashtags)
-        authors = pd.DataFrame({'author_id': np.unique(references[['source', 'target']].values)})
+        authors = self._get_authors(dataset, start_date=start_date, end_date=end_date, hashtags=hashtags)
 
         if len(references) == 0:
             # in case of no authors we return an empty graph
@@ -151,15 +173,19 @@ class Egonet(BasePropagationMetrics):
         start_time = time.time()
         # switch id by position (which will be the node id in the graph) and set it as index
         author_to_id = authors['author_id'].reset_index().set_index('author_id')
+        # drop references if the author is not in the authors list
+        references = references[references['source'].isin(author_to_id.index) & references['target'].isin(author_to_id.index)]
         g = ig.Graph(directed=True)
         g.add_vertices(len(authors))
         g.vs['author_id'] = authors['author_id']
+        g.vs['username'] = authors['username']
 
         if len(references) > 0:
             # convert references which are author id based to graph id based
-            references['source'] = author_to_id.loc[references['source']].reset_index(drop=True)
-            references['target'] = author_to_id.loc[references['target']].reset_index(drop=True)
-
+            references['source'] = author_to_id.loc[references['source']].values
+            references['target'] = author_to_id.loc[references['target']].values
+            references = references.reset_index(drop=True)
+            references = references.dropna(axis=0, subset=['source', 'target'])
             g.add_edges(references[['source', 'target']].to_records(index=False).tolist())
             g.es['weight'] = references['weight']
             g.es['weight_inv'] = references['weight_inv']
