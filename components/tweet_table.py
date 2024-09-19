@@ -121,52 +121,62 @@ class TweetTableComponent(RemissComponent):
             ], width=12),
         ], justify='center', style={'margin-bottom': '1rem'})
 
+    def _update_data(self, dataset, start_date, end_date, hashtags):
+        logger.debug(f'Updating whole tweet table with '
+                     f'dataset {dataset}, start date {start_date}, end date {end_date}, hashtags {hashtags}')
+        self.data = self.plot_factory.get_top_table_data(dataset, start_date, end_date, hashtags)
+        self.data = self.data.round(2)
+        self.data['Multimodal'] = self.data['Multimodal'].apply(lambda x: 'Yes' if x else 'No')
+        self.data['Profiling'] = self.data['Profiling'].apply(lambda x: 'Yes' if x else 'No')
+        self.data['id'] = self.data['ID']
+
+        page_count = len(self.data) // self.page_size if self.data is not None else 0
+        return self.data.iloc[:self.page_size].to_dict(orient='records'), page_count
+
+    def _update_page(self, page_current, sort_by, filter_query):
+        logger.debug(f'Updating tweet table with page {page_current}, sort by {sort_by}, filter query {filter_query}')
+        start_time = pd.Timestamp.now()
+        self.displayed_data = self.data
+        if filter_query:
+            filtering_expressions = filter_query.split(' && ')
+            for filter_part in filtering_expressions:
+                col_name, operator, filter_value = self.split_filter_part(filter_part)
+
+                if operator in ('eq', 'ne', 'lt', 'le', 'gt', 'ge'):
+                    # these operators match pandas series operator method names
+                    self.displayed_data = self.displayed_data.loc[
+                        getattr(self.displayed_data[col_name], operator)(filter_value)]
+                elif operator == 'contains':
+                    self.displayed_data = self.displayed_data.loc[
+                        self.displayed_data[col_name].str.contains(filter_value)]
+                elif operator == 'datestartswith':
+                    # this is a simplification of the front-end filtering logic,
+                    # only works with complete fields in standard format
+                    self.displayed_data = self.displayed_data.loc[
+                        self.displayed_data[col_name].str.startswith(filter_value)]
+
+        if len(sort_by):
+            self.displayed_data = self.displayed_data.sort_values(
+                [col['column_id'] for col in sort_by],
+                ascending=[
+                    col['direction'] == 'asc'
+                    for col in sort_by
+                ],
+                inplace=False
+            )
+
+        page_count = len(self.displayed_data) // self.page_size if self.displayed_data is not None else 0
+        start_row = page_current * self.page_size
+        end_row = (page_current + 1) * self.page_size
+        logger.debug(f'Updated tweet table in {pd.Timestamp.now() - start_time}')
+        return self.displayed_data.iloc[start_row:end_row].to_dict(orient='records'), page_count
+
     def update(self, dataset, start_date, end_date, hashtags, page_current, sort_by, filter_query):
-        logger.debug(f'Updating tweet table with dataset {dataset}, start date {start_date}, end date {end_date}')
+        # logger.debug(f'Updating tweet table with dataset {dataset}, start date {start_date}, end date {end_date}')
         if ctx.triggered_id in self._state_ids or self.data is None:
-            self.data = self.plot_factory.get_top_table_data(dataset, start_date, end_date, hashtags)
-            self.data = self.data.round(2)
-            self.data['Multimodal'] = self.data['Multimodal'].apply(lambda x: 'Yes' if x else 'No')
-            self.data['Profiling'] = self.data['Profiling'].apply(lambda x: 'Yes' if x else 'No')
-            self.data['id'] = self.data['ID']
-
-            page_count = len(self.data) // self.page_size if self.data is not None else 0
-            return self.data.iloc[:self.page_size].to_dict(orient='records'), page_count
+            return self._update_data(dataset, start_date, end_date, hashtags)
         else:
-
-            self.displayed_data = self.data
-            if filter_query:
-                filtering_expressions = filter_query.split(' && ')
-                for filter_part in filtering_expressions:
-                    col_name, operator, filter_value = self.split_filter_part(filter_part)
-
-                    if operator in ('eq', 'ne', 'lt', 'le', 'gt', 'ge'):
-                        # these operators match pandas series operator method names
-                        self.displayed_data = self.displayed_data.loc[
-                            getattr(self.displayed_data[col_name], operator)(filter_value)]
-                    elif operator == 'contains':
-                        self.displayed_data = self.displayed_data.loc[
-                            self.displayed_data[col_name].str.contains(filter_value)]
-                    elif operator == 'datestartswith':
-                        # this is a simplification of the front-end filtering logic,
-                        # only works with complete fields in standard format
-                        self.displayed_data = self.displayed_data.loc[
-                            self.displayed_data[col_name].str.startswith(filter_value)]
-
-            if len(sort_by):
-                self.displayed_data = self.displayed_data.sort_values(
-                    [col['column_id'] for col in sort_by],
-                    ascending=[
-                        col['direction'] == 'asc'
-                        for col in sort_by
-                    ],
-                    inplace=False
-                )
-
-            page_count = len(self.displayed_data) // self.page_size if self.displayed_data is not None else 0
-            start_row = page_current * self.page_size
-            end_row = (page_current + 1) * self.page_size
-            return self.displayed_data.iloc[start_row:end_row].to_dict(orient='records'), page_count
+            return self._update_page(page_current, sort_by, filter_query)
 
     def split_filter_part(self, filter_part):
         for operator_type in self.operators:
