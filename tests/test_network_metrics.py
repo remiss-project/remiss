@@ -136,6 +136,17 @@ class NetworkMetricsTestCase(unittest.TestCase):
         expected = [238, 233, 202, 195, 148]
         self.assertEqual(actual, expected)
 
+    def test_legitimacy_no_nans(self):
+        actual = self.network_metrics.compute_legitimacy(self.test_dataset)
+        self.assertFalse(actual.isnull().values.any())
+
+    def test_no_missing_people(self):
+        test_author_id = '280227352'
+        actual = self.network_metrics.compute_legitimacy(self.test_dataset)
+
+        assert test_author_id in actual.index
+        print(actual.loc[test_author_id])
+
     def test_reputation_full(self):
         actual = self.network_metrics.compute_reputation(self.test_dataset)
         self.assertIsInstance(actual.columns, pd.DatetimeIndex)

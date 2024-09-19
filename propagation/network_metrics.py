@@ -54,14 +54,13 @@ class NetworkMetrics(BasePropagationMetrics):
         collection = database.get_collection('raw')
 
         node_pipeline = [
-            {'$unwind': '$referenced_tweets'},
-            {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
-                        'referenced_tweets.author': {'$exists': True}}},
+            {'$unwind': {'path': '$referenced_tweets', 'preserveNullAndEmptyArrays': True}},
             {'$group': {'_id': '$author.id',
                         'legitimacy': {'$count': {}}}},
             {'$project': {'_id': 0,
                           'author_id': '$_id',
-                          'legitimacy': 1}},
+                          'legitimacy': 1
+                          }},
         ]
         logger.debug('Computing legitimacy')
         start_time = time.time()
@@ -78,9 +77,7 @@ class NetworkMetrics(BasePropagationMetrics):
         collection = database.get_collection('raw')
 
         node_pipeline = [
-            {'$unwind': '$referenced_tweets'},
-            {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
-                        'referenced_tweets.author': {'$exists': True}}},
+            {'$unwind': {'path': '$referenced_tweets', 'preserveNullAndEmptyArrays': True}},
             {'$group': {'_id': {'author': '$author.id',
                                 'date': {
                                     "$dateTrunc": {'date': "$created_at", 'unit': self.unit, 'binSize': self.bin_size}}
