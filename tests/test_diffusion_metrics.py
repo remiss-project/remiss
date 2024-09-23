@@ -373,7 +373,33 @@ class DiffusionMetricsTestCase(unittest.TestCase):
                                                check_dtype=False, atol=1e-6, rtol=1e-6)
 
     def test_propagation_data_original(self):
-        test_tweet_id = '1167137262515163136'
+        client = MongoClient( 'mongodb://srvinv02.esade.es', 27017)
+        raw = client.get_database('Generales_2019').get_collection('raw')
+
+        all_tweets_by_text_pipeline = [
+            {'$unwind': '$referenced_tweets'},
+            {'$group': {'_id': '$text', 'targets': {'$push': '$id'}, 'count': {'$sum': 1},
+                        'sources': {'$push': '$referenced_tweets.id'}}},
+            # {'$match': {'_id': {'$regex': text}}},
+            {'$sort': {'count': -1}},
+            {'$project': {'_id': 0, 'targets': 1, 'text': '$_id', 'count': 1, 'sources': 1}},
+        ]
+        all_tweets = raw.aggregate_pandas_all(all_tweets_by_text_pipeline)
+        all_tweets['sources'] = all_tweets['sources'].apply(lambda x: set(x))
+
+        sources = {'1111662918016356352', '1111663197445152770', '1111663499795681280', '1111663349702578177', '1111663971336101889', '1111662671210926086', '1111663702003146754', '1111664600955658240', '1111662296001142785'}
+
+        # find original among sources
+        original_pipeline = [
+            {'$match': {'id': {'$in': list(sources)},
+                        'referenced_tweets': {'$exists': False}}},
+            {'$project': {'id': 1, 'text': 1, 'created_at': 1, 'author_id': 1}}
+        ]
+
+        original = raw.aggregate_pandas_all(original_pipeline)
+
+        test_tweet_id = '1076590984941764608'
+        test_tweet_id = '975695555375583232'
         original, references = self.diffusion_metrics.get_references(self.test_dataset, test_tweet_id)
 
         self.assertEqual(original.index.to_list(), ['tweet_id', 'author_id', 'created_at'])
@@ -382,7 +408,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
                          ['source', 'target', 'text', 'type', 'source_author', 'target_author', 'created_at'])
 
     def test_propagation_data_retweet(self):
-        test_tweet_id = '1167192418845896706'
+        test_tweet_id = '1076621980940623873'
         original, references = self.diffusion_metrics.get_references(self.test_dataset, test_tweet_id)
 
         self.assertEqual(original.index.to_list(), ['tweet_id', 'author_id', 'created_at'])
@@ -414,7 +440,46 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         self.assertEqual(references.columns.to_list(),
                          ['source', 'target', 'text', 'type', 'source_author', 'target_author', 'created_at'])
 
+    def test_missing_rts_local(self):
+        test_tweet_id = self.test_tweet_id
+        rt = 'RT @matteosalvinimi: '
+        text = 'Questa nave @openarms_fund si trova in acqu'
+        reference_types = ['retweeted', 'quoted', 'replied_to']
 
+        client = MongoClient('localhost', 27017)
+        raw = client.get_database(self.test_dataset).get_collection('raw')
+
+        all_tweets_by_text_pipeline = [
+            {'$group': {'_id': '$text', 'ids': {'$push': '$id'}, 'count': {'$sum': 1},
+                        'rt_ids': {'$push': '$referenced_tweets.id'}}},
+            # {'$match': {'_id': {'$regex': text}}},
+            {'$sort': {'count': -1}},
+            {'$project': {'_id': 0, 'ids': 1, 'text': '$_id', 'count': 1, 'rt_ids': 1}},
+        ]
+        all_tweets = raw.aggregate_pandas_all(all_tweets_by_text_pipeline)
+
+        # match all tweets containing the text of the tweet
+        pipeline = [
+            {'$match': {'text': {'$regex': text}}},
+
+            {'$project': {'_id': 0, 'id': 1, 'text': 1, 'truncated': 1}},
+        ]
+        original = raw.aggregate_pandas_all(pipeline).iloc[0]
+        original_tweet = raw.find_one({'id': original['id']})
+
+        original_tweets = raw.aggregate_pandas_all([
+            {'$match': {'referenced_tweets': {'$exists': False}}},
+        ])
+
+        pipeline = [
+            {'$match': {'text': {'$regex': 'RT.*' + text}}},
+            {'$project': {'_id': 0, 'id': 1, 'text': 1, 'public_metrics': 1, 'truncated': 1}},
+        ]
+
+        rts = raw.aggregate_pandas_all(pipeline)
+        print(original['id'], original['text'])
+        print(rts['id'], rts['text'])
+        print(len(rts), original['public_metrics']['retweet_count'])
 
 
 if __name__ == '__main__':
