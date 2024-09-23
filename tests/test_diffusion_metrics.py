@@ -16,6 +16,7 @@ from propagation import DiffusionMetrics
 
 patch_all()
 
+
 class DiffusionMetricsTestCase(unittest.TestCase):
     def setUp(self):
         self.diffusion_metrics = DiffusionMetrics()
@@ -34,8 +35,8 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         df.hist(log=True, bins=100)
         for tweet_id in tqdm(df.index[:20]):
             try:
-                conversation_id, tweets, references = self.diffusion_metrics.get_conversation(self.test_dataset,
-                                                                                              self.test_tweet_id)
+                conversation_id, tweets, references = self.diffusion_metrics.get_references(self.test_dataset,
+                                                                                            self.test_tweet_id)
                 if len(references) > 0:
                     print(f'{tweet_id}: {len(references)}', df.loc[tweet_id])
                     break
@@ -65,7 +66,6 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         self.assertIsInstance(graph.vs['author_id'][0], str)
         self.assertIsInstance(graph.vs['created_at'][0], Timestamp)
 
-
     def test_all_connected_to_conversation_id(self):
         graph = self.diffusion_metrics.get_propagation_tree(self.test_dataset, self.test_tweet_id)
         self.assertEqual(len(graph.connected_components(mode='weak')), 1)
@@ -74,8 +74,8 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
     def test_tweets_with_references(self):
         conversation_sizes = self.diffusion_metrics.get_conversation_sizes(self.test_dataset)
-        conversation_id, tweets, references = self.diffusion_metrics.get_conversation(self.test_dataset,
-                                                                                      self.test_tweet_id)
+        conversation_id, tweets, references = self.diffusion_metrics.get_references(self.test_dataset,
+                                                                                    self.test_tweet_id)
 
         self.assertEqual(0, len(references), )
         self.assertEqual(12, len(tweets), )
@@ -238,8 +238,8 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         self.assertFalse(shortest_paths.isna().any())
 
     def test_conversation_no_nat(self):
-        conversation_id, tweets, references = self.diffusion_metrics.get_conversation(self.test_dataset,
-                                                                                      self.test_tweet_id)
+        conversation_id, tweets, references = self.diffusion_metrics.get_references(self.test_dataset,
+                                                                                    self.test_tweet_id)
         self.assertFalse(tweets.isna().any().any())
         self.assertFalse(references.isna().any().any())
 
@@ -372,26 +372,47 @@ class DiffusionMetricsTestCase(unittest.TestCase):
                 pd.testing.assert_series_equal(expected_structural_virality, actual_structural_virality,
                                                check_dtype=False, atol=1e-6, rtol=1e-6)
 
-    def test_missing_rts(self):
+    def test_propagation_data_original(self):
+        test_tweet_id = '1167137262515163136'
+        original, references = self.diffusion_metrics.get_references(self.test_dataset, test_tweet_id)
+
+        self.assertEqual(original.index.to_list(), ['tweet_id', 'author_id', 'created_at'])
+        self.assertEqual(original['tweet_id'], test_tweet_id)
+        self.assertEqual(references.columns.to_list(),
+                         ['source', 'target', 'text', 'type', 'source_author', 'target_author', 'created_at'])
+
+    def test_propagation_data_retweet(self):
+        test_tweet_id = '1167192418845896706'
+        original, references = self.diffusion_metrics.get_references(self.test_dataset, test_tweet_id)
+
+        self.assertEqual(original.index.to_list(), ['tweet_id', 'author_id', 'created_at'])
+        self.assertEqual(original['tweet_id'], '1167137262515163136')
+        self.assertEqual(references.columns.to_list(),
+                         ['source', 'target', 'text', 'type', 'source_author', 'target_author', 'created_at'])
+
+    def test_propagation_data_missing(self):
+        test_tweet_id = '1014595663106060289'
+        original, references = self.diffusion_metrics.get_references(self.test_dataset, test_tweet_id)
+
+        self.assertEqual(original.index.to_list(), ['tweet_id', 'author_id', 'created_at'])
+        self.assertEqual(original.to_dict(),
+                         {'author_id': '270839361',
+                          'created_at': datetime.datetime(2018, 7, 4, 19, 43, 51),
+                          'tweet_id': '1012996536349970432'})
+        self.assertEqual(references.columns.to_list(),
+                         ['source', 'target', 'text', 'type', 'source_author', 'target_author', 'created_at'])
+
+
+    def test_propagation_data_original_remote(self):
         test_tweet_id = '1111987953620918274'
-        reference_types = ['retweeted', 'quoted', 'replied_to']
-
-        client = MongoClient('mongodb://srvinv02.esade.es', 27017)
-        raw = client.get_database('Generales_2019').get_collection('raw')
-        tweet = raw.find_one({'id': test_tweet_id})
-        conversation_id = tweet['conversation_id']
-
-        pipeline = [
-            {'$match': {'conversation_id': conversation_id}},
-            {'$unwind': '$referenced_tweets'},
-            {'$match': {'referenced_tweets.type': {'$in': reference_types},
-                        }},
-            {'$project': {'_id': 0, 'id': 1, 'type': '$referenced_tweets.type'}},
-        ]
-        df = raw.aggregate_pandas_all(pipeline)
         self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
-        propagation_tree = self.diffusion_metrics.compute_propagation_tree('Generales_2019', test_tweet_id)
-        self.assertEqual(propagation_tree.vcount(), len(df)+1)
+
+        original, references = self.diffusion_metrics.get_references('Generales_2019', test_tweet_id)
+
+        self.assertEqual(original.index.to_list(), ['tweet_id', 'author_id', 'created_at'])
+        self.assertEqual(original['tweet_id'], test_tweet_id)
+        self.assertEqual(references.columns.to_list(),
+                         ['source', 'target', 'text', 'type', 'source_author', 'target_author', 'created_at'])
 
 
 

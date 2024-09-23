@@ -67,13 +67,93 @@ class DiffusionMetrics(BasePropagationMetrics):
         return structural_virality_over_time
 
     def compute_propagation_tree(self, dataset, tweet_id):
-        conversation_id, conversation_tweets, references = self.get_conversation(dataset, tweet_id)
+        conversation_id, conversation_tweets, references = self.get_references(dataset, tweet_id)
         graph = self._get_graph(conversation_tweets, references)
         self.ensure_conversation_id(conversation_id, graph)
 
         return graph
 
-    def get_conversation(self, dataset, tweet_id):
+    def get_references(self, dataset, tweet_id):
+        client = MongoClient(self.host, self.port)
+        raw = client.get_database(dataset).get_collection('raw')
+
+        tweet = raw.find_one({'id': tweet_id})
+        if 'referenced_tweets' in tweet:
+            # Tweet is a retweet, quote or reply. Get the original tweet
+            original_pipeline = [
+                {'$match': {'text': {'$regex': '^' + tweet['text'].replace('RT @' + tweet['referenced_tweets'][0]['author']['username'] + ': ', '')}}},
+                {'$project': {'_id': 0, 'tweet_id': '$id', 'author_id': '$author.id', 'text': 1, 'created_at': 1}},
+            ]
+            original = raw.aggregate_pandas_all(original_pipeline)
+            if original.empty:
+                logger.warning(f'Original tweet not found for tweet {tweet_id}, patching with referenced_tweet data')
+                # Try to patch with referenced tweet data
+                original_tweet_id = tweet['referenced_tweets'][0]['id']
+                original_text = tweet['referenced_tweets'][0]['text'].replace(
+                    'RT @' + tweet['referenced_tweets'][0]['author']['username'] + ': ', '')
+                original_author = tweet['referenced_tweets'][0]['author']['id']
+            else:
+                if original.shape[0] > 1:
+                    logger.warning(f'Multiple original tweets found for tweet {tweet_id}, using the first one')
+                original = original.iloc[0]
+                original_tweet_id = original['tweet_id']
+                original_text = original['text']
+                original_author = original['author_id']
+        else:
+            # Tweet is an original tweet
+            original_tweet_id = tweet_id
+            original_text = tweet['text']
+            original_author = tweet['author']['id']
+
+        original = pd.Series({'tweet_id': original_tweet_id, 'author_id': original_author,
+                              'created_at': tweet['created_at']})
+
+        rt_and_quotes_pipeline = [
+            {'$match': {'text': {'$regex': 'RT.*' + original_text[:min(100, len(original_text))] + '.*'}}}, # account for truncated text
+            {'$unwind': '$referenced_tweets'},
+            {'$project': {'_id': 0,
+                          'source': '$referenced_tweets.id',
+                          'target': '$id',
+                          'text': 1,
+                          'type': '$referenced_tweets.type',
+                          'source_author': '$referenced_tweets.author.id',
+                          'target_author': '$author.id',
+                          'created_at': 1}},
+        ]
+        schema = Schema({'source': str, 'target': str, 'text': str, 'type': str,
+                         'source_author': str, 'target_author': str, 'created_at': datetime.datetime})
+        rt_and_quotes = raw.aggregate_pandas_all(rt_and_quotes_pipeline, schema=schema)
+
+        # # Get replies through conversation id
+        # conversation_id = self.get_conversation_id(dataset, tweet_id)
+        # replies_pipeline = [
+        #     {'$match': {'conversation_id': conversation_id}},
+        #     {'$unwind': '$referenced_tweets'},
+        #     # {'$match': {'referenced_tweets.type': 'replied_to', 'referenced_tweets.id': {'$exists': True}}},
+        #     {'$project': {'_id': 0, 'source': '$referenced_tweets.id', 'target': 1, 'text': 1,
+        #                   'type': '$referenced_tweets.type', 'target_author': '$author.id',
+        #                   'source_author': '$referenced_tweets.author.id',
+        #                   'created_at': 1}},
+        # ]
+        # replies = raw.aggregate_pandas_all(replies_pipeline, schema=schema)
+        #
+        # # Recurse over replies to get all references
+        # if not replies.empty:
+        #     replies_references = []
+        #     for reply in replies['target']:
+        #         reply_references = self.get_references(dataset, reply)
+        #         replies_references.append(reply_references)
+        #
+        #     # concatenate all references
+        #     references = pd.concat([rt_and_quotes, replies, *replies_references], ignore_index=True).reset_index(
+        #         drop=True)
+        # else:
+        #     references = rt_and_quotes
+        references = rt_and_quotes
+
+        return original, references
+
+    def get_propagation_data_old(self, dataset, tweet_id):
         tweet = self.get_tweet(dataset, tweet_id)
         conversation_id = tweet['conversation_id']
 
