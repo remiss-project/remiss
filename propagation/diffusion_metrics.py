@@ -1,5 +1,6 @@
 import datetime
 import logging
+import re
 
 import igraph as ig
 import numpy as np
@@ -81,7 +82,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         if 'referenced_tweets' in tweet:
             # Tweet is a retweet, quote or reply. Get the original tweet
             original_pipeline = [
-                {'$match': {'text': {'$regex': '^' + tweet['text'].replace('RT @' + tweet['referenced_tweets'][0]['author']['username'] + ': ', '')}}},
+                {'$match': {'text': {'$regex': '^' + re.escape(tweet['text'].replace('RT @' + tweet['referenced_tweets'][0]['author']['username'] + ': ', '')) + '.*'}}},
                 {'$project': {'_id': 0, 'tweet_id': '$id', 'author_id': '$author.id', 'text': 1, 'created_at': 1}},
             ]
             original = raw.aggregate_pandas_all(original_pipeline)

@@ -374,7 +374,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
     def test_propagation_data_original(self):
         client = MongoClient( 'mongodb://srvinv02.esade.es', 27017)
-        raw = client.get_database('Generales_2019').get_collection('raw')
+        raw = client.get_database('Andalucia_2022').get_collection('raw')
 
         all_tweets_by_text_pipeline = [
             {'$unwind': '$referenced_tweets'},
@@ -439,6 +439,20 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         self.assertEqual(original['tweet_id'], test_tweet_id)
         self.assertEqual(references.columns.to_list(),
                          ['source', 'target', 'text', 'type', 'source_author', 'target_author', 'created_at'])
+
+    def test_propagation_data_missing_remote(self):
+        test_tweet_id = '1564347083531993091'
+        self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
+        original, references = self.diffusion_metrics.get_references('Andalucia_2022', test_tweet_id)
+
+        self.assertEqual(original.index.to_list(), ['tweet_id', 'author_id', 'created_at'])
+        self.assertEqual(original.to_dict(),
+                         {'author_id': '270839361',
+                          'created_at': datetime.datetime(2018, 7, 4, 19, 43, 51),
+                          'tweet_id': '1012996536349970432'})
+        self.assertEqual(references.columns.to_list(),
+                         ['source', 'target', 'text', 'type', 'source_author', 'target_author', 'created_at'])
+
 
     def test_missing_rts_local(self):
         test_tweet_id = self.test_tweet_id
