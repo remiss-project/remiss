@@ -92,7 +92,8 @@ class DiffusionMetrics(BasePropagationMetrics):
                               'source_text': '$referenced_tweets.text',
                               'target_text': '$text',
                               'type': '$referenced_tweets.type',
-                              'created_at': '$created_at'
+                              'source_created_at': '$referenced_tweets.created_at',
+                              'target_created_at': '$created_at'
                               }}
             ]
             targets = raw.aggregate_pandas_all(targets_pipeline)
@@ -126,19 +127,25 @@ class DiffusionMetrics(BasePropagationMetrics):
         return graph
 
     def _get_vertices_from_edges(self, edges):
-        sources = edges[['source', 'source_author_id', 'source_username', 'source_text']]
+        sources = edges[['source', 'source_author_id', 'source_username', 'source_text', 'source_created_at']]
         sources = sources.rename(columns={'source': 'tweet_id',
                                           'source_author_id': 'author_id',
                                           'source_username': 'username',
-                                          'source_text': 'text'})
-        targets = edges[['target', 'target_author_id', 'target_username', 'target_text']]
+                                          'source_text': 'text',
+                                          'source_created_at': 'created_at'})
+        targets = edges[['target', 'target_author_id', 'target_username', 'target_text', 'type', 'target_created_at']]
         targets = targets.rename(columns={'target': 'tweet_id',
                                           'target_author_id': 'author_id',
                                           'target_username': 'username',
-                                          'target_text': 'text'})
+                                          'target_text': 'text',
+                                          'target_created_at': 'created_at'})
         vertices = pd.concat([sources, targets], ignore_index=True)
-        vertices = vertices.drop_duplicates(subset='tweet_id').sort_values('tweet_id').reset_index(drop=True)
+        vertices = vertices.sort_values('type', ascending=False)
 
+        vertices = vertices.drop_duplicates(subset='tweet_id').sort_values('created_at').reset_index(drop=True)
+
+
+        vertices['type'] = vertices['type'].fillna('original')
         return vertices
 
     def compute_size_over_time(self, graph):
@@ -151,7 +158,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         return size
 
     def compute_depth_over_time(self, graph):
-        shortest_paths = self.get_shortest_paths_to_conversation_id(graph)
+        shortest_paths = self.get_shortest_paths_to_original_tweet(graph)
         created_at = pd.Series(graph.vs['created_at'], name='Depth')
         order = created_at.argsort()
         shortest_paths = shortest_paths.iloc[order]
@@ -164,7 +171,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         return depths
 
     def compute_max_breadth_over_time(self, graph):
-        shortest_paths = self.get_shortest_paths_to_conversation_id(graph)
+        shortest_paths = self.get_shortest_paths_to_original_tweet(graph)
         created_at = pd.Series(graph.vs['created_at'], name='Max Breadth')
         order = created_at.argsort()
         shortest_paths = shortest_paths.iloc[order]
@@ -236,7 +243,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         depths = []
         for conversation_id in conversation_ids['conversation_id']:
             graph = self.get_propagation_tree(dataset, conversation_id)
-            depth = self.get_shortest_paths_to_conversation_id(graph).max()
+            depth = self.get_shortest_paths_to_original_tweet(graph).max()
             depths.append(depth)
 
         conversation_ids['depth'] = depths
@@ -298,9 +305,10 @@ class DiffusionMetrics(BasePropagationMetrics):
             raise RuntimeError(f'Tweet {tweet_id} not found in dataset {dataset}')
 
     @staticmethod
-    def get_shortest_paths_to_conversation_id(graph):
-        conversation_id_index = graph.vs.find(tweet_id=graph['conversation_id']).index
-        shortest_paths = pd.Series(graph.as_undirected().shortest_paths_dijkstra(source=conversation_id_index)[0])
+    def get_shortest_paths_to_original_tweet(graph):
+        original_tweet_id = graph.vs.find(type='original')['tweet_id']
+        original_tweet_index = graph.vs.find(tweet_id=original_tweet_id).index
+        shortest_paths = pd.Series(graph.shortest_paths_dijkstra(source=original_tweet_index)[0])
         shortest_paths = shortest_paths.replace(float('inf'), pd.NA)
         return shortest_paths
 

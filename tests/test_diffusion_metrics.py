@@ -1,4 +1,3 @@
-import random
 import unittest
 import uuid
 
@@ -36,32 +35,28 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         database = client.get_database(self.tmp_dataset)
         collection = database.get_collection('raw')
         edges = [(0, 1), (1, 2), (1, 3), (2, 4), (2, 5), (3, 6), (3, 7)]
-        original_graph = ig.Graph(n=8, edges=edges, directed=True)
-        original_graph.vs['label'] = [str(i) for i in range(8)]
-        fig, ax = plt.subplots()
-        layout = original_graph.layout('fr')
-        ig.plot(original_graph, layout=layout, target=ax)
         timestamps = [Timestamp.now() + pd.offsets.Hour(i) for i in range(8)]
         authors = [{'id': f'author_id_{i}',
                     'username': f'username_{i}',
                     } for i in range(8)]
         data = [{
-            'id': str(i),
-            'author': authors[i],
-            'text': f'Tweet {i}',
+            'id': str(j),
+            'author': authors[j],
+            'text': f'Tweet {j}',
             'conversation_id': '0',
             'referenced_tweets': [{'type': 'retweeted',
-                                   'id': str(j),
-                                   'author': authors[j],
-                                   'created_at': timestamps[j],
-                                   'text': f'Tweet {j}'
+                                   'id': str(i),
+                                   'author': authors[i],
+                                   'created_at': timestamps[i],
+                                   'text': f'Tweet {i}'
                                    }],
-            'created_at': timestamps[i]
+            'created_at': timestamps[j]
 
         } for i, j in edges]
         collection.insert_many(data)
-        resources = self.diffusion_metrics.get_references(self.tmp_dataset, '7')
+        resources = self.diffusion_metrics.get_references(self.tmp_dataset, '0')
         assert not pd.isna(resources).any().any()
+        self.assertEqual(resources[['source', 'target']].astype(int).to_records(index=False).tolist(), edges)
 
     def test_get_vertices_from_edges_simple(self):
         client = MongoClient('localhost', 27017)
@@ -75,32 +70,40 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         fig, ax = plt.subplots()
         layout = original_graph.layout('fr')
         ig.plot(original_graph, layout=layout, target=ax)
-        timestamps = [Timestamp.now() + pd.offsets.Hour(i) for i in range(8)]
+        timestamps = [Timestamp.today().date() + pd.offsets.Hour(i) for i in range(8)]
         authors = [{'id': f'author_id_{i}',
                     'username': f'username_{i}',
                     } for i in range(8)]
+        types = {0: 'original', 1: 'retweeted', 2: 'quoted', 3: 'replied_to', 4: 'retweeted', 5: 'quoted',
+                 6: 'replied_to', 7: 'retweeted'}
         data = [{
-            'id': str(i),
-            'author': authors[i],
-            'text': f'Tweet {i}',
+            'id': str(j),
+            'author': authors[j],
+            'text': f'Tweet {j}',
             'conversation_id': '0',
-            'referenced_tweets': [{'type': 'retweeted',
-                                   'id': str(j),
-                                   'author': authors[j],
-                                   'created_at': timestamps[j],
-                                   'text': f'Tweet {j}'
+            'referenced_tweets': [{'type': types[j],
+                                   'id': str(i),
+                                   'author': authors[i],
+                                   'created_at': timestamps[i],
+                                   'text': f'Tweet {i}'
                                    }],
-            'created_at': timestamps[i]
+            'created_at': timestamps[j]
 
         } for i, j in edges]
         collection.insert_many(data)
-        edges = self.diffusion_metrics.get_references(self.tmp_dataset, '7')
+        edges = self.diffusion_metrics.get_references(self.tmp_dataset, '0')
         vertices = self.diffusion_metrics._get_vertices_from_edges(edges)
         assert not pd.isna(vertices).any().any()
-        expected = {'author_id': {0: 'author_id_0', 1: 'author_id_1', 2: 'author_id_3', 3: 'author_id_7'},
-                    'text': {0: 'Tweet 0', 1: 'Tweet 1', 2: 'Tweet 3', 3: 'Tweet 7'},
-                    'tweet_id': {0: '0', 1: '1', 2: '3', 3: '7'},
-                    'username': {0: 'username_0', 1: 'username_1', 2: 'username_3', 3: 'username_7'}}
+        expected = {'author_id': {0: 'author_id_0', 1: 'author_id_1', 2: 'author_id_2', 3: 'author_id_3',
+                                   4: 'author_id_4', 5: 'author_id_5', 6: 'author_id_6', 7: 'author_id_7'},
+                     'created_at': {i: timestamps[i] for i in range(8)},
+                     'text': {0: 'Tweet 0', 1: 'Tweet 1', 2: 'Tweet 2', 3: 'Tweet 3', 4: 'Tweet 4', 5: 'Tweet 5',
+                              6: 'Tweet 6', 7: 'Tweet 7'},
+                     'tweet_id': {0: '0', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7'},
+                     'type': {0: 'original', 1: 'retweeted', 2: 'quoted', 3: 'replied_to', 4: 'retweeted', 5: 'quoted',
+                              6: 'replied_to', 7: 'retweeted'},
+                     'username': {0: 'username_0', 1: 'username_1', 2: 'username_2', 3: 'username_3', 4: 'username_4',
+                                  5: 'username_5', 6: 'username_6', 7: 'username_7'}}
         self.assertEqual(vertices.to_dict(), expected)
 
     def test_propagation_tree_simple(self):
@@ -120,173 +123,142 @@ class DiffusionMetricsTestCase(unittest.TestCase):
                     'username': f'username_{i}',
                     } for i in range(8)]
         data = [{
-            'id': str(i),
-            'author': authors[i],
-            'text': f'Tweet {i}',
+            'id': str(j),
+            'author': authors[j],
+            'text': f'Tweet {j}',
             'conversation_id': '0',
             'referenced_tweets': [{'type': 'retweeted',
-                                   'id': str(j),
-                                   'author': authors[j],
-                                   'created_at': timestamps[j],
-                                   'text': f'Tweet {j}'
+                                   'id': str(i),
+                                   'author': authors[i],
+                                   'created_at': timestamps[i],
+                                   'text': f'Tweet {i}'
                                    }],
-            'created_at': timestamps[i]
+            'created_at': timestamps[j]
 
         } for i, j in edges]
         collection.insert_many(data)
-        graph = self.diffusion_metrics.compute_propagation_tree(self.tmp_dataset, '7')
+        graph = self.diffusion_metrics.compute_propagation_tree(self.tmp_dataset, '0')
         fig, ax = plt.subplots()
         layout = graph.layout('fr')
-        ig.plot(graph, layout=layout, target=ax)
+        ig.plot(graph, layout=layout, target=ax, vertex_label=graph.vs['tweet_id'])
         plt.show()
         actual_edges = set(
             (graph.vs['author_id'][edge.source], graph.vs['author_id'][edge.target]) for edge in graph.es)
         expected_edges = {(f'author_id_{source}', f'author_id_{target}') for source, target in edges}
         self.assertEqual(actual_edges, expected_edges)
 
-    def test_propagation_tree_disconnected(self):
-        client = MongoClient('localhost', 27017)
-        dataset = 'test_simple_dataset'
-        client.drop_database(dataset)
-        database = client.get_database(dataset)
-        collection = database.get_collection('raw')
-        edges = [(0, 1), (1, 2), (2, 4), (2, 5), (3, 6), (3, 7)]
-        original_graph = ig.Graph(n=8, edges=edges, directed=True)
-        original_graph.vs['label'] = [str(i) for i in range(8)]
-        fig, ax = plt.subplots()
-        layout = original_graph.layout('fr')
-        ig.plot(original_graph, layout=layout, target=ax)
-        timestamps = [Timestamp.now().date() + pd.offsets.Hour(i) for i in range(8)]
-        authors = [{'id': f'author_id_{i}',
-                    'username': f'username_{i}',
-                    'remiss_metadata': {
-                        'is_usual_suspect': random.choice([True, False]),
-                        'party': random.choice([None, 'party1', 'party2']),
-                    }
-                    } for i in range(8)]
-        edges_df = pd.DataFrame(edges, columns=['source', 'target'])
-        test_data = []
-        for source, targets in edges_df.groupby('source'):
-            test_data.append({
-                'id': str(source),
-                'conversation_id': '0',
-                'referenced_tweets': [{'type': 'retweeted',
-                                       'id': str(target),
-                                       'author': authors[target],
-                                       'created_at': timestamps[target]} for target in targets['target']],
-                'username': f'username_{source}',
-                'author': authors[source],
-                'created_at': timestamps[source]
-            })
-        collection.insert_many(test_data)
-        references_created_at = []
-        for tweet in test_data:
-            for reference in tweet['referenced_tweets']:
-                references_created_at.append((reference['id'], reference['created_at']))
+    def test_references_remote(self):
+        test_tweet_id = '1523011526445211649'
+        self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
+        references = self.diffusion_metrics.get_references('Andalucia_2022', test_tweet_id)
 
-        references_created_at = pd.DataFrame(references_created_at, columns=['id', 'created_at'])
+        expected = ['source',
+                    'target',
+                    'source_author_id',
+                    'source_username',
+                    'target_author_id',
+                    'target_username',
+                    'source_text',
+                    'target_text',
+                    'type',
+                    'created_at']
+        self.assertEqual(references.columns.to_list(), expected)
+        sources = references['source'].unique()
+        self.assertGreater(len(sources), 1)
+        self.assertEqual(references['type'].unique().tolist(), ['retweeted', 'quoted', 'replied_to'])
 
-        graph = self.diffusion_metrics.compute_propagation_tree(dataset, '0')
+        self.diffusion_metrics.host = 'localhost'
+
+    def test_get_vertices_from_edges_remote(self):
+        test_tweet_id = '1523011526445211649'
+        self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
+        references = self.diffusion_metrics.get_references('Andalucia_2022', test_tweet_id)
+
+        vertices = self.diffusion_metrics._get_vertices_from_edges(references)
+        expected = ['tweet_id', 'author_id', 'username', 'text']
+        self.assertEqual(vertices.columns.to_list(), expected)
+
+        self.diffusion_metrics.host = 'localhost'
+
+    def test_propagation_tree_remote(self):
+        test_tweet_id = '1523011526445211649'
+        self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
+        graph = self.diffusion_metrics.compute_propagation_tree('Andalucia_2022', test_tweet_id)
         fig, ax = plt.subplots()
         layout = graph.layout('fr')
         ig.plot(graph, layout=layout, target=ax)
-        # plt.show()
-        actual_edges = set(
-            (graph.vs['author_id'][edge.source], graph.vs['author_id'][edge.target]) for edge in graph.es)
-        expected_edges = {(f'author_id_{source}', f'author_id_{target}') for source, target in edges}
-        expected_edges.add(('author_id_0', 'author_id_3'))
-        self.assertEqual(actual_edges, expected_edges)
-        self.assertEqual(len(graph.connected_components(mode='weak')), 1)
+        plt.show()
 
-        shortest_paths = self.diffusion_metrics.get_shortest_paths_to_conversation_id(graph)
-        self.assertFalse(shortest_paths.isna().any())
+        self.diffusion_metrics.host = 'localhost'
 
-    def test_propagation_tree_missing_conversation_id(self):
-        client = MongoClient('localhost', 27017)
-        dataset = 'test_simple_dataset'
-        client.drop_database(dataset)
-        database = client.get_database(dataset)
-        collection = database.get_collection('raw')
-        edges = [(1, 2), (1, 3), (2, 4), (2, 5), (3, 6), (3, 7)]
-        original_graph = ig.Graph(n=8, edges=edges, directed=True)
-        original_graph.vs['label'] = [str(i) for i in range(8)]
-        fig, ax = plt.subplots()
-        layout = original_graph.layout('kk')
-        ig.plot(original_graph, layout=layout, target=ax)
-        timestamps = [Timestamp.now().date() + pd.offsets.Hour(i) for i in range(8)]
-        authors = [{'id': f'author_id_{i}',
-                    'username': f'username_{i}',
-                    'remiss_metadata': {
-                        'is_usual_suspect': random.choice([True, False]),
-                        'party': random.choice([None, 'party1', 'party2']),
-                    }
-                    } for i in range(8)]
-        edges_df = pd.DataFrame(edges, columns=['source', 'target'])
-        test_data = []
-        for source, targets in edges_df.groupby('source'):
-            test_data.append({
-                'id': str(source),
-                'conversation_id': '0',
-                'referenced_tweets': [{'type': 'retweeted',
-                                       'id': str(target),
-                                       'author': authors[target],
-                                       'created_at': timestamps[target]} for target in targets['target']],
-                'username': f'username_{source}',
-                'author': authors[source],
-                'created_at': timestamps[source]
-            })
-        collection.insert_many(test_data)
-        references_created_at = []
-        for tweet in test_data:
-            for reference in tweet['referenced_tweets']:
-                references_created_at.append((reference['id'], reference['created_at']))
-
-        references_created_at = pd.DataFrame(references_created_at, columns=['id', 'created_at'])
-
-        graph = self.diffusion_metrics.compute_propagation_tree(dataset, '1')
-        fig, ax = plt.subplots()
-        layout = graph.layout('kk')
-        ig.plot(graph, layout=layout, target=ax)
-        # plt.show()
-        actual_edges = pd.DataFrame(
-            [(graph.vs['author_id'][edge.source], graph.vs['author_id'][edge.target]) for edge in graph.es],
-            columns=['source', 'target'])
-        actual_edges['source'] = actual_edges['source'].str.replace('-', 'author_id_0').astype(str)
-        actual_edges['target'] = actual_edges['target'].str.replace('-', 'author_id_0').astype(str)
-        actual_edges = set(actual_edges.itertuples(index=False, name=None))
-        edges.append((0, 1))
-        expected_edges = {(f'author_id_{source}', f'author_id_{target}') for source, target in edges}
-        self.assertEqual(actual_edges, expected_edges)
-        self.assertEqual(len(graph.connected_components(mode='weak')), 1)
-
-        shortest_paths = self.diffusion_metrics.get_shortest_paths_to_conversation_id(graph)
-        self.assertFalse(shortest_paths.isna().any())
-
-    def test_conversation_no_nat(self):
-        conversation_id, tweets, references = self.diffusion_metrics.get_references(self.test_dataset,
-                                                                                    self.test_tweet_id)
-        self.assertFalse(tweets.isna().any().any())
-        self.assertFalse(references.isna().any().any())
+    # def test_fix_wrong_timestamps(self):
+    #     client = MongoClient('localhost', 27017)
+    #     raw = client.get_database(self.test_dataset).get_collection('raw')
+    #
+    #     # go through all tweets and fix the timestamp formate to datetime of the referenced tweets
+    #     all_tweets = raw.find()
+    #     for tweet in all_tweets:
+    #         if 'referenced_tweets' in tweet:
+    #             changed = False
+    #             for referenced_tweet in tweet['referenced_tweets']:
+    #                 if 'created_at' in referenced_tweet:
+    #                     referenced_tweet['created_at'] = Timestamp(referenced_tweet['created_at'])
+    #                     changed = True
+    #             if changed:
+    #                 raw.replace_one({'id': tweet['id']}, tweet)
 
     def test_depth(self):
+        graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, self.test_tweet_id)
+        # plot graph
+        fig, ax = plt.subplots()
+        layout = graph.layout('fr')
+        ig.plot(graph, layout=layout, target=ax, vertex_label=graph.vs['tweet_id'])
+        plt.show()
+        df = self.diffusion_metrics.compute_depth_over_time(graph)
+        self.assertEqual(df.shape[0], 94)
+        self.assertIsInstance(df.index, pd.DatetimeIndex)
+        self.assertEqual(df.max(), 1)
+
+    def test_size(self):
+        graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, self.test_tweet_id)
+        df = self.diffusion_metrics.compute_size_over_time(graph)
+        self.assertEqual(df.shape[0], 94)
+        self.assertIsInstance(df.index, pd.DatetimeIndex)
+        self.assertEqual(df.max(), 94)
+
+    def test_max_breadth(self):
+        graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, self.test_tweet_id)
+        df = self.diffusion_metrics.compute_max_breadth_over_time(graph)
+        self.assertEqual(df.shape[0], 94)
+        self.assertIsInstance(df.index, pd.DatetimeIndex)
+        self.assertEqual(df.max(), 94)
+
+    def test_structured_virality(self):
+        graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, self.test_tweet_id)
+        df = self.diffusion_metrics.compute_structural_virality_over_time(graph)
+        self.assertEqual(df.shape[0], 94)
+        self.assertIsInstance(df.index, pd.DatetimeIndex)
+        self.assertAlmostEqual(df.max(), 1.9782707107288358)
+
+    def test_precomputed_depth(self):
         df = self.diffusion_metrics.get_depth_over_time(self.test_dataset, self.test_tweet_id)
         self.assertEqual(df.shape[0], 12)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
         self.assertEqual(df.max(), 1)
 
-    def test_size(self):
+    def test_precomputed_size(self):
         df = self.diffusion_metrics.get_size_over_time(self.test_dataset, self.test_tweet_id)
         self.assertEqual(df.shape[0], 12)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
         self.assertEqual(df.max(), 12)
 
-    def test_max_breadth(self):
+    def test_precomputed_max_breadth(self):
         df = self.diffusion_metrics.get_max_breadth_over_time(self.test_dataset, self.test_tweet_id)
         self.assertEqual(df.shape[0], 12)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
         self.assertEqual(df.max(), 11)
 
-    def test_structured_virality(self):
+    def test_precomputed_structured_virality(self):
         df = self.diffusion_metrics.get_structural_virality_over_time(self.test_dataset, self.test_tweet_id)
         self.assertEqual(df.shape[0], 12)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
