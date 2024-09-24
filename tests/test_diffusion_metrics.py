@@ -18,7 +18,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
     def setUp(self):
         self.diffusion_metrics = DiffusionMetrics()
         self.test_dataset = 'test_dataset_2'
-        self.tmp_dataset = str(uuid.uuid4().hex)
+        self.tmp_dataset = 'tmp_dataset'# str(uuid.uuid4().hex)
         self.test_tweet_id = '1167074391315890176'
         self.missing_tweet_id = '1077146799692021761'
 
@@ -296,79 +296,87 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         num_vertices = 8
         num_edges = 10
         test_data = []
-        for conversation_id in range(num_conversations):
+        cascade_ids = []
+        for cascade_id in range(num_conversations):
             edges = np.random.randint(0, num_vertices, (num_edges, 2))
             edges = edges[edges[:, 0] != edges[:, 1]]
-            original_graph = ig.Graph(n=num_vertices, edges=edges, directed=True)
-            original_graph.vs['label'] = [str(i) for i in range(8)]
 
-            timestamps = [Timestamp.now() + pd.offsets.Hour(i) for i in range(num_edges)]
-            authors = [{'id': f'author_id_{i}'
+            timestamps = [Timestamp.today().date() + pd.offsets.Hour(i) for i in range(num_vertices)]
+            authors = [{'id': f'author_id_{i}',
+                        'username': f'username_{i}',
                         } for i in range(num_vertices)]
-            data = [{
-                'id': str(i + 100 * conversation_id),
-                'author': {'id': f'author_id_{i}'},
-                'conversation_id': str(edges[0][0] + conversation_id * 100),
-                'referenced_tweets': [{'type': 'retweeted',
-                                       'id': str(j),
-                                       'author': authors[j],
-                                       'created_at': timestamps[j]}],
-                'created_at': timestamps[i]
-
-            } for i, j in edges]
+            types = {0: 'original', 1: 'retweeted', 2: 'quoted', 3: 'replied_to', 4: 'retweeted', 5: 'quoted',
+                     6: 'replied_to', 7: 'retweeted'}
+            data = []
+            for i, j in edges:
+                tweet = {
+                    'id': str(j + cascade_id * num_vertices),
+                    'author': authors[j],
+                    'text': f'Tweet {j}',
+                    'conversation_id': '0',
+                    'created_at': timestamps[j]
+                }
+                if types[j] != 'original':
+                    tweet['referenced_tweets'] = [{'type': types[j],
+                                                   'id': str(i),
+                                                   'author': authors[i],
+                                                   'created_at': timestamps[i],
+                                                   'text': f'Tweet {i}'
+                                                   }]
+                else:
+                    cascade_ids.append(tweet['id'])
+                data.append(tweet)
             test_data.append(data)
             collection.insert_many(data)
         client.close()
 
         # Test
+        self.diffusion_metrics.n_jobs = 1
         self.diffusion_metrics.persist([self.tmp_dataset])
 
-        for conversation_data in test_data:
-            for tweet_data in conversation_data:
-                test_tweet_id = tweet_data['id']
+        for cascade_id in cascade_ids:
 
-                expected_tree = self.diffusion_metrics.compute_propagation_tree(self.tmp_dataset, test_tweet_id)
-                conversation_id = self.diffusion_metrics.get_conversation_id(self.tmp_dataset, test_tweet_id)
-                actual_tree = self.diffusion_metrics.get_propagation_tree(self.tmp_dataset, test_tweet_id)
+            expected_tree = self.diffusion_metrics.compute_propagation_tree(self.tmp_dataset, cascade_id)
+            actual_tree = self.diffusion_metrics.get_propagation_tree(self.tmp_dataset, cascade_id)
 
-                self.assertEqual(expected_tree.vcount(), actual_tree.vcount())
-                self.assertEqual(expected_tree.ecount(), actual_tree.ecount())
-                self.assertTrue(expected_tree.isomorphic(actual_tree))
+            self.assertEqual(expected_tree.vcount(), actual_tree.vcount())
+            self.assertEqual(expected_tree.ecount(), actual_tree.ecount())
+            self.assertTrue(expected_tree.isomorphic(actual_tree))
 
-                expected_attributes = pd.DataFrame(
-                    {attribute: expected_tree.vs[attribute] for attribute in expected_tree.vs.attributes()})
-                actual_attributes = pd.DataFrame(
-                    {attribute: actual_tree.vs[attribute] for attribute in actual_tree.vs.attributes()})
-                expected_attributes = expected_attributes.set_index('tweet_id').sort_index()
-                actual_attributes = actual_attributes.set_index('tweet_id').sort_index()
-                self.assertTrue(expected_attributes.equals(actual_attributes))
+            expected_attributes = pd.DataFrame(
+                {attribute: expected_tree.vs[attribute] for attribute in expected_tree.vs.attributes()})
+            actual_attributes = pd.DataFrame(
+                {attribute: actual_tree.vs[attribute] for attribute in actual_tree.vs.attributes()})
+            expected_attributes = expected_attributes.set_index('tweet_id').sort_index()
+            actual_attributes = actual_attributes.set_index('tweet_id').sort_index()
+            self.assertTrue(expected_attributes.equals(actual_attributes))
 
-                expected_depth = self.diffusion_metrics.compute_depth_over_time(expected_tree)
-                actual_depth = self.diffusion_metrics.get_depth_over_time(self.tmp_dataset, conversation_id)
+            expected_depth = self.diffusion_metrics.compute_depth_over_time(expected_tree)
+            actual_depth = self.diffusion_metrics.get_depth_over_time(self.tmp_dataset, cascade_id)
 
-                self.assertEqual(expected_depth.shape, actual_depth.shape)
-                self.assertTrue(expected_depth.equals(actual_depth))
+            self.assertEqual(expected_depth.shape, actual_depth.shape)
+            self.assertTrue(expected_depth.equals(actual_depth))
 
-                expected_size = self.diffusion_metrics.get_size_over_time(self.tmp_dataset, test_tweet_id)
-                actual_size = self.diffusion_metrics.compute_size_over_time(expected_tree)
+            expected_size = self.diffusion_metrics.get_size_over_time(self.tmp_dataset, cascade_id)
+            actual_size = self.diffusion_metrics.compute_size_over_time(expected_tree)
 
-                self.assertEqual(expected_size.shape, actual_size.shape)
-                self.assertTrue(expected_size.equals(actual_size))
+            self.assertEqual(expected_size.shape, actual_size.shape)
+            self.assertTrue(expected_size.equals(actual_size))
 
-                expected_max_breadth = self.diffusion_metrics.get_max_breadth_over_time(self.tmp_dataset, test_tweet_id)
-                actual_max_breadth = self.diffusion_metrics.compute_max_breadth_over_time(expected_tree)
+            expected_max_breadth = self.diffusion_metrics.get_max_breadth_over_time(self.tmp_dataset, cascade_id)
+            actual_max_breadth = self.diffusion_metrics.compute_max_breadth_over_time(expected_tree)
 
-                self.assertEqual(expected_max_breadth.shape, actual_max_breadth.shape)
-                self.assertTrue(expected_max_breadth.equals(actual_max_breadth))
+            self.assertEqual(expected_max_breadth.shape, actual_max_breadth.shape)
+            self.assertTrue(expected_max_breadth.equals(actual_max_breadth))
 
-                expected_structural_virality = self.diffusion_metrics.get_structural_virality_over_time(
-                    self.tmp_dataset,
-                    test_tweet_id)
-                actual_structural_virality = self.diffusion_metrics.compute_structural_virality_over_time(expected_tree)
+            expected_structural_virality = self.diffusion_metrics.get_structural_virality_over_time(
+                self.tmp_dataset,
+                cascade_id)
+            actual_structural_virality = self.diffusion_metrics.compute_structural_virality_over_time(expected_tree)
 
-                self.assertEqual(expected_structural_virality.shape, actual_structural_virality.shape)
-                pd.testing.assert_series_equal(expected_structural_virality, actual_structural_virality,
-                                               check_dtype=False, atol=1e-6, rtol=1e-6)
+            self.assertEqual(expected_structural_virality.shape, actual_structural_virality.shape)
+            pd.testing.assert_series_equal(expected_structural_virality, actual_structural_virality,
+                                           check_dtype=False, atol=1e-6, rtol=1e-6)
 
     def test_propagation_data_original(self):
         client = MongoClient('mongodb://srvinv02.esade.es', 27017)

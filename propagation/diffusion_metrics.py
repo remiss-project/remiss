@@ -23,26 +23,23 @@ class DiffusionMetrics(BasePropagationMetrics):
         super().__init__(host, port, reference_types)
         self.n_jobs = n_jobs
 
-    def load_conversation_data(self, dataset, tweet_id):
-        conversation_id = self.get_conversation_id(dataset, tweet_id)
+    def load_conversation_data(self, dataset, cascade_id):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         collection = database.get_collection('diffusion_metrics')
-        conversation_data = collection.find_one({'conversation_id': conversation_id})
+        cascade_data = collection.find_one({'cascade_id': cascade_id})
         client.close()
-        if not conversation_data:
-            raise RuntimeError(f'Diffusion metrics for conversation {conversation_id} for tweet {tweet_id} not found')
-        return conversation_data
+        if not cascade_data:
+            raise RuntimeError(f'Diffusion metrics for conversation {cascade_id} not found')
+        return cascade_data
 
     def get_propagation_tree(self, dataset, tweet_id):
         conversation_data = self.load_conversation_data(dataset, tweet_id)
-        conversation_id = conversation_data['conversation_id']
         graph = ig.Graph(directed=True)
         graph.add_vertices(len(conversation_data['vs_attributes']['author_id']))
         for attribute, values in conversation_data['vs_attributes'].items():
             graph.vs[attribute] = values
         graph.add_edges(conversation_data['edges'])
-        self.ensure_conversation_id(conversation_id, graph)
         return graph
 
     def get_size_over_time(self, dataset, tweet_id):
@@ -72,7 +69,11 @@ class DiffusionMetrics(BasePropagationMetrics):
 
     def compute_propagation_tree(self, dataset, tweet_id):
         references = self.get_references(dataset, tweet_id)
-        graph = self._get_graph(references)
+        if references.empty:
+            vertices = self._get_vertex_from_tweet(dataset, tweet_id)
+        else:
+            vertices = self._get_vertices_from_edges(references)
+        graph = self._get_graph(vertices, references)
 
         return graph
 
@@ -118,9 +119,9 @@ class DiffusionMetrics(BasePropagationMetrics):
 
         return references
 
-    def _get_graph(self, edges):
+    def _get_graph(self, vertices, edges):
         graph = ig.Graph(directed=True)
-        vertices = self._get_vertices_from_edges(edges)
+
         graph.add_vertices(len(vertices))
 
         for column in vertices.columns:
@@ -157,6 +158,22 @@ class DiffusionMetrics(BasePropagationMetrics):
 
         vertices['type'] = vertices['type'].fillna('original')
         return vertices
+
+    def _get_vertex_from_tweet(self, dataset, tweet_id):
+        client = MongoClient(self.host, self.port)
+        raw = client.get_database(dataset).get_collection('raw')
+        tweet = raw.find_one({'id': tweet_id})
+        client.close()
+        if not tweet:
+            raise RuntimeError(f'Tweet {tweet_id} not found in dataset {dataset}')
+        # ['tweet_id', 'author_id', 'username', 'text', 'created_at', 'type']
+        vertex = pd.DataFrame([{'tweet_id': tweet['id'],
+                                'author_id': tweet['author']['id'],
+                                'username': tweet['author']['username'],
+                                'text': tweet['text'],
+                                'created_at': tweet['created_at'],
+                                'type': 'original'}])
+        return vertex
 
     def compute_size_over_time(self, graph):
         # get the difference between the first tweet and the rest in minutes
@@ -228,27 +245,15 @@ class DiffusionMetrics(BasePropagationMetrics):
         database = client.get_database(dataset)
         collection = database.get_collection('raw')
         # Compute the amount of times that a tweet that has no referenced_tweets is referenced
-        # Filter those that are not referenced by anyone
         pipeline = [
-            {'$unwind': '$referenced_tweets'},
-            {'$match': {'referenced_tweets.referenced_tweets': {'$exists': False}}},
-            {'$group': {'_id': '$referenced_tweets.id'}},
-            {'$project': {'_id': 0, 'original_id': '$_id'}}
-        ]
-        schema = Schema({'original_id': str})
-        cascades = collection.aggregate_pandas_all(pipeline, schema=schema)
-
-        metadata_pipeline = [
-            {'$match': {'id': {'$in': cascades['original_id'].tolist()}}},
-            {'$project': {'_id': 0, 'tweet_id': '$id',
+            {'$match': {'referenced_tweets': {'$exists': False}}},
+            {'$project': {'_id': 0, 'original_id': '$id',
                           'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
-                          'party': '$author.remiss_metadata.party'}}
+                          'party': '$author.remiss_metadata.party',
+                          }}
         ]
-        metadata_schema = Schema({'tweet_id': str, 'is_usual_suspect': bool, 'party': str})
-        metadata = collection.aggregate_pandas_all(metadata_pipeline, schema=metadata_schema)
-        cascades = cascades.merge(metadata, left_on='original_id', right_on='tweet_id')
-        cascades = cascades.drop(columns=['tweet_id'])
-
+        schema = Schema({'original_id': str, 'is_usual_suspect': bool, 'party': str})
+        cascades = collection.aggregate_pandas_all(pipeline, schema=schema)
         client.close()
 
         original_ids = cascades['original_id'].tolist()
@@ -267,21 +272,6 @@ class DiffusionMetrics(BasePropagationMetrics):
         conversation_ids = conversation_ids.rename(columns={'tweet_id': 'Cascade Count'})
         conversation_ids = conversation_ids['Cascade Count']
         return conversation_ids
-
-    def ensure_conversation_id(self, conversation_id, graph):
-        # link connected components to the conversation id vertex
-        graph['conversation_id'] = conversation_id
-
-        components = graph.connected_components(mode='weak')
-        if len(components) > 1:
-            conversation_id_index = graph.vs.find(tweet_id=conversation_id).index
-            created_at = pd.Series(graph.vs['created_at'])
-            for component in components:
-                if conversation_id_index not in component:
-                    # get first tweet in the component by created_at
-                    first = created_at.iloc[component].idxmin()
-                    # link it to the conversation id
-                    graph.add_edge(conversation_id_index, first)
 
     def get_tweet(self, dataset, tweet_id):
         client = MongoClient(self.host, self.port)
@@ -308,13 +298,9 @@ class DiffusionMetrics(BasePropagationMetrics):
         collection = database.get_collection('raw')
         # get tweets that are the start of the cascade, so they are not referenced by any other tweet
         pipeline = [
-            {'$unwind': '$referenced_tweets'},
-            {'$match': {'referenced_tweets.referenced_tweets': {'$exists': False}}},
-            {'$group': {'_id': '$referenced_tweets.id',
-                        'created_at': {'$first': '$referenced_tweets.created_at'}, }},
-            {'$project': {'_id': 0, 'tweet_id': '$id',
-                          'created_at': 1
-                          }}
+            {'$match': {'referenced_tweets': {'$exists': False}}},
+            {'$group': {'_id': '$id', 'created_at': {'$first': '$created_at'}}},
+            {'$project': {'_id': 0, 'tweet_id': '$_id', 'created_at': 1}}
         ]
         schema = Schema({'tweet_id': str, 'created_at': datetime.datetime})
         df = collection.aggregate_pandas_all(pipeline, schema=schema)
@@ -335,34 +321,48 @@ class DiffusionMetrics(BasePropagationMetrics):
 
     def persist(self, datasets):
         jobs = []
+        n_jobs = self.n_jobs
+        self.n_jobs = 1
         for dataset in datasets:
-            conversation_ids = self.get_cascade_ids(dataset)
-            for conversation_id in tqdm(conversation_ids['conversation_id']):
-                jobs.append(delayed(self._persist_conversation_metrics)(dataset, conversation_id))
-        Parallel(n_jobs=-2, backend='threading', verbose=10)(jobs)
+            cascade_ids = self.get_cascade_ids(dataset)
+            for cascade_id in tqdm(cascade_ids['tweet_id']):
+                jobs.append(delayed(self._persist_conversation_metrics)(dataset, cascade_id))
 
-    def _persist_conversation_metrics(self, dataset, conversation_id):
-        try:
-            graph = self.compute_propagation_tree(dataset, conversation_id)
-            size_over_time = self.compute_size_over_time(graph)
-            max_breadth_over_time = self.compute_max_breadth_over_time(graph)
-            structural_virality_over_time = self.compute_structural_virality_over_time(graph)
-
+            cascade_data = Parallel(n_jobs=n_jobs, backend='threading', verbose=10)(jobs)
             client = MongoClient(self.host, self.port)
             database = client.get_database(dataset)
             collection = database.get_collection('diffusion_metrics')
+            collection.insert_many(cascade_data)
+
+        self.n_jobs = n_jobs
+
+    def _persist_conversation_metrics(self, dataset, cascade_id):
+        try:
+            graph = self.compute_propagation_tree(dataset, cascade_id)
+            size_over_time = self.compute_size_over_time(graph)
+            depth_over_time = self.compute_depth_over_time(graph)
+            max_breadth_over_time = self.compute_max_breadth_over_time(graph)
+            structural_virality_over_time = self.compute_structural_virality_over_time(graph)
+
             try:
                 size_over_time = size_over_time.to_dict()
                 size_over_time = {str(key): value for key, value in size_over_time.items()}
             except Exception as e:
-                logger.error(f'Error converting {conversation_id} size over time to json: {e}')
+                logger.error(f'Error converting {cascade_id} size over time to json: {e}')
                 size_over_time = None
+
+            try:
+                depth_over_time = depth_over_time.to_dict()
+                depth_over_time = {str(key): value for key, value in depth_over_time.items()}
+            except Exception as e:
+                logger.error(f'Error converting {cascade_id} depth over time to json: {e}')
+                depth_over_time = None
 
             try:
                 max_breadth_over_time = max_breadth_over_time.to_dict()
                 max_breadth_over_time = {str(key): value for key, value in max_breadth_over_time.items()}
             except Exception as e:
-                logger.error(f'Error converting {conversation_id} max breadth over time to json: {e}')
+                logger.error(f'Error converting {cascade_id} max breadth over time to json: {e}')
                 max_breadth_over_time = None
 
             try:
@@ -370,20 +370,22 @@ class DiffusionMetrics(BasePropagationMetrics):
                 structural_virality_over_time = {str(key): value for key, value in
                                                  structural_virality_over_time.items()}
             except Exception as e:
-                logger.error(f'Error converting {conversation_id} structural virality over time to json: {e}')
+                logger.error(f'Error converting {cascade_id} structural virality over time to json: {e}')
                 structural_virality_over_time = None
 
             attributes = {attribute: graph.vs[attribute] for attribute in graph.vs.attributes()}
-            collection.insert_one({'conversation_id': conversation_id,
-                                   'edges': graph.get_edgelist(),
-                                   'vs_attributes': attributes,
-                                   'size_over_time': size_over_time,
-                                   'max_breadth_over_time': max_breadth_over_time,
-                                   'structural_virality_over_time': structural_virality_over_time})
-            client.close()
+
+            return {'cascade_id': cascade_id,
+                    'edges': graph.get_edgelist(),
+                    'vs_attributes': attributes,
+                    'size_over_time': size_over_time,
+                    'depth_over_time': depth_over_time,
+                    'max_breadth_over_time': max_breadth_over_time,
+                    'structural_virality_over_time': structural_virality_over_time}
 
         except Exception as e:
-            logger.error(f'Error processing conversation {conversation_id}: {e}')
+            # raise e
+            logger.error(f'Error processing conversation {cascade_id}: {e}')
 
 
 def transform_user_type(x):
