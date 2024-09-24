@@ -1,4 +1,3 @@
-import datetime
 import random
 import unittest
 import uuid
@@ -10,9 +9,9 @@ from matplotlib import pyplot as plt
 from pandas import Timestamp
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
-from tqdm import tqdm
 
 from propagation import DiffusionMetrics
+from propagation.diffusion_metrics import Propagation
 
 patch_all()
 
@@ -27,60 +26,82 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
     def tearDown(self):
         client = MongoClient('localhost', 27017)
+        if self.tmp_dataset in client.list_database_names():
+            client.drop_database(self.tmp_dataset)
+
+    def test_get_references_simple(self):
+        client = MongoClient('localhost', 27017)
+
         client.drop_database(self.tmp_dataset)
-
-    def test_plot_propagation_lengths(self):
-        df = self.diffusion_metrics.get_conversation_sizes('test_dataset_cascade')
-        print(df.head(20))
-        df.hist(log=True, bins=100)
-        for tweet_id in tqdm(df.index[:20]):
-            try:
-                conversation_id, tweets, references = self.diffusion_metrics.get_references(self.test_dataset,
-                                                                                            self.test_tweet_id)
-                if len(references) > 0:
-                    print(f'{tweet_id}: {len(references)}', df.loc[tweet_id])
-                    break
-            except Exception as e:
-                pass
-        # plt.show()
-
-    def test_get_propagation_tree(self):
-        graph = self.diffusion_metrics.get_propagation_tree(self.test_dataset, self.test_tweet_id)
-        self.assertEqual(graph.vcount(), 12)
-        self.assertEqual(graph.ecount(), 11)
-        self.assertEqual(graph.is_directed(), True)
-        self.assertIsInstance(graph.vs['author_id'][0], str)
-        self.assertIsInstance(graph.vs['created_at'][0], datetime.datetime)
-
-        # Display the igraph graph with matplotlib
-        layout = graph.layout('fr')
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        edges = [(0, 1), (1, 2), (1, 3), (2, 4), (2, 5), (3, 6), (3, 7)]
+        original_graph = ig.Graph(n=8, edges=edges, directed=True)
+        original_graph.vs['label'] = [str(i) for i in range(8)]
         fig, ax = plt.subplots()
-        ig.plot(graph, layout=layout, target=ax)
-        # plt.show()
+        layout = original_graph.layout('fr')
+        ig.plot(original_graph, layout=layout, target=ax)
+        timestamps = [Timestamp.now() + pd.offsets.Hour(i) for i in range(8)]
+        authors = [{'id': f'author_id_{i}',
+                    'username': f'username_{i}',
+                    } for i in range(8)]
+        data = [{
+            'id': str(i),
+            'author': authors[i],
+            'text': f'Tweet {i}',
+            'conversation_id': '0',
+            'referenced_tweets': [{'type': 'retweeted',
+                                   'id': str(j),
+                                   'author': authors[j],
+                                   'created_at': timestamps[j],
+                                   'text': f'Tweet {j}'
+                                   }],
+            'created_at': timestamps[i]
 
-    def test_compute_propagation_tree(self):
-        graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, self.test_tweet_id)
-        self.assertEqual(graph.vcount(), 12)
-        self.assertEqual(graph.ecount(), 11)
-        self.assertEqual(graph.is_directed(), True)
-        self.assertIsInstance(graph.vs['author_id'][0], str)
-        self.assertIsInstance(graph.vs['created_at'][0], Timestamp)
+        } for i, j in edges]
+        collection.insert_many(data)
+        resources = self.diffusion_metrics.get_references(self.tmp_dataset, '7')
+        assert not pd.isna(resources).any().any()
 
-    def test_all_connected_to_conversation_id(self):
-        graph = self.diffusion_metrics.get_propagation_tree(self.test_dataset, self.test_tweet_id)
-        self.assertEqual(len(graph.connected_components(mode='weak')), 1)
-        shortest_paths = self.diffusion_metrics.get_shortest_paths_to_conversation_id(graph)
-        self.assertFalse(shortest_paths.isna().any())
+    def test_get_vertices_from_edges_simple(self):
+        client = MongoClient('localhost', 27017)
 
-    def test_tweets_with_references(self):
-        conversation_sizes = self.diffusion_metrics.get_conversation_sizes(self.test_dataset)
-        conversation_id, tweets, references = self.diffusion_metrics.get_references(self.test_dataset,
-                                                                                    self.test_tweet_id)
+        client.drop_database(self.tmp_dataset)
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        edges = [(0, 1), (1, 2), (1, 3), (2, 4), (2, 5), (3, 6), (3, 7)]
+        original_graph = ig.Graph(n=8, edges=edges, directed=True)
+        original_graph.vs['label'] = [str(i) for i in range(8)]
+        fig, ax = plt.subplots()
+        layout = original_graph.layout('fr')
+        ig.plot(original_graph, layout=layout, target=ax)
+        timestamps = [Timestamp.now() + pd.offsets.Hour(i) for i in range(8)]
+        authors = [{'id': f'author_id_{i}',
+                    'username': f'username_{i}',
+                    } for i in range(8)]
+        data = [{
+            'id': str(i),
+            'author': authors[i],
+            'text': f'Tweet {i}',
+            'conversation_id': '0',
+            'referenced_tweets': [{'type': 'retweeted',
+                                   'id': str(j),
+                                   'author': authors[j],
+                                   'created_at': timestamps[j],
+                                   'text': f'Tweet {j}'
+                                   }],
+            'created_at': timestamps[i]
 
-        self.assertEqual(0, len(references), )
-        self.assertEqual(12, len(tweets), )
-        self.assertEqual(tweets.columns.tolist(),
-                         ['tweet_id', 'author_id', 'created_at'])
+        } for i, j in edges]
+        collection.insert_many(data)
+        edges = self.diffusion_metrics.get_references(self.tmp_dataset, '7')
+        vertices = self.diffusion_metrics._get_vertices_from_edges(edges)
+        assert not pd.isna(vertices).any().any()
+        expected = {'author_id': {0: 'author_id_0', 1: 'author_id_1', 2: 'author_id_3', 3: 'author_id_7'},
+                    'text': {0: 'Tweet 0', 1: 'Tweet 1', 2: 'Tweet 3', 3: 'Tweet 7'},
+                    'tweet_id': {0: '0', 1: '1', 2: '3', 3: '7'},
+                    'username': {0: 'username_0', 1: 'username_1', 2: 'username_3', 3: 'username_7'}}
+        self.assertEqual(vertices.to_dict(), expected)
 
     def test_propagation_tree_simple(self):
         client = MongoClient('localhost', 27017)
@@ -95,25 +116,29 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         layout = original_graph.layout('fr')
         ig.plot(original_graph, layout=layout, target=ax)
         timestamps = [Timestamp.now() + pd.offsets.Hour(i) for i in range(8)]
-        authors = [{'id': f'author_id_{i}'
+        authors = [{'id': f'author_id_{i}',
+                    'username': f'username_{i}',
                     } for i in range(8)]
         data = [{
             'id': str(i),
-            'author': {'id': f'author_id_{i}'},
+            'author': authors[i],
+            'text': f'Tweet {i}',
             'conversation_id': '0',
             'referenced_tweets': [{'type': 'retweeted',
                                    'id': str(j),
                                    'author': authors[j],
-                                   'created_at': timestamps[j]}],
+                                   'created_at': timestamps[j],
+                                   'text': f'Tweet {j}'
+                                   }],
             'created_at': timestamps[i]
 
         } for i, j in edges]
         collection.insert_many(data)
-        graph = self.diffusion_metrics.compute_propagation_tree(self.tmp_dataset, '0')
+        graph = self.diffusion_metrics.compute_propagation_tree(self.tmp_dataset, '7')
         fig, ax = plt.subplots()
         layout = graph.layout('fr')
         ig.plot(graph, layout=layout, target=ax)
-        # plt.show()
+        plt.show()
         actual_edges = set(
             (graph.vs['author_id'][edge.source], graph.vs['author_id'][edge.target]) for edge in graph.es)
         expected_edges = {(f'author_id_{source}', f'author_id_{target}') for source, target in edges}
@@ -373,26 +398,28 @@ class DiffusionMetricsTestCase(unittest.TestCase):
                                                check_dtype=False, atol=1e-6, rtol=1e-6)
 
     def test_propagation_data_original(self):
-        client = MongoClient( 'mongodb://srvinv02.esade.es', 27017)
+        client = MongoClient('mongodb://srvinv02.esade.es', 27017)
         raw = client.get_database('Andalucia_2022').get_collection('raw')
 
-        all_tweets_by_text_pipeline = [
-            {'$unwind': '$referenced_tweets'},
-            {'$group': {'_id': '$text', 'targets': {'$push': '$id'}, 'count': {'$sum': 1},
-                        'sources': {'$push': '$referenced_tweets.id'}}},
-            # {'$match': {'_id': {'$regex': text}}},
-            {'$sort': {'count': -1}},
-            {'$project': {'_id': 0, 'targets': 1, 'text': '$_id', 'count': 1, 'sources': 1}},
-        ]
-        all_tweets = raw.aggregate_pandas_all(all_tweets_by_text_pipeline)
-        all_tweets['sources'] = all_tweets['sources'].apply(lambda x: set(x))
-
-        sources = {'1111662918016356352', '1111663197445152770', '1111663499795681280', '1111663349702578177', '1111663971336101889', '1111662671210926086', '1111663702003146754', '1111664600955658240', '1111662296001142785'}
+        # all_tweets_by_text_pipeline = [
+        #     {'$unwind': '$referenced_tweets'},
+        #     {'$group': {'_id': '$text', 'targets': {'$push': '$id'}, 'count': {'$sum': 1},
+        #                 'sources': {'$push': '$referenced_tweets.id'}}},
+        #     # {'$match': {'_id': {'$regex': text}}},
+        #     {'$sort': {'count': -1}},
+        #     {'$project': {'_id': 0, 'targets': 1, 'text': '$_id', 'count': 1, 'sources': 1}},
+        # ]
+        # all_tweets = raw.aggregate_pandas_all(all_tweets_by_text_pipeline)
+        # all_tweets['sources'] = all_tweets['sources'].apply(lambda x: set(x))
+        #
+        # sources = {'1111662918016356352', '1111663197445152770', '1111663499795681280', '1111663349702578177',
+        #            '1111663971336101889', '1111662671210926086', '1111663702003146754', '1111664600955658240',
+        #            '1111662296001142785'}
 
         # find original among sources
         original_pipeline = [
-            {'$match': {'id': {'$in': list(sources)},
-                        'referenced_tweets': {'$exists': False}}},
+            {'$match': {'referenced_tweets': {'$exists': False}}},
+            {'$sort': {'public_metrics.retweet_count': -1}},
             {'$project': {'id': 1, 'text': 1, 'created_at': 1, 'author_id': 1}}
         ]
 
@@ -409,50 +436,58 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
     def test_propagation_data_retweet(self):
         test_tweet_id = '1076621980940623873'
-        original, references = self.diffusion_metrics.get_references(self.test_dataset, test_tweet_id)
+        references = self.diffusion_metrics.get_references(self.test_dataset, test_tweet_id)
 
-        self.assertEqual(original.index.to_list(), ['tweet_id', 'author_id', 'created_at'])
-        self.assertEqual(original['tweet_id'], '1167137262515163136')
         self.assertEqual(references.columns.to_list(),
                          ['source', 'target', 'text', 'type', 'source_author', 'target_author', 'created_at'])
 
     def test_propagation_data_missing(self):
         test_tweet_id = '1014595663106060289'
-        original, references = self.diffusion_metrics.get_references(self.test_dataset, test_tweet_id)
+        references = self.diffusion_metrics.get_references(self.test_dataset, test_tweet_id)
 
-        self.assertEqual(original.index.to_list(), ['tweet_id', 'author_id', 'created_at'])
-        self.assertEqual(original.to_dict(),
-                         {'author_id': '270839361',
-                          'created_at': datetime.datetime(2018, 7, 4, 19, 43, 51),
-                          'tweet_id': '1012996536349970432'})
         self.assertEqual(references.columns.to_list(),
                          ['source', 'target', 'text', 'type', 'source_author', 'target_author', 'created_at'])
-
 
     def test_propagation_data_original_remote(self):
-        test_tweet_id = '1111987953620918274'
+        test_tweet_id = '1523011526445211649'
         self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
+        references = self.diffusion_metrics.get_references('Andalucia_2022', test_tweet_id)
 
-        original, references = self.diffusion_metrics.get_references('Generales_2019', test_tweet_id)
-
-        self.assertEqual(original.index.to_list(), ['tweet_id', 'author_id', 'created_at'])
-        self.assertEqual(original['tweet_id'], test_tweet_id)
         self.assertEqual(references.columns.to_list(),
-                         ['source', 'target', 'text', 'type', 'source_author', 'target_author', 'created_at'])
+                         ['source',
+                          'target',
+                          'source_author_id',
+                          'source_username',
+                          'target_author_id',
+                          'target_username',
+                          'text',
+                          'type',
+                          'created_at'])
+
+        self.diffusion_metrics.host = 'localhost'
 
     def test_propagation_data_missing_remote(self):
-        test_tweet_id = '1564347083531993091'
+        test_tweet_id = '1564253092832546816'
+        test_tweet_id = '1523011526445211649'
         self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
-        original, references = self.diffusion_metrics.get_references('Andalucia_2022', test_tweet_id)
+        references = self.diffusion_metrics.get_references('Andalucia_2022', test_tweet_id)
 
-        self.assertEqual(original.index.to_list(), ['tweet_id', 'author_id', 'created_at'])
-        self.assertEqual(original.to_dict(),
-                         {'author_id': '270839361',
-                          'created_at': datetime.datetime(2018, 7, 4, 19, 43, 51),
-                          'tweet_id': '1012996536349970432'})
         self.assertEqual(references.columns.to_list(),
                          ['source', 'target', 'text', 'type', 'source_author', 'target_author', 'created_at'])
 
+        self.diffusion_metrics.host = 'localhost'
+
+    def test_propagate_propagation(self):
+        prop = Propagation(tweet_id='1523011526445211649', dataset='Andalucia_2022',
+                           host='mongodb://srvinv02.esade.es')
+        prop.propagate()
+        print(prop.edges)
+
+    def test_propagate_propagation_local(self):
+        prop = Propagation(tweet_id='1167137262515163136', dataset=self.test_dataset,
+                           )
+        prop.propagate()
+        print(prop.edges)
 
     def test_missing_rts_local(self):
         test_tweet_id = self.test_tweet_id
