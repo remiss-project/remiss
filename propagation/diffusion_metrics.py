@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 
 class DiffusionMetrics(BasePropagationMetrics):
 
+    def __init__(self, host='localhost', port=27017, reference_types=('retweeted', 'quoted', 'replied_to'), n_jobs=-2):
+        super().__init__(host, port, reference_types)
+        self.n_jobs = n_jobs
+
     def load_conversation_data(self, dataset, tweet_id):
         conversation_id = self.get_conversation_id(dataset, tweet_id)
         client = MongoClient(self.host, self.port)
@@ -102,7 +106,14 @@ class DiffusionMetrics(BasePropagationMetrics):
                 sources = targets['target'].tolist()
             else:
                 found = True
-        references = pd.concat(references, ignore_index=True)
+        if len(references) > 0:
+            references = pd.concat(references, ignore_index=True)
+        else:
+            references = pd.DataFrame(columns=['source', 'target', 'source_author_id', 'source_username',
+                                               'target_author_id', 'target_username', 'source_text', 'target_text',
+                                               'type',
+                                               'source_created_at', 'target_created_at'])
+
         client.close()
 
         return references
@@ -144,7 +155,6 @@ class DiffusionMetrics(BasePropagationMetrics):
 
         vertices = vertices.drop_duplicates(subset='tweet_id').sort_values('created_at').reset_index(drop=True)
 
-
         vertices['type'] = vertices['type'].fillna('original')
         return vertices
 
@@ -183,43 +193,6 @@ class DiffusionMetrics(BasePropagationMetrics):
         max_breadth = pd.Series(max_breadth, name='Max Breadth')
         return max_breadth
 
-    def get_structural_virality(self, graph):
-        # Specifically, we define structural
-        # virality as the average distance between all pairs
-        # of nodes in a diffusion tree
-        shortests_paths = pd.DataFrame(graph.as_undirected().shortest_paths_dijkstra())
-        shortests_paths = shortests_paths.replace(float('inf'), pd.NA)
-        structured_virality = shortests_paths.mean().mean()
-        return structured_virality
-
-    def get_structural_virality_and_timespan(self, dataset, tweet_id):
-        graph = self.get_propagation_tree(dataset, tweet_id)
-        # Specifically, we define structural
-        # virality as the average distance between all pairs
-        # of nodes in a diffusion tree
-        shortests_paths = pd.DataFrame(graph.as_undirected().shortest_paths_dijkstra())
-        shortests_paths = shortests_paths.replace(float('inf'), pd.NA)
-        created_at = pd.Series(graph.vs['created_at'])
-        structured_virality = shortests_paths.mean().mean()
-        timespan = created_at.max() - created_at.min()
-        return structured_virality, timespan
-
-    def get_structural_viralities(self, dataset):
-        conversation_ids = self.get_conversation_ids(dataset)
-        structured_viralities = []
-        timespans = []
-        for conversation_id in conversation_ids['conversation_id']:
-            structured_virality, timespan = self.get_structural_virality_and_timespan(dataset, conversation_id)
-            structured_viralities.append(structured_virality)
-            timespans.append(timespan)
-        # Cast to pandas
-        structured_viralities = pd.DataFrame({'conversation_id': conversation_ids['conversation_id'],
-                                              'structured_virality': structured_viralities,
-                                              'timespan': timespans})
-        structured_viralities = structured_viralities.set_index('conversation_id')
-
-        return structured_viralities
-
     def compute_structural_virality_over_time(self, graph):
         # Specifically, we define structural
         # virality as the average distance between all pairs
@@ -238,27 +211,8 @@ class DiffusionMetrics(BasePropagationMetrics):
         structured_virality = pd.Series(structured_virality, name='Structural Virality')
         return structured_virality
 
-    def get_depth_cascade_ccdf(self, dataset):
-        conversation_ids = self.get_conversation_ids(dataset)
-        depths = []
-        for conversation_id in conversation_ids['conversation_id']:
-            graph = self.get_propagation_tree(dataset, conversation_id)
-            depth = self.get_shortest_paths_to_original_tweet(graph).max()
-            depths.append(depth)
-
-        conversation_ids['depth'] = depths
-        conversation_ids['user_type'] = conversation_ids.apply(transform_user_type, axis=1)
-        conversation_ids = conversation_ids.drop(columns=['is_usual_suspect', 'party'])
-        ccdf = {}
-        for user_type, df in conversation_ids.groupby('user_type'):
-            ccdf[user_type] = df['depth'].value_counts(normalize=True).sort_index(ascending=False).cumsum()
-
-        ccdf = pd.DataFrame(ccdf)
-        ccdf = ccdf * 100
-        return ccdf
-
     def get_size_cascade_ccdf(self, dataset):
-        conversation_sizes = self.get_conversation_sizes(dataset)
+        conversation_sizes = self.get_cascade_sizes(dataset)
         conversation_sizes['user_type'] = conversation_sizes.apply(transform_user_type, axis=1)
         conversation_sizes = conversation_sizes.drop(columns=['is_usual_suspect', 'party'])
         ccdf = {}
@@ -269,12 +223,48 @@ class DiffusionMetrics(BasePropagationMetrics):
         ccdf = ccdf * 100
         return ccdf
 
+    def get_cascade_sizes(self, dataset):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
+        # Compute the amount of times that a tweet that has no referenced_tweets is referenced
+        # Filter those that are not referenced by anyone
+        pipeline = [
+            {'$unwind': '$referenced_tweets'},
+            {'$match': {'referenced_tweets.referenced_tweets': {'$exists': False}}},
+            {'$group': {'_id': '$referenced_tweets.id'}},
+            {'$project': {'_id': 0, 'original_id': '$_id'}}
+        ]
+        schema = Schema({'original_id': str})
+        cascades = collection.aggregate_pandas_all(pipeline, schema=schema)
+
+        metadata_pipeline = [
+            {'$match': {'id': {'$in': cascades['original_id'].tolist()}}},
+            {'$project': {'_id': 0, 'tweet_id': '$id',
+                          'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
+                          'party': '$author.remiss_metadata.party'}}
+        ]
+        metadata_schema = Schema({'tweet_id': str, 'is_usual_suspect': bool, 'party': str})
+        metadata = collection.aggregate_pandas_all(metadata_pipeline, schema=metadata_schema)
+        cascades = cascades.merge(metadata, left_on='original_id', right_on='tweet_id')
+        cascades = cascades.drop(columns=['tweet_id'])
+
+        client.close()
+
+        original_ids = cascades['original_id'].tolist()
+        cascades = cascades.set_index('original_id')
+        jobs = [delayed(self.get_references)(dataset, original_id) for original_id in original_ids]
+        references = Parallel(n_jobs=self.n_jobs, backend='threading', verbose=0)(jobs)
+        cascades['size'] = [len(cascade) for cascade in references]
+
+        return cascades
+
     def get_cascade_count_over_time(self, dataset):
-        conversation_ids = self.get_conversation_ids(dataset)
+        conversation_ids = self.get_cascade_ids(dataset)
         conversation_ids = conversation_ids.set_index('created_at')
         conversation_ids = conversation_ids.resample('ME').count()
         conversation_ids = conversation_ids.fillna(0)
-        conversation_ids = conversation_ids.rename(columns={'conversation_id': 'Cascade Count'})
+        conversation_ids = conversation_ids.rename(columns={'tweet_id': 'Cascade Count'})
         conversation_ids = conversation_ids['Cascade Count']
         return conversation_ids
 
@@ -312,18 +302,21 @@ class DiffusionMetrics(BasePropagationMetrics):
         shortest_paths = shortest_paths.replace(float('inf'), pd.NA)
         return shortest_paths
 
-    def get_conversation_ids(self, dataset):
+    def get_cascade_ids(self, dataset):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         collection = database.get_collection('raw')
-        # get tweets that are the start of the conversation, so its conversation_id is the tweet_id
+        # get tweets that are the start of the cascade, so they are not referenced by any other tweet
         pipeline = [
-            {'$match': {'$expr': {'$eq': ['$id', '$conversation_id']}}},
-            {'$project': {'_id': 0, 'conversation_id': 1,
+            {'$unwind': '$referenced_tweets'},
+            {'$match': {'referenced_tweets.referenced_tweets': {'$exists': False}}},
+            {'$group': {'_id': '$referenced_tweets.id',
+                        'created_at': {'$first': '$referenced_tweets.created_at'}, }},
+            {'$project': {'_id': 0, 'tweet_id': '$id',
                           'created_at': 1
                           }}
         ]
-        schema = Schema({'conversation_id': str, 'created_at': datetime.datetime})
+        schema = Schema({'tweet_id': str, 'created_at': datetime.datetime})
         df = collection.aggregate_pandas_all(pipeline, schema=schema)
         client.close()
         return df
@@ -343,7 +336,7 @@ class DiffusionMetrics(BasePropagationMetrics):
     def persist(self, datasets):
         jobs = []
         for dataset in datasets:
-            conversation_ids = self.get_conversation_ids(dataset)
+            conversation_ids = self.get_cascade_ids(dataset)
             for conversation_id in tqdm(conversation_ids['conversation_id']):
                 jobs.append(delayed(self._persist_conversation_metrics)(dataset, conversation_id))
         Parallel(n_jobs=-2, backend='threading', verbose=10)(jobs)
@@ -391,30 +384,6 @@ class DiffusionMetrics(BasePropagationMetrics):
 
         except Exception as e:
             logger.error(f'Error processing conversation {conversation_id}: {e}')
-
-
-class Propagation:
-    def __init__(self, tweet_id, dataset, host='localhost', port=27017):
-        self.host = host
-        self.port = port
-        self.edges = []
-        self.raw = None
-        self.tweet_id = tweet_id
-        self.dataset = dataset
-
-    def propagate(self):
-        client = MongoClient(self.host, self.port)
-        self.raw = client.get_database(self.dataset).get_collection('raw')
-        edges = []
-        self._propagate_tweet(self.tweet_id, edges)
-        self.edges = pd.DataFrame(edges, columns=['source', 'target'])
-        client.close()
-
-    def _propagate_tweet(self, tweet_id, edges):
-        referencers = list(self.raw.find({'referenced_tweets.id': tweet_id}))
-        for referencer in referencers:
-            edges.append({'target': referencer['id'], 'source': tweet_id, 'created_at': referencer['created_at']})
-            self._propagate_tweet(referencer['id'], edges)
 
 
 def transform_user_type(x):

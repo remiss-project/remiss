@@ -64,7 +64,7 @@ class Results:
     def _get_conversations(self):
         conversation_sizes = {}
         for dataset in self.datasets:
-            conversation_sizes[dataset] = self.propagation_factory.diffusion_metrics.get_conversation_sizes(dataset)
+            conversation_sizes[dataset] = self.propagation_factory.diffusion_metrics.get_cascade_sizes(dataset)
 
         # merge dfs with the dataset as a additional column
         conversation_sizes = pd.concat(conversation_sizes, names=['dataset'])

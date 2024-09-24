@@ -10,7 +10,6 @@ from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
 
 from propagation import DiffusionMetrics
-from propagation.diffusion_metrics import Propagation
 
 patch_all()
 
@@ -95,15 +94,15 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         vertices = self.diffusion_metrics._get_vertices_from_edges(edges)
         assert not pd.isna(vertices).any().any()
         expected = {'author_id': {0: 'author_id_0', 1: 'author_id_1', 2: 'author_id_2', 3: 'author_id_3',
-                                   4: 'author_id_4', 5: 'author_id_5', 6: 'author_id_6', 7: 'author_id_7'},
-                     'created_at': {i: timestamps[i] for i in range(8)},
-                     'text': {0: 'Tweet 0', 1: 'Tweet 1', 2: 'Tweet 2', 3: 'Tweet 3', 4: 'Tweet 4', 5: 'Tweet 5',
-                              6: 'Tweet 6', 7: 'Tweet 7'},
-                     'tweet_id': {0: '0', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7'},
-                     'type': {0: 'original', 1: 'retweeted', 2: 'quoted', 3: 'replied_to', 4: 'retweeted', 5: 'quoted',
-                              6: 'replied_to', 7: 'retweeted'},
-                     'username': {0: 'username_0', 1: 'username_1', 2: 'username_2', 3: 'username_3', 4: 'username_4',
-                                  5: 'username_5', 6: 'username_6', 7: 'username_7'}}
+                                  4: 'author_id_4', 5: 'author_id_5', 6: 'author_id_6', 7: 'author_id_7'},
+                    'created_at': {i: timestamps[i] for i in range(8)},
+                    'text': {0: 'Tweet 0', 1: 'Tweet 1', 2: 'Tweet 2', 3: 'Tweet 3', 4: 'Tweet 4', 5: 'Tweet 5',
+                             6: 'Tweet 6', 7: 'Tweet 7'},
+                    'tweet_id': {0: '0', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7'},
+                    'type': {0: 'original', 1: 'retweeted', 2: 'quoted', 3: 'replied_to', 4: 'retweeted', 5: 'quoted',
+                             6: 'replied_to', 7: 'retweeted'},
+                    'username': {0: 'username_0', 1: 'username_1', 2: 'username_2', 3: 'username_3', 4: 'username_4',
+                                 5: 'username_5', 6: 'username_6', 7: 'username_7'}}
         self.assertEqual(vertices.to_dict(), expected)
 
     def test_propagation_tree_simple(self):
@@ -264,18 +263,20 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         self.assertIsInstance(df.index, pd.DatetimeIndex)
         self.assertEqual(df.max(), 1.6805555555555554)
 
-    def _test_depth_cascade_ccdf(self):
-        start_time = Timestamp.now()
-        df = self.diffusion_metrics.get_depth_cascade_ccdf(self.test_dataset)
-        end_time = Timestamp.now()
-        print(f'Time taken: {end_time - start_time}')
-
     def test_size_cascade_ccdf(self):
         start_time = Timestamp.now()
         df = self.diffusion_metrics.get_size_cascade_ccdf(self.test_dataset)
         end_time = Timestamp.now()
         print(f'Time taken: {end_time - start_time}')
         self.assertEqual(df.columns.to_list(), ['Normal', 'Politician'])
+
+    def test_get_cascade_sizes(self):
+        start_time = Timestamp.now()
+        cascade_sizes = self.diffusion_metrics.get_cascade_sizes(self.test_dataset)
+        end_time = Timestamp.now()
+        print(f'Time taken: {end_time - start_time}')
+        self.assertEqual(cascade_sizes.shape[0], 220)
+        self.assertEqual(['is_usual_suspect', 'party', 'size'], cascade_sizes.columns.to_list())
 
     def test_cascade_count_over_time(self):
         start_time = Timestamp.now()

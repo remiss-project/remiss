@@ -84,7 +84,7 @@ class TestAPICase(unittest.TestCase):
         diffusion_metrics = DiffusionMetrics(host=preprocessor.host, port=preprocessor.port,
                                              reference_types=preprocessor.reference_types)
 
-        conversation_ids = diffusion_metrics.get_conversation_ids(self.tmp_dataset)
+        conversation_ids = diffusion_metrics.get_cascade_ids(self.tmp_dataset)
         expected = {}
         for conversation_id in conversation_ids['conversation_id']:
             graph = diffusion_metrics.compute_propagation_tree(self.tmp_dataset, conversation_id)
