@@ -384,8 +384,9 @@ class DiffusionMetrics(BasePropagationMetrics):
                     'structural_virality_over_time': structural_virality_over_time}
 
         except Exception as e:
-            # raise e
             logger.error(f'Error processing conversation {cascade_id}: {e}')
+
+            raise e
 
 
 def transform_user_type(x):
