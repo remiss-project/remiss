@@ -207,7 +207,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         references = self.diffusion_metrics.get_references('Andalucia_2022', test_tweet_id)
 
         vertices = self.diffusion_metrics._get_vertices_from_edges(references)
-        expected = ['tweet_id', 'author_id', 'username', 'text']
+        expected = ['tweet_id', 'author_id', 'username', 'text', 'created_at', 'type']
         self.assertEqual(vertices.columns.to_list(), expected)
 
         self.diffusion_metrics.host = 'localhost'
@@ -223,21 +223,6 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
         self.diffusion_metrics.host = 'localhost'
 
-    # def test_fix_wrong_timestamps(self):
-    #     client = MongoClient('localhost', 27017)
-    #     raw = client.get_database(self.test_dataset).get_collection('raw')
-    #
-    #     # go through all tweets and fix the timestamp formate to datetime of the referenced tweets
-    #     all_tweets = raw.find()
-    #     for tweet in all_tweets:
-    #         if 'referenced_tweets' in tweet:
-    #             changed = False
-    #             for referenced_tweet in tweet['referenced_tweets']:
-    #                 if 'created_at' in referenced_tweet:
-    #                     referenced_tweet['created_at'] = Timestamp(referenced_tweet['created_at'])
-    #                     changed = True
-    #             if changed:
-    #                 raw.replace_one({'id': tweet['id']}, tweet)
 
     def test_depth(self):
         graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, self.test_tweet_id)
@@ -263,7 +248,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         df = self.diffusion_metrics.compute_max_breadth_over_time(graph)
         self.assertEqual(df.shape[0], 94)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
-        self.assertEqual(df.max(), 94)
+        self.assertEqual(df.max(), 1)
 
     def test_structured_virality(self):
         graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, self.test_tweet_id)

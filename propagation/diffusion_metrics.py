@@ -116,6 +116,9 @@ class DiffusionMetrics(BasePropagationMetrics):
                                                'source_created_at', 'target_created_at'])
 
         client.close()
+        # Make sure created_ats are datetime objects with no timezone
+        references['source_created_at'] = pd.to_datetime(references['source_created_at'], utc=True)
+        references['target_created_at'] = pd.to_datetime(references['target_created_at'], utc=True)
 
         return references
 
@@ -265,13 +268,13 @@ class DiffusionMetrics(BasePropagationMetrics):
         return cascades
 
     def get_cascade_count_over_time(self, dataset):
-        conversation_ids = self.get_cascade_ids(dataset)
-        conversation_ids = conversation_ids.set_index('created_at')
-        conversation_ids = conversation_ids.resample('ME').count()
-        conversation_ids = conversation_ids.fillna(0)
-        conversation_ids = conversation_ids.rename(columns={'tweet_id': 'Cascade Count'})
-        conversation_ids = conversation_ids['Cascade Count']
-        return conversation_ids
+        cascade_ids = self.get_cascade_ids(dataset)
+        cascade_ids = cascade_ids.fillna(1)
+        cascade_ids = cascade_ids.set_index('created_at')
+        cascade_ids = cascade_ids.resample('ME').count()
+        cascade_ids = cascade_ids.rename(columns={'tweet_id': 'Cascade Count'})
+        cascade_ids = cascade_ids['Cascade Count']
+        return cascade_ids
 
     def get_tweet(self, dataset, tweet_id):
         client = MongoClient(self.host, self.port)
@@ -297,14 +300,28 @@ class DiffusionMetrics(BasePropagationMetrics):
         database = client.get_database(dataset)
         collection = database.get_collection('raw')
         # get tweets that are the start of the cascade, so they are not referenced by any other tweet
-        pipeline = [
+        original_tweets_pipeline = [
             {'$match': {'referenced_tweets': {'$exists': False}}},
             {'$group': {'_id': '$id', 'created_at': {'$first': '$created_at'}}},
             {'$project': {'_id': 0, 'tweet_id': '$_id', 'created_at': 1}}
         ]
         schema = Schema({'tweet_id': str, 'created_at': datetime.datetime})
-        df = collection.aggregate_pandas_all(pipeline, schema=schema)
+
+        original_tweets = collection.aggregate_pandas_all(original_tweets_pipeline, schema=schema)
+
+        # get tweets that are referenced by other tweets
+        referenced_tweets_pipeline = [
+            {'$match': {'referenced_tweets': {'$exists': True}}},
+            {'$unwind': '$referenced_tweets'},
+            {'$group': {'_id': '$referenced_tweets.id'}},
+            {'$project': {'_id': 0, 'tweet_id': '$_id'}}
+        ]
+        schema = Schema({'tweet_id': str})
+        referenced_tweets = collection.aggregate_pandas_all(referenced_tweets_pipeline, schema=schema)
         client.close()
+
+        # We only want the original tweets that are referenced by other tweets
+        df = original_tweets[original_tweets['tweet_id'].isin(referenced_tweets['tweet_id'])]
         return df
 
     def get_cascade_size(self, dataset, tweet_id):
