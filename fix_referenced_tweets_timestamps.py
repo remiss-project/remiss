@@ -4,9 +4,9 @@ from pymongo import MongoClient
 from tqdm import tqdm
 
 
-def fix_referenced_tweets_timestamps(host, port, db_name):
+def fix_referenced_tweets_timestamps(db, host='localhost', port=27017):
     client = MongoClient(host, port)
-    raw = client.get_database(db_name).get_collection('raw')
+    raw = client.get_database(db).get_collection('raw')
 
     # go through all tweets and fix the timestamp formate to datetime of the referenced tweets
     referenced_tweets = list(raw.find({'referenced_tweets': {'$exists': True}}))
