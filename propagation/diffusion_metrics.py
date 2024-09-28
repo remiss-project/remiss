@@ -308,8 +308,10 @@ class DiffusionMetrics(BasePropagationMetrics):
         # get tweets that are the start of the cascade, so they are not referenced by any other tweet
         original_tweets_pipeline = [
             {'$match': {'referenced_tweets': {'$exists': False}}},
-            {'$group': {'_id': '$id', 'created_at': {'$first': '$created_at'}}},
-            {'$project': {'_id': 0, 'tweet_id': '$_id', 'created_at': 1}}
+            {'$group': {'_id': '$id',
+                        'created_at': {'$first': '$created_at'},
+                        'count': {'$count': {}}}},
+            {'$project': {'_id': 0, 'tweet_id': '$_id', 'created_at': 1, 'count': 1}}
         ]
         schema = Schema({'tweet_id': str, 'created_at': datetime.datetime})
 
@@ -352,6 +354,8 @@ class DiffusionMetrics(BasePropagationMetrics):
         self.n_jobs = 1
         for dataset in datasets:
             cascade_ids = self.get_cascade_ids(dataset)
+            # Get top 100 cascades
+            cascade_ids = cascade_ids.sort_values('count', ascending=False).head(100)
             for cascade_id in tqdm(cascade_ids['tweet_id']):
                 jobs.append(delayed(self._persist_conversation_metrics)(dataset, cascade_id))
 
