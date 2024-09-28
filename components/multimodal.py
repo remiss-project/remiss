@@ -135,19 +135,22 @@ class MultimodalComponent(RemissComponent):
             claim_image = self.plot_factory.plot_claim_image(dataset, tweet_id)
             evidence_image = self.plot_factory.plot_evidence_image(dataset, tweet_id)
 
-            is_open = True
             logger.debug(f'Updating multimodal component for tweet {tweet_id}')
 
             return (claim_image, evidence_image,
                     claim_text, visual_evidence_text, text_evidence_similarity_score, visual_evidence_similarity_score,
                     visual_evidence_graph_similarity_score, visual_evidence_domain,
-                    is_open)
+                    )
         except Exception as e:
             if 'not found in dataset' in str(e):
                 logger.debug(f'No multimodal data found for tweet {tweet_id}')
+
             else:
                 logger.error(f'Error updating multimodal component: {e}')
             raise PreventUpdate()
+
+    def update_collapse(self, dataset, tweet_id):
+        return self.plot_factory.has_multimodal_data(dataset, tweet_id)
 
     def callbacks(self, app):
         app.callback(
@@ -158,8 +161,14 @@ class MultimodalComponent(RemissComponent):
              Output(self.text_evidence_similarity_score, 'children'),
              Output(self.visual_evidence_similarity_score, 'children'),
              Output(self.visual_evidence_graph_similarity_score, 'children'),
-             Output(self.visual_evidence_domain, 'children'),
-             Output(f'{self.name}-collapse', 'is_open')],
+             Output(self.visual_evidence_domain, 'children'),],
             [Input(self.state.current_dataset, 'data'),
              Input(self.state.current_tweet, 'data')],
         )(self.update)
+
+        app.callback(
+            Output(f'{self.name}-collapse', 'is_open'),
+            [Input(self.state.current_dataset, 'data'),
+             Input(self.state.current_tweet, 'data')],
+        )(self.update_collapse)
+

@@ -1,10 +1,10 @@
 import logging
 
 import dash_bootstrap_components as dbc
+from dash import ctx
 from dash import dcc, Input, Output, html
 from dash.exceptions import PreventUpdate
 from dash_holoniq_wordcloud import DashWordcloud
-from dash import ctx
 
 from components.components import RemissComponent
 
@@ -58,7 +58,8 @@ class ControlPanelComponent(RemissComponent):
         if self.max_wordcloud_words < len(available_hashtags_freqs):
             available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
         if available_hashtags_freqs:
-            logger.debug(f'Updating wordcloud for dataset {dataset}, {author_id}, {start_date}, {end_date} with {len(available_hashtags_freqs)} hashtags')
+            logger.debug(
+                f'Updating wordcloud for dataset {dataset}, {author_id}, {start_date}, {end_date} with {len(available_hashtags_freqs)} hashtags')
 
             return available_hashtags_freqs
         else:
@@ -225,7 +226,10 @@ class FilterDisplayComponent(RemissComponent):
     def update_card_collapse(self, tweet, user, hashtags):
         return tweet or user or hashtags
 
-    def clear_filters(self, n_clicks):
+    def clear_filters(self, n_clicks, dataset):
+        if ctx.triggered_id == self.state.current_dataset.id:
+            logger.debug(f'Clearing filters due to dataset change')
+            return None, None, None
         if n_clicks:
             logger.debug(f'Clearing filters')
             return None, None, None
@@ -262,5 +266,6 @@ class FilterDisplayComponent(RemissComponent):
             [Output(self.state.current_tweet, 'data', allow_duplicate=True),
              Output(self.state.current_hashtags, 'data', allow_duplicate=True),
              Output(self.state.current_user, 'data', allow_duplicate=True)],
-            [Input(f'clear-filters-{self.name}', 'n_clicks')],
+            [Input(f'clear-filters-{self.name}', 'n_clicks'),
+             Input(self.state.current_dataset, 'data')],
         )(self.clear_filters)

@@ -39,6 +39,14 @@ class MultimodalPlotFactory(MongoPlotFactory):
                         raise RuntimeError(
                             f'Image {image_type} not found for fact checking id {data["tweet_id"]} in {image_dir}')
 
+    def has_multimodal_data(self, dataset, tweet_id):
+        try:
+            self.load_data_for_tweet(dataset, tweet_id)
+            return True
+        except RuntimeError:
+            return False
+
+
     def plot_claim_image(self, dataset, tweet_id):
         fig = self.load_image(dataset, tweet_id, 'claim_image')
         return fig
@@ -82,7 +90,8 @@ class MultimodalPlotFactory(MongoPlotFactory):
             image_path = next(image_dir.glob(f'{image_type}.*'))
         except StopIteration:
             raise RuntimeError(f'Image {image_type} not found for fact checking id {fact_checking_id}')
-        img = io.imread(image_path).copy()
+
+        img = io.imread(image_path)
         fig = px.imshow(img)
         # remove axis ticks
         fig.update_xaxes(showticklabels=False)
