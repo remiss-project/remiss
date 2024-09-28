@@ -31,7 +31,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         super().__init__(host, port, available_datasets)
         self.big_size_multiplier = big_size_multiplier
         self.small_size_multiplier = small_size_multiplier
-        self.user_highlight_color = user_highlight_color
+        self.node_highlight_color = user_highlight_color
         self.layout = layout
         self.frequency = frequency
         self.egonet = Egonet(reference_types=reference_types, host=host, port=port,
@@ -45,15 +45,17 @@ class PropagationPlotFactory(MongoPlotFactory):
     def plot_egonet(self, collection, author_id, depth, start_date=None, end_date=None, hashtag=None):
         network = self.egonet.get_egonet(collection, author_id, depth, start_date, end_date, hashtag)
         layout = self.compute_layout(network)
-        return self.plot_user_graph(network, collection, layout, author_id=author_id)
+        author_id_node_index = network.vs.find(author_id=author_id).index
 
-    def plot_hidden_network(self, collection, author_id=None, start_date=None, end_date=None, hashtag=None):
+        return self.plot_user_graph(network, collection, layout, highlight_node_index=author_id_node_index)
+
+    def plot_hidden_network(self, collection, start_date=None, end_date=None, hashtag=None):
         if self.egonet.threshold > 0:
             hidden_network = self.egonet.get_hidden_network_backbone(collection, start_date, end_date, hashtag)
         else:
             hidden_network = self.egonet.get_hidden_network(collection, start_date, end_date, hashtag)
         layout = self.get_hidden_network_layout(hidden_network, collection, start_date, end_date, hashtag)
-        return self.plot_user_graph(hidden_network, collection, layout=layout, author_id=author_id)
+        return self.plot_user_graph(hidden_network, collection, layout=layout)
 
     def get_hidden_network_layout(self, hidden_network, collection, start_date=None, end_date=None, hashtags=None):
         # if start_date, end_date or hashtag are not none we need to recompute the layout
@@ -92,13 +94,14 @@ class PropagationPlotFactory(MongoPlotFactory):
         return start_date, end_date
 
     def compute_layout(self, network):
-        logger.debug(f'Computing {self.layout} layout for graph {network.vcount()} vertices and {network.ecount()} edges')
+        logger.debug(
+            f'Computing {self.layout} layout for graph {network.vcount()} vertices and {network.ecount()} edges')
         start_time = time.time()
         layout = network.layout(self.layout, dim=3)
         logger.debug(f'Layout computed in {time.time() - start_time} seconds')
         return layout
 
-    def plot_user_graph(self, user_graph, collection, layout=None, author_id=None):
+    def plot_user_graph(self, user_graph, collection, layout=None, highlight_node_index=None):
         metadata = self.get_user_metadata(collection)
         metadata = metadata.reindex(user_graph.vs['author_id'])
         metadata['User type'] = metadata['User type'].fillna('Unknown')
@@ -122,14 +125,9 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         color = metadata['legitimacy'].copy()
 
-        if author_id is not None:
-            user_index = user_graph.vs.find(author_id=author_id).index
-            expected_user_index = metadata.index.get_loc(author_id)
-            if user_index != expected_user_index:
-                logger.warning(
-                    f'Author id {author_id} has index {user_index} in graph but {expected_user_index} in metadata')
+        if highlight_node_index is not None:
             color = color.to_list()
-            color[user_index] = self.user_highlight_color
+            color[highlight_node_index] = self.node_highlight_color
 
         # Available markers ['circle', 'circle-open', 'cross', 'diamond', 'diamond-open', 'square', 'square-open', 'x']
         marker_map = {'Normal': 'circle', 'Suspect': 'cross', 'Politician': 'diamond', 'Suspect politician':
@@ -140,6 +138,16 @@ class PropagationPlotFactory(MongoPlotFactory):
         return self.plot_graph(user_graph, layout=layout, text=text, size=size, color=color, symbol=symbol)
 
     def plot_propagation_tree(self, dataset, tweet_id):
+        try:
+            propagation_tree = self.diffusion_metrics.get_propagation_tree(dataset, tweet_id)
+        except Exception as e:
+            logger.error(f'Error getting propagation tree: {e}. Recomputing')
+            propagation_tree = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
+
+        original_node_index = propagation_tree.vs.find(tweet_id=tweet_id).index
+        return self.plot_user_graph(propagation_tree, dataset, highlight_node_index=original_node_index)
+
+    def plot_propagation_tree_old(self, dataset, tweet_id):
         try:
             propagation_tree = self.diffusion_metrics.get_propagation_tree(dataset, tweet_id)
         except Exception as e:
@@ -170,7 +178,7 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         tweet_index = propagation_tree.vs.find(tweet_id=tweet_id).index
         color = color.to_list()
-        color[tweet_index] = self.user_highlight_color
+        color[tweet_index] = self.node_highlight_color
 
         # Available markers ['circle', 'circle-open', 'cross', 'diamond', 'diamond-open', 'square', 'square-open', 'x']
         marker_map = {'Normal': 'circle', 'Suspect': 'cross', 'Politician': 'diamond', 'Suspect politician':
