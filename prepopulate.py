@@ -60,6 +60,7 @@ class Prepopulator:
             self.diffusion_metrics.persist_diffusion_static_plots,
             self.available_datasets,
             "Error generating diffusion static plots"
+        )
 
     def generate_network_metrics(self):
         self._execute_with_logging(
