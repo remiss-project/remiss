@@ -232,6 +232,12 @@ class DiffusionMetrics(BasePropagationMetrics):
         return structured_virality
 
     def get_size_cascade_ccdf(self, dataset):
+        return self._load_plot_size_cascade_ccdf_from_mongodb(dataset)
+
+    def get_cascade_count_over_time(self, dataset):
+        return self._load_plot_cascade_count_over_time_from_mongodb(dataset)
+
+    def compute_size_cascade_ccdf(self, dataset):
         conversation_sizes = self.get_cascade_sizes(dataset)
         conversation_sizes['user_type'] = conversation_sizes.apply(transform_user_type, axis=1)
         conversation_sizes = conversation_sizes.drop(columns=['is_usual_suspect', 'party'])
@@ -267,7 +273,7 @@ class DiffusionMetrics(BasePropagationMetrics):
 
         return cascades
 
-    def get_cascade_count_over_time(self, dataset):
+    def compute_cascade_count_over_time(self, dataset):
         cascade_ids = self.get_cascade_ids(dataset)
         cascade_ids = cascade_ids.fillna(1)
         cascade_ids = cascade_ids.set_index('created_at')
@@ -337,6 +343,10 @@ class DiffusionMetrics(BasePropagationMetrics):
         return graph.vcount()
 
     def persist(self, datasets):
+        self.persist_diffusion_metrics(datasets)
+        self.persist_diffusion_static_plots(datasets)
+
+    def persist_diffusion_metrics(self, datasets):
         jobs = []
         n_jobs = self.n_jobs
         self.n_jobs = 1
@@ -350,8 +360,14 @@ class DiffusionMetrics(BasePropagationMetrics):
             database = client.get_database(dataset)
             collection = database.get_collection('diffusion_metrics')
             collection.insert_many(cascade_data)
+            client.close()
 
         self.n_jobs = n_jobs
+
+    def persist_diffusion_static_plots(self, datasets):
+        for dataset in datasets:
+            self._persist_plot_size_cascade_ccdf_to_mongodb(dataset)
+            self._persist_plot_cascade_count_over_time_to_mongodb(dataset)
 
     def _persist_conversation_metrics(self, dataset, cascade_id):
         try:
@@ -404,6 +420,40 @@ class DiffusionMetrics(BasePropagationMetrics):
             logger.error(f'Error processing conversation {cascade_id}: {e}')
 
             raise e
+
+    def _persist_plot_size_cascade_ccdf_to_mongodb(self, dataset):
+        size_cascade = self.get_size_cascade_ccdf(dataset)
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('size_cascade_ccdf')
+        collection.drop()
+        collection.insert_many(size_cascade.reset_index().to_dict(orient='records'))
+        client.close()
+
+    def _persist_plot_cascade_count_over_time_to_mongodb(self, dataset):
+        cascade_count_over_time = self.get_cascade_count_over_time(dataset)
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('cascade_count_over_time')
+        collection.drop()
+        collection.insert_many(cascade_count_over_time.reset_index().to_dict(orient='records'))
+        client.close()
+
+    def _load_plot_size_cascade_ccdf_from_mongodb(self, dataset):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('size_cascade_ccdf')
+        size_cascade = collection.aggregate_pandas_all([{'$project': {'_id': 0}}])
+        client.close()
+        return size_cascade.set_index('size')
+
+    def _load_plot_cascade_count_over_time_from_mongodb(self, dataset):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('cascade_count_over_time')
+        cascade_count_over_time = collection.aggregate_pandas_all([{'$project': {'_id': 0}}])
+        client.close()
+        return cascade_count_over_time.set_index('created_at')['Cascade Count']
 
 
 def transform_user_type(x):

@@ -49,10 +49,17 @@ class Prepopulator:
     def generate_diffusion_metrics(self):
         self._execute_with_logging(
             "diffusion metrics",
-            self.diffusion_metrics.persist,
+            self.diffusion_metrics.persist_diffusion_metrics,
             self.available_datasets,
             "Error generating diffusion metrics"
         )
+
+    def generate_diffusion_static_plots(self):
+        self._execute_with_logging(
+            "diffusion static plots",
+            self.diffusion_metrics.persist_diffusion_static_plots,
+            self.available_datasets,
+            "Error generating diffusion static plots"
 
     def generate_network_metrics(self):
         self._execute_with_logging(
@@ -86,6 +93,8 @@ class Prepopulator:
                     self.generate_layout()
                 case 'diffusion':
                     self.generate_diffusion_metrics()
+                case 'diffusion_static_plots':
+                    self.generate_diffusion_static_plots()
                 case 'network':
                     self.generate_network_metrics()
                 case 'egonet':
@@ -98,7 +107,7 @@ class Prepopulator:
 
 
 def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
-                     modules=('egonet', 'layout', 'diffusion', 'network', 'histogram')):
+                     modules=('egonet', 'layout', 'diffusion', 'diffusion_static_plots', 'network', 'histogram')):
     logger.info(f'Running prepopulator with config file: {config_file}')
     logger.info(f'Available datasets: {available_datasets}')
     logger.info(f'Modules: {modules}')

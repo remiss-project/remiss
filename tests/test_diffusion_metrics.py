@@ -395,6 +395,24 @@ class DiffusionMetricsTestCase(unittest.TestCase):
             pd.testing.assert_series_equal(expected_structural_virality, actual_structural_virality,
                                            check_dtype=False, atol=1e-6, rtol=1e-6)
 
+    def test_persistence_size_cascade_ccdf(self):
+        start_time = Timestamp.now()
+        self.diffusion_metrics._persist_plot_size_cascade_ccdf_to_mongodb(self.test_dataset)
+        end_time = Timestamp.now()
+        print(f'Time taken: {end_time - start_time}')
+        actual = self.diffusion_metrics._load_plot_size_cascade_ccdf_from_mongodb(self.test_dataset)
+        expected = self.diffusion_metrics.get_size_cascade_ccdf(self.test_dataset)
+        pd.testing.assert_frame_equal(expected, actual, check_dtype=False, atol=1e-6, rtol=1e-6, check_index_type=False)
+
+    def test_persistence_cascade_count_over_time(self):
+        start_time = Timestamp.now()
+        self.diffusion_metrics._persist_plot_cascade_count_over_time_to_mongodb(self.test_dataset)
+        end_time = Timestamp.now()
+        print(f'Time taken: {end_time - start_time}')
+        actual = self.diffusion_metrics._load_plot_cascade_count_over_time_from_mongodb(self.test_dataset)
+        expected = self.diffusion_metrics.get_cascade_count_over_time(self.test_dataset)
+        self.assertTrue((expected.index == actual.index).all())
+        self.assertTrue((expected == actual).all())
 
 if __name__ == '__main__':
     unittest.main()

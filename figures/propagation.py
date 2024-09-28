@@ -225,16 +225,20 @@ class PropagationPlotFactory(MongoPlotFactory):
         return self.plot_time_series(structural_virality_over_time, 'Structural virality over time', 'Time',
                                      'Structural virality')
 
-    def plot_depth_cascade_ccdf(self, dataset):
-        depth_cascade = self.diffusion_metrics.get_depth_cascade_ccdf(dataset)
-        return self.plot_time_series(depth_cascade, 'Depth cascade CCDF', 'Depth', 'CCDF')
-
     def plot_size_cascade_ccdf(self, dataset):
-        size_cascade = self.diffusion_metrics.get_size_cascade_ccdf(dataset)
+        try:
+            size_cascade = self.diffusion_metrics.get_size_cascade_ccdf(dataset)
+        except Exception as e:
+            logger.error(f'Error getting size cascade CCDF: {e}. Recomputing')
+            size_cascade = self.diffusion_metrics.compute_size_cascade_ccdf(dataset)
         return self.plot_time_series(size_cascade, 'Size cascade CCDF', 'Size', 'CCDF')
 
     def plot_cascade_count_over_time(self, dataset):
-        cascade_count_over_time = self.diffusion_metrics.get_cascade_count_over_time(dataset)
+        try:
+            cascade_count_over_time = self.diffusion_metrics.get_cascade_count_over_time(dataset)
+        except Exception as e:
+            logger.error(f'Error getting cascade count over time: {e}. Recomputing')
+            cascade_count_over_time = self.diffusion_metrics.compute_cascade_count_over_time(dataset)
         return self.plot_time_series(cascade_count_over_time, 'Cascade count over time', 'Time', 'Cascade count')
 
     def get_user_metadata(self, dataset, author_ids=None):
@@ -465,7 +469,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         return self.diffusion_metrics.get_cascade_size(dataset, tweet_id)
 
     def persist(self, datasets):
-        # Save layouts to mongodb
+        # Save layouts, cccd and count over time to mongodb
         for dataset in datasets:
             if self.egonet.threshold > 0:
                 hidden_network = self.egonet.get_hidden_network_backbone(dataset)
@@ -476,6 +480,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                 self._persist_layout_to_mongodb(layout, dataset, 'hidden_network_layout')
             else:
                 logger.error(f'Empty layout for dataset {dataset}')
+
 
     def _persist_layout_to_mongodb(self, layout, dataset, collection_name):
         client = MongoClient(self.host, self.port)
