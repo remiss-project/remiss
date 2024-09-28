@@ -6,18 +6,20 @@ graph_layout: fruchterman_reingold
 graph_simplification:
   threshold: 0.95
 available_datasets:
-  - Generales_2019
   - Openarms
   - MENA_Agressions
   - MENA_Ajudes
   - Barcelona_2019
   - Generalitat_2021
   - Andalucia_2022
+  - Generales_2019
+
 
 
 reference_types:
   - retweeted
   - quoted
+  - replied_to
 theme: PULSE
 debug: "True"
 frequency: 1D
