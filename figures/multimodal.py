@@ -46,7 +46,6 @@ class MultimodalPlotFactory(MongoPlotFactory):
         except RuntimeError:
             return False
 
-
     def plot_claim_image(self, dataset, tweet_id):
         fig = self.load_image(dataset, tweet_id, 'claim_image')
         return fig
