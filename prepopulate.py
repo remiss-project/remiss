@@ -117,7 +117,7 @@ class Prepopulator:
                 case 'wordcloud':
                     self.generate_wordcloud_hashtag_freqs()
                 case _:
-                    raise ValueError(f"Invalid metric: {module}")
+                    raise ValueError(f"Invalid module: {module}")
         logger.debug('All metrics and graphs prepopulated')
 
 
