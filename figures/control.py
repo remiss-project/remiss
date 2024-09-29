@@ -27,7 +27,7 @@ class ControlPlotFactory(MongoPlotFactory):
 
     def _get_dataset_hashtag_freqs(self, dataset):
         try:
-            hashtag_freqs = self._load_hash_freqs(dataset)
+            hashtag_freqs = self._load_hashtag_freqs(dataset)
         except Exception as e:
             logger.error(f"Error loading hashtag frequencies for dataset {dataset}: {e}")
             hashtag_freqs = self._compute_hashtag_freqs(dataset)
@@ -41,7 +41,8 @@ class ControlPlotFactory(MongoPlotFactory):
         pipeline = [
             {'$unwind': '$entities.hashtags'},
             {'$group': {'_id': '$entities.hashtags.tag', 'count': {'$count': {}}}},
-            {'$sort': {'count': -1}}
+            {'$sort': {'count': -1}},
+            {'$project': {'_id': 0, 'hashtag': '$_id', 'count': 1}}
         ]
         if author_id:
             pipeline.insert(1, {'$match': {'author.id': author_id}})
@@ -49,11 +50,10 @@ class ControlPlotFactory(MongoPlotFactory):
             pipeline.insert(1, {'$match': {'created_at': {'$gte': pd.Timestamp(start_date)}}})
         if end_date:
             pipeline.insert(1, {'$match': {'created_at': {'$lte': pd.Timestamp(end_date)}}})
-        available_hashtags_freqs = list(collection.aggregate(pipeline))
+        available_hashtags_freqs = collection.aggregate_pandas_all(pipeline)
         if self.max_wordcloud_words:
             max_wordcloud_words = min(self.max_wordcloud_words, len(available_hashtags_freqs))
             available_hashtags_freqs = available_hashtags_freqs[:max_wordcloud_words]
-        available_hashtags_freqs = [(x['_id'], int(x['count'])) for x in available_hashtags_freqs]
         client.close()
         return available_hashtags_freqs
 
@@ -69,10 +69,10 @@ class ControlPlotFactory(MongoPlotFactory):
         database = client.get_database(dataset)
         collection = database.get_collection('hashtag_freqs')
         collection.drop()
-        collection.insert_many([{'hashtag': hashtag, 'count': count} for hashtag, count in hashtag_freqs])
+        collection.insert_many(hashtag_freqs.to_dict(orient='records'))
         client.close()
 
-    def _load_hash_freqs(self, dataset):
+    def _load_hashtag_freqs(self, dataset):
         client = MongoClient(self.host, self.port)
         self._validate_dataset(client, dataset)
         database = client.get_database(dataset)
@@ -83,5 +83,4 @@ class ControlPlotFactory(MongoPlotFactory):
         ]
         hashtag_freqs = collection.aggregate_pandas_all(pipeline)
         client.close()
-        hashtag_freqs = list(hashtag_freqs[['hashtag', 'count']].itertuples(index=False, name=None))
         return hashtag_freqs

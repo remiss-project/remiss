@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import Mock, patch
 
+import pandas as pd
 from pymongo import MongoClient
 
 from figures.control import ControlPlotFactory
@@ -40,11 +41,10 @@ class TestMongoPlotFactory(unittest.TestCase):
     def test_get_hashtag_freqs(self):
         # Mock MongoClient and database
         mock_collection = Mock()
-        mock_collection.aggregate.return_value = [
-            {'_id': 'test_hashtag1', 'count': 1},
-            {'_id': 'test_hashtag2', 'count': 2},
-            {'_id': 'test_hashtag3', 'count': 3},
-        ]
+        test_data = pd.DataFrame([{'hashtag': 'test_hashtag', 'count': 3},
+                                  {'hashtag': 'test_hashtag2', 'count': 2}])
+
+        mock_collection.aggregate_pandas_all.return_value = test_data
         mock_database = Mock()
         mock_database.get_collection.return_value = mock_collection
         mock_database.list_collection_names.return_value = ['raw']
@@ -53,24 +53,13 @@ class TestMongoPlotFactory(unittest.TestCase):
         mock_client.list_database_names.return_value = ['test_dataset']
         with patch('figures.control.MongoClient', return_value=mock_client):
             hashtag_freqs = self.control_plot_factory._compute_hashtag_freqs("test_dataset")
-            self.assertEqual(hashtag_freqs, [(x['_id'], x['count']) for x in mock_collection.aggregate.return_value])
-
-    def test_get_hashtag_freqs_2(self):
-        expected = [('test_hashtag', 3), ('test_hashtag2', 2)]
-        actual = self.control_plot_factory._compute_hashtag_freqs("test_dataset")
-        self.assertEqual(expected, actual)
-
-    def test__get_hashtag_freqs(self):
-        expected = [('test_hashtag', 3), ('test_hashtag2', 2)]
-        self.control_plot_factory.max_hashtags = None
-        actual = self.control_plot_factory._compute_hashtag_freqs("test_dataset")
-        self.assertEqual(expected, actual)
+            pd.testing.assert_frame_equal(test_data, hashtag_freqs)
 
     def test_persistence(self):
         expected_hashtag_freqs = self.control_plot_factory._compute_hashtag_freqs("test_dataset_2")
         self.control_plot_factory.persist(['test_dataset_2'])
-        actual_hashtag_freqs = self.control_plot_factory._load_hash_freqs('test_dataset_2')
-        self.assertEqual(expected_hashtag_freqs, actual_hashtag_freqs)
+        actual_hashtag_freqs = self.control_plot_factory._load_hashtag_freqs('test_dataset_2')
+        pd.testing.assert_frame_equal(expected_hashtag_freqs, actual_hashtag_freqs)
 
 
 if __name__ == '__main__':
