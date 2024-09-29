@@ -9,6 +9,7 @@ from pyaml_env import parse_config
 
 from components import RemissDashboard
 from figures import TimeSeriesFactory, TweetTableFactory
+from figures.control import ControlPlotFactory
 from figures.multimodal import MultimodalPlotFactory
 from figures.profiling import ProfilingPlotFactory
 from figures.propagation import PropagationPlotFactory
@@ -62,6 +63,9 @@ def create_app(config):
 
     logger.info('Creating plot factories...')
     start_time = time.time()
+    control_plot_factory = ControlPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                                    available_datasets=config['available_datasets'],
+                                                    max_wordcloud_words=config['wordcloud']['max_words'])
     tweet_user_plot_factory = TimeSeriesFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                                 available_datasets=config['available_datasets'])
     tweet_table_factory = TweetTableFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
@@ -83,21 +87,22 @@ def create_app(config):
                                                available_datasets=config['available_datasets'],
                                                host=config['mongodb']['host'], port=config['mongodb']['port'])
 
-    dashboard = RemissDashboard(tweet_user_plot_factory,
-                                tweet_table_factory,
-                                egonet_plot_factory,
-                                textual_factory,
-                                profiling_factory,
-                                multimodal_factory,
-                                max_wordcloud_words=config['wordcloud']['max_words'],
-                                wordcloud_width=config['wordcloud']['width'],
-                                wordcloud_height=config['wordcloud']['height'],
-                                match_wordcloud_width=config['wordcloud']['match_width'],
-                                target_api_url=config.get('target_api_url', 'http://localhost:5000/process_dataset'),
-                                name='dashboard',
-                                debug=config['debug'],
-                                page_size=config['tweet_table']['page_size'],
-                                )
+    dashboard = RemissDashboard(
+        control_plot_factory,
+        tweet_user_plot_factory,
+        tweet_table_factory,
+        egonet_plot_factory,
+        textual_factory,
+        profiling_factory,
+        multimodal_factory,
+        wordcloud_width=config['wordcloud']['width'],
+        wordcloud_height=config['wordcloud']['height'],
+        match_wordcloud_width=config['wordcloud']['match_width'],
+        target_api_url=config.get('target_api_url', 'http://localhost:5000/process_dataset'),
+        name='dashboard',
+        debug=config['debug'],
+        page_size=config['tweet_table']['page_size'],
+    )
     logger.info(f'Plot factories created in {time.time() - start_time} seconds.')
     logger.info('Creating app...')
     start_time = time.time()

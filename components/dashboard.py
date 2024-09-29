@@ -174,14 +174,16 @@ class RemissDashboard(RemissComponent):
 
     """
 
-    def __init__(self, tweet_user_plot_factory,
+    def __init__(self,
+                 control_panel_factory,
+                 tweet_user_plot_factory,
                  tweet_table_factory,
                  propagation_factory,
                  textual_factory,
                  profile_factory,
                  multimodal_factory,
                  name=None,
-                 max_wordcloud_words=50, wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=False,
+                 wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=False,
                  debug=False, gap=2, target_api_url='http://localhost:5000/process_dataset',
                  page_size=10):
         super().__init__(name=name)
@@ -192,9 +194,8 @@ class RemissDashboard(RemissComponent):
         self.dataset_dropdown = self.get_dataset_dropdown_component()
         self.general_plots_component = GeneralPlotsComponent(propagation_factory, profile_factory, textual_factory,
                                                              self.state, name=f'general-plots-{self.name}')
-        self.control_panel_component = ControlPanelComponent(tweet_user_plot_factory, self.state,
+        self.control_panel_component = ControlPanelComponent(control_panel_factory, self.state,
                                                              name=f'control-panel-{self.name}',
-                                                             max_wordcloud_words=max_wordcloud_words,
                                                              wordcloud_width=wordcloud_width,
                                                              wordcloud_height=wordcloud_height,
                                                              match_wordcloud_width=match_wordcloud_width)
@@ -303,25 +304,25 @@ class RemissDashboard(RemissComponent):
                                     "width": "85px"
                                 }),
                             ], style={
-                                 "display": "flex",
-                                 "justify-content": "center",
-                                 "align-items": "center",
-                                 "gap": "10px"
-                               }
+                                "display": "flex",
+                                "justify-content": "center",
+                                "align-items": "center",
+                                "gap": "10px"
+                            }
                             ),
                             html.Div([
                                 html.H3("Project PLEC2021-007850 funded by: "),
                                 html.Img(src="/assets/logos-funders.jpg", style={
                                     "height": "40px",
                                 }),
-                            ],style={
-                                 "display": "flex",
-                                 "justify-content": "center",
-                                 "align-items": "center",
-                                 "gap": "10px"
-                               })
+                            ], style={
+                                "display": "flex",
+                                "justify-content": "center",
+                                "align-items": "center",
+                                "gap": "10px"
+                            })
                         ])
-                   ])
+                    ])
                 ])
             ], gap=self.gap),
 

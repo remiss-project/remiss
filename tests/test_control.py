@@ -3,12 +3,13 @@ from unittest.mock import Mock, patch
 
 from pymongo import MongoClient
 
+from figures.control import ControlPlotFactory
 from figures.figures import MongoPlotFactory
 
 
 class TestMongoPlotFactory(unittest.TestCase):
     def setUp(self):
-        self.mongo_plot = MongoPlotFactory()
+        self.control_plot_factory = ControlPlotFactory()
         self.client = MongoClient('localhost', 27017)
         self.client.drop_database('test_dataset')
         self.database = self.client.get_database('test_dataset')
@@ -35,52 +36,41 @@ class TestMongoPlotFactory(unittest.TestCase):
         self.client.drop_database('test_dataset')
         self.client.close()
 
-    def test_get_user_id(self):
+
+    def test_get_hashtag_freqs(self):
         # Mock MongoClient and database
         mock_collection = Mock()
+        mock_collection.aggregate.return_value = [
+            {'_id': 'test_hashtag1', 'count': 1},
+            {'_id': 'test_hashtag2', 'count': 2},
+            {'_id': 'test_hashtag3', 'count': 3},
+        ]
         mock_database = Mock()
         mock_database.get_collection.return_value = mock_collection
         mock_database.list_collection_names.return_value = ['raw']
         mock_client = Mock()
         mock_client.get_database.return_value = mock_database
         mock_client.list_database_names.return_value = ['test_dataset']
-        # Mock find_one
-        mock_collection.find_one.return_value = {
-            'author': {'username': 'test_username', 'id': 'test_id'}
-        }
+        with patch('figures.control.MongoClient', return_value=mock_client):
+            hashtag_freqs = self.control_plot_factory._compute_hashtag_freqs("test_dataset")
+            self.assertEqual(hashtag_freqs, [(x['_id'], x['count']) for x in mock_collection.aggregate.return_value])
 
-        with patch('figures.figures.MongoClient', return_value=mock_client):
-            user_id = self.mongo_plot.get_user_id("test_dataset", "test_username")
-            self.assertEqual(user_id, 'test_id')
-
-    def test_get_user_id_2(self):
-        expected = 0
-        actual = self.mongo_plot.get_user_id("test_dataset", "TEST_USER_0")
+    def test_get_hashtag_freqs_2(self):
+        expected = [('test_hashtag', 3), ('test_hashtag2', 2)]
+        actual = self.control_plot_factory._compute_hashtag_freqs("test_dataset")
         self.assertEqual(expected, actual)
 
-    def test_available_datasets(self):
-        # Mock MongoClient
-        with patch('figures.figures.MongoClient') as mock_client:
-            mock_client.return_value.list_database_names.return_value = ['test_dataset']
-            datasets = self.mongo_plot.available_datasets
-            self.assertEqual(datasets, ['test_dataset'])
+    def test__get_hashtag_freqs(self):
+        expected = [('test_hashtag', 3), ('test_hashtag2', 2)]
+        self.control_plot_factory.max_hashtags = None
+        actual = self.control_plot_factory._compute_hashtag_freqs("test_dataset")
+        self.assertEqual(expected, actual)
 
-    def test_get_date_range(self):
-        # Mock MongoClient and database
-        mock_date = Mock()
-        mock_date.date.return_value = 'test_date'
-        mock_collection = Mock()
-        mock_collection.find_one.return_value = {'created_at': mock_date}
-        mock_database = Mock()
-        mock_database.get_collection.return_value = mock_collection
-        mock_database.list_collection_names.return_value = ['raw']
-        mock_client = Mock()
-        mock_client.get_database.return_value = mock_database
-        mock_client.list_database_names.return_value = ['test_dataset']
-        with patch('figures.figures.MongoClient', return_value=mock_client):
-            date_range = self.mongo_plot.get_date_range("test_dataset")
-            self.assertEqual(date_range, ('test_date', 'test_date'))
-
+    def test_persistence(self):
+        expected_hashtag_freqs = self.control_plot_factory._compute_hashtag_freqs("test_dataset_2")
+        self.control_plot_factory.persist(['test_dataset_2'])
+        actual_hashtag_freqs = self.control_plot_factory._load_hash_freqs('test_dataset_2')
+        self.assertEqual(expected_hashtag_freqs, actual_hashtag_freqs)
 
 
 if __name__ == '__main__':

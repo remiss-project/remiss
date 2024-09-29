@@ -1,10 +1,12 @@
+import logging
 from abc import ABC
 
-import pandas as pd
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
 
 patch_all()
+
+logger = logging.getLogger(__name__)
 
 
 class MongoPlotFactory(ABC):
@@ -14,7 +16,7 @@ class MongoPlotFactory(ABC):
         self.port = port
         self._available_datasets = available_datasets
         self._min_max_dates = {}
-        self._available_hashtags = {}
+
 
     def _validate_dataset(self, client, dataset):
         if dataset not in client.list_database_names():
@@ -23,24 +25,6 @@ class MongoPlotFactory(ABC):
             collections = client.get_database(dataset).list_collection_names()
             if 'raw' not in collections:
                 raise RuntimeError(f'Collection raw not found in dataset {dataset}')
-
-    def get_date_range(self, dataset):
-        if dataset not in self._min_max_dates:
-            client = MongoClient(self.host, self.port)
-            self._validate_dataset(client, dataset)
-            database = client.get_database(dataset)
-            dataset = database.get_collection('raw')
-            self._min_max_dates[dataset] = self._get_date_range(dataset)
-            client.close()
-        return self._min_max_dates[dataset]
-
-    def get_hashtag_freqs(self, dataset, author_id=None, start_date=None, end_date=None):
-        if author_id is None and start_date is None and end_date is None:
-            if dataset not in self._available_hashtags:
-                self._available_hashtags[dataset] = self._get_hashtag_freqs(dataset)
-            return self._available_hashtags[dataset]
-        else:
-            return self._get_hashtag_freqs(dataset, author_id, start_date, end_date)
 
     def get_user_id(self, dataset, username):
         client = MongoClient(self.host, self.port)
@@ -78,29 +62,18 @@ class MongoPlotFactory(ABC):
             self._available_datasets = available_datasets
         return self._available_datasets
 
+    def get_date_range(self, dataset):
+        if dataset not in self._min_max_dates:
+            client = MongoClient(self.host, self.port)
+            self._validate_dataset(client, dataset)
+            database = client.get_database(dataset)
+            dataset = database.get_collection('raw')
+            self._min_max_dates[dataset] = self._get_date_range(dataset)
+            client.close()
+        return self._min_max_dates[dataset]
+
     @staticmethod
     def _get_date_range(collection):
         min_date_allowed = collection.find_one(sort=[('created_at', 1)])['created_at'].date()
         max_date_allowed = collection.find_one(sort=[('created_at', -1)])['created_at'].date()
         return min_date_allowed, max_date_allowed
-
-    def _get_hashtag_freqs(self, dataset, author_id=None, start_date=None, end_date=None):
-        client = MongoClient(self.host, self.port)
-        self._validate_dataset(client, dataset)
-        database = client.get_database(dataset)
-        collection = database.get_collection('raw')
-        pipeline = [
-            {'$unwind': '$entities.hashtags'},
-            {'$group': {'_id': '$entities.hashtags.tag', 'count': {'$count': {}}}},
-            {'$sort': {'count': -1}}
-        ]
-        if author_id:
-            pipeline.insert(1, {'$match': {'author.id': author_id}})
-        if start_date:
-            pipeline.insert(1, {'$match': {'created_at': {'$gte': pd.Timestamp(start_date)}}})
-        if end_date:
-            pipeline.insert(1, {'$match': {'created_at': {'$lte': pd.Timestamp(end_date)}}})
-        available_hashtags_freqs = list(collection.aggregate(pipeline))
-        available_hashtags_freqs = [(x['_id'], int(x['count'])) for x in available_hashtags_freqs]
-        client.close()
-        return available_hashtags_freqs

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class ControlPanelComponent(RemissComponent):
     def __init__(self, plot_factory, state, name=None,
-                 max_wordcloud_words=50, wordcloud_width=800, wordcloud_height=400, match_wordcloud_width=False):
+                 wordcloud_width=800, wordcloud_height=400, match_wordcloud_width=False):
         super().__init__(name)
         self.state = state
         self.wordcloud_height = wordcloud_height
@@ -21,7 +21,6 @@ class ControlPanelComponent(RemissComponent):
         self.match_wordcloud_width = match_wordcloud_width
         self.plot_factory = plot_factory
         self.available_datasets = plot_factory.available_datasets
-        self.max_wordcloud_words = max_wordcloud_words
         self.date_picker = self.get_date_picker_component()
         self.wordcloud = self.get_wordcloud_component()
         self.filter_display = FilterDisplayComponent(plot_factory, state, name=f'filter-display-{self.name}')
@@ -55,8 +54,6 @@ class ControlPanelComponent(RemissComponent):
 
     def update_wordcloud(self, dataset, author_id, start_date, end_date):
         available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(dataset, author_id, start_date, end_date)
-        if self.max_wordcloud_words < len(available_hashtags_freqs):
-            available_hashtags_freqs = available_hashtags_freqs[:self.max_wordcloud_words]
         if available_hashtags_freqs:
             logger.debug(
                 f'Updating wordcloud for dataset {dataset}, {author_id}, {start_date}, {end_date} with {len(available_hashtags_freqs)} hashtags')
