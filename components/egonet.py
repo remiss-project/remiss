@@ -47,8 +47,6 @@ class EgonetComponent(RemissComponent):
         ], style={'height': '100%'})
 
     def update(self, dataset, user, start_date, end_date, hashtags, depth):
-
-
         logger.debug(f'Updating egonet with dataset {dataset}, user {user}, '
                      f'start date {start_date}, end date {end_date}, hashtag {hashtags}, depth {depth}')
         # Show egonet for the selected user
@@ -76,7 +74,7 @@ class EgonetComponent(RemissComponent):
         if dataset in self._figure_cache:
             return self._figure_cache[dataset]
         fig = self.plot_factory.plot_hidden_network(dataset, start_date=start_date, end_date=end_date,
-                                                    hashtag=hashtags)
+                                                    hashtags=hashtags)
         self._figure_cache[dataset] = fig
         return fig
 

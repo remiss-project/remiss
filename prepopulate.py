@@ -44,7 +44,7 @@ class Prepopulator:
 
     def generate_layout(self):
         self._execute_with_logging(
-            "propagation metrics and graphs",
+            "hidden network layout",
             self.propagation_factory.persist,
             self.available_datasets,
             "Error generating propagation metrics and graphs"
@@ -99,7 +99,7 @@ class Prepopulator:
         )
 
     def prepopulate(self):
-        logger.debug(f'Prepopulating')
+        logger.debug(f'Prepopulating {self.available_datasets} with {self.modules}')
         for module in self.modules:
             match module:
                 case 'layout':
@@ -132,4 +132,4 @@ def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
 
 if __name__ == '__main__':
     fire.Fire(run_prepopulator)
-    # run_prepopulator(available_datasets=['Openarms'], modules=['egonet', 'layout'], config_file='dev_config.yaml')
+    # run_prepopulator(modules=['egonet', 'layout'], config_file='dev_config.yaml')

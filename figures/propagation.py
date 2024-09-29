@@ -49,32 +49,26 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         return self.plot_user_graph(network, collection, layout, highlight_node_index=author_id_node_index)
 
-    def plot_hidden_network(self, collection, start_date=None, end_date=None, hashtag=None):
-        if self.egonet.threshold > 0:
-            hidden_network = self.egonet.get_hidden_network_backbone(collection, start_date, end_date, hashtag)
-        else:
-            hidden_network = self.egonet.get_hidden_network(collection, start_date, end_date, hashtag)
-        layout = self.get_hidden_network_layout(hidden_network, collection, start_date, end_date, hashtag)
-        return self.plot_user_graph(hidden_network, collection, layout=layout)
 
-    def get_hidden_network_layout(self, hidden_network, collection, start_date=None, end_date=None, hashtags=None):
-        # if start_date, end_date or hashtag are not none we need to recompute the layout
+    def plot_hidden_network(self, collection, start_date=None, end_date=None, hashtags=None):
+        # if start_date, end_date or hashtag are not none we need to recompute the graph and layout
         start_date, end_date = self._validate_dates(collection, start_date, end_date)
-        if start_date or end_date or hashtags:
-            layout = self.compute_filtered_layout(hidden_network, collection, start_date, end_date, hashtags)
-            return layout
-        else:
-            try:
-                layout = self._load_layout_from_mongodb(collection, 'hidden_network_layout')
-            except ValueError:
-                layout = self.compute_filtered_layout(hidden_network, collection, start_date, end_date, hashtags)
-            return layout
-
-    def compute_filtered_layout(self, hidden_network, collection, start_date=None, end_date=None, hashtags=None):
         if self.egonet.threshold > 0:
             hidden_network = self.egonet.get_hidden_network_backbone(collection, start_date, end_date, hashtags)
         else:
             hidden_network = self.egonet.get_hidden_network(collection, start_date, end_date, hashtags)
+
+        if start_date or end_date or hashtags:
+            layout = self.compute_layout(hidden_network)
+        else:
+            try:
+                layout = self._load_layout_from_mongodb(collection, 'hidden_network_layout')
+            except ValueError:
+                layout = self.compute_layout(hidden_network)
+
+        return self.plot_user_graph(hidden_network, collection, layout=layout)
+
+    def compute_filtered_layout(self, hidden_network, collection, start_date=None, end_date=None, hashtags=None):
         layout = self.compute_layout(hidden_network)
         layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
         return layout
@@ -146,47 +140,6 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         original_node_index = propagation_tree.vs.find(tweet_id=tweet_id).index
         return self.plot_user_graph(propagation_tree, dataset, highlight_node_index=original_node_index)
-
-    def plot_propagation_tree_old(self, dataset, tweet_id):
-        try:
-            propagation_tree = self.diffusion_metrics.get_propagation_tree(dataset, tweet_id)
-        except Exception as e:
-            logger.error(f'Error getting propagation tree: {e}. Recomputing')
-            propagation_tree = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
-        metadata = self.get_user_metadata(dataset)
-        metadata = metadata.reindex(propagation_tree.vs['author_id'])
-        metadata['User type'] = metadata['User type'].fillna('Unknown')
-
-        def user_hover(x):
-            username = x['username']
-            user_type = x['User type']
-            legitimacy = x['legitimacy'] if x['legitimacy'] else ''
-            reputation = x['reputation'] if x['reputation'] else ''
-            status = x['status'] if x['status'] else ''
-            hover_template = (f'Username: {username}<br>User type: {user_type}<br>'
-                              f'Legitimacy: {legitimacy}<br>Reputation: {reputation}<br>Status: {status}')
-            return hover_template
-
-        text = metadata.apply(user_hover, axis=1)
-
-        size = metadata['reputation']
-        # Add 1 offset and set 1 as minimum size
-        size = size + 1
-        size = size.fillna(1)
-
-        color = metadata['legitimacy'].copy()
-
-        tweet_index = propagation_tree.vs.find(tweet_id=tweet_id).index
-        color = color.to_list()
-        color[tweet_index] = self.node_highlight_color
-
-        # Available markers ['circle', 'circle-open', 'cross', 'diamond', 'diamond-open', 'square', 'square-open', 'x']
-        marker_map = {'Normal': 'circle', 'Suspect': 'cross', 'Politician': 'diamond', 'Suspect politician':
-            'square', 'Unknown': 'x'}
-        symbol = metadata.apply(lambda x: marker_map[x['User type']], axis=1)
-        # layout = self.get_hidden_network_layout(collection)
-
-        return self.plot_graph(propagation_tree, layout=None, text=text, size=size, color=color, symbol=symbol)
 
     def plot_size_over_time(self, dataset, tweet_id):
         try:
@@ -294,14 +247,7 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         return metadata
 
-    def plot_graph(self, graph, layout=None, symbol=None, size=None, color=None, text=None, normalize=True):
-        if layout is None:
-            if 'layout' not in graph.attributes():
-                layout = graph.layout(self.layout, dim=3)
-
-            else:
-                layout = graph['layout']
-
+    def plot_graph(self, graph, layout, symbol=None, size=None, color=None, text=None, normalize=True):
         if normalize:
             # apply logarithm on color and size if available
             if color is not None:
@@ -475,7 +421,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                 hidden_network = self.egonet.get_hidden_network_backbone(dataset)
             else:
                 hidden_network = self.egonet.get_hidden_network(dataset)
-            layout = self.get_hidden_network_layout(hidden_network, dataset)
+            layout = self.compute_filtered_layout(hidden_network, dataset)
             if not layout.empty:
                 self._persist_layout_to_mongodb(layout, dataset, 'hidden_network_layout')
             else:

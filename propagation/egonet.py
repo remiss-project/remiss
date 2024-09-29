@@ -147,7 +147,7 @@ class Egonet(BasePropagationMetrics):
                           'weight_norm': {'$divide': ['$references.weight', '$node_weight']},
                           }},
         ]
-        self._add_filters(references_pipeline, start_date, end_date, hashtags)
+        # self._add_filters(references_pipeline, start_date, end_date, hashtags)
         logger.debug('Computing references')
         start_time = time.time()
         schema = Schema({'source': str, 'target': str, 'weight': int, 'weight_inv': float, 'weight_norm': float})
