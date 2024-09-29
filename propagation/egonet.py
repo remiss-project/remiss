@@ -2,9 +2,7 @@ import logging
 import time
 
 import igraph as ig
-import numpy as np
 import pandas as pd
-from fontTools.subset import subset
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
 
@@ -14,12 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 class Egonet(BasePropagationMetrics):
-    def __init__(self, host='localhost', port=27017, threshold=0, delete_vertices=True,
-                 reference_types=('retweeted', 'quoted'), include_unknown_authors=False, max_edges=None):
+    def __init__(self, host='localhost', port=27017, delete_vertices=True,
+                 reference_types=('retweeted', 'quoted', 'reply_to'), include_unknown_authors=False):
         super().__init__(host, port, reference_types)
         self.include_unknown_authors = include_unknown_authors
-        self.max_edges = max_edges
-        self.threshold = threshold
         self.delete_vertices = delete_vertices
         self._hidden_network_cache = {}
         self.hidden_network_backbone_cache = {}
@@ -39,10 +35,6 @@ class Egonet(BasePropagationMetrics):
         node = hidden_network.vs.find(author_id=author_id)
         neighbours = hidden_network.neighborhood(node, order=depth)
         egonet = hidden_network.induced_subgraph(neighbours)
-        if self.max_edges and egonet.ecount() > self.max_edges:
-            logger.warning(f'Egonet for {author_id} has {egonet.ecount()} edges, reducing to {self.max_edges}')
-            egonet = self.compute_backbone(egonet, alpha=0, delete_vertices=self.delete_vertices,
-                                           max_edges=self.max_edges)
         logger.debug(f'Egonet computed in {time.time() - start_time} seconds')
         return egonet
 
@@ -57,26 +49,11 @@ class Egonet(BasePropagationMetrics):
 
         return network
 
-    def get_hidden_network_backbone(self, dataset, start_date=None, end_date=None, hashtags=None):
-        start_date, end_date = self._validate_dates(dataset, start_date, end_date)
-        if start_date or end_date or hashtags:
-            network = self._compute_hidden_network_backbone(dataset, start_date=start_date, end_date=end_date,
-                                                            hashtags=hashtags)
-        else:
-            if dataset not in self.hidden_network_backbone_cache:
-                self.hidden_network_backbone_cache[dataset] = self.load_hidden_network_backbone(dataset)
-            network = self.hidden_network_backbone_cache[dataset]
-
-        return network
-
     def load_hidden_network(self, dataset):
         return self._load_graph_from_mongodb(dataset, 'hidden_network')
 
-    def load_hidden_network_backbone(self, dataset):
-        return self._load_graph_from_mongodb(dataset, 'hidden_network_backbone')
-
     def _validate_dates(self, dataset, start_date, end_date):
-        dataset_start_date, dataset_end_date = self.get_datatset_data_range(dataset)
+        dataset_start_date, dataset_end_date = self.get_dataset_data_range(dataset)
         if start_date:
             start_date = pd.to_datetime(start_date).date()
         if end_date:
@@ -89,7 +66,7 @@ class Egonet(BasePropagationMetrics):
 
         return start_date, end_date
 
-    def get_datatset_data_range(self, dataset):
+    def get_dataset_data_range(self, dataset):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         collection = database.get_collection('raw')
@@ -97,12 +74,6 @@ class Egonet(BasePropagationMetrics):
         max_date_allowed = collection.find_one(sort=[('created_at', -1)])['created_at'].date()
         client.close()
         return min_date_allowed, max_date_allowed
-
-    def _compute_hidden_network_backbone(self, dataset, start_date=None, end_date=None, hashtags=None):
-        hidden_network = self.get_hidden_network(dataset, start_date=start_date, end_date=end_date, hashtags=hashtags)
-        backbone = self._simplify_graph(hidden_network)
-
-        return backbone
 
     def _get_authors(self, dataset, start_date=None, end_date=None, hashtags=None):
         client = MongoClient(self.host, self.port)
@@ -174,7 +145,8 @@ class Egonet(BasePropagationMetrics):
         # switch id by position (which will be the node id in the graph) and set it as index
         author_to_id = authors['author_id'].reset_index().set_index('author_id')
         # drop references if the author is not in the authors list
-        references = references[references['source'].isin(author_to_id.index) & references['target'].isin(author_to_id.index)]
+        references = references[
+            references['source'].isin(author_to_id.index) & references['target'].isin(author_to_id.index)]
         g = ig.Graph(directed=True)
         g.add_vertices(len(authors))
         g.vs['author_id'] = authors['author_id']
@@ -196,21 +168,12 @@ class Egonet(BasePropagationMetrics):
 
         return g
 
-    def _simplify_graph(self, network):
-        if network.vcount() == 0:
-            return network
-        network = self.compute_backbone(network, self.threshold, self.delete_vertices)
-
-        return network
-
     def persist(self, datasets):
         # Save to mongodb
         for dataset in datasets:
             hidden_network = self._compute_hidden_network(dataset)
-            hidden_network_backbone = self._simplify_graph(hidden_network)
 
             self._persist_graph_to_mongodb(hidden_network, dataset, 'hidden_network')
-            self._persist_graph_to_mongodb(hidden_network_backbone, dataset, 'hidden_network_backbone')
 
     def _persist_graph_to_mongodb(self, graph, dataset, collection_name):
         client = MongoClient(self.host, self.port)
@@ -245,24 +208,6 @@ class Egonet(BasePropagationMetrics):
         g.es['weight_norm'] = references['weight_norm']
 
         return g
-
-    @staticmethod
-    def compute_alphas(graph):
-        # Compute alpha for all edges (1 - weight_norm)^(degree_of_source_node - 1)
-        weights = np.array(graph.es['weight_norm'])
-        degrees = np.array([graph.degree(e[0]) for e in graph.get_edgelist()])
-        alphas = (1 - weights) ** (degrees - 1)
-        return alphas
-
-    @staticmethod
-    def compute_backbone(graph, alpha=0.05, delete_vertices=True, max_edges=None):
-        alphas = Egonet.compute_alphas(graph)
-        good = np.nonzero(alphas > alpha)[0]
-        if max_edges:
-            good = good[:max_edges]
-        backbone = graph.subgraph_edges(graph.es.select(good), delete_vertices=delete_vertices)
-
-        return backbone
 
     @staticmethod
     def _add_filters(pipeline, start_date, end_date, hashtags):

@@ -29,13 +29,17 @@ class PropagationPlotFactory(MongoPlotFactory):
                  available_datasets=None, small_size_multiplier=15, big_size_multiplier=50,
                  user_highlight_color='rgb(0, 0, 255)', max_edges=None):
         super().__init__(host, port, available_datasets)
+        self.max_edges = max_edges
         self.big_size_multiplier = big_size_multiplier
         self.small_size_multiplier = small_size_multiplier
         self.node_highlight_color = user_highlight_color
         self.layout = layout
         self.frequency = frequency
-        self.egonet = Egonet(reference_types=reference_types, host=host, port=port,
-                             threshold=threshold, delete_vertices=delete_vertices, max_edges=max_edges)
+        self.delete_vertices = delete_vertices
+        self.threshold = threshold
+        self._layout_cache = {}
+        self._backbone_cache = {}
+        self.egonet = Egonet(reference_types=reference_types, host=host, port=port)
 
         self.network_metrics = NetworkMetrics(host=host, port=port, reference_types=reference_types,
                                               frequency=frequency)
@@ -43,35 +47,70 @@ class PropagationPlotFactory(MongoPlotFactory):
         self.diffusion_metrics = DiffusionMetrics(host=host, port=port, reference_types=reference_types)
 
     def plot_egonet(self, collection, author_id, depth, start_date=None, end_date=None, hashtag=None):
-        network = self.egonet.get_egonet(collection, author_id, depth, start_date, end_date, hashtag)
-        layout = self.compute_layout(network)
-        author_id_node_index = network.vs.find(author_id=author_id).index
+        egonet = self.egonet.get_egonet(collection, author_id, depth, start_date, end_date, hashtag)
+        if self.max_edges is not None and egonet.ecount() > self.max_edges:
+            logger.warning(f'Egonet for {author_id} has {egonet.ecount()} edges, reducing to {self.max_edges}')
+            egonet = compute_backbone(egonet, threshold=0, delete_vertices=self.delete_vertices,
+                                      max_edges=self.max_edges)
+        layout = self.compute_layout(egonet)
+        author_id_node_index = egonet.vs.find(author_id=author_id).index
 
-        return self.plot_user_graph(network, collection, layout, highlight_node_index=author_id_node_index)
+        return self.plot_user_graph(egonet, collection, layout, highlight_node_index=author_id_node_index)
 
-
-    def plot_hidden_network(self, collection, start_date=None, end_date=None, hashtags=None):
+    def plot_hidden_network(self, dataset, start_date=None, end_date=None, hashtags=None):
         # if start_date, end_date or hashtag are not none we need to recompute the graph and layout
-        start_date, end_date = self._validate_dates(collection, start_date, end_date)
-        if self.egonet.threshold > 0:
-            hidden_network = self.egonet.get_hidden_network_backbone(collection, start_date, end_date, hashtags)
-        else:
-            hidden_network = self.egonet.get_hidden_network(collection, start_date, end_date, hashtags)
-
+        start_date, end_date = self._validate_dates(dataset, start_date, end_date)
         if start_date or end_date or hashtags:
+            hidden_network = self._compute_hidden_network_backbone(dataset, start_date, end_date, hashtags)
+
             layout = self.compute_layout(hidden_network)
         else:
+            # Load hidden network from db
+            if self.threshold > 0:
+                hidden_network = self._get_backbone(dataset)
+            else:
+                hidden_network = self.egonet.get_hidden_network(dataset)
+            layout = self._get_layout(dataset)
+
+        return self.plot_user_graph(hidden_network, dataset, layout)
+
+    def _get_backbone(self, dataset):
+        if dataset not in self._backbone_cache:
             try:
-                layout = self._load_layout_from_mongodb(collection, 'hidden_network_layout')
-            except ValueError:
+                backbone = self._load_graph_from_mongodb(dataset, 'hidden_network_backbone')
+            except Exception as e:
+                logger.error(f'Error loading hidden network backbone: {e}. Recomputing')
+                backbone = self._compute_hidden_network_backbone(dataset)
+
+            self._backbone_cache[dataset] = backbone
+        return self._backbone_cache[dataset]
+
+    def _get_layout(self, dataset):
+        if dataset not in self._layout_cache:
+            try:
+                layout = self._load_layout_from_mongodb(dataset, 'hidden_network_layout')
+            except Exception as e:
+                logger.error(f'Error loading hidden network layout: {e}. Recomputing')
+                if self.threshold > 0:
+                    hidden_network = self._get_backbone(dataset)
+                else:
+                    hidden_network = self.egonet.get_hidden_network(dataset)
                 layout = self.compute_layout(hidden_network)
+                self._persist_layout_to_mongodb(layout, dataset, 'hidden_network_layout')
 
-        return self.plot_user_graph(hidden_network, collection, layout=layout)
+            self._layout_cache[dataset] = layout
+        return self._layout_cache[dataset]
 
-    def compute_filtered_layout(self, hidden_network, collection, start_date=None, end_date=None, hashtags=None):
-        layout = self.compute_layout(hidden_network)
-        layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
-        return layout
+    def _compute_hidden_network_backbone(self, dataset, start_date=None, end_date=None, hashtags=None):
+        hidden_network = self.egonet.get_hidden_network(dataset, start_date=start_date, end_date=end_date,
+                                                        hashtags=hashtags)
+        if hidden_network.vcount() == 0:
+            return hidden_network
+
+        backbone = compute_backbone(hidden_network, threshold=self.threshold, delete_vertices=self.delete_vertices,
+                                    max_edges=self.max_edges)
+
+        return backbone
 
     def _validate_dates(self, dataset, start_date, end_date):
         dataset_start_date, dataset_end_date = self.get_date_range(dataset)
@@ -95,7 +134,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         logger.debug(f'Layout computed in {time.time() - start_time} seconds')
         return layout
 
-    def plot_user_graph(self, user_graph, collection, layout=None, highlight_node_index=None):
+    def plot_user_graph(self, user_graph, collection, layout, highlight_node_index=None):
         metadata = self.get_user_metadata(collection)
         metadata = metadata.reindex(user_graph.vs['author_id'])
         metadata['User type'] = metadata['User type'].fillna('Unknown')
@@ -127,7 +166,6 @@ class PropagationPlotFactory(MongoPlotFactory):
         marker_map = {'Normal': 'circle', 'Suspect': 'cross', 'Politician': 'diamond', 'Suspect politician':
             'square', 'Unknown': 'x'}
         symbol = metadata.apply(lambda x: marker_map[x['User type']], axis=1)
-        # layout = self.get_hidden_network_layout(collection)
 
         return self.plot_graph(user_graph, layout=layout, text=text, size=size, color=color, symbol=symbol)
 
@@ -138,8 +176,18 @@ class PropagationPlotFactory(MongoPlotFactory):
             logger.error(f'Error getting propagation tree: {e}. Recomputing')
             propagation_tree = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
 
-        original_node_index = propagation_tree.vs.find(tweet_id=tweet_id).index
-        return self.plot_user_graph(propagation_tree, dataset, highlight_node_index=original_node_index)
+        if self.max_edges is not None and propagation_tree.ecount() > self.max_edges:
+            # sample edges
+            edges = np.random.choice(propagation_tree.ecount(), self.max_edges, replace=False)
+            propagation_tree = propagation_tree.subgraph_edges(edges)
+        try:
+            original_node_index = propagation_tree.vs.find(tweet_id=tweet_id).index
+        except ValueError:
+            logger.error(f'Tweet {tweet_id} not found in propagation tree')
+            original_node_index = None
+
+        layout = self.compute_layout(propagation_tree)
+        return self.plot_user_graph(propagation_tree, dataset, layout, highlight_node_index=original_node_index)
 
     def plot_size_over_time(self, dataset, tweet_id):
         try:
@@ -148,7 +196,7 @@ class PropagationPlotFactory(MongoPlotFactory):
             logger.error(f'Error getting size over time: {e}. Recomputing')
             graph = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
             size_over_time = self.diffusion_metrics.compute_size_over_time(graph)
-        return self.plot_time_series(size_over_time, 'Size over time', 'Time', 'Size')
+        return plot_time_series(size_over_time, 'Size over time', 'Time', 'Size')
 
     def plot_depth_over_time(self, dataset, tweet_id):
         try:
@@ -157,7 +205,7 @@ class PropagationPlotFactory(MongoPlotFactory):
             logger.error(f'Error getting depth over time: {e}. Recomputing')
             graph = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
             depth_over_time = self.diffusion_metrics.compute_depth_over_time(graph)
-        return self.plot_time_series(depth_over_time, 'Depth over time', 'Time', 'Depth')
+        return plot_time_series(depth_over_time, 'Depth over time', 'Time', 'Depth')
 
     def plot_max_breadth_over_time(self, dataset, tweet_id):
         try:
@@ -166,7 +214,7 @@ class PropagationPlotFactory(MongoPlotFactory):
             logger.error(f'Error getting max breadth over time: {e}. Recomputing')
             graph = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
             max_breadth_over_time = self.diffusion_metrics.compute_max_breadth_over_time(graph)
-        return self.plot_time_series(max_breadth_over_time, 'Max breadth over time', 'Time', 'Max breadth')
+        return plot_time_series(max_breadth_over_time, 'Max breadth over time', 'Time', 'Max breadth')
 
     def plot_structural_virality_over_time(self, dataset, tweet_id):
         try:
@@ -175,8 +223,8 @@ class PropagationPlotFactory(MongoPlotFactory):
             logger.error(f'Error getting structural virality over time: {e}. Recomputing')
             graph = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
             structural_virality_over_time = self.diffusion_metrics.compute_structural_virality_over_time(graph)
-        return self.plot_time_series(structural_virality_over_time, 'Structural virality over time', 'Time',
-                                     'Structural virality')
+        return plot_time_series(structural_virality_over_time, 'Structural virality over time', 'Time',
+                                'Structural virality')
 
     def plot_size_cascade_ccdf(self, dataset):
         try:
@@ -184,7 +232,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         except Exception as e:
             logger.error(f'Error getting size cascade CCDF: {e}. Recomputing')
             size_cascade = self.diffusion_metrics.compute_size_cascade_ccdf(dataset)
-        return self.plot_time_series(size_cascade, 'Size cascade CCDF', 'Size', 'CCDF')
+        return plot_time_series(size_cascade, 'Size cascade CCDF', 'Size', 'CCDF')
 
     def plot_cascade_count_over_time(self, dataset):
         try:
@@ -192,7 +240,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         except Exception as e:
             logger.error(f'Error getting cascade count over time: {e}. Recomputing')
             cascade_count_over_time = self.diffusion_metrics.compute_cascade_count_over_time(dataset)
-        return self.plot_time_series(cascade_count_over_time, 'Cascade count over time', 'Time', 'Cascade count')
+        return plot_time_series(cascade_count_over_time, 'Cascade count over time', 'Time', 'Cascade count')
 
     def get_user_metadata(self, dataset, author_ids=None):
         client = MongoClient(self.host, self.port)
@@ -269,7 +317,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         logger.debug('Computing plot for network')
         logger.debug(graph.summary())
         start_time = time.time()
-        edge_positions = self._get_edge_positions(graph, layout)
+        edge_positions = get_edge_positions(graph, layout)
 
         edge_trace = go.Scatter3d(x=edge_positions['x'],
                                   y=edge_positions['y'],
@@ -383,50 +431,23 @@ class PropagationPlotFactory(MongoPlotFactory):
         logger.debug(f'Graph plot computed in {time.time() - start_time} seconds')
         return fig
 
-    def _get_edge_positions(self, graph, layout):
-        # edges = pd.DataFrame(graph.get_edgelist(), columns=['source', 'target'])
-        # edge_positions = layout.iloc[edges.values.flatten()].reset_index(drop=True)
-        # nones = edge_positions[2::3].assign(x=None, y=None, z=None)
-        # edge_positions = pd.concat([edge_positions, nones]).sort_index().reset_index(drop=True)
-        if isinstance(layout, Layout):
-            layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
-        layout = list(layout.to_records(index=False))
-        x = []
-        y = []
-        z = []
-        for edges in graph.get_edgelist():
-            x += [layout[edges[0]][0], layout[edges[1]][0], None]  # x-coordinates of edge ends
-            y += [layout[edges[0]][1], layout[edges[1]][1], None]
-            z += [layout[edges[0]][2], layout[edges[1]][2], None]
-
-        edge_positions = pd.DataFrame({'x': x, 'y': y, 'z': z})
-        return edge_positions
-
-    def plot_time_series(self, data, title, x_label, y_label):
-        if isinstance(data, pd.Series):
-            data = data.to_frame()
-        fig = px.line(data, x=data.index, y=data.columns)
-        fig.update_xaxes(title_text=x_label)
-        fig.update_yaxes(title_text=y_label)
-        # fig.update_layout(title=title)
-        return fig
-
     def get_cascade_size(self, dataset, tweet_id):
         return self.diffusion_metrics.get_cascade_size(dataset, tweet_id)
 
     def persist(self, datasets):
-        # Save layouts, cccd and count over time to mongodb
+        # Save layouts and backbone if any
         for dataset in datasets:
-            if self.egonet.threshold > 0:
-                hidden_network = self.egonet.get_hidden_network_backbone(dataset)
+            if self.threshold > 0:
+                hidden_network = self._compute_hidden_network_backbone(dataset)
+                self._persist_graph_to_mongodb(hidden_network, dataset, 'hidden_network_backbone')
             else:
                 hidden_network = self.egonet.get_hidden_network(dataset)
-            layout = self.compute_filtered_layout(hidden_network, dataset)
+
+            layout = self.compute_layout(hidden_network)
             if not layout.empty:
                 self._persist_layout_to_mongodb(layout, dataset, 'hidden_network_layout')
             else:
                 logger.error(f'Empty layout for dataset {dataset}')
-
 
     def _persist_layout_to_mongodb(self, layout, dataset, collection_name):
         client = MongoClient(self.host, self.port)
@@ -448,16 +469,53 @@ class PropagationPlotFactory(MongoPlotFactory):
         client.close()
         return layout
 
-    def prepopulate(self):
-        logger.debug('Prepopulating propagation factory')
-        self.persist(self.available_datasets)
-        logger.debug('Prepopulating egonet')
-        self.egonet.persist(self.available_datasets)
-        logger.debug('Prepopulating network metrics')
-        self.network_metrics.persist(self.available_datasets)
-        logger.debug('Prepopulating diffusion metrics')
-        self.diffusion_metrics.persist(self.available_datasets)
-        logger.debug('Done prepopulating propagation factory')
+
+def compute_alphas(graph):
+    # Compute alpha for all edges (1 - weight_norm)^(degree_of_source_node - 1)
+    weights = np.array(graph.es['weight_norm'])
+    degrees = np.array([graph.degree(e[0]) for e in graph.get_edgelist()])
+    alphas = (1 - weights) ** (degrees - 1)
+    return alphas
+
+
+def compute_backbone(graph, threshold=0.05, delete_vertices=True, max_edges=None):
+    alphas = compute_alphas(graph)
+    good = np.nonzero(alphas > threshold)[0]
+    if max_edges:
+        good = good[:max_edges]
+    backbone = graph.subgraph_edges(graph.es.select(good), delete_vertices=delete_vertices)
+
+    return backbone
+
+
+def get_edge_positions(graph, layout):
+    # edges = pd.DataFrame(graph.get_edgelist(), columns=['source', 'target'])
+    # edge_positions = layout.iloc[edges.values.flatten()].reset_index(drop=True)
+    # nones = edge_positions[2::3].assign(x=None, y=None, z=None)
+    # edge_positions = pd.concat([edge_positions, nones]).sort_index().reset_index(drop=True)
+    if isinstance(layout, Layout):
+        layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
+    layout = list(layout.to_records(index=False))
+    x = []
+    y = []
+    z = []
+    for edges in graph.get_edgelist():
+        x += [layout[edges[0]][0], layout[edges[1]][0], None]  # x-coordinates of edge ends
+        y += [layout[edges[0]][1], layout[edges[1]][1], None]
+        z += [layout[edges[0]][2], layout[edges[1]][2], None]
+
+    edge_positions = pd.DataFrame({'x': x, 'y': y, 'z': z})
+    return edge_positions
+
+
+def plot_time_series(data, title, x_label, y_label):
+    if isinstance(data, pd.Series):
+        data = data.to_frame()
+    fig = px.line(data, x=data.index, y=data.columns)
+    fig.update_xaxes(title_text=x_label)
+    fig.update_yaxes(title_text=y_label)
+    # fig.update_layout(title=title)
+    return fig
 
 
 def transform_user_type(x):

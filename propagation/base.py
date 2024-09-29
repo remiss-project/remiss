@@ -2,7 +2,7 @@ from abc import ABC
 
 
 class BasePropagationMetrics(ABC):
-    def __init__(self, host='localhost', port=27017, reference_types=('retweeted', 'quoted')):
+    def __init__(self, host='localhost', port=27017, reference_types=('retweeted', 'quoted', 'replied_to')):
         self.reference_types = reference_types
         self.host = host
         self.port = port

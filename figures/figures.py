@@ -1,6 +1,7 @@
 import logging
 from abc import ABC
 
+import igraph as ig
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
 
@@ -16,7 +17,6 @@ class MongoPlotFactory(ABC):
         self.port = port
         self._available_datasets = available_datasets
         self._min_max_dates = {}
-
 
     def _validate_dataset(self, client, dataset):
         if dataset not in client.list_database_names():
@@ -77,3 +77,37 @@ class MongoPlotFactory(ABC):
         min_date_allowed = collection.find_one(sort=[('created_at', 1)])['created_at'].date()
         max_date_allowed = collection.find_one(sort=[('created_at', -1)])['created_at'].date()
         return min_date_allowed, max_date_allowed
+
+    def _persist_graph_to_mongodb(self, graph, dataset, collection_name):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection(f'{collection_name}_edges')
+        collection.drop()
+        collection.insert_many([{'source': e.source,
+                                 'target': e.target,
+                                 'weight': int(e['weight']),
+                                 'weight_inv': float(e['weight_inv']),
+                                 'weight_norm': float(e['weight_norm'])}
+                                for e in graph.es])
+        collection = database.get_collection(f'{collection_name}_vertices')
+        collection.drop()
+        collection.insert_many([{'author_id': v['author_id']} for v in graph.vs])
+        client.close()
+
+    def _load_graph_from_mongodb(self, dataset, collection_name):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection(f'{collection_name}_edges')
+        references = collection.aggregate_pandas_all([])
+        collection = database.get_collection(f'{collection_name}_vertices')
+        authors = collection.aggregate_pandas_all([])
+        client.close()
+        g = ig.Graph(directed=True)
+        g.add_vertices(len(authors))
+        g.vs['author_id'] = authors['author_id']
+        g.add_edges(references[['source', 'target']].to_records(index=False).tolist())
+        g.es['weight'] = references['weight']
+        g.es['weight_inv'] = references['weight_inv']
+        g.es['weight_norm'] = references['weight_norm']
+
+        return g

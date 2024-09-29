@@ -117,7 +117,7 @@ class PropagationComponent(RemissComponent):
                 return {}, {}, {}, {}, {}, False
 
         except Exception as e:
-            logger.debug(e)
+            logger.debug(f'Error updating propagation plots: {e}')
             return {}, {}, {}, {}, {}, False
 
     def callbacks(self, app):

@@ -49,6 +49,7 @@ class EgonetComponent(RemissComponent):
     def update(self, dataset, user, start_date, end_date, hashtags, depth):
         logger.debug(f'Updating egonet with dataset {dataset}, user {user}, '
                      f'start date {start_date}, end date {end_date}, hashtag {hashtags}, depth {depth}')
+
         # Show egonet for the selected user
         try:
             fig = self.plot_factory.plot_egonet(dataset, user, depth, start_date, end_date, hashtags)
