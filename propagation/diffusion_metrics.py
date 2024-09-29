@@ -370,8 +370,12 @@ class DiffusionMetrics(BasePropagationMetrics):
 
     def persist_diffusion_static_plots(self, datasets):
         for dataset in datasets:
+            start_time = datetime.datetime.now()
+            logger.info(f'Persisting diffusion static plots for {dataset}')
             self._persist_plot_size_cascade_ccdf_to_mongodb(dataset)
             self._persist_plot_cascade_count_over_time_to_mongodb(dataset)
+            logger.info(f'Finished persisting diffusion static plots for {dataset}. '
+                        f'Time elapsed: {datetime.datetime.now() - start_time}')
 
     def _persist_conversation_metrics(self, dataset, cascade_id):
         try:
