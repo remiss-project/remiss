@@ -3,6 +3,7 @@ import logging
 import fire
 from pyaml_env import parse_config
 
+from figures.control import ControlPlotFactory
 from figures.propagation import PropagationPlotFactory
 from propagation import Egonet, NetworkMetrics, DiffusionMetrics
 from propagation.histogram import Histogram
@@ -28,6 +29,9 @@ class Prepopulator:
         self.propagation_factory = PropagationPlotFactory(host=config['mongodb']['host'],
                                                           port=config['mongodb']['port'],
                                                           available_datasets=config['available_datasets'])
+        self.control_plot_factory = ControlPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                                       available_datasets=config['available_datasets'],
+                                                       max_wordcloud_words=config['wordcloud']['max_words'])
         self.available_datasets = config['available_datasets'] if available_datasets is None else available_datasets
 
     def _execute_with_logging(self, metric_type, persist_method, available_datasets, error_message):
@@ -86,6 +90,14 @@ class Prepopulator:
             "Error generating histograms"
         )
 
+    def generate_wordcloud_hashtag_freqs(self):
+        self._execute_with_logging(
+            "wordcloud hashtag frequencies",
+            self.control_plot_factory.persist,
+            self.available_datasets,
+            "Error generating wordcloud hashtag frequencies"
+        )
+
     def prepopulate(self):
         logger.debug(f'Prepopulating')
         for module in self.modules:
@@ -102,6 +114,8 @@ class Prepopulator:
                     self.generate_egonet_metrics()
                 case 'histogram':
                     self.generate_histograms()
+                case 'wordcloud':
+                    self.generate_wordcloud_hashtag_freqs()
                 case _:
                     raise ValueError(f"Invalid metric: {module}")
         logger.debug('All metrics and graphs prepopulated')
