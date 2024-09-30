@@ -1,5 +1,6 @@
 import random
 import unittest
+from datetime import timezone
 
 import igraph as ig
 import numpy as np
@@ -8,6 +9,7 @@ from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
 
 from figures.propagation import PropagationPlotFactory
+from propagation import Egonet
 
 patch_all()
 
@@ -303,9 +305,70 @@ class PropagationFactoryTestCase(unittest.TestCase):
 
         # fig.show()
 
+    def test_yet_another_prop(self):
+        self.test_tweet_id = '1167074391315890176'
+        egonet = Egonet()
+        hidden_network = egonet.get_hidden_network('test_dataset_2')
+        references = self.propagation_factory.diffusion_metrics.get_references('test_dataset_2', self.test_tweet_id)
 
+        vertices = self.propagation_factory.diffusion_metrics._get_vertices_from_edges(references)
+        vertices = vertices[vertices['type'] == 'retweeted']
+        # Add original tweet to vertices
+        original_tweet = self.propagation_factory.diffusion_metrics.get_tweet('test_dataset_2', self.test_tweet_id)
+        original_tweet = {'author_id': original_tweet['author']['id'],
+                          'tweet_id': original_tweet['id'],
+                          'username': original_tweet['author']['username'],
+                          'text': original_tweet['text'],
+                          'created_at': original_tweet['created_at'].replace(tzinfo=timezone.utc),
+                          'type': 'original'}
+        original_tweet = pd.DataFrame([original_tweet])
 
+        vertices = pd.concat([original_tweet, vertices], ignore_index=True)
 
+        vertices = vertices.drop_duplicates(subset='author_id')
+
+        author_ids = vertices['author_id'].unique()
+        subgraph = hidden_network.subgraph(hidden_network.vs.select(author_id_in=author_ids))
+        vertices = vertices.set_index('author_id')
+        vertices = vertices.loc[subgraph.vs['author_id']]
+        subgraph.vs['tweet_id'] = vertices['tweet_id']
+        subgraph.vs['username'] = vertices['username']
+        subgraph.vs['text'] = vertices['text']
+        subgraph.vs['created_at'] = vertices['created_at']
+        subgraph.vs['type'] = vertices['type']
+
+        # Iterate over nodes to leave just a single edge between each pair of nodes
+        for v in subgraph.vs:
+            neighbors = set(subgraph.neighbors(v, mode='in'))
+            # leave the edge that leads to the node with the latest tweet in terms of created_at
+            latest_neighbor = max(neighbors, key=lambda x: subgraph.vs[x]['created_at'])
+            neighbors_to_delete = neighbors - {latest_neighbor}
+            edges_to_delete = subgraph.get_eids([(n, v.index) for n in neighbors_to_delete])
+            subgraph.delete_edges(edges_to_delete)
+
+        original_tweet_index = subgraph.vs.find(tweet_id=self.test_tweet_id).index
+        # Link the original tweet to each graph connected component
+        for component in subgraph.connected_components(mode='weak'):
+            # If the original tweet is not in the component, add it liked to the earliest tweet in the component
+            if original_tweet_index not in component:
+                earliest_tweet = min(component, key=lambda x: subgraph.vs[x]['created_at'])
+                subgraph.add_edge(original_tweet_index, earliest_tweet)
+        layout = subgraph.layout('fr', dim=3)
+
+        size = np.array([10 if v['type'] == 'original' else 3 for v in subgraph.vs])
+        color = ['blue' if v['type'] == 'original' else 'red' for v in subgraph.vs]
+
+        fig = self.propagation_factory.plot_graph(subgraph,
+                                                  layout=layout,
+                                                  text=subgraph.vs['username'],
+                                                  color=color,
+                                                  size=size,
+                                                  )
+
+        fig.show()
+        shortest_paths = pd.Series(subgraph.as_undirected().shortest_paths_dijkstra(source=original_tweet_index)[0])
+        shortest_paths = shortest_paths.replace(float('inf'), pd.NA)
+        print(shortest_paths.max())
 
 
 if __name__ == '__main__':

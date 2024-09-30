@@ -4,7 +4,7 @@ mongodb:
 cache_dir:
 graph_layout: fruchterman_reingold
 graph_simplification:
-  threshold: 0.95
+  threshold: 0.3
 available_datasets:
   - test_dataset_2
   - test_dataset_3

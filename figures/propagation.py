@@ -131,6 +131,7 @@ class PropagationPlotFactory(MongoPlotFactory):
             f'Computing {self.layout} layout for graph {network.vcount()} vertices and {network.ecount()} edges')
         start_time = time.time()
         layout = network.layout(self.layout, dim=3)
+        layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
         logger.debug(f'Layout computed in {time.time() - start_time} seconds')
         return layout
 
@@ -483,6 +484,7 @@ def compute_backbone(graph, threshold=0.05, delete_vertices=True, max_edges=None
     good = np.nonzero(alphas > threshold)[0]
     if max_edges:
         good = good[:max_edges]
+    logger.debug(f'Pruning {graph.ecount() - len(good)}  edges from {graph.ecount()}: {len(good)} edges remaining')
     backbone = graph.subgraph_edges(graph.es.select(good), delete_vertices=delete_vertices)
 
     return backbone

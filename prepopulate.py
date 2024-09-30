@@ -24,11 +24,12 @@ class Prepopulator:
                                               reference_types=config['reference_types'])
         self.egonet = Egonet(host=config['mongodb']['host'], port=config['mongodb']['port'],
                              reference_types=config['reference_types'],
-                             threshold=config['graph_simplification']['threshold'])
+                             )
         self.histogram = Histogram(host=config['mongodb']['host'], port=config['mongodb']['port'])
         self.propagation_factory = PropagationPlotFactory(host=config['mongodb']['host'],
                                                           port=config['mongodb']['port'],
-                                                          available_datasets=config['available_datasets'])
+                                                          available_datasets=config['available_datasets'],
+                                                          threshold=config['graph_simplification']['threshold'])
         self.control_plot_factory = ControlPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                                        available_datasets=config['available_datasets'],
                                                        max_wordcloud_words=config['wordcloud']['max_words'])
@@ -131,5 +132,5 @@ def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
 
 
 if __name__ == '__main__':
-    fire.Fire(run_prepopulator)
-    # run_prepopulator(modules=['egonet', 'layout'], config_file='dev_config.yaml')
+    # fire.Fire(run_prepopulator)
+    run_prepopulator(modules=['egonet', 'layout'], config_file='dev_config.yaml')
