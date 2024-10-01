@@ -8,14 +8,15 @@ from pandas import Timestamp
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
 
-from propagation import DiffusionMetrics
+from propagation import DiffusionMetrics, Egonet
 
 patch_all()
 
 
 class DiffusionMetricsTestCase(unittest.TestCase):
     def setUp(self):
-        self.diffusion_metrics = DiffusionMetrics()
+        self.egonet = Egonet()
+        self.diffusion_metrics = DiffusionMetrics(egonet=self.egonet)
         self.test_dataset = 'test_dataset_2'
         self.tmp_dataset = 'tmp_dataset'  # str(uuid.uuid4().hex)
         self.test_tweet_id = '1167074391315890176'

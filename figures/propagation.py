@@ -44,7 +44,8 @@ class PropagationPlotFactory(MongoPlotFactory):
         self.network_metrics = NetworkMetrics(host=host, port=port, reference_types=reference_types,
                                               frequency=frequency)
 
-        self.diffusion_metrics = DiffusionMetrics(host=host, port=port, reference_types=reference_types)
+        self.diffusion_metrics = DiffusionMetrics(egonet=self.egonet, host=host, port=port,
+                                                  reference_types=reference_types)
 
     def plot_egonet(self, collection, author_id, depth, start_date=None, end_date=None, hashtag=None):
         egonet = self.egonet.get_egonet(collection, author_id, depth, start_date, end_date, hashtag)

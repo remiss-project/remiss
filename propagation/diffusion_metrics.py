@@ -19,9 +19,11 @@ logger = logging.getLogger(__name__)
 
 class DiffusionMetrics(BasePropagationMetrics):
 
-    def __init__(self, host='localhost', port=27017, reference_types=('retweeted', 'quoted', 'replied_to'), n_jobs=-2):
+    def __init__(self, egonet, host='localhost', port=27017, reference_types=('retweeted', 'quoted', 'replied_to'),
+                 n_jobs=-2):
         super().__init__(host, port, reference_types)
         self.n_jobs = n_jobs
+        self.egonet = egonet
 
     def load_conversation_data(self, dataset, cascade_id):
         client = MongoClient(self.host, self.port)
@@ -68,14 +70,67 @@ class DiffusionMetrics(BasePropagationMetrics):
         return structural_virality_over_time
 
     def compute_propagation_tree(self, dataset, tweet_id):
-        references = self.get_references(dataset, tweet_id)
-        if references.empty:
-            vertices = self._get_vertex_from_tweet(dataset, tweet_id)
-        else:
-            vertices = self._get_vertices_from_edges(references)
-        graph = self._get_graph(vertices, references)
 
-        return graph
+        hidden_network = self.egonet.get_hidden_network(dataset)
+        references = self.get_references(dataset, tweet_id)
+
+        vertices = self._get_vertices_from_edges(references)
+        vertices = vertices[vertices['type'] == 'retweeted']
+        # Add original tweet to vertices
+        original_tweet = self.get_tweet(dataset, tweet_id)
+        original_tweet = {'author_id': original_tweet['author']['id'],
+                          'tweet_id': original_tweet['id'],
+                          'username': original_tweet['author']['username'],
+                          'text': original_tweet['text'],
+                          'created_at': original_tweet['created_at'].replace(tzinfo=datetime.timezone.utc),
+                          'type': 'original'}
+        original_tweet = pd.DataFrame([original_tweet])
+
+        vertices = pd.concat([original_tweet, vertices], ignore_index=True)
+
+        vertices = vertices.drop_duplicates(subset='author_id')
+
+        author_ids = vertices['author_id'].unique()
+        subgraph = hidden_network.subgraph(hidden_network.vs.select(author_id_in=author_ids))
+        vertices = vertices.set_index('author_id')
+        vertices = vertices.loc[subgraph.vs['author_id']]
+        subgraph.vs['tweet_id'] = vertices['tweet_id'].to_list()
+        subgraph.vs['username'] = vertices['username'].to_list()
+        subgraph.vs['text'] = vertices['text'].to_list()
+        subgraph.vs['created_at'] = vertices['created_at'].to_list()
+        subgraph.vs['type'] = vertices['type'].to_list()
+
+        # Iterate over nodes to leave just a single edge between each pair of nodes
+        for v in subgraph.vs:
+            if v['type'] == 'retweeted':
+                neighbors = set(subgraph.neighbors(v, mode='in'))
+                # leave the edge that leads to the node with the latest tweet in terms of created_at
+                latest_neighbor = max(neighbors, key=lambda x: subgraph.vs[x]['created_at'])
+                neighbors_to_delete = neighbors - {latest_neighbor}
+                edges_to_delete = subgraph.get_eids([(n, v.index) for n in neighbors_to_delete])
+                subgraph.delete_edges(edges_to_delete)
+            elif v['type'] in {'quoted', 'replied_to'}:
+                # Pick from references since for quoted and replied_to tweets, the referenced tweet is correct
+                referenced_tweet_id = references.loc[references['target'] == v['tweet_id'], 'source'].values[0]
+                referenced_tweet_index = subgraph.vs.find(tweet_id=referenced_tweet_id).index
+                neighbors = set(subgraph.neighbors(v, mode='in'))
+                # leave the edge that leads to the referenced tweet
+                if referenced_tweet_index in neighbors:
+                    neighbors_to_delete = neighbors - {referenced_tweet_index}
+                    edges_to_delete = subgraph.get_eids([(n, v.index) for n in neighbors_to_delete])
+                    subgraph.delete_edges(edges_to_delete)
+
+
+
+        original_tweet_index = subgraph.vs.find(tweet_id=tweet_id).index
+        # Link the original tweet to each graph connected component
+        for component in subgraph.connected_components(mode='weak'):
+            # If the original tweet is not in the component, add it liked to the earliest tweet in the component
+            if original_tweet_index not in component:
+                earliest_tweet = min(component, key=lambda x: subgraph.vs[x]['created_at'])
+                subgraph.add_edge(original_tweet_index, earliest_tweet)
+
+        return subgraph
 
     def get_references(self, dataset, tweet_id):
         client = MongoClient(self.host, self.port)
@@ -89,6 +144,7 @@ class DiffusionMetrics(BasePropagationMetrics):
             targets_pipeline = [
                 {'$match': {'referenced_tweets.id': {'$in': sources}}},
                 {'$unwind': '$referenced_tweets'},
+                {'$match': {'$expr': {'$ne': ['$referenced_tweets.id', '$id']}}},
                 {'$project': {'_id': 0, 'source': '$referenced_tweets.id', 'target': '$id',
                               'source_author_id': '$referenced_tweets.author.id',
                               'source_username': '$referenced_tweets.author.username',
