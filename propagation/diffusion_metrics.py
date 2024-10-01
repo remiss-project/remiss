@@ -122,8 +122,12 @@ class DiffusionMetrics(BasePropagationMetrics):
                     subgraph.delete_edges(edges_to_delete)
 
 
-
-        original_tweet_index = subgraph.vs.find(tweet_id=tweet_id).index
+        try:
+            original_tweet_index = subgraph.vs.find(tweet_id=tweet_id).index
+        except ValueError:
+            # Add the original tweet to the graph
+            subgraph.add_vertex(**original_tweet)
+            original_tweet_index = subgraph.vcount() - 1
         # Link the original tweet to each graph connected component
         for component in subgraph.connected_components(mode='weak'):
             # If the original tweet is not in the component, add it liked to the earliest tweet in the component
