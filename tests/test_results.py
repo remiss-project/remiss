@@ -13,7 +13,7 @@ from pandas import Timestamp
 from pymongo import MongoClient
 from tqdm import tqdm
 
-from propagation.results import Results
+from results import Results
 
 
 class ResultsTestCase(unittest.TestCase):
@@ -21,22 +21,17 @@ class ResultsTestCase(unittest.TestCase):
         #   - MENA_Agressions
         #   - MENA_Ajudes
         #   - Openarms
-        output_dir = Path('../results/final')
+        output_dir = Path('../results/')
         output_dir.mkdir(parents=True, exist_ok=True)
         datasets = ['MENA_Agressions', 'MENA_Ajudes', 'Openarms']
-        self.results = Results(datasets=datasets, host='http://srvinv02.esade.es', port=27017,
-                               output_dir=output_dir, top_n=3)
+        self.results = Results(datasets=datasets, host='mongodb://srvinv02.esade.es', port=27017,
+                               output_dir=output_dir, top_n=1)
         self.test_dataset = 'test_dataset_2'
-        self.tmp_dataset = str(uuid.uuid4().hex)
         self.test_tweet_id = '1167074391315890176'
         self.missing_tweet_id = '1077146799692021761'
 
-    def tearDown(self):
-        client = MongoClient('localhost', 27017)
-        client.drop_database(self.tmp_dataset)
-
     def test_plot_propagation_tree(self):
-        self.results.plot_propagation_tree()
+        self.results.plot_propagation_trees()
         # check the plot is there
         files = list(self.results.output_dir.glob('propagation_tree*.png'))
         self.assertTrue(files)

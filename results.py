@@ -21,67 +21,110 @@ logger.setLevel(logging.DEBUG)
 
 class Results:
 
-    def __init__(self, datasets, host='localhost', port=27017, output_dir='./results', top_n=10, egonet_depth=2,
+    def __init__(self, dataset, host='localhost', port=27017, output_dir='./results', egonet_depth=2,
                  features=('propagation_tree', 'egonet', 'legitimacy_status_reputation', 'cascades', 'nodes_edges',
                            'performance')):
-        self.top_n = top_n
         self.host = host
         self.port = port
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True, parents=True)
-        self.datasets = datasets
-        self.propagation_factory = PropagationPlotFactory(available_datasets=self.datasets, host=self.host,
+        self.dataset = dataset
+        self.propagation_factory = PropagationPlotFactory(available_datasets=[self.dataset], host=self.host,
                                                           port=self.port)
         self.egonet_depth = egonet_depth
         self.features = features
 
-    def plot_propagation_tree(self):
-        logger.info('Plotting propagation trees')
-        logger.info('Getting conversations')
-        conversations = self._get_conversations()
-
-        # Since some  might fail because the original conversation id tweet is not present, just keep sampling
-        # until we have the top_n
-        logger.info('Plotting propagation trees')
-        count = 0
-        figures = []
-        for i, (dataset, conversation_id) in conversations[['dataset', 'conversation_id']].iterrows():
-            if count == self.top_n:
-                break
+    def plot_propagation_trees(self):
+        normal, suspect, politician, suspect_politician = self._get_cascades()
+        for i, row in normal.iterrows():
             try:
-                plot = self.propagation_factory.plot_propagation_tree(dataset, conversation_id)
-                figures.append(plot)
-
-                count += 1
-                logger.info(f'Plotted conversation {conversation_id} from dataset {dataset} count {count}')
+                plot = self.propagation_factory.plot_propagation_tree(self.dataset, row['id'])
+                plot.write_image(f'{self.output_dir}/normal_propagation_tree_{i}.png')
+                logger.info(f'Plotted propagation tree for user {row["id"]} from dataset {self.dataset}')
             except Exception as e:
-                logger.warning(f'Failed to plot conversation {conversation_id} from dataset {dataset} due to {e}')
+                logger.warning(
+                    f'Failed to plot propagation tree for user {row["id"]} from dataset {self.dataset} due to {e}')
 
-        # save the plotly figures as png
-        for i, fig in enumerate(figures):
-            fig.write_image(f'{self.output_dir}/propagation_tree_{i}.png')
+        for i, row in suspect.iterrows():
+            try:
+                plot = self.propagation_factory.plot_propagation_tree(self.dataset, row['id'])
+                plot.write_image(f'{self.output_dir}/suspect_propagation_tree_{i}.png')
+                logger.info(f'Plotted propagation tree for user {row["id"]} from dataset {self.dataset}')
+            except Exception as e:
+                logger.warning(
+                    f'Failed to plot propagation tree for user {row["id"]} from dataset {self.dataset} due to {e}')
 
-    def _get_conversations(self):
-        conversation_sizes = {}
-        for dataset in self.datasets:
-            conversation_sizes[dataset] = self.propagation_factory.diffusion_metrics.get_cascade_sizes(dataset)
+        for i, row in politician.iterrows():
+            try:
+                plot = self.propagation_factory.plot_propagation_tree(self.dataset, row['id'])
+                plot.write_image(f'{self.output_dir}/politician_propagation_tree_{i}.png')
+                logger.info(f'Plotted propagation tree for user {row["id"]} from dataset {self.dataset}')
+            except Exception as e:
+                logger.warning(
+                    f'Failed to plot propagation tree for user {row["id"]} from dataset {self.dataset} due to {e}')
 
-        # merge dfs with the dataset as a additional column
-        conversation_sizes = pd.concat(conversation_sizes, names=['dataset'])
-        # Sort by size
-        conversations = conversation_sizes.sort_values(ascending=False, by='size').reset_index()
+        for i, row in suspect_politician.iterrows():
+            try:
+                plot = self.propagation_factory.plot_propagation_tree(self.dataset, row['id'])
+                plot.write_image(f'{self.output_dir}/suspect_politician_propagation_tree_{i}.png')
+                logger.info(f'Plotted propagation tree for user {row["id"]} from dataset {self.dataset}')
+            except Exception as e:
+                logger.warning(
+                    f'Failed to plot propagation tree for user {row["id"]} from dataset {self.dataset} due to {e}')
 
-        def get_user_type(row):
-            if row['is_usual_suspect']:
-                if row['party']:
-                    return 'suspect_politician'
-                return 'suspect'
-            if row['party']:
-                return 'politician'
-            return 'normal'
+    def _get_cascades(self):
+        normal_pipeline = [
+            {'$match': {'referenced_tweets': {'$exists': False},
+                        'author.remiss_metadata.is_usual_suspect': False,
+                        'author.remiss_metadata.party': {'$eq': None},
+                        }},
+            {'$sort': {'public_metrics.retweet_count': -1}},
+            {'$limit': 10},
+            {'$project': {'_id': 0, 'id': 1, 'retweet_count': '$public_metrics.retweet_count'}}
+        ]
+        suspect_pipeline = [
+            {'$match': {'referenced_tweets': {'$exists': False},
+                        'author.remiss_metadata.is_usual_suspect': True,
+                        'author.remiss_metadata.party': {'$eq': None},
+                        }},
+            {'$sort': {'public_metrics.retweet_count': -1}},
+            {'$limit': 10},
+            {'$project': {'_id': 0, 'id': 1, 'retweet_count': '$public_metrics.retweet_count'}}
+        ]
+        politician_pipeline = [
+            {'$match': {'referenced_tweets': {'$exists': False},
+                        'author.remiss_metadata.is_usual_suspect': False,
+                        'author.remiss_metadata.party': {'$ne': None},
+                        }},
+            {'$sort': {'public_metrics.retweet_count': -1}},
+            {'$limit': 10},
+            {'$project': {'_id': 0, 'id': 1, 'retweet_count': '$public_metrics.retweet_count'}}
+        ]
+        suspect_politician_pipeline = [
+            {'$match': {'referenced_tweets': {'$exists': False},
+                        'author.remiss_metadata.is_usual_suspect': True,
+                        'author.remiss_metadata.party': {'$ne': None},
+                        }},
+            {'$sort': {'public_metrics.retweet_count': -1}},
+            {'$limit': 10},
+            {'$project': {'_id': 0, 'id': 1, 'retweet_count': '$public_metrics.retweet_count'}}
+        ]
 
-        conversations['user_type'] = conversations.apply(get_user_type, axis=1)
-        return conversations
+        client = MongoClient(self.host, self.port)
+        raw = client.get_database(self.dataset).get_collection('raw')
+        normal = raw.aggregate_pandas_all(normal_pipeline)
+        suspect = raw.aggregate_pandas_all(suspect_pipeline)
+        politician = raw.aggregate_pandas_all(politician_pipeline)
+        suspect_politician = raw.aggregate_pandas_all(suspect_politician_pipeline)
+        if normal.empty:
+            raise ValueError('No normal user found')
+        if suspect.empty:
+            raise ValueError('No suspect user found')
+        if politician.empty:
+            raise ValueError('No politician user found')
+        if suspect_politician.empty:
+            raise ValueError('No suspect politician user found')
+        return normal, suspect, politician, suspect_politician
 
     def plot_egonet_and_backbone(self):
         logger.info('Plotting egonets and backbones')
@@ -91,18 +134,15 @@ class Results:
         logger.info('Plotting egonets')
         # group by user type and plot the egonet for each user
         for user_type, group in degrees.groupby('user_type'):
-            count = 0
             figures = []
 
             for i, row in group.iterrows():
-                if count == self.top_n:
-                    break
                 try:
                     plot = self.propagation_factory.plot_egonet(row['dataset'], row['author_id'], self.egonet_depth)
                     figures.append(plot)
-                    count += 1
                     logger.info(
-                        f'Plotted egonet for user {row["author_id"]} from dataset {row["dataset"]} count {count}')
+                        f'Plotted egonet for user {row["author_id"]} from dataset {row["dataset"]}')
+                    break
                 except Exception as e:
                     logger.warning(
                         f'Failed to plot egonet for user {row["author_id"]} from dataset {row["dataset"]} due to {e}')
@@ -176,12 +216,9 @@ class Results:
         legitimacy_figures_data = defaultdict(list)
         # group by user type and plot the egonet for each user
         for user_type, group in degrees.groupby('user_type'):
-            count = 0
             reputation_figures = []
             status_figures = []
             for i, row in group.iterrows():
-                if count == self.top_n:
-                    break
                 try:
                     reputation = reputations.loc[(row['dataset'], row['author_id'])]
                     status = statuses.loc[(row['dataset'], row['author_id'])]
@@ -192,9 +229,9 @@ class Results:
                     legitimacy = legitimacies[row['dataset'], row['author_id']]
                     legitimacy_figures_data[user_type].append(legitimacy)
 
-                    count += 1
                     logger.info(f'Plotted legitimacy, reputation and status for '
-                                f'user {row["author_id"]} from dataset {row["dataset"]} count {count}')
+                                f'user {row["author_id"]} from dataset {row["dataset"]}')
+                    break
                 except Exception as e:
                     logger.warning(
                         f'Failed to plot legitimacy, reputation and status for user {row["author_id"]} from dataset {row["dataset"]} due to {e}')
@@ -232,29 +269,6 @@ class Results:
         fig.update_yaxes(title_text=y_label)
         # fig.update_layout(title=title)
         return fig
-
-    def plot_cascades(self):
-        logger.info('Plotting cascades')
-        conversations = self._get_conversations()
-        cascades = defaultdict(list)
-        for user_type, group in conversations.groupby('user_type'):
-            count = 0
-            for i, row in group.iterrows():
-                if count == self.top_n:
-                    break
-                try:
-                    cascade = self.propagation_factory.plot_propagation_tree(row['dataset'], row['conversation_id'])
-                    cascades[user_type].append(cascade)
-                    count += 1
-                    logger.info(
-                        f'Plotted cascade for conversation {row["conversation_id"]} from dataset {row["dataset"]} count {count}')
-                except Exception as e:
-                    logger.warning(
-                        f'Failed to plot cascade for conversation {row["conversation_id"]} from dataset {row["dataset"]}')
-
-        for user_type, group in cascades.items():
-            for i, cascade in enumerate(group):
-                cascade.write_image(f'{self.output_dir}/{user_type}_cascade_{i}.png')
 
     def generate_nodes_and_edges_table(self):
         logger.info('Generating nodes and edges table')
@@ -331,8 +345,8 @@ class Results:
         logger.info('Processing results')
         for feature in self.features:
             match feature:
-                case 'propagation_tree':
-                    self.plot_propagation_tree()
+                case 'propagation_trees':
+                    self.plot_propagation_trees()
                 case 'egonet':
                     self.plot_egonet_and_backbone()
                 case 'legitimacy_status_reputation':
@@ -349,16 +363,15 @@ class Results:
         logger.info('Results processed')
 
 
-def run_results(datasets, host='localhost', port=27017, output_dir='./results', top_n=10, egonet_depth=2,
+def run_results(dataset, host='localhost', port=27017, output_dir='./results', egonet_depth=2,
                 features=('propagation_tree', 'egonet', 'legitimacy', 'cascades', 'nodes_edges', 'performance')):
     logger.info('Running results')
-    logger.info(f'Datasets: {datasets}')
+    logger.info(f'Datasets: {dataset}')
     logger.info(f'Host: {host}')
     logger.info(f'Port: {port}')
     logger.info(f'Output directory: {output_dir}')
-    logger.info(f'Top n: {top_n}')
     logger.info(f'Egonet depth: {egonet_depth}')
-    results = Results(datasets=datasets, host=host, port=port, output_dir=output_dir, top_n=top_n,
+    results = Results(dataset=dataset, host=host, port=port, output_dir=output_dir,
                       egonet_depth=egonet_depth,
                       features=features)
     results.process()
@@ -373,9 +386,7 @@ if __name__ == '__main__':
     # - Generales_2019
     # - Generalitat_2021
     # - Andalucia_2022
-    run_results(['Openarms', 'MENA_Agressions', 'MENA_Ajudes',
-                 'Andalucia_2022', 'Generalitat_2021', 'Generales_2019', 'Barcelona_2019'],
+    run_results('Generalitat_2021',
                 host='mongodb://srvinv02.esade.es',
-                top_n=1,
-                features=('nodes_edges',),
+                features=('propagation_trees',),
                 output_dir='results')
