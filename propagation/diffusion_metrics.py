@@ -113,13 +113,17 @@ class DiffusionMetrics(BasePropagationMetrics):
             elif v['type'] in {'quoted', 'replied_to'}:
                 # Pick from references since for quoted and replied_to tweets, the referenced tweet is correct
                 referenced_tweet_id = references.loc[references['target'] == v['tweet_id'], 'source'].values[0]
-                referenced_tweet_index = subgraph.vs.find(tweet_id=referenced_tweet_id).index
-                neighbors = set(subgraph.neighbors(v, mode='in'))
-                # leave the edge that leads to the referenced tweet
-                if referenced_tweet_index in neighbors:
-                    neighbors_to_delete = neighbors - {referenced_tweet_index}
-                    edges_to_delete = subgraph.get_eids([(n, v.index) for n in neighbors_to_delete])
-                    subgraph.delete_edges(edges_to_delete)
+                try:
+                    referenced_tweet_index = subgraph.vs.find(tweet_id=referenced_tweet_id).index
+                    neighbors = set(subgraph.neighbors(v, mode='in'))
+                    # leave the edge that leads to the referenced tweet
+                    if referenced_tweet_index in neighbors:
+                        neighbors_to_delete = neighbors - {referenced_tweet_index}
+                        edges_to_delete = subgraph.get_eids([(n, v.index) for n in neighbors_to_delete])
+                        subgraph.delete_edges(edges_to_delete)
+                except ValueError:
+                    logger.warning(f'Tweet {referenced_tweet_id} not found in the graph, skipping')
+                    pass
 
 
         try:
