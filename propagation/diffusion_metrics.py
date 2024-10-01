@@ -75,7 +75,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         references = self.get_references(dataset, tweet_id)
 
         vertices = self._get_vertices_from_edges(references)
-        vertices = vertices[vertices['type'] == 'retweeted']
+        # vertices = vertices[vertices['type'] == 'retweeted']
         # Add original tweet to vertices
         original_tweet = self.get_tweet(dataset, tweet_id)
         original_tweet = {'author_id': original_tweet['author']['id'],
@@ -104,11 +104,12 @@ class DiffusionMetrics(BasePropagationMetrics):
         for v in subgraph.vs:
             if v['type'] == 'retweeted':
                 neighbors = set(subgraph.neighbors(v, mode='in'))
-                # leave the edge that leads to the node with the latest tweet in terms of created_at
-                latest_neighbor = max(neighbors, key=lambda x: subgraph.vs[x]['created_at'])
-                neighbors_to_delete = neighbors - {latest_neighbor}
-                edges_to_delete = subgraph.get_eids([(n, v.index) for n in neighbors_to_delete])
-                subgraph.delete_edges(edges_to_delete)
+                if neighbors:
+                    # leave the edge that leads to the node with the latest tweet in terms of created_at
+                    latest_neighbor = max(neighbors, key=lambda x: subgraph.vs[x]['created_at'])
+                    neighbors_to_delete = neighbors - {latest_neighbor}
+                    edges_to_delete = subgraph.get_eids([(n, v.index) for n in neighbors_to_delete])
+                    subgraph.delete_edges(edges_to_delete)
             elif v['type'] in {'quoted', 'replied_to'}:
                 # Pick from references since for quoted and replied_to tweets, the referenced tweet is correct
                 referenced_tweet_id = references.loc[references['target'] == v['tweet_id'], 'source'].values[0]

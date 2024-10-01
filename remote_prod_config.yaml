@@ -13,9 +13,6 @@ available_datasets:
   - Generalitat_2021
   - Andalucia_2022
   - Generales_2019
-
-
-
 reference_types:
   - retweeted
   - quoted

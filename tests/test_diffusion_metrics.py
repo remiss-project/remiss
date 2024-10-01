@@ -216,6 +216,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
     def test_propagation_tree_remote(self):
         test_tweet_id = '1523011526445211649'
         self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
+        self.diffusion_metrics.egonet.host = 'mongodb://srvinv02.esade.es'
         graph = self.diffusion_metrics.compute_propagation_tree('Andalucia_2022', test_tweet_id)
         fig, ax = plt.subplots()
         layout = graph.layout('fr')
@@ -223,6 +224,20 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         plt.show()
 
         self.diffusion_metrics.host = 'localhost'
+
+    def test_propagation_tree_remote_2(self):
+        test_tweet_id = '1182192005377601536'
+        self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
+        self.diffusion_metrics.egonet.host = 'mongodb://srvinv02.esade.es'
+
+        graph = self.diffusion_metrics.compute_propagation_tree('Openarms', test_tweet_id)
+        fig, ax = plt.subplots()
+        layout = graph.layout('fr')
+        ig.plot(graph, layout=layout, target=ax)
+        plt.show()
+
+        self.diffusion_metrics.host = 'localhost'
+
 
 
     def test_depth(self):
@@ -414,6 +429,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         expected = self.diffusion_metrics.get_cascade_count_over_time(self.test_dataset)
         self.assertTrue((expected.index == actual.index).all())
         self.assertTrue((expected == actual).all())
+
 
 if __name__ == '__main__':
     unittest.main()

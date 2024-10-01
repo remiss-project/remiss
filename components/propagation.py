@@ -104,7 +104,7 @@ class PropagationComponent(RemissComponent):
             if self.plot_factory.get_cascade_size(dataset, tweet_id) > 1:
                 logger.debug(f'Updating propagation plots with dataset {dataset}, tweet {tweet_id}')
                 start_time = datetime.now()
-                prop_tree = self.plot_factory.plot_propagation_tree(dataset, tweet_id)
+                prop_tree = self.plot_factory.plot_propagation_trees(dataset, tweet_id)
                 depth =    self.plot_factory.plot_depth_over_time(dataset, tweet_id)
                 size =     self.plot_factory.plot_size_over_time(dataset, tweet_id)
                 max_breath =  self.plot_factory.plot_max_breadth_over_time(dataset, tweet_id)
@@ -224,7 +224,7 @@ class PropagationTreeComponent(RemissComponent):
         ])
 
     def update_tweet(self, dataset, tweet_id):
-        return self.plot_factory.plot_propagation_tree(dataset, tweet_id)
+        return self.plot_factory.plot_propagation_trees(dataset, tweet_id)
 
     def callbacks(self, app):
         app.callback(
