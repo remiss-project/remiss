@@ -434,7 +434,7 @@ class DiffusionMetrics(BasePropagationMetrics):
                 'retweet_count': '$public_metrics.retweet_count'}},
         ]
         if max_cascades is not None:
-            logger.debug(f'Limiting cascades to {max_cascades} for dataset {dataset}')
+            logger.info(f'Limiting cascades to {max_cascades} for dataset {dataset}')
             pipeline_initial.append({'$limit': max_cascades})
         schema = Schema({'tweet_id': str, 'retweet_count': int})
         client = MongoClient(self.host, self.port)
