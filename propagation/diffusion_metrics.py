@@ -405,14 +405,13 @@ class DiffusionMetrics(BasePropagationMetrics):
         self.persist_diffusion_metrics(datasets)
         self.persist_diffusion_static_plots(datasets)
 
-    def persist_diffusion_metrics(self, datasets):
+    def persist_diffusion_metrics(self, datasets, max_cascades=None):
         jobs = []
         n_jobs = self.n_jobs
         self.n_jobs = 1
         for dataset in datasets:
-            cascade_ids = self.get_cascade_ids(dataset)
-            # Get top 100 cascades
-            cascade_ids = cascade_ids.sort_values('count', ascending=False).head(100)
+            cascade_ids = self.get_cascade_by_retweet_count(dataset, max_cascades)
+
             for cascade_id in tqdm(cascade_ids['tweet_id']):
                 jobs.append(delayed(self._persist_conversation_metrics)(dataset, cascade_id))
 
@@ -424,6 +423,26 @@ class DiffusionMetrics(BasePropagationMetrics):
             client.close()
 
         self.n_jobs = n_jobs
+
+    def get_cascade_by_retweet_count(self, dataset, max_cascades=None):
+        pipeline_initial = [
+            {'$match': {'referenced_tweets': {'$exists': False}}},
+            {'$sort': {'public_metrics.retweet_count': -1}},
+            {'$project': {
+                '_id': 0,
+                'tweet_id': '$id',
+                'retweet_count': '$public_metrics.retweet_count'}},
+        ]
+        if max_cascades is not None:
+            logger.debug(f'Limiting cascades to {max_cascades}')
+            pipeline_initial.append({'$limit': max_cascades})
+        schema = Schema({'tweet_id': str, 'retweet_count': int})
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('raw')
+        cascade_ids = collection.aggregate_pandas_all(pipeline_initial, schema=schema)
+        client.close()
+        return cascade_ids
 
     def persist_diffusion_static_plots(self, datasets):
         for dataset in datasets:

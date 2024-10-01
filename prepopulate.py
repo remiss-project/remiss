@@ -1,6 +1,5 @@
 import logging
 
-import fire
 from pyaml_env import parse_config
 
 from figures.control import ControlPlotFactory
@@ -14,17 +13,19 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 
 class Prepopulator:
     def __init__(self, config_file='prod_config.yaml', available_datasets=None,
-                 modules=('diffusion', 'network', 'egonet', 'layout', 'histogram')):
+                 modules=('diffusion', 'network', 'egonet', 'layout', 'histogram'), max_cascades=None):
+        self.max_cascades = max_cascades
         self.modules = modules
         self.config_file = config_file
         config = parse_config(config_file)
-        self.diffusion_metrics = DiffusionMetrics(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                                  reference_types=config['reference_types'])
-        self.network_metrics = NetworkMetrics(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                              reference_types=config['reference_types'])
         self.egonet = Egonet(host=config['mongodb']['host'], port=config['mongodb']['port'],
                              reference_types=config['reference_types'],
                              )
+        self.diffusion_metrics = DiffusionMetrics(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                                  reference_types=config['reference_types'], egonet=self.egonet)
+        self.network_metrics = NetworkMetrics(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                              reference_types=config['reference_types'])
+
         self.histogram = Histogram(host=config['mongodb']['host'], port=config['mongodb']['port'])
         self.propagation_factory = PropagationPlotFactory(host=config['mongodb']['host'],
                                                           port=config['mongodb']['port'],
@@ -52,12 +53,12 @@ class Prepopulator:
         )
 
     def generate_diffusion_metrics(self):
-        self._execute_with_logging(
-            "diffusion metrics",
-            self.diffusion_metrics.persist_diffusion_metrics,
-            self.available_datasets,
-            "Error generating diffusion metrics"
-        )
+        logger.info(f'Generating diffusion metrics')
+        try:
+            self.diffusion_metrics.persist_diffusion_metrics(self.available_datasets, self.max_cascades)
+        except Exception as e:
+            logger.error(f"Error generating diffusion metrics: {e}")
+            raise RuntimeError(f"Error generating diffusion metrics: {e}") from e
 
     def generate_diffusion_static_plots(self):
         self._execute_with_logging(
@@ -123,14 +124,16 @@ class Prepopulator:
 
 
 def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
-                     modules=('egonet', 'layout', 'diffusion', 'diffusion_static_plots', 'network', 'histogram')):
+                     modules=('egonet', 'layout', 'diffusion', 'diffusion_static_plots', 'network', 'histogram'),
+                     max_cascades=None):
     logger.info(f'Running prepopulator with config file: {config_file}')
     logger.info(f'Available datasets: {available_datasets}')
     logger.info(f'Modules: {modules}')
-    prepopulator = Prepopulator(config_file=config_file, available_datasets=available_datasets, modules=modules)
+    prepopulator = Prepopulator(config_file=config_file, available_datasets=available_datasets, modules=modules,
+                                max_cascades=max_cascades)
     prepopulator.prepopulate()
 
 
 if __name__ == '__main__':
-    # fire.Fire(run_prepopulator)
-    run_prepopulator(modules=['egonet', 'layout'], config_file='dev_config.yaml')
+    fire.Fire(run_prepopulator)
+    # run_prepopulator(modules=['diffusion'], config_file='dev_config.yaml', max_cascades=10)
