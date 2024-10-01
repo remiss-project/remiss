@@ -1,5 +1,6 @@
 import logging
 
+import fire
 from pyaml_env import parse_config
 
 from figures.control import ControlPlotFactory
