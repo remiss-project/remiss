@@ -25,7 +25,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         self.n_jobs = n_jobs
         self.egonet = egonet
 
-    def load_conversation_data(self, dataset, cascade_id):
+    def load_cascade_data(self, dataset, cascade_id):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         collection = database.get_collection('diffusion_metrics')
@@ -36,7 +36,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         return cascade_data
 
     def get_propagation_tree(self, dataset, tweet_id):
-        conversation_data = self.load_conversation_data(dataset, tweet_id)
+        conversation_data = self.load_cascade_data(dataset, tweet_id)
         graph = ig.Graph(directed=True)
         graph.add_vertices(len(conversation_data['vs_attributes']['author_id']))
         for attribute, values in conversation_data['vs_attributes'].items():
@@ -45,25 +45,25 @@ class DiffusionMetrics(BasePropagationMetrics):
         return graph
 
     def get_size_over_time(self, dataset, tweet_id):
-        conversation_data = self.load_conversation_data(dataset, tweet_id)
+        conversation_data = self.load_cascade_data(dataset, tweet_id)
         size_over_time = pd.Series(conversation_data['size_over_time'], name='Size')
         size_over_time.index = pd.to_datetime(size_over_time.index)
         return size_over_time
 
     def get_depth_over_time(self, dataset, tweet_id):
-        conversation_data = self.load_conversation_data(dataset, tweet_id)
+        conversation_data = self.load_cascade_data(dataset, tweet_id)
         depth_over_time = pd.Series(conversation_data['depth_over_time'], name='Depth')
         depth_over_time.index = pd.to_datetime(depth_over_time.index)
         return depth_over_time
 
     def get_max_breadth_over_time(self, dataset, tweet_id):
-        conversation_data = self.load_conversation_data(dataset, tweet_id)
+        conversation_data = self.load_cascade_data(dataset, tweet_id)
         max_breadth_over_time = pd.Series(conversation_data['max_breadth_over_time'], name='Max Breadth')
         max_breadth_over_time.index = pd.to_datetime(max_breadth_over_time.index)
         return max_breadth_over_time
 
     def get_structural_virality_over_time(self, dataset, tweet_id):
-        conversation_data = self.load_conversation_data(dataset, tweet_id)
+        conversation_data = self.load_cascade_data(dataset, tweet_id)
         structural_virality_over_time = pd.Series(conversation_data['structural_virality_over_time'],
                                                   name='Structural Virality')
         structural_virality_over_time.index = pd.to_datetime(structural_virality_over_time.index)

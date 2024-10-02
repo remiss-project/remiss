@@ -2,8 +2,10 @@ import time
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import sklearn
 from pymongo import MongoClient
+from pymongoarrow.monkey import patch_all
 from pymongoarrow.schema import Schema
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.compose import ColumnTransformer
@@ -13,9 +15,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from xgboost import XGBClassifier
-import igraph as ig
-import plotly.graph_objects as go
-from pymongoarrow.monkey import patch_all
+
+from propagation import DiffusionMetrics, Egonet
 
 patch_all()
 
@@ -23,210 +24,96 @@ sklearn.set_config(transform_output="pandas")
 
 
 class PropagationDatasetGenerator:
-    def __init__(self, dataset, host='localhost', port=27017, reference_types=('quoted', 'retweeted'),
-                 use_profiling='full', use_textual='full'):
+    def __init__(self, dataset, host='localhost', port=27017):
         self.host = host
         self.port = port
-        self.reference_types = reference_types
-        self.use_profiling = use_profiling
-        self.use_textual = use_textual
         self._features = None
         self.dataset = dataset
         self.user_features = {}
         self.tweet_features = {}
+        self.egonet = Egonet(host, port)
+        self.diffusion_metrics = DiffusionMetrics(host=host, port=port, egonet=self.egonet)
 
-    def fetch_tweet_features(self, database):
-        if database.name not in self.tweet_features:
-            self.tweet_features[database.name] = self._fetch_tweet_features(database)
-        return self.tweet_features[database.name]
+    def get_available_cascades(self):
+        profiling_author_ids = self._get_profiling_author_ids()
+        cascades = self._get_cascades(profiling_author_ids)
+        return cascades
 
-    def fetch_user_features(self, database):
-        if database.name not in self.user_features:
-            self.user_features[database.name] = self._fetch_user_features(database)
-        return self.user_features[database.name]
-
-    def generate_propagation_dataset(self):
-        if self._features is None:
-            self._features = self._generate_propagation_dataset()
-        return self._features
-
-    def get_cascade(self, conversation_id, user_id):
+    def _get_profiling_author_ids(self):
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.dataset)
+        collection = database.get_collection('profiling')
+        author_ids = collection.distinct('user_id')
+        client.close()
+        return list(author_ids)
 
+    def _get_cascades(self, profiling_author_ids):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(self.dataset)
         collection = database.get_collection('raw')
-        pipeline = [
-            {'$match': {'conversation_id': conversation_id}},
-            {'$unwind': '$referenced_tweets'},
-            {'$match': {
-                'referenced_tweets.type': {'$in': self.reference_types},
-                'referenced_tweets.author': {'$exists': True}
-            }},
+        original_tweet_pipeline = [
+            {'$match': {'author.id': {'$in': profiling_author_ids}, 'referenced_tweets': {'$exists': False}}},
             {'$project': {
                 '_id': 0,
-                'source': '$referenced_tweets.author.id',
-                'target': '$author.id',
+                'tweet_id': '$id',
+                'author_id': '$author.id',
+                'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
+                'party': '$author.remiss_metadata.party'
             }}
         ]
-        edges = collection.aggregate_pandas_all(pipeline)
-        nested_pipeline = [
-            {'$match': {'conversation_id': conversation_id}},
-            {'$project': {'author_id': '$author.id',
-                          'username': '$author.username',
-                          'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect',
-                          'party': '$author.remiss_metadata.party',
-                          }
-             }]
-
-        node_pipeline = [
-            {'$match': {'conversation_id': conversation_id}},
+        schema = Schema({
+            'tweet_id': str,
+            'author_id': str,
+            'is_usual_suspect': bool,
+            'party': str
+        })
+        original_tweets = collection.aggregate_pandas_all(original_tweet_pipeline, schema=schema)
+        propagated_tweet_pipeline = [
             {'$unwind': '$referenced_tweets'},
-            {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
-                        'referenced_tweets.author': {'$exists': True}}},
-            {'$project': {'_id': 0, 'author_id': '$referenced_tweets.author.id',
-                          'username': '$referenced_tweets.author.username',
-                          'is_usual_suspect': '$referenced_tweets.author.remiss_metadata.is_usual_suspect',
-                          'party': '$referenced_tweets.author.remiss_metadata.party',
-                          }},
-            {'$unionWith': {'coll': 'raw', 'pipeline': nested_pipeline}},  # Fetch missing authors
-            {'$group': {'_id': '$author_id',
-                        'username': {'$first': '$username'},
-                        'is_usual_suspect': {'$addToSet': '$is_usual_suspect'},
-                        'party': {'$addToSet': '$party'},
-                        }},
-
-            {'$project': {'_id': 0,
-                          'author_id': '$_id',
-                          'username': 1,
-                          'is_usual_suspect': {'$anyElementTrue': '$is_usual_suspect'},
-                          'party': {'$arrayElemAt': ['$party', 0]},
-                          }},
-
+            {'$match': {'referenced_tweets.id': {'$in': original_tweets['tweet_id'].tolist()}}},
+            {'$project': {'tweet_id': '$referenced_tweets.id', }}
         ]
-        schema = Schema({'author_id': str, 'username': str, 'is_usual_suspect': bool, 'party': str})
-        authors = collection.aggregate_pandas_all(node_pipeline, schema=schema).drop_duplicates(subset='author_id')
-        client.close()
+        propagated_tweets = collection.aggregate_pandas_all(propagated_tweet_pipeline)
+        return original_tweets[original_tweets['tweet_id'].isin(propagated_tweets['tweet_id'])]
 
-        graph = ig.Graph(directed=True)
-        graph.add_vertices(len(authors))
-        graph.vs['username'] = authors['username']
-        graph.vs['author_id'] = authors['author_id']
-        graph.vs['is_usual_suspect'] = authors['is_usual_suspect']
-        graph.vs['party'] = authors['party']
-        graph.vs['original'] = ['ground_truth'] * len(authors)
-        if user_id is not None:
-            user_vertex = graph.vs.find(author_id=user_id)
-            user_vertex['original'] = 'seed'
+    def get_rows(self, cascades):
+        rows = []
+        for _, cascade in cascades.iterrows():
+            prop_tree = self._get_propagation_tree(cascade['tweet_id'])
+            for node in prop_tree.vs:
+                neighbors = set(prop_tree.neighbors(node))
+                for neighbor in neighbors:
+                    if neighbor != node.index:
+                        neighbor = prop_tree.vs[neighbor]
+                        rows.append({
+                            'source': node['author_id'],
+                            'target': neighbor['author_id'],
+                            'cascade_id': cascade['tweet_id'],
+                            'original_author': cascade['author_id'],
+                        })
 
-        if not edges.empty:
-            author_to_id = authors['author_id'].reset_index().set_index('author_id')
+        return pd.DataFrame(rows)
 
-            edges['source'] = author_to_id.loc[edges['source']].reset_index(drop=True)
-            edges['target'] = author_to_id.loc[edges['target']].reset_index(drop=True)
+    def _get_propagation_tree(self, tweet_id):
+        try:
+            prop_tree = self.diffusion_metrics.get_propagation_tree(self.dataset, tweet_id)
+        except RuntimeError:
+            prop_tree = self.diffusion_metrics.compute_propagation_tree(self.dataset, tweet_id)
+        return prop_tree
 
-            graph.add_edges(edges[['source', 'target']].to_records(index=False).tolist())
+    def fetch_tweet_features(self, tweets):
+        raw_features = self._fetch_raw_tweet_features(tweets)
+        textual_features = self._fetch_textual_tweet_features(tweets)
+        return raw_features.join(textual_features, how='inner')
 
-        graph['conversation_id'] = conversation_id
-
-        return graph
-
-    def get_neighbours(self, user_id):
+    def _fetch_raw_tweet_features(self, tweets):
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.dataset)
-
-        collection = database.get_collection('raw')
-        pipeline = [
-            {'$unwind': '$referenced_tweets'},
-            {'$match': {
-                'referenced_tweets.type': {'$in': self.reference_types},
-                'referenced_tweets.author': {'$exists': True}
-            }},
-            {'$match': {'$or': [{'author.id': user_id}, {'referenced_tweets.author.id': user_id}]}},
-            {'$project': {
-                '_id': 0,
-                'source': '$referenced_tweets.author.id',
-                'target': '$author.id'
-            }}
-        ]
-        neighbours = collection.aggregate_pandas_all(pipeline)
-        client.close()
-
-        if neighbours.empty:
-            return []
-
-        neighbours = set(neighbours['source'].unique()) | set(neighbours['target'].unique())
-        neighbours.remove(user_id)
-        return sorted(neighbours)
-
-    def get_features_for(self, conversation_id, sources, targets):
-        client = MongoClient(self.host, self.port)
-        database = client.get_database(self.dataset)
-
-        tweet_features = self.fetch_tweet_features(database)
-        user_features = self.fetch_user_features(database)
-        edges = pd.DataFrame({'source': sources, 'target': targets, 'conversation_id': conversation_id})
-        features = self._merge_features(edges, tweet_features, user_features)
-        features = features.drop(columns=['source', 'target', 'conversation_id', 'Unnamed: 0'], errors='ignore')
-        client.close()
-
-        return features
-
-    def _generate_propagation_dataset(self):
-        client = MongoClient(self.host, self.port)
-
-        database = client.get_database(self.dataset)
-
-        tweet_features = self._fetch_tweet_features(database)
-        user_features = self._fetch_user_features(database)
-        edges = self._fetch_edges(database)
-
-        client.close()
-
-        features = self._merge_features(edges, tweet_features, user_features)
-        negatives = self._generate_negative_samples(edges, tweet_features, user_features)
-
-        features['propagated'] = 1
-        negatives['propagated'] = 0
-
-        dataset = pd.concat([features, negatives]).reset_index(drop=True)
-        dataset = dataset.drop(columns=['source', 'target', 'conversation_id', 'Unnamed: 0'], errors='ignore')
-
-        # Shuffle just in case
-        dataset = dataset.sample(frac=1).reset_index(drop=True)
-
-        print('Features generated')
-        print(f'Num positives: {len(features)}')
-        print(f'Num negatives: {len(negatives)}')
-
-        return dataset
-
-    def _fetch_tweet_features(self, database):
-        features = self._fetch_raw_tweet_features(database)
-        if self.use_textual in {'full', 'strict'}:
-            how = 'inner' if self.use_textual == 'strict' else 'left'
-            textual_features = self._fetch_textual_tweet_features(database)
-            return features.merge(textual_features, left_index=True, right_index=True, how=how)
-        elif not self.use_textual:
-            return features
-        else:
-            raise ValueError(f'Invalid value for use_textual: {self.use_textual}')
-
-    def _fetch_raw_tweet_features(self, database):
         collection = database.get_collection('raw')
 
         pipeline = [
-            {'$group': {'_id': '$conversation_id',
-                        'num_hashtags': {'$first': {'$size': {'$ifNull': ['$entities.hashtags', []]}}},
-                        'num_mentions': {'$first': {'$size': {'$ifNull': ['$entities.mentions', []]}}},
-                        'num_urls': {'$first': {'$size': {'$ifNull': ['$entities.urls', []]}}},
-                        'num_media': {'$first': {'$size': {'$ifNull': ['$entities.media', []]}}},
-                        'num_interactions': {'$first': {'$size': {'$ifNull': ['$referenced_tweets', []]}}},
-                        'num_words': {'$first': {'$size': {'$split': ['$text', ' ']}}},
-                        'num_chars': {'$first': {'$strLenCP': '$text'}},
-                        'is_usual_suspect_op': {'$first': '$author.remiss_metadata.is_usual_suspect'},
-                        'party_op': {'$first': '$author.remiss_metadata.party'}
-                        }},
-            {'$project': {'_id': 0, 'tweet_id': '$_id', 'num_hashtags': 1, 'num_mentions': 1, 'num_urls': 1,
+            {'$match': {'id': {'$in': tweets}}},
+            {'$project': {'_id': 0, 'tweet_id': '$id', 'num_hashtags': 1, 'num_mentions': 1, 'num_urls': 1,
                           'num_media': 1, 'num_interactions': 1, 'num_words': 1, 'num_chars': 1,
                           'is_usual_suspect_op': 1, 'party_op': 1
                           }}
@@ -236,7 +123,9 @@ class PropagationDatasetGenerator:
             raise RuntimeError('Tweet features not found. Please prepopulate them first')
         return raw_tweet_features.set_index('tweet_id')
 
-    def _fetch_textual_tweet_features(self, database):
+    def _fetch_textual_tweet_features(self, tweets):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(self.dataset)
         collection = database.get_collection('textual')
         pipeline = [
             {'$project': {
@@ -276,36 +165,40 @@ class PropagationDatasetGenerator:
         ]
         features = collection.aggregate_pandas_all(pipeline)
 
+        if features.empty:
+            raise RuntimeError('Textual features not found. Please prepopulate them first')
+        features['tweet_id'] = features['tweet_id'].astype(str)
         return features.set_index('tweet_id')
 
-    def _fetch_propagation_metrics(self, database):
+    def fetch_user_features(self, users):
+        raw_features = self._fetch_raw_user_features(users)
+        profiling_features = self._fetch_profiling_user_features(users)
+        network_features = self._fetch_network_metrics(users)
+        return raw_features.join(profiling_features, how='inner').join(network_features, how='inner')
+
+    def _fetch_network_metrics(self, users):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(self.dataset)
         collection = database.get_collection('network_metrics')
         pipeline = [
-            {'$project': {'_id': 0, 'author_id': 1, 'legitimacy': 1}}
+            {'$match': {'author_id': {'$in': users}}},
+            {'$project': {'_id': 0, 'author_id': 1,
+                          'legitimacy': 1,
+                          'reputation': '$average_reputation',
+                          'status': '$average_status',
+                          }}
         ]
-        propagation_metrics = collection.aggregate_pandas_all(pipeline)
-        if propagation_metrics.empty:
-            raise RuntimeError('Propagation metrics not found. Please prepopulate them first')
-        return propagation_metrics.set_index('author_id')
+        network_metrics = collection.aggregate_pandas_all(pipeline)
+        if network_metrics.empty:
+            raise RuntimeError('network metrics not found. Please prepopulate them first')
+        return network_metrics.set_index('author_id')
 
-    def _fetch_user_features(self, database):
-        propagation_metrics = self._fetch_propagation_metrics(database)
-        features = self._fetch_raw_user_features(database)
-        features = features.merge(propagation_metrics, left_index=True, right_index=True, how='inner')
-
-        if self.use_profiling in {'full', 'strict'}:
-            profiling_features = self._fetch_profiling_user_features(database)
-            merge_how = 'inner' if self.use_profiling == 'strict' else 'left'
-            return features.merge(profiling_features, left_index=True, right_index=True, how=merge_how)
-        elif not self.use_profiling:
-            return features
-
-        else:
-            raise ValueError(f'Invalid value for use_profiling: {self.use_profiling}')
-
-    def _fetch_raw_user_features(self, database):
+    def _fetch_raw_user_features(self, users):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(self.dataset)
         collection = database.get_collection('raw')
         pipeline = [
+            {'$match': {'author.id': {'$in': users}}},
             {'$project': {
                 '_id': 0,
                 'author_id': '$author.id',
@@ -316,10 +209,13 @@ class PropagationDatasetGenerator:
         user_features = collection.aggregate_pandas_all(pipeline).drop_duplicates(subset='author_id')
         return user_features.set_index('author_id')
 
-    def _fetch_profiling_user_features(self, database):
+    def _fetch_profiling_user_features(self, users):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(self.dataset)
         collection = database.get_collection('profiling')
 
         pipeline = [
+            {'$match': {'user_id': {'$in': users}}},
             {'$project':
                  {'_id': 0, 'author_id': '$user_id', 'is_verified': 1,
                   'followers_count': 1, 'friends_count': 1, 'listed_count': 1, 'favorites_count': 1,
@@ -390,57 +286,74 @@ class PropagationDatasetGenerator:
         user_features = collection.aggregate_pandas_all(pipeline).set_index('author_id')
         return user_features
 
-    def _fetch_edges(self, database):
-        collection = database.get_collection('raw')
-        pipeline = [
-            {'$unwind': '$referenced_tweets'},
-            {'$match': {
-                'referenced_tweets.type': {'$in': self.reference_types},
-                'referenced_tweets.author': {'$exists': True}
-            }},
-            {'$project': {
-                '_id': 0,
-                'source': '$referenced_tweets.author.id',
-                'target': '$author.id',
-                'conversation_id': '$conversation_id'
-            }}
-        ]
-        return collection.aggregate_pandas_all(pipeline)
-
-    def _merge_features(self, edges, tweet_features, user_features):
-        features = edges.merge(tweet_features, left_on='conversation_id', right_index=True, how='left')
-        features = features.merge(user_features.rename(columns=lambda x: f'{x}_prev'), left_on='source',
-                                  right_index=True, how='left')
-        features = features.merge(user_features.rename(columns=lambda x: f'{x}_curr'), left_on='target',
-                                  right_index=True, how='left')
-        return features
-
-    def _generate_negative_samples(self, edges, tweet_features, user_features):
+    def _generate_negative_rows(self, features):
+        hidden_network = self.egonet.get_hidden_network(self.dataset)
         negatives = []
-        for source, interactions in edges.groupby('source'):
+        for source, interactions in features.groupby('source'):
             if len(interactions) > 1:
-                targets = set(interactions['target'].unique())
-                for conversation_id, conversation in interactions.groupby('conversation_id'):
-                    other_targets = pd.DataFrame(targets - set(conversation['target']), columns=['target'])
-                    if not other_targets.empty:
-                        sample_size = min(len(conversation), len(other_targets))
-                        other_targets = other_targets.sample(n=sample_size)
-                        other_targets['source'] = source
-                        other_targets['conversation_id'] = conversation_id
-                        negatives.append(other_targets)
+                targets = set(interactions['target'])
+                source_node = hidden_network.vs.find(author_id=source)
+                neighbors = hidden_network.neighbors(source_node)
+                neighbors = set(neighbors) - targets
+                for target in neighbors:
+                    neighbor = hidden_network.vs[target]
+                    negatives.append({
+                        'source': source,
+                        'target': neighbor['author_id'],
+                        'cascade_id': interactions['cascade_id'].iloc[0],
+                        'original_author': interactions['original_author'].iloc[0],
+                    })
 
-        if negatives:
-            negatives = pd.concat(negatives)
-            negatives = negatives.merge(tweet_features, left_on='conversation_id', right_index=True, how='inner')
-            negatives = negatives.merge(user_features.rename(columns=lambda x: f'{x}_prev'), left_on='source',
-                                        right_index=True, how='inner')
-            negatives = negatives.merge(user_features.rename(columns=lambda x: f'{x}_curr'), left_on='target',
-                                        right_index=True, how='inner')
-
+        if not negatives:
+            raise RuntimeError('No negative samples found')
+        negatives = pd.DataFrame(negatives).astype(str)
         return negatives
 
+    def generate_propagation_dataset(self):
+        cascades = self.get_available_cascades()
+        positive_rows = self.get_rows(cascades)
 
-class PropagationCascadeModel(BaseEstimator, ClassifierMixin):
+        tweets = positive_rows['cascade_id'].unique().tolist()
+        positive_users = list(set(positive_rows['source'].unique()) | set(positive_rows['target'].unique()))
+        tweet_features = self.fetch_tweet_features(tweets)
+        positive_user_features = self.fetch_user_features(positive_users)
+
+        positive_samples = positive_rows.merge(tweet_features, left_on='cascade_id', right_index=True, how='inner')
+        positive_samples = positive_samples.merge(positive_user_features.rename(columns=lambda x: f'{x}_prev'),
+                                                  left_on='source',
+                                                  right_index=True, how='inner')
+        positive_samples = positive_samples.merge(positive_user_features.rename(columns=lambda x: f'{x}_curr'),
+                                                  left_on='target',
+                                                  right_index=True, how='inner')
+        positive_samples = positive_samples.merge(positive_user_features.rename(columns=lambda x: f'{x}_original'),
+                                                  left_on='original_author',
+                                                  right_index=True, how='inner')
+
+        negative_rows = self._generate_negative_rows(positive_samples)
+        negative_users = list(set(negative_rows['source'].unique()) | set(negative_rows['target'].unique()))
+        negative_user_features = self.fetch_user_features(negative_users)
+
+        negative_samples = negative_rows.merge(tweet_features, left_on='cascade_id', right_index=True, how='inner')
+        negative_samples = negative_samples.merge(negative_user_features.rename(columns=lambda x: f'{x}_prev'),
+                                                  left_on='source',
+                                                  right_index=True, how='inner')
+        negative_samples = negative_samples.merge(negative_user_features.rename(columns=lambda x: f'{x}_curr'),
+                                                  left_on='target',
+                                                  right_index=True, how='inner')
+        negative_samples = negative_samples.merge(negative_user_features.rename(columns=lambda x: f'{x}_original'),
+                                                    left_on='original_author',
+                                                    right_index=True, how='inner')
+
+        positive_samples['propagated'] = 1
+        negative_samples['propagated'] = 0
+        dataset = pd.concat([positive_samples, negative_samples]).reset_index(drop=True)
+        dataset = dataset.drop(columns=['source', 'target', 'cascade_id', 'original_author'], errors='ignore')
+        dataset = dataset.sample(frac=1).reset_index(drop=True)
+        return dataset
+
+
+
+class PropagationCascadeModel:
     def __init__(self, host='localhost', port=27017, reference_types=('replied_to', 'quoted', 'retweeted'),
                  use_profiling='full', use_textual='full', dataset_generator=None):
         self.pipeline = None
@@ -450,22 +363,11 @@ class PropagationCascadeModel(BaseEstimator, ClassifierMixin):
         self.use_profiling = use_profiling
         self.use_textual = use_textual
         self.dataset_generator = dataset_generator
+        self.model = None
 
-    def fit(self, X, y=None):
-        if isinstance(X, str):
-            dataset = X
-            generator = PropagationDatasetGenerator(dataset, host=self.host, port=self.port,
-                                                    reference_types=self.reference_types,
-                                                    use_profiling=self.use_profiling, use_textual=self.use_textual)
-            X = generator.generate_propagation_dataset()
-            self.dataset_generator = generator
-        if y is None:
-            y = X['propagated']
-            X = X.drop(columns=['propagated'])
-        self.pipeline = self._fit_propagation_model(X, y)
 
-    def _fit_propagation_model(self, X, y):
-        pipeline = Pipeline([
+    def fit(self, X, y):
+        model = Pipeline([
             ('imputer', SimpleImputer(strategy='most_frequent')),
             ('transformer', ColumnTransformer([
                 ('one_hot', OneHotEncoder(handle_unknown='ignore', sparse_output=False),
@@ -474,27 +376,11 @@ class PropagationCascadeModel(BaseEstimator, ClassifierMixin):
             ('scaler', StandardScaler()),
             ('classifier', XGBClassifier(scale_pos_weight=(len(y) - y.sum()) / y.sum()))
         ])
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        pipeline.fit(X_train, y_train)
+        model.fit(X, y)
 
-        y_train_pred = pipeline.predict(X_train)
-        y_test_pred = pipeline.predict(X_test)
-        print('Training set metrics')
-        print(classification_report(y_train, y_train_pred))
-        print('Confusion matrix')
-        print(pd.crosstab(y_train, y_train_pred, rownames=['Actual'], colnames=['Predicted']))
-        print('Test set metrics')
-        print(classification_report(y_test, y_test_pred))
-        print('Confusion matrix')
-        print(pd.crosstab(y_test, y_test_pred, rownames=['Actual'], colnames=['Predicted']))
-        # plot feature importance
-        feature_importances = pd.Series(pipeline['classifier'].feature_importances_,
-                                        index=pipeline['classifier'].feature_names_in_).sort_values(ascending=False)
-        fig = px.bar(feature_importances, title='Feature importance')
-        fig.update_xaxes(title_text='Feature')
-        fig.update_yaxes(title_text='Importance')
-        fig.show()
-        return pipeline
+        self.model = model
+        return self
+
 
     def predict(self, X):
         if self.pipeline is None:

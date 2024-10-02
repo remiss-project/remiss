@@ -18,13 +18,40 @@ class PropagationModelsTestCase(unittest.TestCase):
         self.cache_dir = Path('tmp/cache_propagation')
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.test_tweet_id = '1167074391315890176'
-        self.conversation_id = '1167074391315890176'
-        self.author_id = '2201623465'
-        if not (self.cache_dir / f'{self.dataset}-features.csv').exists():
 
-            features = self.dataset_generator.generate_propagation_dataset()
+    def test_get_available_cascades(self):
+        cascades = self.dataset_generator.get_available_cascades()
+        self.assertGreater(len(cascades), 2)
 
-            features.to_csv(self.cache_dir / f'{self.dataset}-features.csv')
+    def test_get_rows(self):
+        cascades = self.dataset_generator.get_available_cascades()
+        rows = self.dataset_generator.get_rows(cascades)
+        self.assertGreater(len(rows), 1700)
+
+    def test_generate_propagation_dataset(self):
+        dataset = self.dataset_generator.generate_propagation_dataset()
+        self.assertEqual(dataset.shape[1], 820)
+        self.assertEqual(dataset.shape[0], 2511)
+
+    def test_fetch_tweet_features(self):
+        tweets = ['1167084036638027778', '1167083487876263938', '1167082116171141121', '1167081267822772224',
+                  '1167081127645011970', '1167080953606524928', '1167080726434603009', '1167080443591544834',
+                  '1167080378827509760', '1167080061444546561', '1167079805579419649', '1167078963581194240',
+                  '1167078010442436608', '1167076670148370433', '1166410242848165889', '1165197752336289792',
+                  '1164609510046150656', '1164521852984811522', '1164249094434504704', '1164199001316569089',
+                  '1164157756166852621', '1164140657293836288', '1164129805970878466', '1164120137789771777']
+        tweet_features = self.dataset_generator.fetch_tweet_features(tweets)
+        self.assertEqual(len(tweet_features), len(tweets))
+
+    def test_fetch_user_features(self):
+        users = ['1005545356816474113', '1033714286231740416', '1044030528675090433', '1047520952228216833',
+                 '1052919220281987074', '1064067980043186177', '1080272105755893760', '1085590459714539520',
+                 '1106824822850490368', '1113508263562235904', '1117506505601896449', '1121337101314863105',
+                 '1121824938569216000', '1123645074095714304', '1142093391339118593', '1143993774114254848',
+                 '1145353836', '1167078506569883651', '1244846407', '1285099554', '132842161', '1361584274']
+
+        user_features = self.dataset_generator.fetch_user_features(users)
+        self.assertEqual(len(user_features), 20)
 
     def test_prepare_propagation_dataset(self):
         dataset = self.dataset
@@ -42,6 +69,7 @@ class PropagationModelsTestCase(unittest.TestCase):
         model.fit(features)
         with open(self.cache_dir / f'{dataset}-model.pkl', 'wb') as f:
             pickle.dump(model, f)
+
     @unittest.skip('Slow')
     def test_fit_2(self):
         model = PropagationCascadeModel()
@@ -49,6 +77,7 @@ class PropagationModelsTestCase(unittest.TestCase):
         features = pd.read_csv(self.cache_dir / f'{dataset}-features.csv', index_col=0)
         X, y = features.drop(columns=['propagated']), features['propagated']
         model.fit(X, y)
+
     @unittest.skip('Slow')
     def test_fit_3(self):
         model = PropagationCascadeModel()

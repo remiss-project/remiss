@@ -285,7 +285,7 @@ class Results:
             results = pd.read_csv(results_filepath, index_col=0).to_dict()
         else:
             results = {}
-        for dataset in self.datasets:
+        for dataset in self.dataset:
             if dataset in results:
                 logger.warning(f'Dataset {dataset} already processed. Skipping.')
             else:
