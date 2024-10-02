@@ -1,6 +1,5 @@
 import random
 import unittest
-from datetime import timezone
 
 import igraph as ig
 import numpy as np
@@ -8,8 +7,7 @@ import pandas as pd
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
 
-from figures.propagation import PropagationPlotFactory, compute_backbone
-from propagation import Egonet
+from figures.propagation import PropagationPlotFactory, compute_backbone, plot_time_series
 from tests.conftest import create_test_data_from_edges
 
 patch_all()
@@ -242,10 +240,23 @@ class PropagationFactoryTestCase(unittest.TestCase):
         fig = self.propagation_factory.plot_structural_virality_over_time(self.test_dataset, self.test_tweet_id)
         # fig.show()
 
-
     def test_plot_size_cascade_ccdf(self):
         fig = self.propagation_factory.plot_size_cascade_ccdf(self.test_dataset)
-        # fig.show()
+        fig.show()
+
+    def test_plot_size_cascade_ccdf_remote(self):
+        self.propagation_factory.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
+
+        for dataset in ['Openarms', 'MENA_Agressions', 'MENA_Ajudes', 'Barcelona_2019', 'Generalitat_2021',
+                        'Andalucia_2022', 'Generales_2019']:
+            size = self.propagation_factory.diffusion_metrics.get_size_cascade_ccdf(dataset)
+            # Drop columns with only a single non-nan value
+            bad_columns = size.columns[(~size.isna()).sum() <= 1].to_list()
+            size = size.drop(columns=bad_columns)
+            # Interpolate by columns to fill the nan gaps
+            size = size.interpolate(method='slinear', axis=0)
+            fig = plot_time_series(size, f'Size cascade CCDF {dataset}', 'Size', 'CCDF')
+            fig.show()
 
     def test_cascade_count_over_time(self):
         fig = self.propagation_factory.plot_cascade_count_over_time(self.test_dataset)

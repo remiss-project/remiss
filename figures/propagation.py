@@ -256,6 +256,10 @@ class PropagationPlotFactory(MongoPlotFactory):
         except Exception as e:
             logger.error(f'Error getting size cascade CCDF: {e}. Recomputing')
             size_cascade = self.diffusion_metrics.compute_size_cascade_ccdf(dataset)
+        bad_columns = size_cascade.columns[(~size_cascade.isna()).sum() <= 1].to_list()
+        size_cascade = size_cascade.drop(columns=bad_columns)
+        # Interpolate by columns to fill the nan gaps
+        size_cascade = size_cascade.interpolate(method='slinear', axis=0)
         return plot_time_series(size_cascade, 'Size cascade CCDF', 'Size', 'CCDF')
 
     def plot_cascade_count_over_time(self, dataset):
