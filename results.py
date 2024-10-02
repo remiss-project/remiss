@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import plotly.express as px
+from openpyxl.styles.builtins import output
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
 from sklearn.metrics import classification_report
@@ -79,7 +80,7 @@ class Results:
                         'author.remiss_metadata.party': {'$eq': None},
                         }},
             {'$sort': {'public_metrics.retweet_count': -1}},
-            {'$limit': 10},
+            {'$limit': 100},
             {'$project': {'_id': 0, 'id': 1, 'retweet_count': '$public_metrics.retweet_count'}}
         ]
         suspect_pipeline = [
@@ -88,7 +89,7 @@ class Results:
                         'author.remiss_metadata.party': {'$eq': None},
                         }},
             {'$sort': {'public_metrics.retweet_count': -1}},
-            {'$limit': 10},
+            {'$limit': 100},
             {'$project': {'_id': 0, 'id': 1, 'retweet_count': '$public_metrics.retweet_count'}}
         ]
         politician_pipeline = [
@@ -97,7 +98,7 @@ class Results:
                         'author.remiss_metadata.party': {'$ne': None},
                         }},
             {'$sort': {'public_metrics.retweet_count': -1}},
-            {'$limit': 10},
+            {'$limit': 100},
             {'$project': {'_id': 0, 'id': 1, 'retweet_count': '$public_metrics.retweet_count'}}
         ]
         suspect_politician_pipeline = [
@@ -106,7 +107,7 @@ class Results:
                         'author.remiss_metadata.party': {'$ne': None},
                         }},
             {'$sort': {'public_metrics.retweet_count': -1}},
-            {'$limit': 10},
+            {'$limit': 100},
             {'$project': {'_id': 0, 'id': 1, 'retweet_count': '$public_metrics.retweet_count'}}
         ]
 
@@ -117,13 +118,13 @@ class Results:
         politician = raw.aggregate_pandas_all(politician_pipeline)
         suspect_politician = raw.aggregate_pandas_all(suspect_politician_pipeline)
         if normal.empty:
-            raise ValueError('No normal user found')
+            logger.warning('No normal users found')
         if suspect.empty:
-            raise ValueError('No suspect user found')
+            logger.warning('No suspect users found')
         if politician.empty:
-            raise ValueError('No politician user found')
+            logger.warning('No politician users found')
         if suspect_politician.empty:
-            raise ValueError('No suspect politician user found')
+            logger.warning('No suspect politician users found')
         return normal, suspect, politician, suspect_politician
 
     def plot_egonet_and_backbone(self):
@@ -138,33 +139,30 @@ class Results:
 
             for i, row in group.iterrows():
                 try:
-                    plot = self.propagation_factory.plot_egonet(row['dataset'], row['author_id'], self.egonet_depth)
+                    plot = self.propagation_factory.plot_egonet(self.dataset, row['index'], self.egonet_depth)
                     figures.append(plot)
                     logger.info(
-                        f'Plotted egonet for user {row["author_id"]} from dataset {row["dataset"]}')
+                        f'Plotted egonet for user {row["index"]} from dataset {self.dataset}')
                     break
                 except Exception as e:
                     logger.warning(
-                        f'Failed to plot egonet for user {row["author_id"]} from dataset {row["dataset"]} due to {e}')
+                        f'Failed to plot egonet for user {row["index"]} from dataset {self.dataset} due to {e}')
 
             # save the plotly figures as png
             for i, fig in enumerate(figures):
                 fig.write_image(f'{self.output_dir}/egonet_{user_type}_{i}.png')
 
     def _get_degrees(self):
-        degrees = {}
-        for dataset in self.datasets:
-            hidden_network = self.propagation_factory.egonet.get_hidden_network(dataset)
-            degree = pd.Series(hidden_network.degree(), index=hidden_network.vs['author_id'])
-            metadata = self._get_metadata(dataset)
-            # merge degree with metadata
-            degree = degree.to_frame('degree').join(metadata.set_index('author_id'))
-            degrees[dataset] = degree
+
+        hidden_network = self.propagation_factory.egonet.get_hidden_network(self.dataset)
+        degree = pd.Series(hidden_network.degree(), index=hidden_network.vs['author_id'])
+        metadata = self._get_metadata(self.dataset)
+        # merge degree with metadata
+        degree = degree.to_frame('degree').join(metadata.set_index('author_id'))
 
         # merge dfs with the dataset as a additional column
-        degrees = pd.concat(degrees, names=['dataset', 'author_id'])
-        degrees = degrees.dropna(subset='is_usual_suspect').sort_values(ascending=False, by='degree').reset_index()
-        return degrees
+        degree = degree.dropna(subset='is_usual_suspect').sort_values(ascending=False, by='degree').reset_index()
+        return degree
 
     def _get_metadata(self, dataset):
         client = MongoClient(self.host, self.port)
@@ -193,22 +191,11 @@ class Results:
 
     def plot_legitimacy_status_and_reputation(self):
         logger.info('Plotting legitimacy, status and reputation')
-        legitimacies = {}
-        reputations = {}
-        statuses = {}
         logger.info('Getting legitimacy, status and reputation')
-        for dataset in self.datasets:
-            legitimacy = self.propagation_factory.network_metrics.get_legitimacy(dataset)
-            reputation = self.propagation_factory.network_metrics.get_reputation(dataset)
-            status = self.propagation_factory.network_metrics.get_status(dataset)
-            legitimacies[dataset] = legitimacy
-            reputations[dataset] = reputation
-            statuses[dataset] = status
+        legitimacy = self.propagation_factory.network_metrics.get_legitimacy(self.dataset)
+        reputation = self.propagation_factory.network_metrics.get_reputation(self.dataset)
+        status = self.propagation_factory.network_metrics.get_status(self.dataset)
 
-        # merge dfs with the dataset as a additional column
-        legitimacies = pd.concat(legitimacies, names=['dataset', 'author_id'])
-        reputations = pd.concat(reputations, names=['dataset', 'author_id'])
-        statuses = pd.concat(statuses, names=['dataset', 'author_id'])
 
         logger.info('Getting degrees')
         # get degrees and metadata
@@ -220,21 +207,20 @@ class Results:
             status_figures = []
             for i, row in group.iterrows():
                 try:
-                    reputation = reputations.loc[(row['dataset'], row['author_id'])]
-                    status = statuses.loc[(row['dataset'], row['author_id'])]
-                    fig = self._plot_reputation(reputation)
+                    user_reputation = reputation.loc[row['index']]
+                    user_status = status.loc[row['index']]
+                    fig = self._plot_reputation(user_reputation)
                     reputation_figures.append(fig)
-                    fig = self._plot_status(status)
+                    fig = self._plot_status(user_status)
                     status_figures.append(fig)
-                    legitimacy = legitimacies[row['dataset'], row['author_id']]
-                    legitimacy_figures_data[user_type].append(legitimacy)
+                    legitimacy_figures_data[user_type].append(legitimacy[row['index']])
 
                     logger.info(f'Plotted legitimacy, reputation and status for '
-                                f'user {row["author_id"]} from dataset {row["dataset"]}')
+                                f'user from dataset {self.dataset}')
                     break
                 except Exception as e:
                     logger.warning(
-                        f'Failed to plot legitimacy, reputation and status for user {row["author_id"]} from dataset {row["dataset"]} due to {e}')
+                        f'Failed to plot legitimacy, reputation and status for user  from dataset {self.dataset} due to {e}')
 
             # save the plotly figures as png
             for i, fig in enumerate(reputation_figures):
@@ -270,10 +256,10 @@ class Results:
         # fig.update_layout(title=title)
         return fig
 
-    def generate_nodes_and_edges_table(self):
+    def generate_nodes_and_edges_table(self, max_nodes=80000):
         logger.info('Generating nodes and edges table')
         num_nodes_edges = {}
-        for dataset in self.datasets:
+        for dataset in self.dataset:
             logger.info(f'Getting hidden network for dataset {dataset}')
             # hidden_network = self.propagation_factory.egonet.load_hidden_network_backbone(dataset)
             hidden_network = self.propagation_factory.egonet.load_hidden_network(dataset)
@@ -281,7 +267,10 @@ class Results:
             num_edges = hidden_network.ecount()
             start_time = datetime.now()
             logger.info('Computing closeness')
-            closeness = np.mean(hidden_network.closeness())
+            if max_nodes and hidden_network.vcount() > max_nodes:
+                hidden_network = hidden_network.subgraph(np.random.choice(hidden_network.vs, max_nodes, replace=False))
+            closeness = hidden_network.closeness()
+            closeness = pd.Series(closeness).mean()
             logger.info(f'Closeness computed in {datetime.now() - start_time}')
             num_nodes_edges[dataset] = {'num_nodes': num_nodes, 'num_edges': num_edges,
                                         'closeness': closeness}
@@ -351,8 +340,7 @@ class Results:
                     self.plot_egonet_and_backbone()
                 case 'legitimacy_status_reputation':
                     self.plot_legitimacy_status_and_reputation()
-                case 'cascades':
-                    self.plot_cascades()
+
                 case 'nodes_edges':
                     self.generate_nodes_and_edges_table()
                 case 'performance':
@@ -386,7 +374,16 @@ if __name__ == '__main__':
     # - Generales_2019
     # - Generalitat_2021
     # - Andalucia_2022
-    run_results('Generalitat_2021',
+    run_results(['Openarms', 'MENA_Agressions', 'MENA_Ajudes', 'Barcelona_2019', 'Generales_2019', 'Generalitat_2021',
+                 'Andalucia_2022'],
                 host='mongodb://srvinv02.esade.es',
-                features=('propagation_trees',),
-                output_dir='results')
+                features=['nodes_edges'],
+                output_dir='results/nodes_edges')
+    # run_results('Openarms',
+    #             host='mongodb://srvinv02.esade.es',
+    #             features=('legitimacy_status_reputation',),
+    #             output_dir='results/openarms')
+    # run_results('test_dataset_2',
+    #             host='localhost',
+    #             features=('legitimacy_status_reputation',),
+    #             output_dir='results/local')
