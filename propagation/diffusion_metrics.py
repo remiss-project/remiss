@@ -421,7 +421,9 @@ class DiffusionMetrics(BasePropagationMetrics):
             cascade_ids = self.get_cascade_by_retweet_count(dataset, max_cascades)
 
             for cascade_id in tqdm(cascade_ids['tweet_id']):
-                jobs.append(delayed(self._persist_conversation_metrics)(dataset, cascade_id))
+                if not self.has_diffusion_metrics(dataset, cascade_id):
+
+                    jobs.append(delayed(self._persist_conversation_metrics)(dataset, cascade_id))
 
             cascade_data = Parallel(n_jobs=n_jobs, backend='threading', verbose=10)(jobs)
             client = MongoClient(self.host, self.port)
@@ -431,6 +433,14 @@ class DiffusionMetrics(BasePropagationMetrics):
             client.close()
 
         self.n_jobs = n_jobs
+
+    def has_diffusion_metrics(self, dataset, cascade_id):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('diffusion_metrics')
+        cascade_data = collection.find_one({'cascade_id': cascade_id})
+        client.close()
+        return cascade_data is not None
 
     def get_cascade_by_retweet_count(self, dataset, max_cascades=None):
         pipeline_initial = [
