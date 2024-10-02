@@ -8,8 +8,9 @@ import pandas as pd
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
 
-from figures.propagation import PropagationPlotFactory
+from figures.propagation import PropagationPlotFactory, compute_backbone
 from propagation import Egonet
+from tests.conftest import create_test_data_from_edges
 
 patch_all()
 
@@ -19,7 +20,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
         self.propagation_factory = PropagationPlotFactory(available_datasets=['test_dataset_2'])
         self.test_dataset = 'test_dataset_2'
         self.tmp_dataset = 'tmp_dataset'
-        self.test_user_id = '999321854'
+        self.test_user_id = '2201623465'
         self.test_tweet_id = '1167078759280889856'
 
     def tearDown(self):
@@ -198,7 +199,12 @@ class PropagationFactoryTestCase(unittest.TestCase):
 
     def test_plot_egonet(self):
         fig = self.propagation_factory.plot_egonet(self.test_dataset, self.test_user_id, 2)
-        # fig.show()
+        fig.show()
+
+    def test_plot_egonet_max_edges(self):
+        self.propagation_factory.max_edges = 10
+        fig = self.propagation_factory.plot_egonet(self.test_dataset, self.test_user_id, 2)
+        fig.show()
 
     def test_plot_egonet_missing(self):
         with self.assertRaises(ValueError):
@@ -302,6 +308,71 @@ class PropagationFactoryTestCase(unittest.TestCase):
 
         # fig.show()
 
+    def test_backbone(self):
+        expected_edges = pd.DataFrame({'source': ['1', '2', '2', '1', '1', '1', '1', '1'],
+                                       'target': ['2', '3', '3', '2', '2', '2', '2', '4']})
+        test_data = create_test_data_from_edges(expected_edges)
+
+        client = MongoClient('localhost', 27017)
+        client.drop_database(self.tmp_dataset)
+        database = client.get_database(self.tmp_dataset)
+        collection = database.get_collection('raw')
+        collection.insert_many(test_data)
+
+        network = self.propagation_factory.egonet._compute_hidden_network(self.tmp_dataset)
+        backbone = compute_backbone(network, threshold=0.4)
+        actual = {frozenset(x) for x in backbone.get_edgelist()}
+        expected = {frozenset((0, 1))}
+        self.assertEqual(expected, actual)
+
+    def test_backbone_2(self):
+        # Create a test graph
+        alpha = 0.05
+
+        network = ig.Graph.Erdos_Renyi(250, 0.02, directed=False)
+        network.es["weight_norm"] = np.random.uniform(0, 0.5, network.ecount())
+
+        # Test the backbone filter
+        backbone = compute_backbone(network, threshold=alpha)
+
+        # Ensure that all edge weights are below alpha
+        for edge in backbone.get_edgelist():
+            weight = backbone.es[backbone.get_eid(*edge)]['weight_norm']
+            degree = backbone.degree(edge[0])
+            edge_alpha = (1 - weight) ** (degree - 1)
+            self.assertGreater(edge_alpha, alpha)
+
+    def test_backbone_3(self):
+        # Create a test graph
+        max_edges = 100
+
+        network = ig.Graph.Erdos_Renyi(250, 0.02, directed=False)
+        network.es["weight_norm"] = np.random.uniform(0, 0.5, network.ecount())
+
+        # Test the backbone filter
+        backbone = compute_backbone(network, max_edges=max_edges)
+
+        # Ensure that all edge weights are below alpha
+        backbone_alphas = {}
+        for edge in backbone.get_edgelist():
+            weight = backbone.es[backbone.get_eid(*edge)]['weight_norm']
+            degree = backbone.degree(edge[0])
+            edge_alpha = (1 - weight) ** (degree - 1)
+            backbone_alphas[edge] = edge_alpha
+        backbone_alphas = pd.Series(backbone_alphas, name='alpha')
+
+        network_alphas = {}
+        for edge in network.get_edgelist():
+            weight = network.es[network.get_eid(*edge)]['weight_norm']
+            degree = network.degree(edge[0])
+            edge_alpha = (1 - weight) ** (degree - 1)
+            network_alphas[edge] = edge_alpha
+
+        network_alphas = pd.Series(network_alphas, name='alpha')
+        network_alphas = network_alphas.sort_values(ascending=False)
+
+        backbone_alphas = backbone_alphas.sort_values(ascending=False)
+        self.assertEqual(max_edges, len(backbone_alphas))
 
 
 if __name__ == '__main__':

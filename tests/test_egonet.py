@@ -461,40 +461,6 @@ class TestEgonetCase(unittest.TestCase):
         print(f'took {total_time}')
         self.assertLessEqual(total_time, 10)
 
-    def test_backbone(self):
-        expected_edges = pd.DataFrame({'source': ['1', '2', '2', '1', '1', '1', '1', '1'],
-                                       'target': ['2', '3', '3', '2', '2', '2', '2', '4']})
-        test_data = create_test_data_from_edges(expected_edges)
-
-        client = MongoClient('localhost', 27017)
-        client.drop_database(self.tmp_dataset)
-        database = client.get_database(self.tmp_dataset)
-        collection = database.get_collection('raw')
-        collection.insert_many(test_data)
-
-        network = self.egonet._compute_hidden_network(self.tmp_dataset)
-        backbone = self.egonet.compute_backbone(network, alpha=0.4)
-        actual = {frozenset(x) for x in backbone.get_edgelist()}
-        expected = {frozenset((0, 1))}
-        self.assertEqual(expected, actual)
-
-    def test_backbone_2(self):
-        # Create a test graph
-        alpha = 0.05
-
-        network = ig.Graph.Erdos_Renyi(250, 0.02, directed=False)
-        network.es["weight_norm"] = np.random.uniform(0, 0.5, network.ecount())
-
-        # Test the backbone filter
-        backbone = self.egonet.compute_backbone(network, alpha=alpha)
-
-        # Ensure that all edge weights are below alpha
-        for edge in backbone.get_edgelist():
-            weight = backbone.es[backbone.get_eid(*edge)]['weight_norm']
-            degree = backbone.degree(edge[0])
-            edge_alpha = (1 - weight) ** (degree - 1)
-            self.assertGreater(edge_alpha, alpha)
-
     @patch('propagation.egonet.MongoClient')
     def test_compute_hidden_network_backbone(self, mock_mongo_client):
         # Mock MongoClient and database

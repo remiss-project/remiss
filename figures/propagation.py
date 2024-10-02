@@ -48,15 +48,38 @@ class PropagationPlotFactory(MongoPlotFactory):
                                                   reference_types=reference_types)
 
     def plot_egonet(self, collection, author_id, depth, start_date=None, end_date=None, hashtag=None):
-        egonet = self.egonet.get_egonet(collection, author_id, depth, start_date, end_date, hashtag)
-        if self.max_edges is not None and egonet.ecount() > self.max_edges:
-            logger.warning(f'Egonet for {author_id} has {egonet.ecount()} edges, reducing to {self.max_edges}')
-            egonet = compute_backbone(egonet, threshold=0, delete_vertices=self.delete_vertices,
-                                      max_edges=self.max_edges)
+        egonet = self._get_egonet(collection, author_id, depth, start_date, end_date, hashtag)
         layout = self.compute_layout(egonet)
         author_id_node_index = egonet.vs.find(author_id=author_id).index
 
         return self.plot_user_graph(egonet, collection, layout, highlight_node_index=author_id_node_index)
+
+    def _get_egonet(self, collection, author_id, depth, start_date, end_date, hashtag):
+        egonet = self.egonet.get_egonet(collection, author_id, depth, start_date, end_date, hashtag)
+
+        if self.max_edges is not None and egonet.ecount() > self.max_edges:
+            logger.warning(f'Egonet for {author_id} has {egonet.ecount()} edges, reducing to {self.max_edges}')
+            # Get author_id node just in case it gets removed in the backbone pruning
+            author_id_node = egonet.vs.find(author_id=author_id)
+
+            egonet = compute_backbone(egonet, threshold=0, delete_vertices=self.delete_vertices,
+                                      max_edges=self.max_edges)
+            # Make sure author_id is in the graph, add it otherwise
+            try:
+                egonet.vs.find(author_id=author_id).index
+            except ValueError:
+                author_id_data = {key: author_id_node[key] for key in author_id_node.attributes()}
+                egonet.add_vertex(name=author_id, **author_id_data)
+
+        # # Make sure all components are linked to the author_id
+        author_id_index = egonet.vs.find(author_id=author_id).index
+        for component in egonet.connected_components(mode='weak'):
+            if author_id_index not in component:
+                egonet.add_edge(author_id_index, component[0])
+
+        return egonet
+
+
 
     def plot_hidden_network(self, dataset, start_date=None, end_date=None, hashtags=None):
         # if start_date, end_date or hashtag are not none we need to recompute the graph and layout
@@ -108,8 +131,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         if hidden_network.vcount() == 0:
             return hidden_network
 
-        backbone = compute_backbone(hidden_network, threshold=self.threshold, delete_vertices=self.delete_vertices,
-                                    max_edges=self.max_edges)
+        backbone = compute_backbone(hidden_network, threshold=self.threshold, delete_vertices=self.delete_vertices)
 
         return backbone
 
@@ -477,12 +499,15 @@ def compute_alphas(graph):
     weights = np.array(graph.es['weight_norm'])
     degrees = np.array([graph.degree(e[0]) for e in graph.get_edgelist()])
     alphas = (1 - weights) ** (degrees - 1)
-    return alphas
+    return pd.Series(alphas)
 
 
 def compute_backbone(graph, threshold=0.05, delete_vertices=True, max_edges=None):
     alphas = compute_alphas(graph)
-    good = np.nonzero(alphas > threshold)[0]
+    rank = alphas.argsort()
+    alphas = alphas[rank]
+    good = rank[alphas > threshold]
+
     if max_edges:
         good = good[:max_edges]
     logger.debug(f'Pruning {graph.ecount() - len(good)}  edges from {graph.ecount()}: {len(good)} edges remaining')
