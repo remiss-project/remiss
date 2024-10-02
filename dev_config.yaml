@@ -2,9 +2,7 @@ mongodb:
   host: localhost
   port: 27017
 cache_dir:
-graph_layout: fruchterman_reingold
-graph_simplification:
-  threshold: 0.3
+
 available_datasets:
   - test_dataset_2
   - test_dataset_3
@@ -14,7 +12,7 @@ reference_types:
   - replied_to
 theme: PULSE
 debug: True
-frequency: 1D
+
 textual:
   api_url: 'http://srvinv02.esade.es:5005/api'
 profiling:
@@ -32,4 +30,8 @@ cut_bins:
   - Low
   - Medium
   - High
-max_edges: 100
+propagation:
+  max_edges: 1000
+  graph_layout: fruchterman_reingold
+  threshold: 0.3
+  frequency: 1D

@@ -14,7 +14,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 
 class Prepopulator:
     def __init__(self, config_file='prod_config.yaml', available_datasets=None,
-                 modules=('diffusion', 'network', 'egonet', 'layout', 'histogram'), max_cascades=None):
+                 modules=('diffusion', 'network', 'egonet', 'layout', 'histogram'), max_cascades=None,
+                 erase_existing=True):
+        self.erase_existing = erase_existing
         self.max_cascades = max_cascades
         self.modules = modules
         self.config_file = config_file
@@ -28,10 +30,13 @@ class Prepopulator:
                                               reference_types=config['reference_types'])
 
         self.histogram = Histogram(host=config['mongodb']['host'], port=config['mongodb']['port'])
-        self.propagation_factory = PropagationPlotFactory(host=config['mongodb']['host'],
-                                                          port=config['mongodb']['port'],
-                                                          available_datasets=config['available_datasets'],
-                                                          threshold=config['graph_simplification']['threshold'])
+        self.propagation_factory = PropagationPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                                 layout=config['propagation']['graph_layout'],
+                                                 threshold=config['propagation']['threshold'],
+                                                 frequency=config['propagation']['frequency'],
+                                                 available_datasets=config['available_datasets'],
+                                                 max_edges=config['propagation'].get('max_edges', None),
+                                                 )
         self.control_plot_factory = ControlPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                                        available_datasets=config['available_datasets'],
                                                        max_wordcloud_words=config['wordcloud']['max_words'])
@@ -56,7 +61,9 @@ class Prepopulator:
     def generate_diffusion_metrics(self):
         logger.info(f'Generating diffusion metrics')
         try:
-            self.diffusion_metrics.persist_diffusion_metrics(self.available_datasets, self.max_cascades)
+            self.diffusion_metrics.persist_diffusion_metrics(self.available_datasets,
+                                                             max_cascades=self.max_cascades,
+                                                             erase_existing=self.erase_existing)
         except Exception as e:
             logger.error(f"Error generating diffusion metrics: {e}")
             raise RuntimeError(f"Error generating diffusion metrics: {e}") from e
@@ -126,15 +133,15 @@ class Prepopulator:
 
 def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
                      modules=('egonet', 'layout', 'diffusion', 'diffusion_static_plots', 'network', 'histogram'),
-                     max_cascades=None):
+                     max_cascades=None, erase_existing=True):
     logger.info(f'Running prepopulator with config file: {config_file}')
     logger.info(f'Available datasets: {available_datasets}')
     logger.info(f'Modules: {modules}')
     prepopulator = Prepopulator(config_file=config_file, available_datasets=available_datasets, modules=modules,
-                                max_cascades=max_cascades)
+                                max_cascades=max_cascades, erase_existing=erase_existing)
     prepopulator.prepopulate()
 
 
 if __name__ == '__main__':
-    fire.Fire(run_prepopulator)
-    # run_prepopulator(modules=['diffusion'], config_file='dev_config.yaml', max_cascades=10)
+    # fire.Fire(run_prepopulator)
+    run_prepopulator(modules=['diffusion'], config_file='dev_config.yaml', max_cascades=10)

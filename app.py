@@ -72,11 +72,11 @@ def create_app(config):
                                             available_datasets=config['available_datasets'])
 
     egonet_plot_factory = PropagationPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                                 layout=config['graph_layout'],
-                                                 threshold=config['graph_simplification']['threshold'],
-                                                 frequency=config['frequency'],
+                                                 layout=config['propagation']['graph_layout'],
+                                                 threshold=config['propagation']['threshold'],
+                                                 frequency=config['propagation']['frequency'],
                                                  available_datasets=config['available_datasets'],
-                                                 max_edges=config['max_edges']
+                                                 max_edges=config['propagation'].get('max_edges', None),
                                                  )
     textual_factory = TextualFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                      available_datasets=config['available_datasets'])

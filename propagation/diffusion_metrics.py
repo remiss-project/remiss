@@ -413,11 +413,20 @@ class DiffusionMetrics(BasePropagationMetrics):
         self.persist_diffusion_metrics(datasets)
         self.persist_diffusion_static_plots(datasets)
 
-    def persist_diffusion_metrics(self, datasets, max_cascades=None):
+    def persist_diffusion_metrics(self, datasets, max_cascades=None, erase_existing=False):
         jobs = []
         n_jobs = self.n_jobs
         self.n_jobs = 1
+
         for dataset in datasets:
+            logger.info(f'Persisting diffusion metrics for {dataset}')
+            start_time = datetime.datetime.now()
+            client = MongoClient(self.host, self.port)
+            database = client.get_database(dataset)
+            collection = database.get_collection('diffusion_metrics')
+            if erase_existing:
+                collection.drop()
+
             cascade_ids = self.get_cascade_by_retweet_count(dataset, max_cascades)
 
             for cascade_id in tqdm(cascade_ids['tweet_id']):
@@ -426,11 +435,11 @@ class DiffusionMetrics(BasePropagationMetrics):
                     jobs.append(delayed(self._persist_conversation_metrics)(dataset, cascade_id))
 
             cascade_data = Parallel(n_jobs=n_jobs, backend='threading', verbose=10)(jobs)
-            client = MongoClient(self.host, self.port)
-            database = client.get_database(dataset)
-            collection = database.get_collection('diffusion_metrics')
+
             collection.insert_many(cascade_data)
             client.close()
+            logger.info(f'Finished persisting diffusion metrics for {dataset}. '
+                        f'Time elapsed: {datetime.datetime.now() - start_time}')
 
         self.n_jobs = n_jobs
 
