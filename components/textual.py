@@ -19,7 +19,9 @@ class EmotionPerHourComponent(RemissComponent):
         return dbc.Card([
             dbc.CardHeader('Emotion per hour'),
             dbc.CardBody([
-                self.graph
+                dcc.Loading(id=f'loading-{self.name}',
+                            type='default',
+                            children=self.graph)
             ]),
             dbc.CardFooter('Average emotion per hour of the day.')
         ])
@@ -52,7 +54,9 @@ class AverageEmotionBarComponent(RemissComponent):
         return dbc.Card([
             dbc.CardHeader('Average emotion'),
             dbc.CardBody([
-                self.graph
+                dcc.Loading(id=f'loading-{self.name}',
+                            type='default',
+                            children=self.graph)
             ]),
             dbc.CardFooter('Average emotion over the entire dataset')
         ])
