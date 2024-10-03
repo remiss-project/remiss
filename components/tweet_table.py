@@ -2,7 +2,7 @@ import logging
 
 import dash_bootstrap_components as dbc
 import pandas as pd
-from dash import Input, Output, ctx, dcc, html
+from dash import Input, Output, dcc, html
 from dash.dash_table import DataTable
 from dash.exceptions import PreventUpdate
 
@@ -64,7 +64,7 @@ class TweetTableComponent(RemissComponent):
                                     'width': '30%',
                                     'textOverflow': 'visible',
                                     'whiteSpace': 'normal',
-                                    'overflow': 'visible',},
+                                    'overflow': 'visible', },
                                    {'if': {'column_id': 'ID'},
                                     'overflow': 'visible',
                                     'textOverflow': 'visible',
@@ -121,18 +121,6 @@ class TweetTableComponent(RemissComponent):
             ], width=12),
         ], justify='center', style={'margin-bottom': '1rem'})
 
-    def update_data(self, dataset, start_date, end_date, hashtags):
-        logger.debug(f'Updating whole tweet table with '
-                     f'dataset {dataset}, start date {start_date}, end date {end_date}, hashtags {hashtags}')
-        self.data = self.plot_factory.compute_tweet_table_data(dataset, start_date, end_date, hashtags, start=0, limit=self.page_size)
-        self.data = self.data.round(2)
-        self.data['Multimodal'] = self.data['Multimodal'].apply(lambda x: 'Yes' if x else 'No')
-        self.data['Profiling'] = self.data['Profiling'].apply(lambda x: 'Yes' if x else 'No')
-        self.data['id'] = self.data['ID']
-
-        page_count = len(self.data) // self.page_size if self.data is not None else 0
-        return self.data.to_dict(orient='records'), page_count
-
     def _update_page(self, page_current, sort_by, filter_query):
         logger.debug(f'Updating tweet table with page {page_current}, sort by {sort_by}, filter query {filter_query}')
         start_time = pd.Timestamp.now()
@@ -172,11 +160,18 @@ class TweetTableComponent(RemissComponent):
         return self.displayed_data.iloc[start_row:end_row].to_dict(orient='records'), page_count
 
     def update(self, dataset, start_date, end_date, hashtags, page_current, sort_by, filter_query):
-        # logger.debug(f'Updating tweet table with dataset {dataset}, start date {start_date}, end date {end_date}')
-        if ctx.triggered_id in self._state_ids or self.data is None:
-            return self._update_data(dataset, start_date, end_date, hashtags)
-        else:
-            return self._update_page(page_current, sort_by, filter_query)
+        logger.debug(f'Updating whole tweet table with '
+                     f'dataset {dataset}, start date {start_date}, end date {end_date}, hashtags {hashtags}')
+        self.data = self.plot_factory.get_tweet_table(dataset, start_date, end_date, hashtags,
+                                                      start_tweet=page_current * self.page_size,
+                                                      amount=self.page_size)
+        self.data = self.data.round(2)
+        self.data['Multimodal'] = self.data['Multimodal'].apply(lambda x: 'Yes' if x else 'No')
+        self.data['Profiling'] = self.data['Profiling'].apply(lambda x: 'Yes' if x else 'No')
+        self.data['id'] = self.data['ID']
+
+        # page_count = len(self.data) // self.page_size if self.data is not None else 0
+        return self.data.to_dict(orient='records')
 
     def split_filter_part(self, filter_part):
         for operator_type in self.operators:
@@ -200,6 +195,10 @@ class TweetTableComponent(RemissComponent):
                     return name, operator_type[0].strip(), value
 
         return [None] * 3
+
+    def update_page_count(self, dataset):
+        size = self.plot_factory.get_tweet_table_size(dataset)
+        return size // self.page_size if size is not None else 0
 
     def update_hashtags_state(self, active_cell):
         if active_cell and active_cell['column_id'] == 'Text':
@@ -233,7 +232,6 @@ class TweetTableComponent(RemissComponent):
     def callbacks(self, app):
         app.callback(
             Output(self.table, 'data'),
-            Output(self.table, 'page_count'),
             [Input(self.state.current_dataset, 'data'),
              Input(self.state.current_start_date, 'data'),
              Input(self.state.current_end_date, 'data'),
@@ -243,6 +241,10 @@ class TweetTableComponent(RemissComponent):
              Input(self.table, 'filter_query'),
              ],
         )(self.update)
+        app.callback(
+            Output(self.table, 'page_count'),
+            [Input(self.state.current_dataset, 'data')],
+        )(self.update_page_count)
 
         app.callback(
             Output(self.state.current_hashtags, 'data', allow_duplicate=True),

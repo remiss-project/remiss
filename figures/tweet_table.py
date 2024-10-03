@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class TweetTableFactory(MongoPlotFactory):
 
-    def get_tweet_table(self, dataset, start_time=None, end_time=None, hashtags=None, skip=None, limit=None):
+    def get_tweet_table(self, dataset, start_time=None, end_time=None, hashtags=None, start_tweet=None, amount=None):
         pipeline = [
             {'$project': {
                 '_id': 0,
@@ -34,11 +34,11 @@ class TweetTableFactory(MongoPlotFactory):
                 'Status': 1,
             }}
         ]
-        if skip is not None:
-            pipeline.insert(0, {'$skip': skip})
+        if start_tweet is not None:
+            pipeline.insert(0, {'$skip': start_tweet})
 
-        if limit is not None:
-            pipeline.insert(0, {'$limit': skip + limit})
+        if amount is not None:
+            pipeline.insert(0, {'$limit': start_tweet + amount})
 
         schema = Schema({
             'ID': str,
