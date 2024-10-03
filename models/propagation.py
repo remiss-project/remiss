@@ -1,19 +1,18 @@
+import logging
 import time
 
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import sklearn
+from joblib import Parallel, delayed
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
 from pymongoarrow.schema import Schema
-from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import classification_report
-from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from tqdm import tqdm
 from xgboost import XGBClassifier
 
 from propagation import DiffusionMetrics, Egonet
@@ -22,9 +21,12 @@ patch_all()
 
 sklearn.set_config(transform_output="pandas")
 
+logger = logging.getLogger(__name__)
+
 
 class PropagationDatasetGenerator:
-    def __init__(self, dataset, host='localhost', port=27017):
+    def __init__(self, dataset, host='localhost', port=27017, max_cascades=None):
+        self.max_cascades = max_cascades
         self.host = host
         self.port = port
         self._features = None
@@ -35,16 +37,24 @@ class PropagationDatasetGenerator:
         self.diffusion_metrics = DiffusionMetrics(host=host, port=port, egonet=self.egonet)
 
     def get_available_cascades(self):
+        logger.info('Fetching available cascades')
         profiling_author_ids = self._get_profiling_author_ids()
         cascades = self._get_cascades(profiling_author_ids)
-        return cascades
+        cascades = self._filter_textual(cascades)
+        if cascades.empty:
+            raise RuntimeError('No cascades found. Please prepopulate them first')
+
+        logger.info(f'Found {len(cascades)} cascades')
+        return cascades.reset_index(drop=True)
 
     def _get_profiling_author_ids(self):
+        logger.info('Fetching profiling author ids')
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.dataset)
         collection = database.get_collection('profiling')
         author_ids = collection.distinct('user_id')
         client.close()
+        logger.info(f'Found {len(author_ids)} profiling author ids')
         return list(author_ids)
 
     def _get_cascades(self, profiling_author_ids):
@@ -74,25 +84,59 @@ class PropagationDatasetGenerator:
             {'$project': {'tweet_id': '$referenced_tweets.id', }}
         ]
         propagated_tweets = collection.aggregate_pandas_all(propagated_tweet_pipeline)
-        return original_tweets[original_tweets['tweet_id'].isin(propagated_tweets['tweet_id'])]
+        client.close()
+        cascades = original_tweets[original_tweets['tweet_id'].isin(propagated_tweets['tweet_id'])]
+        cascades = cascades.drop_duplicates(subset='tweet_id')
+
+        return cascades
+
+    def _filter_textual(self, cascades):
+        # remove cascades without textual features
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(self.dataset)
+        collection = database.get_collection('textual')
+        tweet_ids = cascades['tweet_id'].astype(int).tolist()
+        pipeline = [
+            {'$match': {'id': {'$in': tweet_ids}}},
+            {'$project': {'_id': 0, 'tweet_id': '$id'}}
+        ]
+        textual_tweets = collection.aggregate_pandas_all(pipeline)
+        client.close()
+
+        if textual_tweets.empty:
+           logger.warning('No cascades with textual features found, picking them all')
+        else:
+            textual_tweets['tweet_id'] = textual_tweets['tweet_id'].astype(int).astype(str)
+            textual_tweets = textual_tweets.drop_duplicates(subset='tweet_id')
+            good = cascades['tweet_id'].isin(textual_tweets['tweet_id'])
+            cascades = cascades[good]
+        return cascades
 
     def get_rows(self, cascades):
-        rows = []
+        logger.info(f'Fetching rows for {len(cascades)} cascades')
+        jobs = []
         for _, cascade in cascades.iterrows():
-            prop_tree = self._get_propagation_tree(cascade['tweet_id'])
-            for node in prop_tree.vs:
-                neighbors = set(prop_tree.neighbors(node))
-                for neighbor in neighbors:
-                    if neighbor != node.index:
-                        neighbor = prop_tree.vs[neighbor]
-                        rows.append({
-                            'source': node['author_id'],
-                            'target': neighbor['author_id'],
-                            'cascade_id': cascade['tweet_id'],
-                            'original_author': cascade['author_id'],
-                        })
+            jobs.append(delayed(self._get_row_for_cascades)(cascade))
+        rows = Parallel(n_jobs=-2, verbose=10)(jobs)
+        rows = pd.DataFrame([row for sublist in rows for row in sublist])
+        logger.info(f'Found {len(rows)} rows')
+        return rows
 
-        return pd.DataFrame(rows)
+    def _get_row_for_cascades(self, cascade):
+        rows = []
+        prop_tree = self._get_propagation_tree(cascade['tweet_id'])
+        for node in prop_tree.vs:
+            neighbors = set(prop_tree.neighbors(node))
+            for neighbor in neighbors:
+                if neighbor != node.index:
+                    neighbor = prop_tree.vs[neighbor]
+                    rows.append({
+                        'source': node['author_id'],
+                        'target': neighbor['author_id'],
+                        'cascade_id': cascade['tweet_id'],
+                        'original_author': cascade['author_id'],
+                    })
+        return rows
 
     def _get_propagation_tree(self, tweet_id):
         try:
@@ -104,7 +148,7 @@ class PropagationDatasetGenerator:
     def fetch_tweet_features(self, tweets):
         raw_features = self._fetch_raw_tweet_features(tweets)
         textual_features = self._fetch_textual_tweet_features(tweets)
-        return raw_features.join(textual_features, how='inner')
+        return raw_features.join(textual_features, how='left')
 
     def _fetch_raw_tweet_features(self, tweets):
         client = MongoClient(self.host, self.port)
@@ -113,9 +157,9 @@ class PropagationDatasetGenerator:
 
         pipeline = [
             {'$match': {'id': {'$in': tweets}}},
-            {'$project': {'_id': 0, 'tweet_id': '$id', 'num_hashtags': 1, 'num_mentions': 1, 'num_urls': 1,
-                          'num_media': 1, 'num_interactions': 1, 'num_words': 1, 'num_chars': 1,
-                          'is_usual_suspect_op': 1, 'party_op': 1
+            {'$project': {'_id': 0, 'tweet_id': '$id',
+                            'num_replies': '$public_metrics.reply_count', 'num_retweets': '$public_metrics.retweet_count',
+                            'num_quotes': '$public_metrics.quote_count', 'num_likes': '$public_metrics.like_count',
                           }}
         ]
         raw_tweet_features = collection.aggregate_pandas_all(pipeline)
@@ -127,7 +171,9 @@ class PropagationDatasetGenerator:
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.dataset)
         collection = database.get_collection('textual')
+        tweets = [int(tweet) for tweet in tweets]
         pipeline = [
+            {'$match': {'id': {'$in': tweets}}},
             {'$project': {
                 '_id': 0,
                 'tweet_id': '$id',
@@ -166,15 +212,17 @@ class PropagationDatasetGenerator:
         features = collection.aggregate_pandas_all(pipeline)
 
         if features.empty:
-            raise RuntimeError('Textual features not found. Please prepopulate them first')
-        features['tweet_id'] = features['tweet_id'].astype(str)
-        return features.set_index('tweet_id')
+            logger.warning('Textual features not found. Please prepopulate them first')
+        else:
+            features['tweet_id'] = features['tweet_id'].astype(str)
+            features = features.set_index('tweet_id')
+        return features
 
     def fetch_user_features(self, users):
         raw_features = self._fetch_raw_user_features(users)
         profiling_features = self._fetch_profiling_user_features(users)
         network_features = self._fetch_network_metrics(users)
-        return raw_features.join(profiling_features, how='inner').join(network_features, how='inner')
+        return raw_features.join(profiling_features, how='left').join(network_features, how='left')
 
     def _fetch_network_metrics(self, users):
         client = MongoClient(self.host, self.port)
@@ -287,9 +335,10 @@ class PropagationDatasetGenerator:
         return user_features
 
     def _generate_negative_rows(self, features):
+        logger.info('Generating negative samples')
         hidden_network = self.egonet.get_hidden_network(self.dataset)
         negatives = []
-        for source, interactions in features.groupby('source'):
+        for source, interactions in tqdm(features.groupby('source')):
             if len(interactions) > 1:
                 targets = set(interactions['target'])
                 source_node = hidden_network.vs.find(author_id=source)
@@ -310,14 +359,24 @@ class PropagationDatasetGenerator:
         return negatives
 
     def generate_propagation_dataset(self):
+        logger.info('Generating propagation dataset')
         cascades = self.get_available_cascades()
+        if self.max_cascades:
+            logger.info(f'Sampling {self.max_cascades} cascades')
+            cascades = cascades.sample(self.max_cascades).reset_index(drop=True)
         positive_rows = self.get_rows(cascades)
 
         tweets = positive_rows['cascade_id'].unique().tolist()
+        logger.info(f'Fetching tweet features for {len(tweets)} tweets')
         positive_users = list(set(positive_rows['source'].unique()) | set(positive_rows['target'].unique()))
+        logger.info(f'Fetching user features for {len(positive_users)} users')
         tweet_features = self.fetch_tweet_features(tweets)
+        logger.info(f'Fetched {len(tweet_features)} tweet features')
         positive_user_features = self.fetch_user_features(positive_users)
+        logger.info(f'Fetched {len(positive_user_features)} user features')
 
+
+        logger.info('Merging features')
         positive_samples = positive_rows.merge(tweet_features, left_on='cascade_id', right_index=True, how='inner')
         positive_samples = positive_samples.merge(positive_user_features.rename(columns=lambda x: f'{x}_prev'),
                                                   left_on='source',
@@ -329,10 +388,14 @@ class PropagationDatasetGenerator:
                                                   left_on='original_author',
                                                   right_index=True, how='inner')
 
+        logger.info('Generating negative samples')
         negative_rows = self._generate_negative_rows(positive_samples)
         negative_users = list(set(negative_rows['source'].unique()) | set(negative_rows['target'].unique()))
+        logger.info(f'Fetching user features for {len(negative_users)} users')
         negative_user_features = self.fetch_user_features(negative_users)
+        logger.info(f'Fetched {len(negative_user_features)} user features')
 
+        logger.info('Merging negative features')
         negative_samples = negative_rows.merge(tweet_features, left_on='cascade_id', right_index=True, how='inner')
         negative_samples = negative_samples.merge(negative_user_features.rename(columns=lambda x: f'{x}_prev'),
                                                   left_on='source',
@@ -341,22 +404,21 @@ class PropagationDatasetGenerator:
                                                   left_on='target',
                                                   right_index=True, how='inner')
         negative_samples = negative_samples.merge(negative_user_features.rename(columns=lambda x: f'{x}_original'),
-                                                    left_on='original_author',
-                                                    right_index=True, how='inner')
+                                                  left_on='original_author',
+                                                  right_index=True, how='inner')
 
         positive_samples['propagated'] = 1
         negative_samples['propagated'] = 0
         dataset = pd.concat([positive_samples, negative_samples]).reset_index(drop=True)
         dataset = dataset.drop(columns=['source', 'target', 'cascade_id', 'original_author'], errors='ignore')
         dataset = dataset.sample(frac=1).reset_index(drop=True)
+        logger.info(f'Generated dataset with {len(dataset)} samples')
         return dataset
-
 
 
 class PropagationCascadeModel:
     def __init__(self, host='localhost', port=27017, reference_types=('replied_to', 'quoted', 'retweeted'),
                  use_profiling='full', use_textual='full', dataset_generator=None):
-        self.pipeline = None
         self.host = host
         self.port = port
         self.reference_types = reference_types
@@ -364,7 +426,6 @@ class PropagationCascadeModel:
         self.use_textual = use_textual
         self.dataset_generator = dataset_generator
         self.model = None
-
 
     def fit(self, X, y):
         model = Pipeline([
@@ -381,21 +442,20 @@ class PropagationCascadeModel:
         self.model = model
         return self
 
-
     def predict(self, X):
-        if self.pipeline is None:
+        if self.model is None:
             raise RuntimeError('Model not fitted')
-        return self.pipeline.predict(X)
+        return self.model.predict(X)
 
     def predict_proba(self, X):
-        if self.pipeline is None:
+        if self.model is None:
             raise RuntimeError('Model not fitted')
-        return self.pipeline.predict_proba(X)
+        return self.model.predict_proba(X)
 
     def score(self, X, y=None, **kwargs):
-        if self.pipeline is None:
+        if self.model is None:
             raise RuntimeError('Model not fitted')
-        return self.pipeline.score(X, y)
+        return self.model.score(X, y)
 
     def generate_cascade(self, x):
         # Get the conversation id and user id from x

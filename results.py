@@ -6,7 +6,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import plotly.express as px
-from openpyxl.styles.builtins import output
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
 from sklearn.metrics import classification_report
@@ -15,16 +14,16 @@ from sklearn.model_selection import train_test_split
 from figures.propagation import PropagationPlotFactory
 from models.propagation import PropagationCascadeModel, PropagationDatasetGenerator
 
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger('results')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
 class Results:
 
     def __init__(self, dataset, host='localhost', port=27017, output_dir='./results', egonet_depth=2,
                  features=('propagation_tree', 'egonet', 'legitimacy_status_reputation', 'cascades', 'nodes_edges',
-                           'performance')):
+                           'performance'), max_cascades=None):
+        self.max_cascades = max_cascades
         self.host = host
         self.port = port
         self.output_dir = Path(output_dir)
@@ -196,7 +195,6 @@ class Results:
         reputation = self.propagation_factory.network_metrics.get_reputation(self.dataset)
         status = self.propagation_factory.network_metrics.get_status(self.dataset)
 
-
         logger.info('Getting degrees')
         # get degrees and metadata
         degrees = self._get_degrees()
@@ -281,26 +279,40 @@ class Results:
     def generate_performance_table(self):
         logger.info('Generating performance table')
         results_filepath = self.output_dir / 'model_performance.csv'
-        if results_filepath.exists():
-            results = pd.read_csv(results_filepath, index_col=0).to_dict()
-        else:
-            results = {}
+
+        results = {}
         for dataset in self.dataset:
             if dataset in results:
                 logger.warning(f'Dataset {dataset} already processed. Skipping.')
             else:
-                logger.info(f'Testing dataset {dataset}')
-                results[dataset] = self._test_dataset(dataset)
+                try:
+                    logger.info(f'Testing dataset {dataset}')
+                    X, y = self._load_dataset(self.output_dir, dataset)
+                    results[dataset] = self._test_dataset(X, y, dataset)
+                except Exception as e:
+                    raise e
+                    logger.error(f'Failed to test dataset {dataset} due to {e}')
 
         results = pd.DataFrame(results).T
-        results.to_csv()
+        results.to_csv(results_filepath, index=True)
+        results.to_markdown(self.output_dir / 'model_performance.md')
 
-    def _test_dataset(self, dataset):
-        dataset_generator = PropagationDatasetGenerator(dataset, host=self.host, port=self.port)
-        features = dataset_generator.generate_propagation_dataset()
+    def _load_dataset(self, output_dir, dataset):
+        dataset_path = Path(output_dir) / f'{dataset}.csv'
+        if dataset_path.exists():
+            features = pd.read_csv(dataset_path)
+        else:
+            logger.info(f'Dataset {dataset} not found. Generating dataset')
+            dataset_generator = PropagationDatasetGenerator(dataset, host=self.host, port=self.port,
+                                                            max_cascades=self.max_cascades)
+            features = dataset_generator.generate_propagation_dataset()
+            features.to_csv(dataset_path, index=False)
         y = features['propagated']
         X = features.drop(columns=['propagated'])
+        return X, y
 
+
+    def _test_dataset(self, X, y, dataset):
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         model = PropagationCascadeModel()
         model.fit(X_train, y_train)
@@ -352,16 +364,19 @@ class Results:
 
 
 def run_results(dataset, host='localhost', port=27017, output_dir='./results', egonet_depth=2,
-                features=('propagation_tree', 'egonet', 'legitimacy', 'cascades', 'nodes_edges', 'performance')):
+                features=('propagation_tree', 'egonet', 'legitimacy', 'cascades', 'nodes_edges', 'performance'),
+                max_cascades=None):
     logger.info('Running results')
     logger.info(f'Datasets: {dataset}')
     logger.info(f'Host: {host}')
     logger.info(f'Port: {port}')
     logger.info(f'Output directory: {output_dir}')
     logger.info(f'Egonet depth: {egonet_depth}')
+    logger.info(f'Max cascades: {max_cascades}')
     results = Results(dataset=dataset, host=host, port=port, output_dir=output_dir,
                       egonet_depth=egonet_depth,
-                      features=features)
+                      features=features,
+                      max_cascades=max_cascades)
     results.process()
 
 
@@ -374,11 +389,11 @@ if __name__ == '__main__':
     # - Generales_2019
     # - Generalitat_2021
     # - Andalucia_2022
-    run_results(['Openarms', 'MENA_Agressions', 'MENA_Ajudes', 'Barcelona_2019', 'Generales_2019', 'Generalitat_2021',
-                 'Andalucia_2022'],
-                host='mongodb://srvinv02.esade.es',
-                features=['nodes_edges'],
-                output_dir='results/nodes_edges')
+    # run_results(['Openarms', 'MENA_Agressions', 'MENA_Ajudes', 'Barcelona_2019', 'Generales_2019', 'Generalitat_2021',
+    #              'Andalucia_2022'],
+    #             host='mongodb://srvinv02.esade.es',
+    #             features=['nodes_edges'],
+    #             output_dir='results/nodes_edges')
     # run_results('Openarms',
     #             host='mongodb://srvinv02.esade.es',
     #             features=('legitimacy_status_reputation',),
@@ -387,3 +402,12 @@ if __name__ == '__main__':
     #             host='localhost',
     #             features=('legitimacy_status_reputation',),
     #             output_dir='results/local')
+    # run_results(['Openarms', 'MENA_Agressions', 'MENA_Ajudes'],
+    #             host='localhost',
+    #             features=('performance',),
+    #             output_dir='results/performance')
+    run_results(['Andalucia_2022'],
+                host='mongodb://srvinv02.esade.es',
+                features=['performance'],
+                output_dir='results/performance',
+                max_cascades=4)
