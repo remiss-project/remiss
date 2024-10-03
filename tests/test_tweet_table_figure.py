@@ -151,28 +151,73 @@ class TestTopTableFactory(TestCase):
         self.top_table_factory.persist([self.test_dataset])
         actual = self.top_table_factory._load_table_from_mongo(self.test_dataset)
 
-        expected = self.top_table_factory.compute_tweet_table_data(self.test_dataset).drop(columns=['Hashtags'])
+        expected = self.top_table_factory.compute_tweet_table_data(self.test_dataset)
+        expected = expected.drop(columns=['hashtags', 'created_at'])
         pd.testing.assert_frame_equal(actual, expected, check_dtype=False)
         client = MongoClient('localhost', 27017)
         database = client.get_database(self.test_dataset)
         collection = database.get_collection('tweet_table')
-        hashtags = list(collection.find({'Hashtags': {'$exists': True}}))
+        hashtags = list(collection.find({'hashtags': {'$exists': True}}))
         self.assertGreater(len(hashtags), 0)
+        created_at = list(collection.find({'created_at': {'$exists': True}}))
+        self.assertGreater(len(created_at), 0)
 
     def test_skip(self):
         expected = self.top_table_factory._load_table_from_mongo(self.test_dataset)
         expected = expected.iloc[10:].reset_index(drop=True)
-        actual = self.top_table_factory.get_tweet_table(self.test_dataset, skip=10)
+        actual = self.top_table_factory.get_tweet_table(self.test_dataset, start_tweet=10)
         pd.testing.assert_frame_equal(actual, expected, check_dtype=False)
 
     def test_limit(self):
         expected = self.top_table_factory._load_table_from_mongo(self.test_dataset)
         expected = expected.iloc[:10].reset_index(drop=True)
-        actual = self.top_table_factory.get_tweet_table(self.test_dataset, limit=10)
+        actual = self.top_table_factory.get_tweet_table(self.test_dataset, amount=10)
         pd.testing.assert_frame_equal(actual, expected, check_dtype=False)
 
     def test_skip_and_limit(self):
         expected = self.top_table_factory._load_table_from_mongo(self.test_dataset)
         expected = expected.iloc[10:20].reset_index(drop=True)
-        actual = self.top_table_factory.get_tweet_table(self.test_dataset, skip=10, limit=10)
+        actual = self.top_table_factory.get_tweet_table(self.test_dataset, start_tweet=10, amount=10)
         pd.testing.assert_frame_equal(actual, expected, check_dtype=False)
+
+    def test_hashtags(self):
+        expected = self.top_table_factory._load_table_from_mongo(self.test_dataset)
+        client = MongoClient('localhost', 27017)
+        database = client.get_database(self.test_dataset)
+        collection = database.get_collection('tweet_table')
+        has_hashtag =  [doc['ID'] for doc in collection.find() if 'hashtags' in doc]
+        has_hashtag = has_hashtag[10:20]
+        expected = expected[expected['ID'].isin(has_hashtag)].reset_index(drop=True)
+        actual = self.top_table_factory.get_tweet_table(self.test_dataset, start_tweet=10, amount=10, hashtags=['OpenMafia'])
+        pd.testing.assert_frame_equal(actual, expected, check_dtype=False)
+        self.assertGreater(len(actual), 0)
+
+    def test_start_time(self):
+        client = MongoClient('localhost', 27017)
+        pipeline = [
+            {'$project': {'ID': 1, 'created_at': 1}},
+        ]
+        collection = client.get_database(self.test_dataset).get_collection('tweet_table')
+        expected = collection.aggregate_pandas_all(pipeline)
+        expected['created_at'] = pd.to_datetime(expected['created_at'])
+        start_time = expected['created_at'].iloc[10]
+        expected = expected[expected['created_at'] >= start_time].reset_index(drop=True)
+        actual = self.top_table_factory.get_tweet_table(self.test_dataset, start_time=start_time)
+        actual = set(actual['ID'])
+        expected = set(expected['ID'])
+        self.assertSetEqual(actual, expected)
+
+    def test_end_time(self):
+        client = MongoClient('localhost', 27017)
+        pipeline = [
+            {'$project': {'ID': 1, 'created_at': 1}},
+        ]
+        collection = client.get_database(self.test_dataset).get_collection('tweet_table')
+        expected = collection.aggregate_pandas_all(pipeline)
+        expected['created_at'] = pd.to_datetime(expected['created_at'])
+        end_time = expected['created_at'].iloc[10]  + pd.Timedelta(days=1)
+        expected = expected[expected['created_at'] < end_time].reset_index(drop=True)
+        actual = self.top_table_factory.get_tweet_table(self.test_dataset, end_time=end_time)
+        actual = set(actual['ID'])
+        expected = set(expected['ID'])
+        self.assertTrue(len(expected - actual) < 5)

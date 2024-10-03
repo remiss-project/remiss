@@ -2,6 +2,7 @@ import logging
 from abc import ABC
 
 import igraph as ig
+import pandas as pd
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
 
@@ -111,3 +112,17 @@ class MongoPlotFactory(ABC):
         g.es['weight_norm'] = references['weight_norm']
 
         return g
+
+    def _validate_dates(self, dataset, start_date, end_date):
+        dataset_start_date, dataset_end_date = self.get_date_range(dataset)
+        if start_date:
+            start_date = pd.to_datetime(start_date).date()
+        if end_date:
+            end_date = pd.to_datetime(end_date).date()
+
+        if start_date == dataset_start_date:
+            start_date = None
+        if end_date == dataset_end_date:
+            end_date = None
+
+        return start_date, end_date

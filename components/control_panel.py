@@ -44,7 +44,6 @@ class ControlPanelComponent(RemissComponent):
             minSize=self.min_size,
             hover=False,
             id=f'wordcloud-{self.name}'
-            ,
         )
 
     def get_date_picker_component(self):
@@ -59,11 +58,12 @@ class ControlPanelComponent(RemissComponent):
 
     def update_wordcloud(self, dataset, author_id, start_date, end_date):
         available_hashtags_freqs = self.plot_factory.get_hashtag_freqs(dataset, author_id, start_date, end_date)
-        # normalize
-        available_hashtags_freqs['count'] = available_hashtags_freqs['count'] / available_hashtags_freqs['count'].max()
-        available_hashtags_freqs = list(available_hashtags_freqs[['hashtag', 'count']].itertuples(index=False, name=None))
 
-        if available_hashtags_freqs:
+
+        if not available_hashtags_freqs.empty:
+            # normalize
+            available_hashtags_freqs['count'] = available_hashtags_freqs['count'] / available_hashtags_freqs['count'].max()
+            available_hashtags_freqs = list(available_hashtags_freqs[['hashtag', 'count']].itertuples(index=False, name=None))
             logger.debug(
                 f'Updating wordcloud for dataset {dataset}, {author_id}, {start_date}, {end_date} with {len(available_hashtags_freqs)} hashtags')
 

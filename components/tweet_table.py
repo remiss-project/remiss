@@ -25,14 +25,7 @@ class TweetTableComponent(RemissComponent):
         self.displayed_data = None
         self.state = state
         self.top_table_columns = top_table_columns
-        self.operators = [['ge ', '>='],
-                          ['le ', '<='],
-                          ['lt ', '<'],
-                          ['gt ', '>'],
-                          ['ne ', '!='],
-                          ['eq ', '='],
-                          ['contains '],
-                          ['datestartswith ']]
+
 
         self._state_ids = {self.state.current_dataset.id, self.state.current_start_date.id,
                            self.state.current_end_date.id, self.state.current_hashtags.id}
@@ -121,80 +114,25 @@ class TweetTableComponent(RemissComponent):
             ], width=12),
         ], justify='center', style={'margin-bottom': '1rem'})
 
-    def _update_page(self, page_current, sort_by, filter_query):
-        logger.debug(f'Updating tweet table with page {page_current}, sort by {sort_by}, filter query {filter_query}')
-        start_time = pd.Timestamp.now()
-        self.displayed_data = self.data
-        if filter_query:
-            filtering_expressions = filter_query.split(' && ')
-            for filter_part in filtering_expressions:
-                col_name, operator, filter_value = self.split_filter_part(filter_part)
 
-                if operator in ('eq', 'ne', 'lt', 'le', 'gt', 'ge'):
-                    # these operators match pandas series operator method names
-                    self.displayed_data = self.displayed_data.loc[
-                        getattr(self.displayed_data[col_name], operator)(filter_value)]
-                elif operator == 'contains':
-                    self.displayed_data = self.displayed_data.loc[
-                        self.displayed_data[col_name].str.contains(filter_value)]
-                elif operator == 'datestartswith':
-                    # this is a simplification of the front-end filtering logic,
-                    # only works with complete fields in standard format
-                    self.displayed_data = self.displayed_data.loc[
-                        self.displayed_data[col_name].str.startswith(filter_value)]
-
-        if len(sort_by):
-            self.displayed_data = self.displayed_data.sort_values(
-                [col['column_id'] for col in sort_by],
-                ascending=[
-                    col['direction'] == 'asc'
-                    for col in sort_by
-                ],
-                inplace=False
-            )
-
-        page_count = len(self.displayed_data) // self.page_size if self.displayed_data is not None else 0
-        start_row = page_current * self.page_size
-        end_row = (page_current + 1) * self.page_size
-        logger.debug(f'Updated tweet table in {pd.Timestamp.now() - start_time}')
-        return self.displayed_data.iloc[start_row:end_row].to_dict(orient='records'), page_count
 
     def update(self, dataset, start_date, end_date, hashtags, page_current, sort_by, filter_query):
         logger.debug(f'Updating whole tweet table with '
-                     f'dataset {dataset}, start date {start_date}, end date {end_date}, hashtags {hashtags}')
+                     f'dataset {dataset}, start date {start_date}, end date {end_date}, hashtags {hashtags},'
+                     f'page {page_current}, sort by {sort_by}, filter query {filter_query}')
         self.data = self.plot_factory.get_tweet_table(dataset, start_date, end_date, hashtags,
                                                       start_tweet=page_current * self.page_size,
-                                                      amount=self.page_size)
+                                                      amount=self.page_size,
+                                                      sort_by=sort_by,
+                                                      filter_query=filter_query)
         self.data = self.data.round(2)
         self.data['Multimodal'] = self.data['Multimodal'].apply(lambda x: 'Yes' if x else 'No')
         self.data['Profiling'] = self.data['Profiling'].apply(lambda x: 'Yes' if x else 'No')
         self.data['id'] = self.data['ID']
 
-        # page_count = len(self.data) // self.page_size if self.data is not None else 0
         return self.data.to_dict(orient='records')
 
-    def split_filter_part(self, filter_part):
-        for operator_type in self.operators:
-            for operator in operator_type:
-                if operator in filter_part:
-                    name_part, value_part = filter_part.split(operator, 1)
-                    name = name_part[name_part.find('{') + 1: name_part.rfind('}')]
 
-                    value_part = value_part.strip()
-                    v0 = value_part[0]
-                    if (v0 == value_part[-1] and v0 in ("'", '"', '`')):
-                        value = value_part[1: -1].replace('\\' + v0, v0)
-                    else:
-                        try:
-                            value = float(value_part)
-                        except ValueError:
-                            value = value_part
-
-                    # word operators need spaces after them in the filter string,
-                    # but we don't want these later
-                    return name, operator_type[0].strip(), value
-
-        return [None] * 3
 
     def update_page_count(self, dataset):
         size = self.plot_factory.get_tweet_table_size(dataset)
