@@ -114,10 +114,10 @@ class Prepopulator:
 
     def generate_tweet_table(self):
         self._execute_with_logging(
-            "wordcloud hashtag frequencies",
+            "tweet table",
             self.tweet_table_factory.persist,
             self.available_datasets,
-            "Error generating wordcloud hashtag frequencies"
+            "Error generating tweet table"
         )
 
     def prepopulate(self):
