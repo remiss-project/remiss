@@ -121,17 +121,17 @@ class TweetTableComponent(RemissComponent):
             ], width=12),
         ], justify='center', style={'margin-bottom': '1rem'})
 
-    def _update_data(self, dataset, start_date, end_date, hashtags):
+    def update_data(self, dataset, start_date, end_date, hashtags):
         logger.debug(f'Updating whole tweet table with '
                      f'dataset {dataset}, start date {start_date}, end date {end_date}, hashtags {hashtags}')
-        self.data = self.plot_factory.get_top_table_data(dataset, start_date, end_date, hashtags)
+        self.data = self.plot_factory.compute_tweet_table_data(dataset, start_date, end_date, hashtags, start=0, limit=self.page_size)
         self.data = self.data.round(2)
         self.data['Multimodal'] = self.data['Multimodal'].apply(lambda x: 'Yes' if x else 'No')
         self.data['Profiling'] = self.data['Profiling'].apply(lambda x: 'Yes' if x else 'No')
         self.data['id'] = self.data['ID']
 
         page_count = len(self.data) // self.page_size if self.data is not None else 0
-        return self.data.iloc[:self.page_size].to_dict(orient='records'), page_count
+        return self.data.to_dict(orient='records'), page_count
 
     def _update_page(self, page_current, sort_by, filter_query):
         logger.debug(f'Updating tweet table with page {page_current}, sort by {sort_by}, filter query {filter_query}')

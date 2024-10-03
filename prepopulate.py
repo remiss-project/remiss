@@ -1,8 +1,8 @@
 import logging
 
-import fire
 from pyaml_env import parse_config
 
+from figures import TweetTableFactory
 from figures.control import ControlPlotFactory
 from figures.propagation import PropagationPlotFactory
 from propagation import Egonet, NetworkMetrics, DiffusionMetrics
@@ -30,16 +30,20 @@ class Prepopulator:
                                               reference_types=config['reference_types'])
 
         self.histogram = Histogram(host=config['mongodb']['host'], port=config['mongodb']['port'])
-        self.propagation_factory = PropagationPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                                 layout=config['propagation']['graph_layout'],
-                                                 threshold=config['propagation']['threshold'],
-                                                 frequency=config['propagation']['frequency'],
-                                                 available_datasets=config['available_datasets'],
-                                                 max_edges=config['propagation'].get('max_edges', None),
-                                                 )
+        self.propagation_factory = PropagationPlotFactory(host=config['mongodb']['host'],
+                                                          port=config['mongodb']['port'],
+                                                          layout=config['propagation']['graph_layout'],
+                                                          threshold=config['propagation']['threshold'],
+                                                          frequency=config['propagation']['frequency'],
+                                                          available_datasets=config['available_datasets'],
+                                                          max_edges=config['propagation'].get('max_edges', None),
+                                                          )
         self.control_plot_factory = ControlPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                                        available_datasets=config['available_datasets'],
                                                        max_wordcloud_words=config['wordcloud']['max_words'])
+        self.tweet_table_factory = TweetTableFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                                     available_datasets=config['available_datasets'])
+
         self.available_datasets = config['available_datasets'] if available_datasets is None else available_datasets
 
     def _execute_with_logging(self, metric_type, persist_method, available_datasets, error_message):
@@ -108,6 +112,14 @@ class Prepopulator:
             "Error generating wordcloud hashtag frequencies"
         )
 
+    def generate_tweet_table(self):
+        self._execute_with_logging(
+            "wordcloud hashtag frequencies",
+            self.tweet_table_factory.persist,
+            self.available_datasets,
+            "Error generating wordcloud hashtag frequencies"
+        )
+
     def prepopulate(self):
         logger.debug(f'Prepopulating {self.available_datasets} with {self.modules}')
         for module in self.modules:
@@ -126,13 +138,16 @@ class Prepopulator:
                     self.generate_histograms()
                 case 'wordcloud':
                     self.generate_wordcloud_hashtag_freqs()
+                case 'tweet_table':
+                    self.generate_tweet_table()
                 case _:
                     raise ValueError(f"Invalid module: {module}")
         logger.debug('All metrics and graphs prepopulated')
 
 
 def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
-                     modules=('egonet', 'layout', 'diffusion', 'diffusion_static_plots', 'network', 'histogram'),
+                     modules=('egonet', 'layout', 'diffusion', 'diffusion_static_plots', 'network', 'histogram',
+                              'tweet_table'),
                      max_cascades=None, erase_existing=True):
     logger.info(f'Running prepopulator with config file: {config_file}')
     logger.info(f'Available datasets: {available_datasets}')
@@ -144,4 +159,4 @@ def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
 
 if __name__ == '__main__':
     # fire.Fire(run_prepopulator)
-    run_prepopulator(modules=['diffusion'], config_file='dev_config.yaml', max_cascades=10)
+    run_prepopulator(modules=['tweet_table'], config_file='remote_prod_config.yaml')

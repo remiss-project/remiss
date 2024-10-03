@@ -4,15 +4,18 @@ from unittest import TestCase
 
 import pandas as pd
 from pymongo import MongoClient
+from pymongoarrow.monkey import patch_all
+
 
 from figures import TweetTableFactory
 
+patch_all()
 
 class TestTopTableFactory(TestCase):
     def setUp(self):
         self.top_table_factory = TweetTableFactory()
         self.test_dataset = 'test_dataset_2'
-        self.tmp_dataset = str(uuid.uuid4().hex)
+        self.tmp_dataset = 'tmp_dataset'
         self.client = MongoClient('localhost', 27017)
         self.client.drop_database(self.tmp_dataset)
         self.database = self.client.get_database(self.tmp_dataset)
@@ -73,7 +76,7 @@ class TestTopTableFactory(TestCase):
 
     def test_get_top_table(self):
         dataset = self.tmp_dataset
-        actual = self.top_table_factory.get_top_table_data(dataset)
+        actual = self.top_table_factory.compute_tweet_table_data(dataset)
         expected = {'Is usual suspect': {0: False, 1: False, 2: True},
                     'Party': {0: 'PSOE', 1: None, 2: 'VOX'},
                     'Retweets': {0: 1, 1: 2, 2: 3},
@@ -102,9 +105,9 @@ class TestTopTableFactory(TestCase):
 
     def test_get_top_table_date_filtering(self):
         dataset = self.tmp_dataset
-        actual = self.top_table_factory.get_top_table_data(dataset,
-                                                           start_time=datetime.fromisoformat('2019-01-01T00:00:00Z'),
-                                                           end_time=datetime.fromisoformat('2019-01-02T00:00:00Z'))
+        actual = self.top_table_factory.compute_tweet_table_data(dataset,
+                                                                 start_time=datetime.fromisoformat('2019-01-01T00:00:00Z'),
+                                                                 end_time=datetime.fromisoformat('2019-01-02T00:00:00Z'))
         expected = {'Is usual suspect': {0: False, 1: False, 2: True},
                     'Party': {0: 'PSOE', 1: None, 2: 'VOX'},
                     'Retweets': {0: 1, 1: 2, 2: 3},
@@ -133,9 +136,9 @@ class TestTopTableFactory(TestCase):
 
     def test_get_top_table_full_date_filtering(self):
         dataset = self.test_dataset
-        actual = self.top_table_factory.get_top_table_data(dataset,
-                                                           start_time=datetime.fromisoformat('2019-01-01T00:00:00Z'),
-                                                           end_time=datetime.fromisoformat('2019-01-02T00:00:00Z'))
+        actual = self.top_table_factory.compute_tweet_table_data(dataset,
+                                                                 start_time=datetime.fromisoformat('2019-01-01T00:00:00Z'),
+                                                                 end_time=datetime.fromisoformat('2019-01-02T00:00:00Z'))
 
         client = MongoClient('localhost', 27017)
         raw = client.get_database(dataset).get_collection('raw')
@@ -143,3 +146,11 @@ class TestTopTableFactory(TestCase):
                                               'created_at': {'$gte': datetime.fromisoformat('2019-01-01T00:00:00Z'),
                                                              '$lt': datetime.fromisoformat('2019-01-02T00:00:00Z')}})
         self.assertEqual(actual.shape[0], document_count)
+
+    def test_persist(self):
+        self.top_table_factory.persist([self.test_dataset])
+        actual = self.top_table_factory._load_table_from_mongo(self.test_dataset)
+
+        expected = self.top_table_factory.compute_tweet_table_data(self.test_dataset)
+        pd.testing.assert_frame_equal(actual, expected, check_dtype=False)
+

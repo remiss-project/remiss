@@ -1,3 +1,5 @@
+import logging
+
 import pandas as pd
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
@@ -7,10 +9,17 @@ from figures.figures import MongoPlotFactory
 
 patch_all()
 
+logger = logging.getLogger(__name__)
+
 
 class TweetTableFactory(MongoPlotFactory):
 
-    def get_top_table_data(self, dataset, start_time=None, end_time=None, hashtags=None):
+    def get_tweet_table(self, dataset, start_time=None, end_time=None, hashtags=None, start=None, limit=None):
+        pipeline = [
+            {'$'}
+        ]
+
+    def compute_tweet_table_data(self, dataset, start_time=None, end_time=None, hashtags=None):
 
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
@@ -25,6 +34,7 @@ class TweetTableFactory(MongoPlotFactory):
         # Initial pipeline without lookups
         pipeline_initial = [
             {'$match': {'referenced_tweets': {'$exists': False}}},
+            {'$sort': {'public_metrics.retweet_count': -1}},
             {'$project': {
                 '_id': 0,
                 'username': '$author.username',
@@ -34,7 +44,7 @@ class TweetTableFactory(MongoPlotFactory):
                 'retweets': '$public_metrics.retweet_count',
                 'suspect': '$author.remiss_metadata.is_usual_suspect',
                 'party': '$author.remiss_metadata.party',
-                'conversation_id': '$conversation_id', }},
+            }},
             {'$addFields': {'tweet_id_int': {'$toLong': '$tweet_id'}}},
         ]
         initial_schema = Schema({
@@ -45,7 +55,6 @@ class TweetTableFactory(MongoPlotFactory):
             'retweets': int,
             'suspect': bool,
             'party': str,
-            'conversation_id': str,
             'tweet_id_int': int
         })
         pipeline_initial = self._add_filters(pipeline_initial, start_time, end_time, hashtags)
@@ -53,6 +62,7 @@ class TweetTableFactory(MongoPlotFactory):
 
         # Multimodal Collection
         pipeline_multimodal = [
+            {'$match': {'tweet_id': {'$in': df_initial['tweet_id'].tolist()}}},
             {'$project': {'_id': 0, 'tweet_id': 1, 'Multimodal': {'$literal': True}}}
         ]
         multimodal_schema = Schema({
@@ -63,6 +73,7 @@ class TweetTableFactory(MongoPlotFactory):
 
         # Profiling Collection
         pipeline_profiling = [
+            {'$match': {'user_id': {'$in': df_initial['author_id'].tolist()}}},
             {'$project': {'_id': 0, 'user_id': '$user_id', 'Profiling': {'$literal': True}}}
         ]
         profiling_schema = Schema({
@@ -73,6 +84,7 @@ class TweetTableFactory(MongoPlotFactory):
 
         # Textual Collection
         pipeline_textual = [
+            {'$match': {'id': {'$in': df_initial['tweet_id_int'].astype(int).tolist()}}},
             {'$project': {'_id': 0, 'id': 1, 'Suspicious content': '$fakeness_probabilities'}}
         ]
         textual_schema = Schema({
@@ -81,19 +93,9 @@ class TweetTableFactory(MongoPlotFactory):
         })
         df_textual = collection_textual.aggregate_pandas_all(pipeline_textual, schema=textual_schema)
 
-        # Conversation Size from Raw Collection
-        pipeline_conversation = [
-            {'$group': {'_id': '$conversation_id', 'Cascade size': {'$sum': 1}}},
-            {'$project': {'_id': 0, 'conversation_id': '$_id', 'Cascade size': 1}}
-        ]
-        conversation_schema = Schema({
-            'conversation_id': str,
-            'Cascade size': int
-        })
-        df_conversation = collection_raw.aggregate_pandas_all(pipeline_conversation, schema=conversation_schema)
-
         # Network Metrics Collection
         pipeline_network_metrics = [
+            {'$match': {'author_id': {'$in': df_initial['author_id'].tolist()}}},
             {'$project': {
                 '_id': 0,
                 'author_id': 1,
@@ -114,7 +116,6 @@ class TweetTableFactory(MongoPlotFactory):
         df_final = df_initial.merge(df_multimodal, on='tweet_id', how='left')
         df_final = df_final.merge(df_profiling, left_on='author_id', right_on='user_id', how='left')
         df_final = df_final.merge(df_textual, left_on='tweet_id_int', right_on='id', how='left')
-        df_final = df_final.merge(df_conversation, on='conversation_id', how='left')
         df_final = df_final.merge(df_network_metrics, on='author_id', how='left')
 
         df_final = df_final.drop(columns=['tweet_id_int', 'user_id', 'id'])
@@ -127,13 +128,15 @@ class TweetTableFactory(MongoPlotFactory):
         df_final = df_final.rename(columns={'username': 'User', 'text': 'Text', 'retweets': 'Retweets',
                                             'suspect': 'Is usual suspect', 'party': 'Party', 'tweet_id': 'ID',
                                             'author_id': 'Author ID', 'fakeness_probabilities': 'Suspicious content',
-                                            'conversation_id': 'Conversation ID', 'legitimacy': 'Legitimacy',
+                                            'legitimacy': 'Legitimacy',
                                             'average_reputation': 'Reputation', 'average_status': 'Status'})
 
+        df_final = df_final.reset_index(drop=True)
+        df_final = df_final[['ID', 'User', 'Text', 'Retweets', 'Is usual suspect', 'Party', 'Multimodal', 'Profiling',
+                             'Suspicious content', 'Legitimacy', 'Reputation', 'Status', 'Author ID']]
         # Close client connection
         client.close()
         return df_final
-
 
     def _add_filters(self, pipeline, start_time=None, end_time=None, hashtags=None):
         pipeline = pipeline.copy()
@@ -149,3 +152,54 @@ class TweetTableFactory(MongoPlotFactory):
             pipeline.insert(0, {'$match': {'entities.hashtags.tag': {'$in': hashtags}}})
 
         return pipeline
+
+    def persist(self, datasets):
+        for dataset in datasets:
+            logger.info(f'Processing dataset {dataset}')
+            df = self.compute_tweet_table_data(dataset)
+            client = MongoClient(self.host, self.port)
+            database = client.get_database(dataset)
+            collection = database.get_collection('tweet_table')
+            collection.drop()
+            collection.insert_many(df.to_dict('records'))
+            client.close()
+
+    def _load_table_from_mongo(self, dataset):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('tweet_table')
+        pipeline = [
+            {'$project': {
+                '_id': 0,
+                'User': 1,
+                'Text': 1,
+                'Retweets': 1,
+                'Is usual suspect': 1,
+                'Party': 1,
+                'Multimodal': 1,
+                'Profiling': 1,
+                'ID': 1,
+                'Author ID': 1,
+                'Suspicious content': 1,
+                'Legitimacy': 1,
+                'Reputation': 1,
+                'Status': 1,
+            }}
+        ]
+        schema = Schema({
+            'ID': str,
+            'User': str,
+            'Text': str,
+            'Retweets': int,
+            'Is usual suspect': bool,
+            'Party': str,
+            'Multimodal': bool,
+            'Profiling': bool,
+            'Suspicious content': float,
+            'Legitimacy': str,
+            'Reputation': str,
+            'Status': str,
+            'Author ID': str,
+        })
+        df = collection.aggregate_pandas_all(pipeline, schema=schema)
+        return df
