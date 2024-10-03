@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 import pandas as pd
 from pymongo import MongoClient
@@ -14,10 +15,60 @@ logger = logging.getLogger(__name__)
 
 class TweetTableFactory(MongoPlotFactory):
 
-    def get_tweet_table(self, dataset, start_time=None, end_time=None, hashtags=None, start=None, limit=None):
+    def get_tweet_table(self, dataset, start_time=None, end_time=None, hashtags=None, skip=None, limit=None):
         pipeline = [
-            {'$'}
+            {'$project': {
+                '_id': 0,
+                'User': 1,
+                'Text': 1,
+                'Retweets': 1,
+                'Is usual suspect': 1,
+                'Party': 1,
+                'Multimodal': 1,
+                'Profiling': 1,
+                'ID': 1,
+                'Author ID': 1,
+                'Suspicious content': 1,
+                'Legitimacy': 1,
+                'Reputation': 1,
+                'Status': 1,
+            }}
         ]
+        if skip is not None:
+            pipeline.insert(0, {'$skip': skip})
+
+        if limit is not None:
+            pipeline.insert(0, {'$limit': skip + limit})
+
+        schema = Schema({
+            'ID': str,
+            'User': str,
+            'Text': str,
+            'Retweets': int,
+            'Is usual suspect': bool,
+            'Party': str,
+            'Multimodal': bool,
+            'Profiling': bool,
+            'Suspicious content': float,
+            'Legitimacy': str,
+            'Reputation': str,
+            'Status': str,
+            'Author ID': str,
+        })
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('tweet_table')
+        df = collection.aggregate_pandas_all(pipeline, schema=schema)
+        client.close()
+        return df
+
+    def get_tweet_table_size(self, dataset):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('tweet_table')
+        size = collection.count_documents({})
+        client.close()
+        return size
 
     def compute_tweet_table_data(self, dataset, start_time=None, end_time=None, hashtags=None):
 
@@ -44,6 +95,7 @@ class TweetTableFactory(MongoPlotFactory):
                 'retweets': '$public_metrics.retweet_count',
                 'suspect': '$author.remiss_metadata.is_usual_suspect',
                 'party': '$author.remiss_metadata.party',
+                'created_at': 1,
             }},
             {'$addFields': {'tweet_id_int': {'$toLong': '$tweet_id'}}},
         ]
@@ -55,10 +107,13 @@ class TweetTableFactory(MongoPlotFactory):
             'retweets': int,
             'suspect': bool,
             'party': str,
+            'created_at': datetime,
             'tweet_id_int': int
+
         })
         pipeline_initial = self._add_filters(pipeline_initial, start_time, end_time, hashtags)
         df_initial = collection_raw.aggregate_pandas_all(pipeline_initial, schema=initial_schema)
+        df_initial['hashtags'] = df_initial['text'].str.extractall(r'#(\w+)')[0].groupby(level=0).apply(list)
 
         # Multimodal Collection
         pipeline_multimodal = [
@@ -128,12 +183,12 @@ class TweetTableFactory(MongoPlotFactory):
         df_final = df_final.rename(columns={'username': 'User', 'text': 'Text', 'retweets': 'Retweets',
                                             'suspect': 'Is usual suspect', 'party': 'Party', 'tweet_id': 'ID',
                                             'author_id': 'Author ID', 'fakeness_probabilities': 'Suspicious content',
-                                            'legitimacy': 'Legitimacy',
+                                            'legitimacy': 'Legitimacy', 'hashtags': 'Hashtags',
                                             'average_reputation': 'Reputation', 'average_status': 'Status'})
 
         df_final = df_final.reset_index(drop=True)
         df_final = df_final[['ID', 'User', 'Text', 'Retweets', 'Is usual suspect', 'Party', 'Multimodal', 'Profiling',
-                             'Suspicious content', 'Legitimacy', 'Reputation', 'Status', 'Author ID']]
+                             'Suspicious content', 'Legitimacy', 'Reputation', 'Status', 'Hashtags', 'Author ID']]
         # Close client connection
         client.close()
         return df_final

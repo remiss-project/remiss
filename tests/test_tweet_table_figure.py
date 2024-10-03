@@ -151,6 +151,28 @@ class TestTopTableFactory(TestCase):
         self.top_table_factory.persist([self.test_dataset])
         actual = self.top_table_factory._load_table_from_mongo(self.test_dataset)
 
-        expected = self.top_table_factory.compute_tweet_table_data(self.test_dataset)
+        expected = self.top_table_factory.compute_tweet_table_data(self.test_dataset).drop(columns=['Hashtags'])
+        pd.testing.assert_frame_equal(actual, expected, check_dtype=False)
+        client = MongoClient('localhost', 27017)
+        database = client.get_database(self.test_dataset)
+        collection = database.get_collection('tweet_table')
+        hashtags = list(collection.find({'Hashtags': {'$exists': True}}))
+        self.assertGreater(len(hashtags), 0)
+
+    def test_skip(self):
+        expected = self.top_table_factory._load_table_from_mongo(self.test_dataset)
+        expected = expected.iloc[10:].reset_index(drop=True)
+        actual = self.top_table_factory.get_tweet_table(self.test_dataset, skip=10)
         pd.testing.assert_frame_equal(actual, expected, check_dtype=False)
 
+    def test_limit(self):
+        expected = self.top_table_factory._load_table_from_mongo(self.test_dataset)
+        expected = expected.iloc[:10].reset_index(drop=True)
+        actual = self.top_table_factory.get_tweet_table(self.test_dataset, limit=10)
+        pd.testing.assert_frame_equal(actual, expected, check_dtype=False)
+
+    def test_skip_and_limit(self):
+        expected = self.top_table_factory._load_table_from_mongo(self.test_dataset)
+        expected = expected.iloc[10:20].reset_index(drop=True)
+        actual = self.top_table_factory.get_tweet_table(self.test_dataset, skip=10, limit=10)
+        pd.testing.assert_frame_equal(actual, expected, check_dtype=False)
