@@ -3,6 +3,7 @@ import unittest
 import igraph as ig
 import numpy as np
 import pandas as pd
+from IPython.core.pylabtools import figsize
 from matplotlib import pyplot as plt
 from pandas import Timestamp
 from pymongo import MongoClient
@@ -429,6 +430,30 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         expected = self.diffusion_metrics.get_cascade_count_over_time(self.test_dataset)
         self.assertTrue((expected.index == actual.index).all())
         self.assertTrue((expected == actual).all())
+
+    def test_get_shortest_path(self):
+        test_tweet = '1182192005377601536'
+        self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
+        self.diffusion_metrics.egonet.host = 'mongodb://srvinv02.esade.es'
+        graph = self.diffusion_metrics.compute_propagation_tree('Openarms', test_tweet)
+        fig, ax = plt.subplots(figsize=(20, 20))
+        layout = graph.layout('fr')
+        ig.plot(graph, layout=layout, target=ax, node_size=3, vertex_label=graph.vs['tweet_id'], arrow_size=10)
+        plt.show()
+        shortest_paths = self.diffusion_metrics.get_shortest_paths_to_original_tweet(graph)
+        self.assertFalse(shortest_paths.isna().any().any())
+
+    def test_get_shortest_path_2(self):
+        graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, self.test_tweet_id)
+        fig, ax = plt.subplots(figsize=(20, 20))
+        layout = graph.layout('fr')
+        self.assertIn(self.test_tweet_id, [vertex['tweet_id'] for vertex in graph.vs])
+        color = ['blue' if vertex['tweet_id'] == self.test_tweet_id else 'red' for vertex in graph.vs]
+        ig.plot(graph, layout=layout, target=ax, node_size=3, vertex_label=graph.vs['tweet_id'], arrow_size=10,
+                vertex_color=color)
+        plt.show()
+        shortest_paths = self.diffusion_metrics.get_shortest_paths_to_original_tweet(graph)
+        self.assertFalse(shortest_paths.isna().any().any())
 
 
 if __name__ == '__main__':

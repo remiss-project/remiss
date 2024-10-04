@@ -385,6 +385,20 @@ class PropagationFactoryTestCase(unittest.TestCase):
         backbone_alphas = backbone_alphas.sort_values(ascending=False)
         self.assertEqual(max_edges, len(backbone_alphas))
 
+    def test_depth_over_time_2(self):
+        test_tweet = '1182192005377601536'
+        self.propagation_factory.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
+        self.propagation_factory.diffusion_metrics.egonet.host = 'mongodb://srvinv02.esade.es'
+
+        fig = self.propagation_factory.plot_depth_over_time('Openarms', test_tweet)
+        fig.show()
+
+    def test_depth_over_time_3(self):
+        test_tweet = '1167074391315890176'
+
+        fig = self.propagation_factory.plot_depth_over_time(self.test_dataset, test_tweet)
+        fig.show()
+
 
 if __name__ == '__main__':
     unittest.main()

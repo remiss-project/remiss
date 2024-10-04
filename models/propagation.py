@@ -1,4 +1,5 @@
 import logging
+import random
 import time
 
 import pandas as pd
@@ -25,8 +26,8 @@ logger = logging.getLogger(__name__)
 
 
 class PropagationDatasetGenerator:
-    def __init__(self, dataset, host='localhost', port=27017, max_cascades=None):
-        self.max_cascades = max_cascades
+    def __init__(self, dataset, host='localhost', port=27017, num_samples=None):
+        self.num_samples = num_samples
         self.host = host
         self.port = port
         self._features = None
@@ -114,18 +115,24 @@ class PropagationDatasetGenerator:
 
     def get_rows(self, cascades):
         logger.info(f'Fetching rows for {len(cascades)} cascades')
+
+        if self.num_samples is not None:
+            max_samples_per_cascade = self.num_samples // len(cascades)
+        else:
+            max_samples_per_cascade = None
         jobs = []
         for _, cascade in cascades.iterrows():
-            jobs.append(delayed(self._get_row_for_cascades)(cascade))
+            jobs.append(delayed(self._get_row_for_cascades)(cascade, max_samples_per_cascade))
         rows = Parallel(n_jobs=-2, verbose=10)(jobs)
         rows = pd.DataFrame([row for sublist in rows for row in sublist])
         logger.info(f'Found {len(rows)} rows')
         return rows
 
-    def _get_row_for_cascades(self, cascade):
+    def _get_row_for_cascades(self, cascade, max_samples_per_cascade=None):
         rows = []
         prop_tree = self._get_propagation_tree(cascade['tweet_id'])
-        for node in prop_tree.vs:
+
+        for node in random.random.shuffle(prop_tree.vs):
             neighbors = set(prop_tree.neighbors(node))
             for neighbor in neighbors:
                 if neighbor != node.index:
@@ -361,9 +368,7 @@ class PropagationDatasetGenerator:
     def generate_propagation_dataset(self):
         logger.info('Generating propagation dataset')
         cascades = self.get_available_cascades()
-        if self.max_cascades:
-            logger.info(f'Sampling {self.max_cascades} cascades')
-            cascades = cascades.sample(self.max_cascades).reset_index(drop=True)
+
         positive_rows = self.get_rows(cascades)
 
         tweets = positive_rows['cascade_id'].unique().tolist()

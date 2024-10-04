@@ -159,4 +159,4 @@ def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
 
 if __name__ == '__main__':
     # fire.Fire(run_prepopulator)
-    run_prepopulator(modules=['tweet_table'], config_file='remote_prod_config.yaml')
+    run_prepopulator(modules=['tweet_table'])

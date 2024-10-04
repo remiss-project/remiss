@@ -5,6 +5,7 @@ import igraph as ig
 import numpy as np
 import pandas as pd
 from joblib import delayed, Parallel
+from matplotlib import pyplot as plt
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
 from pymongoarrow.schema import Schema
@@ -125,6 +126,8 @@ class DiffusionMetrics(BasePropagationMetrics):
                     logger.warning(f'Tweet {referenced_tweet_id} not found in the graph, skipping')
                     pass
 
+        # Remove self loops
+        subgraph.simplify()
 
         try:
             original_tweet_index = subgraph.vs.find(tweet_id=tweet_id).index
@@ -136,10 +139,24 @@ class DiffusionMetrics(BasePropagationMetrics):
         for component in subgraph.connected_components(mode='weak'):
             # If the original tweet is not in the component, add it liked to the earliest tweet in the component
             if original_tweet_index not in component:
-                earliest_tweet = min(component, key=lambda x: subgraph.vs[x]['created_at'])
-                subgraph.add_edge(original_tweet_index, earliest_tweet)
+                # get node with no incoming edges
+                root = [v for v in component if subgraph.degree(v, mode='in') == 0]
+                if root:
+                    subgraph.add_edge(original_tweet_index, root[0])
+                    if len(root) > 1:
+                        logger.warning(f'More than one root in component {component}')
 
         return subgraph
+
+    def _plot_graph_igraph(self, graph):
+        original_tweet_id = graph.vs.find(type='original')['tweet_id']
+        color = ['blue' if vertex['tweet_id'] == original_tweet_id else 'red' for vertex in graph.vs]
+        fig, ax = plt.subplots(figsize=(20, 20))
+        layout = graph.layout('fr')
+        index = list(range(graph.vcount()))
+        ig.plot(graph, layout=layout, target=ax, node_size=3, vertex_label=index, arrow_size=10,
+                vertex_color=color)
+        plt.show()
 
     def get_references(self, dataset, tweet_id):
         client = MongoClient(self.host, self.port)
@@ -360,6 +377,7 @@ class DiffusionMetrics(BasePropagationMetrics):
 
     @staticmethod
     def get_shortest_paths_to_original_tweet(graph):
+        graph = graph.as_undirected()
         original_tweet_id = graph.vs.find(type='original')['tweet_id']
         original_tweet_index = graph.vs.find(tweet_id=original_tweet_id).index
         shortest_paths = pd.Series(graph.shortest_paths_dijkstra(source=original_tweet_index)[0])
