@@ -412,8 +412,8 @@ class DiffusionMetrics(BasePropagationMetrics):
             cascade_ids = self.get_cascade_by_retweet_count(dataset, max_cascades)
 
             for cascade_id in tqdm(cascade_ids['tweet_id']):
-                if not self.has_diffusion_metrics(dataset, cascade_id):
-                    jobs.append(delayed(self._compute_cascade_metrics_for_persistence)(dataset, cascade_id))
+                # if not self.has_diffusion_metrics(dataset, cascade_id):
+                jobs.append(delayed(self._compute_cascade_metrics_for_persistence)(dataset, cascade_id))
 
             cascade_data = Parallel(n_jobs=n_jobs, backend='threading', verbose=10)(jobs)
 
