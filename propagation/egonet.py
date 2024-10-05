@@ -103,7 +103,8 @@ class Egonet(BasePropagationMetrics):
         references_pipeline = [
             {'$unwind': '$referenced_tweets'},
             {'$match': {'referenced_tweets.type': {'$in': self.reference_types},
-                        'referenced_tweets.author': {'$exists': True}}},
+                        'referenced_tweets.author': {'$exists': True},
+                        '$expr': {'$ne': ['$author.id', '$referenced_tweets.author.id']}}},
             {'$project': {'_id': 0, 'target': '$author.id', 'source': '$referenced_tweets.author.id'}},
             {'$group': {'_id': {'source': '$source', 'target': '$target'},
                         'weight': {'$count': {}}}},
@@ -163,6 +164,7 @@ class Egonet(BasePropagationMetrics):
             g.es['weight_inv'] = references['weight_inv']
             g.es['weight_norm'] = references['weight_norm']
 
+        g.simplify(combine_edges='sum')
         logger.debug(g.summary())
         logger.debug(f'Graph computed in {time.time() - start_time} seconds')
 

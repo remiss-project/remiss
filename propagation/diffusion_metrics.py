@@ -71,86 +71,70 @@ class DiffusionMetrics(BasePropagationMetrics):
         return structural_virality_over_time
 
     def compute_propagation_tree(self, dataset, tweet_id):
-
         hidden_network = self.egonet.get_hidden_network(dataset)
         references = self.get_references(dataset, tweet_id)
+        if references.empty:
+            vertices = self._get_vertex_from_tweet(dataset, tweet_id)
+        else:
+            vertices = self._get_vertices_from_edges(references, tweet_id)
 
-        vertices = self._get_vertices_from_edges(references)
-        # vertices = vertices[vertices['type'] == 'retweeted']
-        # Add original tweet to vertices
-        original_tweet = self.get_tweet(dataset, tweet_id)
-        original_tweet = {'author_id': original_tweet['author']['id'],
-                          'tweet_id': original_tweet['id'],
-                          'username': original_tweet['author']['username'],
-                          'text': original_tweet['text'],
-                          'created_at': original_tweet['created_at'].replace(tzinfo=datetime.timezone.utc),
-                          'type': 'original'}
-        original_tweet = pd.DataFrame([original_tweet])
+        hidden_network = hidden_network.subgraph(hidden_network.vs.select(author_id_in=list(vertices['author_id'])))
 
-        vertices = pd.concat([original_tweet, vertices], ignore_index=True)
+        propagation_tree = ig.Graph(directed=True)
 
-        vertices = vertices.drop_duplicates(subset='author_id')
+        # Populate graph vertices
+        for _, tweet in vertices.reset_index().iterrows():
+            propagation_tree.add_vertex(name=None, **tweet)
 
-        author_ids = vertices['author_id'].unique()
-        subgraph = hidden_network.subgraph(hidden_network.vs.select(author_id_in=author_ids))
-        vertices = vertices.set_index('author_id')
-        vertices = vertices.loc[subgraph.vs['author_id']]
-        subgraph.vs['tweet_id'] = vertices['tweet_id'].to_list()
-        subgraph.vs['username'] = vertices['username'].to_list()
-        subgraph.vs['text'] = vertices['text'].to_list()
-        subgraph.vs['created_at'] = vertices['created_at'].to_list()
-        subgraph.vs['type'] = vertices['type'].to_list()
+        original_tweet_index = propagation_tree.vs.find(tweet_id=tweet_id).index
 
-        # Iterate over nodes to leave just a single edge between each pair of nodes
-        for v in subgraph.vs:
-            if v['type'] == 'retweeted':
-                neighbors = set(subgraph.neighbors(v, mode='in'))
-                if neighbors:
-                    # leave the edge that leads to the node with the latest tweet in terms of created_at
-                    latest_neighbor = max(neighbors, key=lambda x: subgraph.vs[x]['created_at'])
-                    neighbors_to_delete = neighbors - {latest_neighbor}
-                    edges_to_delete = subgraph.get_eids([(n, v.index) for n in neighbors_to_delete])
-                    subgraph.delete_edges(edges_to_delete)
-            elif v['type'] in {'quoted', 'replied_to'}:
-                # Pick from references since for quoted and replied_to tweets, the referenced tweet is correct
-                referenced_tweet_id = references.loc[references['target'] == v['tweet_id'], 'source'].values[0]
-                try:
-                    referenced_tweet_index = subgraph.vs.find(tweet_id=referenced_tweet_id).index
-                    neighbors = set(subgraph.neighbors(v, mode='in'))
-                    # leave the edge that leads to the referenced tweet
-                    if referenced_tweet_index in neighbors:
-                        neighbors_to_delete = neighbors - {referenced_tweet_index}
-                        edges_to_delete = subgraph.get_eids([(n, v.index) for n in neighbors_to_delete])
-                        subgraph.delete_edges(edges_to_delete)
-                except ValueError:
-                    logger.warning(f'Tweet {referenced_tweet_id} not found in the graph, skipping')
-                    pass
+        # Populate graph edges
+        for vertex in propagation_tree.vs:
+            vertex_type = vertex['type']
+            if vertex_type == 'replied_to':
+                # No need to patch, we can use references directly
+                source = references[references['target'] == vertex['tweet_id']]
+                if not source.empty:
+                    for _, source in source.iterrows():
+                        source_vertex = propagation_tree.vs.find(tweet_id=source['source'])
+                        propagation_tree.add_edge(source_vertex.index, vertex.index)
+            elif vertex_type in {'retweeted', 'quoted'}:
+                # Use the hidden network to patch
+                neighbor_hidden_indexes = hidden_network.neighbors(
+                    hidden_network.vs.find(author_id=vertex['author_id']), mode='in')
+                neighbor_usernames = [hidden_network.vs[neighbor]['author_id'] for neighbor in neighbor_hidden_indexes]
+                # Get all vertices that are in the hidden network and are neighbors of the current vertex
+                neighbors = vertices[vertices['author_id'].isin(neighbor_usernames)]
+                if not neighbors.empty:
+                    # get the tweet closest in the past to the current tweet
+                    neighbors = neighbors[neighbors['created_at'] < vertex['created_at']]
+                    source = neighbors.loc[neighbors['created_at'].idxmax()]
+                    source_index = propagation_tree.vs.find(tweet_id=source.name).index
+                    propagation_tree.add_edge(source_index, vertex.index)
 
-        # Remove self loops
-        subgraph.simplify()
-
-        try:
-            original_tweet_index = subgraph.vs.find(tweet_id=tweet_id).index
-        except ValueError:
-            # Add the original tweet to the graph
-            subgraph.add_vertex(**original_tweet)
-            original_tweet_index = subgraph.vcount() - 1
         # Link the original tweet to each graph connected component
-        for component in subgraph.connected_components(mode='weak'):
+        for component in propagation_tree.connected_components(mode='weak'):
             # If the original tweet is not in the component, add it liked to the earliest tweet in the component
             if original_tweet_index not in component:
                 # get node with no incoming edges
-                root = [v for v in component if subgraph.degree(v, mode='in') == 0]
+                root = [v for v in component if propagation_tree.degree(v, mode='in') == 0]
                 if root:
-                    subgraph.add_edge(original_tweet_index, root[0])
+                    propagation_tree.add_edge(original_tweet_index, root[0])
                     if len(root) > 1:
                         logger.warning(f'More than one root in component {component}')
 
-        return subgraph
+        return propagation_tree
 
     def _plot_graph_igraph(self, graph):
-        original_tweet_id = graph.vs.find(type='original')['tweet_id']
-        color = ['blue' if vertex['tweet_id'] == original_tweet_id else 'red' for vertex in graph.vs]
+        try:
+            color_type = {'original': 'blue',
+                          'retweeted': 'green',
+                          'quoted': 'orange',
+                          'replied_to': 'red',
+                          'other': 'yellow'}
+            color = [color_type[vertex['type']] for vertex in graph.vs]
+        except (ValueError, KeyError):
+            color = 'red'
         fig, ax = plt.subplots(figsize=(20, 20))
         layout = graph.layout('fr')
         index = list(range(graph.vcount()))
@@ -170,7 +154,7 @@ class DiffusionMetrics(BasePropagationMetrics):
             targets_pipeline = [
                 {'$match': {'referenced_tweets.id': {'$in': sources}}},
                 {'$unwind': '$referenced_tweets'},
-                {'$match': {'$expr': {'$ne': ['$referenced_tweets.id', '$id']}}},
+                {'$match': {'$expr': {'$ne': ['$referenced_tweets.author.id', '$author.id']}}},
                 {'$project': {'_id': 0, 'source': '$referenced_tweets.id', 'target': '$id',
                               'source_author_id': '$referenced_tweets.author.id',
                               'source_username': '$referenced_tweets.author.username',
@@ -198,32 +182,16 @@ class DiffusionMetrics(BasePropagationMetrics):
                                                'source_created_at', 'target_created_at'])
 
         client.close()
+        references = references.dropna(subset=['source_created_at'])
+
         # Make sure created_ats are datetime objects with no timezone
         references['source_created_at'] = pd.to_datetime(references['source_created_at'], utc=True)
         references['target_created_at'] = pd.to_datetime(references['target_created_at'], utc=True)
 
         return references
 
-    def _get_graph(self, vertices, edges):
-        graph = ig.Graph(directed=True)
 
-        graph.add_vertices(len(vertices))
-
-        for column in vertices.columns:
-            graph.vs[column] = vertices[column].tolist()
-
-        if len(edges) > 0:
-            # switch id by position (which will be the node id in the graph) and set it as index
-            tweet_to_id = vertices['tweet_id'].reset_index().set_index('tweet_id')
-            # convert references which are author id based to graph id based
-            edges['source'] = tweet_to_id.loc[edges['source']].reset_index(drop=True)
-            edges['target'] = tweet_to_id.loc[edges['target']].reset_index(drop=True)
-
-            graph.add_edges(edges[['source', 'target']].to_records(index=False).tolist())
-
-        return graph
-
-    def _get_vertices_from_edges(self, edges):
+    def _get_vertices_from_edges(self, edges, tweet_id):
         sources = edges[['source', 'source_author_id', 'source_username', 'source_text', 'source_created_at']]
         sources = sources.rename(columns={'source': 'tweet_id',
                                           'source_author_id': 'author_id',
@@ -239,9 +207,10 @@ class DiffusionMetrics(BasePropagationMetrics):
         vertices = pd.concat([sources, targets], ignore_index=True)
         vertices = vertices.sort_values('type', ascending=False)
 
-        vertices = vertices.drop_duplicates(subset='tweet_id').sort_values('created_at').reset_index(drop=True)
+        vertices = vertices.drop_duplicates(subset='tweet_id').sort_values('created_at').set_index('tweet_id')
+        vertices.loc[tweet_id, 'type'] = 'original'
+        vertices['type'] = vertices['type'].fillna('other')
 
-        vertices['type'] = vertices['type'].fillna('original')
         return vertices
 
     def _get_vertex_from_tweet(self, dataset, tweet_id):
@@ -269,31 +238,19 @@ class DiffusionMetrics(BasePropagationMetrics):
 
         return size
 
-    def compute_depth_over_time(self, graph):
-        shortest_paths = self.get_shortest_paths_to_original_tweet(graph)
-        created_at = pd.Series(graph.vs['created_at'], name='Depth')
-        order = created_at.argsort()
-        shortest_paths = shortest_paths.iloc[order]
-        created_at = created_at.iloc[order]
-        depths = {}
-        for i, time in enumerate(created_at):
-            depths[time] = shortest_paths.iloc[:i + 1].max()
-
-        depths = pd.Series(depths, name='Depth')
+    def compute_depth_over_time(self, shortest_paths):
+        depths = shortest_paths.cummax()
+        depths = depths.rename('Depth')
         return depths
 
-    def compute_max_breadth_over_time(self, graph):
-        shortest_paths = self.get_shortest_paths_to_original_tweet(graph)
-        created_at = pd.Series(graph.vs['created_at'], name='Max Breadth')
-        order = created_at.argsort()
-        shortest_paths = shortest_paths.iloc[order]
-        created_at = created_at.iloc[order]
+    def compute_max_breadth_over_time(self, shortest_paths):
         max_breadth = {}
-        for i, time in enumerate(created_at):
+        for i, time in enumerate(shortest_paths.index):
             max_breadth[time] = shortest_paths.iloc[:i + 1].value_counts().max()
 
         max_breadth = pd.Series(max_breadth, name='Max Breadth')
         return max_breadth
+
 
     def compute_structural_virality_over_time(self, graph):
         # Specifically, we define structural
@@ -302,6 +259,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         shortests_paths = pd.DataFrame(graph.as_undirected().shortest_paths_dijkstra())
         shortests_paths = shortests_paths.replace(float('inf'), pd.NA)
         created_at = pd.Series(graph.vs['created_at'])
+        created_at = created_at.dropna()
         order = created_at.argsort()
         shortests_paths = shortests_paths.iloc[order, order]
         created_at = created_at.iloc[order]
@@ -376,12 +334,17 @@ class DiffusionMetrics(BasePropagationMetrics):
             raise RuntimeError(f'Tweet {tweet_id} not found in dataset {dataset}')
 
     @staticmethod
-    def get_shortest_paths_to_original_tweet(graph):
-        graph = graph.as_undirected()
+    def get_shortest_paths_to_original_tweet_over_time(graph):
+        # graph = graph.as_undirected()
         original_tweet_id = graph.vs.find(type='original')['tweet_id']
         original_tweet_index = graph.vs.find(tweet_id=original_tweet_id).index
-        shortest_paths = pd.Series(graph.shortest_paths_dijkstra(source=original_tweet_index)[0])
+        shortest_paths = pd.Series(graph.shortest_paths_dijkstra(source=original_tweet_index)[0],
+                                   index=graph.vs['created_at'])
+        # Drop infinity
         shortest_paths = shortest_paths.replace(float('inf'), pd.NA)
+        shortest_paths = shortest_paths.dropna()
+        shortest_paths = shortest_paths.sort_index()
+
         return shortest_paths
 
     def get_cascade_ids(self, dataset):
@@ -449,8 +412,7 @@ class DiffusionMetrics(BasePropagationMetrics):
 
             for cascade_id in tqdm(cascade_ids['tweet_id']):
                 if not self.has_diffusion_metrics(dataset, cascade_id):
-
-                    jobs.append(delayed(self._persist_conversation_metrics)(dataset, cascade_id))
+                    jobs.append(delayed(self._compute_cascade_metrics_for_persistence)(dataset, cascade_id))
 
             cascade_data = Parallel(n_jobs=n_jobs, backend='threading', verbose=10)(jobs)
 
@@ -498,13 +460,22 @@ class DiffusionMetrics(BasePropagationMetrics):
             logger.info(f'Finished persisting diffusion static plots for {dataset}. '
                         f'Time elapsed: {datetime.datetime.now() - start_time}')
 
-    def _persist_conversation_metrics(self, dataset, cascade_id):
+    def _compute_cascade_metrics_for_persistence(self, dataset, cascade_id):
         try:
             graph = self.compute_propagation_tree(dataset, cascade_id)
-            size_over_time = self.compute_size_over_time(graph)
-            depth_over_time = self.compute_depth_over_time(graph)
-            max_breadth_over_time = self.compute_max_breadth_over_time(graph)
-            structural_virality_over_time = self.compute_structural_virality_over_time(graph)
+            if graph.vcount() > 1:
+                shortest_paths = self.get_shortest_paths_to_original_tweet_over_time(graph)
+
+                size_over_time = self.compute_size_over_time(graph)
+                depth_over_time = self.compute_depth_over_time(shortest_paths)
+                max_breadth_over_time = self.compute_max_breadth_over_time(shortest_paths)
+                structural_virality_over_time = self.compute_structural_virality_over_time(graph)
+
+            else:
+                size_over_time = pd.Series([1], index=[graph.vs['created_at'][0]])
+                depth_over_time = pd.Series([0], index=[graph.vs['created_at'][0]])
+                max_breadth_over_time = pd.Series([1], index=[graph.vs['created_at'][0]])
+                structural_virality_over_time = pd.Series([0], index=[graph.vs['created_at'][0]])
 
             try:
                 size_over_time = size_over_time.to_dict()

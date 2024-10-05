@@ -1,5 +1,6 @@
 import logging
 
+import fire
 from pyaml_env import parse_config
 
 from figures import TweetTableFactory
@@ -11,7 +12,7 @@ from propagation.histogram import Histogram
 logger = logging.getLogger('main')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-
+fire
 class Prepopulator:
     def __init__(self, config_file='prod_config.yaml', available_datasets=None,
                  modules=('diffusion', 'network', 'egonet', 'layout', 'histogram'), max_cascades=None,
@@ -158,5 +159,5 @@ def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
 
 
 if __name__ == '__main__':
-    # fire.Fire(run_prepopulator)
-    run_prepopulator(modules=['tweet_table'])
+    fire.Fire(run_prepopulator)
+    # run_prepopulator(modules=['diffusion', 'egonet', 'layout'], config_file='dev_config.yaml')

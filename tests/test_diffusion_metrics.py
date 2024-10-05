@@ -3,7 +3,6 @@ import unittest
 import igraph as ig
 import numpy as np
 import pandas as pd
-from IPython.core.pylabtools import figsize
 from matplotlib import pyplot as plt
 from pandas import Timestamp
 from pymongo import MongoClient
@@ -239,8 +238,6 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
         self.diffusion_metrics.host = 'localhost'
 
-
-
     def test_depth(self):
         graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, self.test_tweet_id)
         # plot graph
@@ -440,20 +437,76 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         layout = graph.layout('fr')
         ig.plot(graph, layout=layout, target=ax, node_size=3, vertex_label=graph.vs['tweet_id'], arrow_size=10)
         plt.show()
-        shortest_paths = self.diffusion_metrics.get_shortest_paths_to_original_tweet(graph)
+        shortest_paths = self.diffusion_metrics.get_shortest_paths_to_original_tweet_over_time(graph)
         self.assertFalse(shortest_paths.isna().any().any())
 
     def test_get_shortest_path_2(self):
         graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, self.test_tweet_id)
+
+        self.assertIn(self.test_tweet_id, [vertex['tweet_id'] for vertex in graph.vs])
+        # fig, ax = plt.subplots(figsize=(20, 20))
+        # layout = graph.layout('fr')
+        # color_type = {'original': 'blue',
+        #               'retweeted': 'green',
+        #               'quoted': 'orange',
+        #               'replied_to': 'red',
+        #               'other': 'black'}
+        # color = [color_type[vertex['type']] for vertex in graph.vs]
+        # ig.plot(graph, layout=layout, target=ax, node_size=3, vertex_label=graph.vs['username'], arrow_size=10,
+        #         vertex_color=color)
+        # plt.show()
+        shortest_paths = self.diffusion_metrics.get_shortest_paths_to_original_tweet_over_time(graph)
+        self.assertFalse(shortest_paths.iloc[1:].isna().any().any())
+
+    def test_depth_over_time(self):
+        graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset,self.test_tweet_id)
+
         fig, ax = plt.subplots(figsize=(20, 20))
         layout = graph.layout('fr')
-        self.assertIn(self.test_tweet_id, [vertex['tweet_id'] for vertex in graph.vs])
-        color = ['blue' if vertex['tweet_id'] == self.test_tweet_id else 'red' for vertex in graph.vs]
-        ig.plot(graph, layout=layout, target=ax, node_size=3, vertex_label=graph.vs['tweet_id'], arrow_size=10,
+        color_type = {'original': 'blue',
+                      'retweeted': 'green',
+                      'quoted': 'orange',
+                      'replied_to': 'red',
+                      'other': 'black'}
+        color = [color_type[vertex['type']] for vertex in graph.vs]
+        ig.plot(graph, layout=layout, target=ax, node_size=3, vertex_label=graph.vs['username'], arrow_size=10,
                 vertex_color=color)
         plt.show()
-        shortest_paths = self.diffusion_metrics.get_shortest_paths_to_original_tweet(graph)
-        self.assertFalse(shortest_paths.isna().any().any())
+        depth_over_time = self.diffusion_metrics.compute_depth_over_time(graph)
+        self.assertFalse(depth_over_time.isna().any().any())
+
+
+    def test_no_nats_persistence(self):
+        test_tweet_id = '1165265987370983424'
+        expected = self.diffusion_metrics._compute_cascade_metrics_for_persistence(self.test_dataset, test_tweet_id)
+        client = MongoClient('localhost', 27017)
+        database = client.get_database('test_dataset_2')
+        collection = database.get_collection('diffusion_metrics')
+        collection.insert_many([expected])
+        actual = self.diffusion_metrics.load_cascade_data(self.test_dataset, test_tweet_id)
+        del expected['_id']
+        del actual['_id']
+        actual['vs_attributes']['created_at'] = [pd.Timestamp(actual['vs_attributes']['created_at'][0])]
+
+        self.assertEqual(expected, actual)
+
+    def test_no_nats_persistence_2(self):
+        test_tweet_id = '1167085690577981440'
+        expected = self.diffusion_metrics._compute_cascade_metrics_for_persistence(self.test_dataset, test_tweet_id)
+        client = MongoClient('localhost', 27017)
+        database = client.get_database('test_dataset_2')
+        collection = database.get_collection('diffusion_metrics')
+        collection.insert_many([expected])
+        actual = self.diffusion_metrics.load_cascade_data(self.test_dataset, test_tweet_id)
+        del expected['_id']
+        del actual['_id']
+        actual['vs_attributes']['created_at'] = [pd.Timestamp(created_at, tz='UTC') for created_at in actual['vs_attributes']['created_at']]
+        actual['edges'] = [tuple(edge) for edge in actual['edges']]
+        self.maxDiff = None
+        self.assertEqual(expected['vs_attributes'], actual['vs_attributes'])
+        self.assertEqual(expected, actual)
+
+
 
 
 if __name__ == '__main__':

@@ -1,5 +1,6 @@
 import logging
 import time
+from importlib.metadata import metadata
 
 import numpy as np
 import pandas as pd
@@ -79,8 +80,6 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         return egonet
 
-
-
     def plot_hidden_network(self, dataset, start_date=None, end_date=None, hashtags=None):
         # if start_date, end_date or hashtag are not none we need to recompute the graph and layout
         start_date, end_date = self._validate_dates(dataset, start_date, end_date)
@@ -145,8 +144,20 @@ class PropagationPlotFactory(MongoPlotFactory):
         return layout
 
     def plot_user_graph(self, user_graph, collection, layout, highlight_node_index=None):
-        metadata = self.get_user_metadata(collection)
+        metadata = self.get_user_metadata(collection, author_ids=user_graph.vs['author_id'])
         metadata = metadata.reindex(user_graph.vs['author_id'])
+        # Try to patch missing metadata with graph info if available
+        if metadata.isna().any().any():
+            logger.warning('Missing metadata for some nodes, trying to patch with graph info')
+            missing_nodes = metadata.index[metadata.drop(columns='party').isna().any(axis=1)].to_list()
+            for author_id in missing_nodes:
+                try:
+                    node = user_graph.vs.find(author_id=author_id)
+                    metadata.loc[author_id, 'Username'] = node['username']
+                    metadata.loc[author_id, 'User type'] = 'Normal'
+
+                except ValueError:
+                    logger.error(f'Node {author_id} not found in graph')
         metadata['User type'] = metadata['User type'].fillna('Unknown')
 
         def user_hover(x):
