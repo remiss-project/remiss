@@ -28,9 +28,11 @@ class PropagationPlotFactory(MongoPlotFactory):
                  reference_types=('quoted', 'retweeted'), layout='fruchterman_reingold',
                  threshold=0.2, delete_vertices=True, frequency='1D',
                  available_datasets=None, small_size_multiplier=15, big_size_multiplier=50,
-                 user_highlight_color='rgb(0, 0, 255)', max_edges=None):
+                 user_highlight_color='rgb(0, 0, 255)', max_edges_propagation_tree=None,
+                 max_edges_backbone=None):
         super().__init__(host, port, available_datasets)
-        self.max_edges = max_edges
+        self.max_edges_propagation_tree = max_edges_propagation_tree
+        self.max_edges_backbone = max_edges_backbone
         self.big_size_multiplier = big_size_multiplier
         self.small_size_multiplier = small_size_multiplier
         self.node_highlight_color = user_highlight_color
@@ -58,13 +60,13 @@ class PropagationPlotFactory(MongoPlotFactory):
     def _get_egonet(self, collection, author_id, depth, start_date, end_date, hashtag):
         egonet = self.egonet.get_egonet(collection, author_id, depth, start_date, end_date, hashtag)
 
-        if self.max_edges is not None and egonet.ecount() > self.max_edges:
-            logger.warning(f'Egonet for {author_id} has {egonet.ecount()} edges, reducing to {self.max_edges}')
+        if self.max_edges_propagation_tree is not None and egonet.ecount() > self.max_edges_propagation_tree:
+            logger.warning(f'Egonet for {author_id} has {egonet.ecount()} edges, reducing to {self.max_edges_propagation_tree}')
             # Get author_id node just in case it gets removed in the backbone pruning
             author_id_node = egonet.vs.find(author_id=author_id)
 
             egonet = compute_backbone(egonet, threshold=0, delete_vertices=self.delete_vertices,
-                                      max_edges=self.max_edges)
+                                      max_edges=self.max_edges_propagation_tree)
             # Make sure author_id is in the graph, add it otherwise
             try:
                 egonet.vs.find(author_id=author_id).index
@@ -130,7 +132,8 @@ class PropagationPlotFactory(MongoPlotFactory):
         if hidden_network.vcount() == 0:
             return hidden_network
 
-        backbone = compute_backbone(hidden_network, threshold=self.threshold, delete_vertices=self.delete_vertices)
+        backbone = compute_backbone(hidden_network, threshold=self.threshold, delete_vertices=self.delete_vertices,\
+                                    max_edges=self.max_edges_backbone)
 
         return backbone
 
@@ -197,9 +200,9 @@ class PropagationPlotFactory(MongoPlotFactory):
             logger.error(f'Error getting propagation tree: {e}. Recomputing')
             propagation_tree = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
 
-        if self.max_edges is not None and propagation_tree.ecount() > self.max_edges:
+        if self.max_edges_propagation_tree is not None and propagation_tree.ecount() > self.max_edges_propagation_tree:
             # sample edges
-            edges = np.random.choice(propagation_tree.ecount(), self.max_edges, replace=False)
+            edges = np.random.choice(propagation_tree.ecount(), self.max_edges_propagation_tree, replace=False)
             propagation_tree = propagation_tree.subgraph_edges(edges)
         try:
             original_node_index = propagation_tree.vs.find(tweet_id=tweet_id).index
@@ -517,7 +520,7 @@ def compute_backbone(graph, threshold=0.05, delete_vertices=True, max_edges=None
     good = rank[alphas > threshold]
 
     if max_edges:
-        good = good[:max_edges]
+        good = good[:min(max_edges, len(good))]
     logger.debug(f'Pruning {graph.ecount() - len(good)}  edges from {graph.ecount()}: {len(good)} edges remaining')
     backbone = graph.subgraph_edges(graph.es.select(good), delete_vertices=delete_vertices)
 

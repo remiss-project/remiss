@@ -64,19 +64,22 @@ def create_app(config):
     logger.info('Creating plot factories...')
     start_time = time.time()
     control_plot_factory = ControlPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                                    available_datasets=config['available_datasets'],
-                                                    max_wordcloud_words=config['wordcloud']['max_words'])
+                                              available_datasets=config['available_datasets'],
+                                              max_wordcloud_words=config['wordcloud']['max_words'])
     tweet_user_plot_factory = TimeSeriesFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                                 available_datasets=config['available_datasets'])
     tweet_table_factory = TweetTableFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                             available_datasets=config['available_datasets'])
-
-    egonet_plot_factory = PropagationPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                                 layout=config['propagation']['graph_layout'],
-                                                 threshold=config['propagation']['threshold'],
-                                                 frequency=config['propagation']['frequency'],
+    propagation_config = config['propagation']
+    propagation_factory = PropagationPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
+                                                 layout=propagation_config['graph_layout'],
+                                                 threshold=propagation_config.get('threshold', 0.2),
+                                                 frequency=propagation_config['frequency'],
                                                  available_datasets=config['available_datasets'],
-                                                 max_edges=config['propagation'].get('max_edges', None),
+                                                 max_edges_propagation_tree=propagation_config['max_edges'].get(
+                                                     'propagation_tree', None),
+                                                 max_edges_backbone=propagation_config['max_edges'].get(
+                                                     'hidden_network', None),
                                                  )
     textual_factory = TextualFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                      available_datasets=config['available_datasets'])
@@ -91,7 +94,7 @@ def create_app(config):
         control_plot_factory,
         tweet_user_plot_factory,
         tweet_table_factory,
-        egonet_plot_factory,
+        propagation_factory,
         textual_factory,
         profiling_factory,
         multimodal_factory,

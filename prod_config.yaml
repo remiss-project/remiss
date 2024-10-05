@@ -35,7 +35,8 @@ cut_bins:
   - Medium
   - High
 propagation:
-  max_edges: 1000
+  max_edges:
+    hidden_network: 8000
+    propagation_tree: 1000
   graph_layout: fruchterman_reingold
-  threshold: 0.6
   frequency: 1D

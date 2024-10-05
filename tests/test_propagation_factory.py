@@ -200,7 +200,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
         fig.show()
 
     def test_plot_egonet_max_edges(self):
-        self.propagation_factory.max_edges = 10
+        self.propagation_factory.max_edges_propagation_tree = 10
         fig = self.propagation_factory.plot_egonet(self.test_dataset, self.test_user_id, 2)
         fig.show()
 

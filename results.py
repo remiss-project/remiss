@@ -22,7 +22,8 @@ class Results:
 
     def __init__(self, dataset, host='localhost', port=27017, output_dir='./results', egonet_depth=2,
                  features=('propagation_tree', 'egonet', 'legitimacy_status_reputation', 'cascades', 'nodes_edges',
-                           'performance'), max_cascades=None):
+                           'performance'), max_cascades=None, num_samples=None):
+        self.num_samples = num_samples
         self.max_cascades = max_cascades
         self.host = host
         self.port = port
@@ -303,7 +304,7 @@ class Results:
         else:
             logger.info(f'Dataset {dataset} not found. Generating dataset')
             dataset_generator = PropagationDatasetGenerator(dataset, host=self.host, port=self.port,
-                                                            num_samples=num_samples)
+                                                            num_samples=self.num_samples)
             features = dataset_generator.generate_propagation_dataset()
             features.to_csv(dataset_path, index=False)
         y = features['propagated']

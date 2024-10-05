@@ -13,6 +13,8 @@ logger = logging.getLogger('main')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 fire
+
+
 class Prepopulator:
     def __init__(self, config_file='prod_config.yaml', available_datasets=None,
                  modules=('diffusion', 'network', 'egonet', 'layout', 'histogram'), max_cascades=None,
@@ -31,14 +33,17 @@ class Prepopulator:
                                               reference_types=config['reference_types'])
 
         self.histogram = Histogram(host=config['mongodb']['host'], port=config['mongodb']['port'])
+        propagation_config = config['propagation']
         self.propagation_factory = PropagationPlotFactory(host=config['mongodb']['host'],
                                                           port=config['mongodb']['port'],
-                                                          layout=config['propagation']['graph_layout'],
-                                                          threshold=config['propagation']['threshold'],
-                                                          frequency=config['propagation']['frequency'],
+                                                          layout=propagation_config['graph_layout'],
+                                                          threshold=propagation_config.get('threshold', 0.2),
+                                                          frequency=propagation_config['frequency'],
                                                           available_datasets=config['available_datasets'],
-                                                          max_edges=config['propagation'].get('max_edges', None),
-                                                          )
+                                                          max_edges_propagation_tree=propagation_config[
+                                                              'max_edges'].get('propagation_tree', None),
+                                                          max_edges_backbone=propagation_config['max_edges'].get(
+                                                              'hidden_network', None))
         self.control_plot_factory = ControlPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                                        available_datasets=config['available_datasets'],
                                                        max_wordcloud_words=config['wordcloud']['max_words'])
@@ -159,5 +164,5 @@ def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
 
 
 if __name__ == '__main__':
-    fire.Fire(run_prepopulator)
-    # run_prepopulator(modules=['diffusion', 'egonet', 'layout'], config_file='dev_config.yaml')
+    # fire.Fire(run_prepopulator)
+    run_prepopulator(modules=['egonet', 'layout'], config_file='dev_config.yaml')
