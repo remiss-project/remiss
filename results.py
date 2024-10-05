@@ -290,7 +290,6 @@ class Results:
                     X, y = self._load_dataset(self.output_dir, dataset)
                     results[dataset] = self._test_dataset(X, y, dataset)
                 except Exception as e:
-                    raise e
                     logger.error(f'Failed to test dataset {dataset} due to {e}')
 
         results = pd.DataFrame(results).T
@@ -304,7 +303,7 @@ class Results:
         else:
             logger.info(f'Dataset {dataset} not found. Generating dataset')
             dataset_generator = PropagationDatasetGenerator(dataset, host=self.host, port=self.port,
-                                                            max_cascades=self.max_cascades)
+                                                            num_samples=num_samples)
             features = dataset_generator.generate_propagation_dataset()
             features.to_csv(dataset_path, index=False)
         y = features['propagated']
@@ -406,8 +405,9 @@ if __name__ == '__main__':
     #             host='localhost',
     #             features=('performance',),
     #             output_dir='results/performance')
-    run_results(['Andalucia_2022'],
+    run_results(['Andalucia_2022', 'Barcelona_2019', 'Generales_2019', 'Generalitat_2021'],
                 host='mongodb://srvinv02.esade.es',
                 features=['performance'],
-                output_dir='results/performance',
-                max_cascades=4)
+                output_dir='results/performance/final',
+                max_cascades=500
+        )

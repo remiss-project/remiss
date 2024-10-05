@@ -227,6 +227,8 @@ class PropagationPlotFactory(MongoPlotFactory):
             graph = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
             shortest_paths = self.diffusion_metrics.get_shortest_paths_to_original_tweet_over_time(graph)
             depth_over_time = self.diffusion_metrics.compute_depth_over_time(shortest_paths=shortest_paths)
+            # remove all input edges whose input edges link to the original tweet
+            graph.delete_edges(graph.es.select(lambda e: e.source == graph.vs.find(tweet_id=tweet_id).index))
         return plot_time_series(depth_over_time, 'Depth over time', 'Time', 'Depth')
 
     def plot_max_breadth_over_time(self, dataset, tweet_id):

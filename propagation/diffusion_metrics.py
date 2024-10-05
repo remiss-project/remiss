@@ -191,7 +191,6 @@ class DiffusionMetrics(BasePropagationMetrics):
 
         return references
 
-
     def _get_vertices_from_edges(self, edges, tweet_id):
         sources = edges[['source', 'source_author_id', 'source_username', 'source_text', 'source_created_at']]
         sources = sources.rename(columns={'source': 'tweet_id',
@@ -251,7 +250,6 @@ class DiffusionMetrics(BasePropagationMetrics):
 
         max_breadth = pd.Series(max_breadth, name='Max Breadth')
         return max_breadth
-
 
     def compute_structural_virality_over_time(self, graph):
         # Specifically, we define structural
@@ -339,8 +337,10 @@ class DiffusionMetrics(BasePropagationMetrics):
         # graph = graph.as_undirected()
         original_tweet_id = graph.vs.find(type='original')['tweet_id']
         original_tweet_index = graph.vs.find(tweet_id=original_tweet_id).index
-        shortest_paths = pd.Series(graph.shortest_paths_dijkstra(source=original_tweet_index)[0],
-                                   index=graph.vs['created_at'])
+        # shortest_paths = pd.Series(graph.shortest_paths_dijkstra(source=original_tweet_index)[0],
+        #                            index=graph.vs['created_at'])
+
+        shortest_paths = pd.Series(graph.get_shortest_paths(0), index=graph.vs['created_at']).apply(lambda x: len(x) - 1)
         # Drop infinity
         shortest_paths = shortest_paths.replace(float('inf'), pd.NA)
         shortest_paths = shortest_paths.dropna()

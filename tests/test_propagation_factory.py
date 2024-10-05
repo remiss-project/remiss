@@ -404,6 +404,14 @@ class PropagationFactoryTestCase(unittest.TestCase):
         fig = self.propagation_factory.plot_depth_over_time(self.test_dataset, test_tweet)
         fig.show()
 
+    def test_depth_over_time_4(self):
+        test_tweet = '1167100545800318976'
+        self.propagation_factory.host = 'mongodb://srvinv02.esade.es'
+        self.propagation_factory.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
+        self.propagation_factory.diffusion_metrics.egonet.host = 'mongodb://srvinv02.esade.es'
+
+        tree = self.propagation_factory.diffusion_metrics.compute_propagation_tree('Openarms', test_tweet)
+        print(tree)
 
 if __name__ == '__main__':
     unittest.main()

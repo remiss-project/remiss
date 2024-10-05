@@ -507,6 +507,14 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         self.assertEqual(expected, actual)
 
 
+    def test_depth_2(self):
+        graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, '1167100545800318976')
+        # plot graph
+        self.diffusion_metrics._plot_graph_igraph(graph)
+        shortest_paths = self.diffusion_metrics.get_shortest_paths_to_original_tweet_over_time(graph)
+        df = self.diffusion_metrics.compute_depth_over_time(shortest_paths)
+
+        self.assertEqual(df.max(), 4)
 
 
 if __name__ == '__main__':
