@@ -158,6 +158,7 @@ def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
     logger.info(f'Running prepopulator with config file: {config_file}')
     logger.info(f'Available datasets: {available_datasets}')
     logger.info(f'Modules: {modules}')
+    logger.info(f'Max cascades: {max_cascades}, erase existing: {erase_existing}')
     prepopulator = Prepopulator(config_file=config_file, available_datasets=available_datasets, modules=modules,
                                 max_cascades=max_cascades, erase_existing=erase_existing)
     prepopulator.prepopulate()
