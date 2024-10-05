@@ -108,9 +108,10 @@ class DiffusionMetrics(BasePropagationMetrics):
                 if not neighbors.empty:
                     # get the tweet closest in the past to the current tweet
                     neighbors = neighbors[neighbors['created_at'] < vertex['created_at']]
-                    source = neighbors.loc[neighbors['created_at'].idxmax()]
-                    source_index = propagation_tree.vs.find(tweet_id=source.name).index
-                    propagation_tree.add_edge(source_index, vertex.index)
+                    if not neighbors.empty:
+                        source = neighbors.loc[neighbors['created_at'].idxmax()]
+                        source_index = propagation_tree.vs.find(tweet_id=source.name).index
+                        propagation_tree.add_edge(source_index, vertex.index)
 
         # Link the original tweet to each graph connected component
         for component in propagation_tree.connected_components(mode='weak'):
