@@ -37,5 +37,5 @@ cut_bins:
 propagation:
   max_edges: 1000
   graph_layout: fruchterman_reingold
-  threshold: 0.3
+  threshold: 0.6
   frequency: 1D
