@@ -225,7 +225,8 @@ class PropagationPlotFactory(MongoPlotFactory):
         except Exception as e:
             logger.error(f'Error getting depth over time: {e}. Recomputing')
             graph = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
-            depth_over_time = self.diffusion_metrics.compute_depth_over_time(graph)
+            shortest_paths = self.diffusion_metrics.get_shortest_paths_to_original_tweet_over_time(graph)
+            depth_over_time = self.diffusion_metrics.compute_depth_over_time(shortest_paths=shortest_paths)
         return plot_time_series(depth_over_time, 'Depth over time', 'Time', 'Depth')
 
     def plot_max_breadth_over_time(self, dataset, tweet_id):
@@ -234,7 +235,8 @@ class PropagationPlotFactory(MongoPlotFactory):
         except Exception as e:
             logger.error(f'Error getting max breadth over time: {e}. Recomputing')
             graph = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
-            max_breadth_over_time = self.diffusion_metrics.compute_max_breadth_over_time(graph)
+            shortest_paths = self.diffusion_metrics.get_shortest_paths_to_original_tweet_over_time(graph)
+            max_breadth_over_time = self.diffusion_metrics.compute_max_breadth_over_time(shortest_paths)
         return plot_time_series(max_breadth_over_time, 'Max breadth over time', 'Time', 'Max breadth')
 
     def plot_structural_virality_over_time(self, dataset, tweet_id):
