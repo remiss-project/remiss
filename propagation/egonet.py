@@ -173,7 +173,10 @@ class Egonet(BasePropagationMetrics):
     def persist(self, datasets):
         # Save to mongodb
         for dataset in datasets:
+            logger.info(f'Computing hidden network for {dataset}')
+            start_time = time.time()
             hidden_network = self._compute_hidden_network(dataset)
+            logger.info(f'Hidden network computed in {time.time() - start_time} seconds')
 
             self._persist_graph_to_mongodb(hidden_network, dataset, 'hidden_network')
 

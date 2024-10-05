@@ -467,9 +467,11 @@ class PropagationPlotFactory(MongoPlotFactory):
         # Save layouts and backbone if any
         for dataset in datasets:
             if self.threshold > 0:
+                logger.info(f'Persisting hidden network layout and backbone for dataset {dataset}')
                 hidden_network = self._compute_hidden_network_backbone(dataset)
                 self._persist_graph_to_mongodb(hidden_network, dataset, 'hidden_network_backbone')
             else:
+                logger.info(f'Persisting hidden network layout for dataset {dataset}')
                 hidden_network = self.egonet.get_hidden_network(dataset)
 
             layout = self.compute_layout(hidden_network)
@@ -477,6 +479,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                 self._persist_layout_to_mongodb(layout, dataset, 'hidden_network_layout')
             else:
                 logger.error(f'Empty layout for dataset {dataset}')
+
 
     def _persist_layout_to_mongodb(self, layout, dataset, collection_name):
         client = MongoClient(self.host, self.port)
