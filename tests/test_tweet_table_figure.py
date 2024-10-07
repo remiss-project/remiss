@@ -221,3 +221,19 @@ class TestTopTableFactory(TestCase):
         actual = set(actual['ID'])
         expected = set(expected['ID'])
         self.assertTrue(len(expected - actual) < 5)
+
+    # def test_fix_numerical_ids(self):
+    #     datasets = ['MENA_Agressions', 'MENA_Ajudes', 'Barcelona_2019', 'Generalitat_2021']
+    #     client = MongoClient('mongodb://srvinv02.esade.es', 27017)
+    #     for dataset in datasets:
+    #
+    #         database = client.get_database(dataset)
+    #         textual = database.get_collection('textual')
+    #         # Store ids as string in id_str as a regular field
+    #         pipeline = [
+    #             # Add id_str field if it does not exist
+    #             {'$addFields': {'id_str': {'$toString': '$id'}}},
+    #         ]
+    #         textual.update_many({'id_str':{'$exists': False}}, pipeline)
+    #
+    #     client.close()

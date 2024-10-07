@@ -228,7 +228,6 @@ class TweetTableFactory(MongoPlotFactory):
                 'party': '$author.remiss_metadata.party',
                 'created_at': 1,
             }},
-            {'$addFields': {'tweet_id_int': {'$toLong': '$tweet_id'}}},
         ]
         initial_schema = Schema({
             'username': str,
@@ -239,7 +238,6 @@ class TweetTableFactory(MongoPlotFactory):
             'suspect': bool,
             'party': str,
             'created_at': datetime,
-            'tweet_id_int': int
 
         })
         pipeline_initial = self._add_filters(pipeline_initial, start_time, end_time, hashtags)
@@ -270,11 +268,11 @@ class TweetTableFactory(MongoPlotFactory):
 
         # Textual Collection
         pipeline_textual = [
-            {'$match': {'id': {'$in': df_initial['tweet_id_int'].astype(int).tolist()}}},
-            {'$project': {'_id': 0, 'id': 1, 'Suspicious content': '$fakeness_probabilities'}}
+            {'$match': {'id_str': {'$in': df_initial['tweet_id'].tolist()}}},
+            {'$project': {'_id': 0, 'id': '$id_str', 'Suspicious content': '$fakeness_probabilities'}}
         ]
         textual_schema = Schema({
-            'id': int,
+            'id': str,
             'Suspicious content': float
         })
         df_textual = collection_textual.aggregate_pandas_all(pipeline_textual, schema=textual_schema)
@@ -301,10 +299,10 @@ class TweetTableFactory(MongoPlotFactory):
         # Merge DataFrames
         df_final = df_initial.merge(df_multimodal, on='tweet_id', how='left')
         df_final = df_final.merge(df_profiling, left_on='author_id', right_on='user_id', how='left')
-        df_final = df_final.merge(df_textual, left_on='tweet_id_int', right_on='id', how='left')
+        df_final = df_final.merge(df_textual, left_on='tweet_id', right_on='id', how='left')
         df_final = df_final.merge(df_network_metrics, on='author_id', how='left')
 
-        df_final = df_final.drop(columns=['tweet_id_int', 'user_id', 'id'])
+        df_final = df_final.drop(columns=['user_id', 'id'])
         # Fill missing values and sort
         with pd.option_context("future.no_silent_downcasting", True):
             df_final['Multimodal'] = df_final['Multimodal'].fillna(False).infer_objects(copy=False)
