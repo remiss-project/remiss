@@ -5,7 +5,7 @@ import time
 import pandas as pd
 import plotly.graph_objects as go
 import sklearn
-from joblib import Parallel, delayed
+from numpy.random import shuffle
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
 from pymongoarrow.schema import Schema
@@ -36,6 +36,116 @@ class PropagationDatasetGenerator:
         self.tweet_features = {}
         self.egonet = Egonet(host, port)
         self.diffusion_metrics = DiffusionMetrics(host=host, port=port, egonet=self.egonet)
+
+    def generate_propagation_dataset(self):
+        logger.info('Generating propagation dataset')
+        cascades = self.get_available_cascades()
+
+        positive_rows = self.get_rows(cascades)
+
+        tweets = positive_rows['cascade_id'].unique().tolist()
+        logger.info(f'Fetching tweet features for {len(tweets)} tweets')
+        positive_users = list(set(positive_rows['source'].unique()) | set(positive_rows['target'].unique()))
+        logger.info(f'Fetching user features for {len(positive_users)} users')
+        tweet_features = self.fetch_tweet_features(tweets)
+        logger.info(f'Fetched {len(tweet_features)} tweet features')
+        positive_user_features = self.fetch_user_features(positive_users)
+        logger.info(f'Fetched {len(positive_user_features)} user features')
+
+        logger.info('Merging features')
+        positive_samples = positive_rows.merge(tweet_features, left_on='cascade_id', right_index=True, how='inner')
+        positive_samples = positive_samples.merge(positive_user_features.rename(columns=lambda x: f'{x}_prev'),
+                                                  left_on='source',
+                                                  right_index=True, how='inner')
+        positive_samples = positive_samples.merge(positive_user_features.rename(columns=lambda x: f'{x}_curr'),
+                                                  left_on='target',
+                                                  right_index=True, how='inner')
+        positive_samples = positive_samples.merge(positive_user_features.rename(columns=lambda x: f'{x}_original'),
+                                                  left_on='original_author',
+                                                  right_index=True, how='inner')
+
+        logger.info(f'Found {len(positive_samples)} positive samples')
+
+        logger.info('Generating negative samples')
+        negative_rows = self._generate_negative_rows(positive_samples)
+        negative_users = list(set(negative_rows['source'].unique()) | set(negative_rows['target'].unique()))
+        logger.info(f'Fetching user features for {len(negative_users)} negative users')
+        negative_user_features = self.fetch_user_features(negative_users)
+        logger.info(f'Fetched {len(negative_user_features)} negative user features')
+
+        logger.info('Merging negative features')
+        negative_samples = negative_rows.merge(tweet_features, left_on='cascade_id', right_index=True, how='inner')
+        negative_samples = negative_samples.merge(negative_user_features.rename(columns=lambda x: f'{x}_prev'),
+                                                  left_on='source',
+                                                  right_index=True, how='inner')
+        negative_samples = negative_samples.merge(negative_user_features.rename(columns=lambda x: f'{x}_curr'),
+                                                  left_on='target',
+                                                  right_index=True, how='inner')
+        negative_samples = negative_samples.merge(negative_user_features.rename(columns=lambda x: f'{x}_original'),
+                                                  left_on='original_author',
+                                                  right_index=True, how='inner')
+
+        logger.info(f'Found {len(negative_samples)} negative samples')
+
+        positive_samples['propagated'] = 1
+        negative_samples['propagated'] = 0
+        dataset = pd.concat([positive_samples, negative_samples]).reset_index(drop=True)
+        dataset = dataset.drop(columns=['source', 'target', 'cascade_id', 'original_author'], errors='ignore')
+        dataset = dataset.sample(frac=1).reset_index(drop=True)
+        logger.info(f'Generated dataset with {len(dataset)} samples')
+        return dataset
+
+    def get_rows(self, cascades):
+        logger.info(f'Fetching rows for {len(cascades)} cascades')
+
+        if self.num_samples is not None:
+            total = self.num_samples
+        else:
+            total = len(cascades)
+        rows = []
+        for i, cascade in (pbar := tqdm(cascades.sample(frac=1).iterrows(), total=total)):
+            samples = self._get_row_for_cascades(cascade)
+            rows.extend(samples)
+            if self.num_samples is not None:
+                if len(rows) >= self.num_samples // 2:
+                    break
+                else:
+                    pbar.update(len(samples))
+
+            else:
+                pbar.update(1)
+        rows = pd.DataFrame(rows)
+        logger.info(f'Found {len(rows)} rows')
+        return rows
+
+    def _generate_negative_rows(self, features):
+        hidden_network = self.egonet.get_hidden_network(self.dataset)
+        negatives = []
+        sources = [(source, interactions) for source, interactions in features.groupby('source')]
+        random.shuffle(sources)
+
+        for source, interactions in tqdm(sources):
+            if len(interactions) > 1:
+                targets = set(interactions['target'])
+                source_node = hidden_network.vs.find(author_id=source)
+                neighbors = hidden_network.neighbors(source_node)
+                neighbors = set(neighbors) - targets
+
+                for target in neighbors:
+                    neighbor = hidden_network.vs[target]
+                    negatives.append({
+                        'source': source,
+                        'target': neighbor['author_id'],
+                        'cascade_id': interactions['cascade_id'].iloc[0],
+                        'original_author': interactions['original_author'].iloc[0],
+                    })
+                if self.num_samples is not None and len(negatives) >= self.num_samples // 2:
+                    break
+
+        if not negatives:
+            raise RuntimeError('No negative samples found')
+        negatives = pd.DataFrame(negatives).astype(str)
+        return negatives
 
     def get_available_cascades(self):
         logger.info('Fetching available cascades')
@@ -105,7 +215,7 @@ class PropagationDatasetGenerator:
         client.close()
 
         if textual_tweets.empty:
-           logger.warning('No cascades with textual features found, picking them all')
+            logger.warning('No cascades with textual features found, picking them all')
         else:
             textual_tweets['tweet_id'] = textual_tweets['tweet_id'].astype(int).astype(str)
             textual_tweets = textual_tweets.drop_duplicates(subset='tweet_id')
@@ -113,26 +223,13 @@ class PropagationDatasetGenerator:
             cascades = cascades[good]
         return cascades
 
-    def get_rows(self, cascades):
-        logger.info(f'Fetching rows for {len(cascades)} cascades')
-
-        if self.num_samples is not None:
-            max_samples_per_cascade = self.num_samples // len(cascades)
-        else:
-            max_samples_per_cascade = None
-        jobs = []
-        for _, cascade in cascades.iterrows():
-            jobs.append(delayed(self._get_row_for_cascades)(cascade, max_samples_per_cascade))
-        rows = Parallel(n_jobs=-2, verbose=10)(jobs)
-        rows = pd.DataFrame([row for sublist in rows for row in sublist])
-        logger.info(f'Found {len(rows)} rows')
-        return rows
-
-    def _get_row_for_cascades(self, cascade, max_samples_per_cascade=None):
+    def _get_row_for_cascades(self, cascade):
         rows = []
         prop_tree = self._get_propagation_tree(cascade['tweet_id'])
-
-        for node in random.random.shuffle(prop_tree.vs):
+        nodes = list(range(len(prop_tree.vs)))
+        random.shuffle(nodes)
+        for node in nodes:
+            node = prop_tree.vs[node]
             neighbors = set(prop_tree.neighbors(node))
             for neighbor in neighbors:
                 if neighbor != node.index:
@@ -143,6 +240,7 @@ class PropagationDatasetGenerator:
                         'cascade_id': cascade['tweet_id'],
                         'original_author': cascade['author_id'],
                     })
+
         return rows
 
     def _get_propagation_tree(self, tweet_id):
@@ -165,8 +263,8 @@ class PropagationDatasetGenerator:
         pipeline = [
             {'$match': {'id': {'$in': tweets}}},
             {'$project': {'_id': 0, 'tweet_id': '$id',
-                            'num_replies': '$public_metrics.reply_count', 'num_retweets': '$public_metrics.retweet_count',
-                            'num_quotes': '$public_metrics.quote_count', 'num_likes': '$public_metrics.like_count',
+                          'num_replies': '$public_metrics.reply_count', 'num_retweets': '$public_metrics.retweet_count',
+                          'num_quotes': '$public_metrics.quote_count', 'num_likes': '$public_metrics.like_count',
                           }}
         ]
         raw_tweet_features = collection.aggregate_pandas_all(pipeline)
@@ -340,85 +438,6 @@ class PropagationDatasetGenerator:
         ]
         user_features = collection.aggregate_pandas_all(pipeline).set_index('author_id')
         return user_features
-
-    def _generate_negative_rows(self, features):
-        logger.info('Generating negative samples')
-        hidden_network = self.egonet.get_hidden_network(self.dataset)
-        negatives = []
-        for source, interactions in tqdm(features.groupby('source')):
-            if len(interactions) > 1:
-                targets = set(interactions['target'])
-                source_node = hidden_network.vs.find(author_id=source)
-                neighbors = hidden_network.neighbors(source_node)
-                neighbors = set(neighbors) - targets
-                for target in neighbors:
-                    neighbor = hidden_network.vs[target]
-                    negatives.append({
-                        'source': source,
-                        'target': neighbor['author_id'],
-                        'cascade_id': interactions['cascade_id'].iloc[0],
-                        'original_author': interactions['original_author'].iloc[0],
-                    })
-
-        if not negatives:
-            raise RuntimeError('No negative samples found')
-        negatives = pd.DataFrame(negatives).astype(str)
-        return negatives
-
-    def generate_propagation_dataset(self):
-        logger.info('Generating propagation dataset')
-        cascades = self.get_available_cascades()
-
-        positive_rows = self.get_rows(cascades)
-
-        tweets = positive_rows['cascade_id'].unique().tolist()
-        logger.info(f'Fetching tweet features for {len(tweets)} tweets')
-        positive_users = list(set(positive_rows['source'].unique()) | set(positive_rows['target'].unique()))
-        logger.info(f'Fetching user features for {len(positive_users)} users')
-        tweet_features = self.fetch_tweet_features(tweets)
-        logger.info(f'Fetched {len(tweet_features)} tweet features')
-        positive_user_features = self.fetch_user_features(positive_users)
-        logger.info(f'Fetched {len(positive_user_features)} user features')
-
-
-        logger.info('Merging features')
-        positive_samples = positive_rows.merge(tweet_features, left_on='cascade_id', right_index=True, how='inner')
-        positive_samples = positive_samples.merge(positive_user_features.rename(columns=lambda x: f'{x}_prev'),
-                                                  left_on='source',
-                                                  right_index=True, how='inner')
-        positive_samples = positive_samples.merge(positive_user_features.rename(columns=lambda x: f'{x}_curr'),
-                                                  left_on='target',
-                                                  right_index=True, how='inner')
-        positive_samples = positive_samples.merge(positive_user_features.rename(columns=lambda x: f'{x}_original'),
-                                                  left_on='original_author',
-                                                  right_index=True, how='inner')
-
-        logger.info('Generating negative samples')
-        negative_rows = self._generate_negative_rows(positive_samples)
-        negative_users = list(set(negative_rows['source'].unique()) | set(negative_rows['target'].unique()))
-        logger.info(f'Fetching user features for {len(negative_users)} users')
-        negative_user_features = self.fetch_user_features(negative_users)
-        logger.info(f'Fetched {len(negative_user_features)} user features')
-
-        logger.info('Merging negative features')
-        negative_samples = negative_rows.merge(tweet_features, left_on='cascade_id', right_index=True, how='inner')
-        negative_samples = negative_samples.merge(negative_user_features.rename(columns=lambda x: f'{x}_prev'),
-                                                  left_on='source',
-                                                  right_index=True, how='inner')
-        negative_samples = negative_samples.merge(negative_user_features.rename(columns=lambda x: f'{x}_curr'),
-                                                  left_on='target',
-                                                  right_index=True, how='inner')
-        negative_samples = negative_samples.merge(negative_user_features.rename(columns=lambda x: f'{x}_original'),
-                                                  left_on='original_author',
-                                                  right_index=True, how='inner')
-
-        positive_samples['propagated'] = 1
-        negative_samples['propagated'] = 0
-        dataset = pd.concat([positive_samples, negative_samples]).reset_index(drop=True)
-        dataset = dataset.drop(columns=['source', 'target', 'cascade_id', 'original_author'], errors='ignore')
-        dataset = dataset.sample(frac=1).reset_index(drop=True)
-        logger.info(f'Generated dataset with {len(dataset)} samples')
-        return dataset
 
 
 class PropagationCascadeModel:

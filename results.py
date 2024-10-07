@@ -283,23 +283,25 @@ class Results:
 
         results = {}
         for dataset in self.dataset:
-            if dataset in results:
-                logger.warning(f'Dataset {dataset} already processed. Skipping.')
-            else:
-                try:
-                    logger.info(f'Testing dataset {dataset}')
-                    X, y = self._load_dataset(self.output_dir, dataset)
-                    results[dataset] = self._test_dataset(X, y, dataset)
-                except Exception as e:
-                    logger.error(f'Failed to test dataset {dataset} due to {e}')
+            try:
+                logger.info(f'Testing dataset {dataset}')
+                X, y = self._load_dataset(self.output_dir, dataset)
+                results[dataset] = self._test_dataset(X, y, dataset)
+            except Exception as e:
+                logger.error(f'Failed to test dataset {dataset} due to {e}')
 
         results = pd.DataFrame(results).T
+        logger.info('Results')
+        pd.set_option('display.max_columns', None)
+        logger.info(results)
+        logger.info(f'Saving results to {results_filepath}')
         results.to_csv(results_filepath, index=True)
         results.to_markdown(self.output_dir / 'model_performance.md')
 
     def _load_dataset(self, output_dir, dataset):
         dataset_path = Path(output_dir) / f'{dataset}.csv'
         if dataset_path.exists():
+            logger.info(f'Loading dataset {dataset} from {dataset_path}')
             features = pd.read_csv(dataset_path)
         else:
             logger.info(f'Dataset {dataset} not found. Generating dataset')
@@ -365,7 +367,7 @@ class Results:
 
 def run_results(dataset, host='localhost', port=27017, output_dir='./results', egonet_depth=2,
                 features=('propagation_tree', 'egonet', 'legitimacy', 'cascades', 'nodes_edges', 'performance'),
-                max_cascades=None):
+                max_cascades=None, num_samples=None):
     logger.info('Running results')
     logger.info(f'Datasets: {dataset}')
     logger.info(f'Host: {host}')
@@ -373,10 +375,13 @@ def run_results(dataset, host='localhost', port=27017, output_dir='./results', e
     logger.info(f'Output directory: {output_dir}')
     logger.info(f'Egonet depth: {egonet_depth}')
     logger.info(f'Max cascades: {max_cascades}')
+    logger.info(f'Num samples: {num_samples}')
+    logger.info(f'Features: {features}')
     results = Results(dataset=dataset, host=host, port=port, output_dir=output_dir,
                       egonet_depth=egonet_depth,
                       features=features,
-                      max_cascades=max_cascades)
+                      max_cascades=max_cascades,
+                      num_samples=num_samples)
     results.process()
 
 
@@ -398,17 +403,20 @@ if __name__ == '__main__':
     #             host='mongodb://srvinv02.esade.es',
     #             features=('legitimacy_status_reputation',),
     #             output_dir='results/openarms')
-    # run_results('test_dataset_2',
-    #             host='localhost',
-    #             features=('legitimacy_status_reputation',),
-    #             output_dir='results/local')
-    # run_results(['Openarms', 'MENA_Agressions', 'MENA_Ajudes'],
+    # run_results(['test_dataset_2'],
     #             host='localhost',
     #             features=('performance',),
-    #             output_dir='results/performance')
-    run_results(['Andalucia_2022', 'Barcelona_2019', 'Generales_2019', 'Generalitat_2021'],
+    #             output_dir='results/local/performance',
+    #             num_samples=1000)
+    run_results(['Openarms', 'MENA_Agressions', 'MENA_Ajudes'],
                 host='mongodb://srvinv02.esade.es',
-                features=['performance'],
-                output_dir='results/performance/final',
-                max_cascades=500
-        )
+                features=('performance',),
+                output_dir='results/performance',
+                num_samples=50000)
+    # run_results(['Andalucia_2022', 'Barcelona_2019', 'Generales_2019', 'Generalitat_2021'],
+    #             host='mongodb://srvinv02.esade.es',
+    #             features=['performance'],
+    #             output_dir='results/performance/final',
+    #             max_cascades=500
+    #     )
+
