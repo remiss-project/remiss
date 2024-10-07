@@ -206,10 +206,10 @@ class PropagationDatasetGenerator:
         client = MongoClient(self.host, self.port)
         database = client.get_database(self.dataset)
         collection = database.get_collection('textual')
-        tweet_ids = cascades['tweet_id'].astype(int).tolist()
+        tweet_ids = cascades['tweet_id'].tolist()
         pipeline = [
-            {'$match': {'id': {'$in': tweet_ids}}},
-            {'$project': {'_id': 0, 'tweet_id': '$id'}}
+            {'$match': {'id_str': {'$in': tweet_ids}}},
+            {'$project': {'_id': 0, 'tweet_id': '$id_str'}}
         ]
         textual_tweets = collection.aggregate_pandas_all(pipeline)
         client.close()

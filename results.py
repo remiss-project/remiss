@@ -408,15 +408,15 @@ if __name__ == '__main__':
     #             features=('performance',),
     #             output_dir='results/local/performance',
     #             num_samples=1000)
-    run_results(['Openarms', 'MENA_Agressions', 'MENA_Ajudes'],
-                host='mongodb://srvinv02.esade.es',
-                features=('performance',),
-                output_dir='results/performance',
-                num_samples=50000)
-    # run_results(['Andalucia_2022', 'Barcelona_2019', 'Generales_2019', 'Generalitat_2021'],
+    # run_results(['Openarms', 'MENA_Agressions', 'MENA_Ajudes'],
     #             host='mongodb://srvinv02.esade.es',
-    #             features=['performance'],
-    #             output_dir='results/performance/final',
-    #             max_cascades=500
-    #     )
+    #             features=('performance',),
+    #             output_dir='results/performance',
+    #             num_samples=50000)
+    run_results(['Andalucia_2022', 'Barcelona_2019', 'Generales_2019', 'Generalitat_2021'],
+                host='mongodb://srvinv02.esade.es',
+                features=['performance'],
+                output_dir='results/performance/final',
+                max_cascades=50000
+        )
 
