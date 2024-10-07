@@ -136,4 +136,5 @@ class TextualFactory(MongoPlotFactory):
         df = df.rename(columns=translations)
 
         fig = px.line(df, x=df.index, y=df.columns)
+        fig.update_layout(yaxis_title='Average emotion', xaxis_title='Hour of the day')
         return fig
