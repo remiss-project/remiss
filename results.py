@@ -3,6 +3,7 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
+import fire
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -386,7 +387,7 @@ def run_results(dataset, host='localhost', port=27017, output_dir='./results', e
 
 
 if __name__ == '__main__':
-    # fire.Fire(run_results)
+    fire.Fire(run_results)
     #  - Openarms
     # - MENA_Agressions
     # - MENA_Ajudes
@@ -413,10 +414,10 @@ if __name__ == '__main__':
     #             features=('performance',),
     #             output_dir='results/performance',
     #             num_samples=50000)
-    run_results(['Andalucia_2022', 'Barcelona_2019', 'Generales_2019', 'Generalitat_2021'],
-                host='mongodb://srvinv02.esade.es',
-                features=['performance'],
-                output_dir='results/performance/final',
-                max_cascades=50000
-        )
+    # run_results(['Andalucia_2022', 'Barcelona_2019', 'Generales_2019', 'Generalitat_2021'],
+    #             host='mongodb://srvinv02.esade.es',
+    #             features=['performance'],
+    #             output_dir='results/performance/final',
+    #             num_samples=50000
+    #     )
 
