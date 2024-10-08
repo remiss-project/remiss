@@ -134,8 +134,8 @@ class TweetTableComponent(RemissComponent):
 
 
 
-    def update_page_count(self, dataset):
-        size = self.plot_factory.get_tweet_table_size(dataset)
+    def update_page_count(self, dataset, start_date, end_date, hashtags):
+        size = self.plot_factory.get_tweet_table_size(dataset, start_date, end_date, hashtags)
         return size // self.page_size if size is not None else 0
 
     def update_hashtags_state(self, active_cell):
@@ -181,7 +181,11 @@ class TweetTableComponent(RemissComponent):
         )(self.update)
         app.callback(
             Output(self.table, 'page_count'),
-            [Input(self.state.current_dataset, 'data')],
+            [Input(self.state.current_dataset, 'data'),
+             Input(self.state.current_start_date, 'data'),
+             Input(self.state.current_end_date, 'data'),
+             Input(self.state.current_hashtags, 'data'),
+             ],
         )(self.update_page_count)
 
         app.callback(

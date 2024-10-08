@@ -185,9 +185,9 @@ class PropagationPlotFactory(MongoPlotFactory):
                     metadata.loc[author_id, 'User type'] = 'Normal'
 
                 except ValueError:
-                    logger.error(f'Node {author_id} not found in graph')
+                    logger.warning(f'Node {author_id} not found in graph')
                 except KeyError:
-                    logger.error(f'Error getting username for node {author_id}')
+                    logger.warning(f'Error getting username for node {author_id}')
 
         metadata['User type'] = metadata['User type'].fillna('Unknown')
 

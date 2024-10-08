@@ -195,11 +195,25 @@ class TweetTableFactory(MongoPlotFactory):
             pipeline.append({'$limit': amount})
         return pipeline
 
-    def get_tweet_table_size(self, dataset):
+    def get_tweet_table_size(self, dataset, start_time=None, end_time=None, hashtags=None):
+        start_time, end_time = self._validate_dates(dataset, start_time, end_time)
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         collection = database.get_collection('tweet_table')
-        size = collection.count_documents({})
+
+        if start_time or end_time or hashtags:
+            pipeline = []
+            pipeline = self._add_filters(pipeline, start_time, end_time, hashtags)
+            pipeline.append({'$count': 'size'})
+            size = collection.aggregate(pipeline)
+            if size is not None:
+                size = list(size)
+                if size:
+                    size = size[0]['size']
+                else:
+                    size = 0
+        else:
+            size = collection.count_documents({})
         client.close()
         return size
 
