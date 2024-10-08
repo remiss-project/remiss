@@ -57,6 +57,8 @@ class TweetTableFactory(MongoPlotFactory):
         })
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
+        if 'tweet_table' not in database.list_collection_names():
+            raise RuntimeError('Tweet table collection not found in the database. Please prepopulate first.')
         collection = database.get_collection('tweet_table')
         df = collection.aggregate_pandas_all(pipeline, schema=schema)
         client.close()
