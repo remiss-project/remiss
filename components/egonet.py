@@ -1,13 +1,14 @@
 import logging
 
 import dash_bootstrap_components as dbc
-from dash import dcc, Input, Output, State, ctx
+from dash import dcc, Input, Output, State
 from dash.exceptions import PreventUpdate
 
 from components.components import RemissComponent
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
 
 class EgonetComponent(RemissComponent):
     def __init__(self, plot_factory, state, name=None, debug=False):
@@ -23,7 +24,6 @@ class EgonetComponent(RemissComponent):
                                       style={'height': '100%', 'width': '100%'},
                                       )
         self.depth_slider = dcc.Slider(min=1, max=5, step=1, value=1, id=f'slider-{self.name}')
-        self._figure_cache = {}
 
     def layout(self, params=None):
         return dbc.Card([
@@ -62,7 +62,9 @@ class EgonetComponent(RemissComponent):
             logger.debug(f'Plotting egonet for user {username} with id {user}')
         except (RuntimeError, ValueError, KeyError) as e:
             # If the user is not available, then show the backbone
-            fig = self._get_hidden_network_figure(dataset, start_date, end_date, hashtags)
+
+            fig = self.plot_factory.plot_hidden_network(dataset, start_date=start_date, end_date=end_date,
+                                                        hashtags=hashtags)
             show_depth_slider = False
             title = 'Filtered hidden network'
             logger.debug(f'User {user} not available, plotting backbone')
@@ -70,14 +72,6 @@ class EgonetComponent(RemissComponent):
         # remove margin
         # fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
         return fig, title, show_depth_slider, not show_depth_slider
-
-    def _get_hidden_network_figure(self, dataset, start_date, end_date, hashtags):
-        if dataset in self._figure_cache:
-            return self._figure_cache[dataset]
-        fig = self.plot_factory.plot_hidden_network(dataset, start_date=start_date, end_date=end_date,
-                                                    hashtags=hashtags)
-        self._figure_cache[dataset] = fig
-        return fig
 
     def update_user_storage(self, click_data, dataset):
         if click_data is not None:

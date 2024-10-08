@@ -49,6 +49,7 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         self.diffusion_metrics = DiffusionMetrics(egonet=self.egonet, host=host, port=port,
                                                   reference_types=reference_types)
+        self._hidden_network_plot_cache = {}
 
     def plot_egonet(self, collection, author_id, depth, start_date=None, end_date=None, hashtag=None):
         egonet = self._get_egonet(collection, author_id, depth, start_date, end_date, hashtag)
@@ -89,15 +90,19 @@ class PropagationPlotFactory(MongoPlotFactory):
             hidden_network = self._compute_hidden_network_backbone(dataset, start_date, end_date, hashtags)
 
             layout = self.compute_layout(hidden_network)
+            return self.plot_user_graph(hidden_network, dataset, layout)
         else:
-            # Load hidden network from db
-            if self.threshold > 0:
-                hidden_network = self._get_backbone(dataset)
-            else:
-                hidden_network = self.egonet.get_hidden_network(dataset)
-            layout = self._get_layout(dataset)
+            if not dataset in self._hidden_network_plot_cache:
+                # Load hidden network from db
+                if self.threshold > 0:
+                    hidden_network = self._get_backbone(dataset)
+                else:
+                    hidden_network = self.egonet.get_hidden_network(dataset)
+                layout = self._get_layout(dataset)
+                self._hidden_network_plot_cache[dataset] = self.plot_user_graph(hidden_network, dataset, layout)
+            return self._hidden_network_plot_cache[dataset]
 
-        return self.plot_user_graph(hidden_network, dataset, layout)
+
 
     def _get_backbone(self, dataset):
         if dataset not in self._backbone_cache:
@@ -129,10 +134,10 @@ class PropagationPlotFactory(MongoPlotFactory):
     def _compute_hidden_network_backbone(self, dataset, start_date=None, end_date=None, hashtags=None):
         hidden_network = self.egonet.get_hidden_network(dataset, start_date=start_date, end_date=end_date,
                                                         hashtags=hashtags)
-        if hidden_network.vcount() == 0:
+        if hidden_network.vcount() <= 1:
             return hidden_network
 
-        backbone = compute_backbone(hidden_network, threshold=self.threshold, delete_vertices=self.delete_vertices,\
+        backbone = compute_backbone(hidden_network, threshold=self.threshold, delete_vertices=self.delete_vertices,
                                     max_edges=self.max_edges_backbone)
 
         return backbone
@@ -147,6 +152,15 @@ class PropagationPlotFactory(MongoPlotFactory):
         return layout
 
     def plot_user_graph(self, user_graph, collection, layout, highlight_node_index=None):
+        if user_graph.vcount() == 0:
+            logger.warning('Empty graph, nothing to plot')
+            fig = go.Figure()
+            # Remove borders and ticks
+            fig.update_layout(
+                xaxis={'showgrid': False, 'zeroline': False, 'showline': False, 'showticklabels': False},
+                yaxis={'showgrid': False, 'zeroline': False, 'showline': False, 'showticklabels': False}
+            )
+            return fig
         metadata = self.get_user_metadata(collection, author_ids=user_graph.vs['author_id'])
         metadata = metadata.reindex(user_graph.vs['author_id'])
         # Try to patch missing metadata with graph info if available
