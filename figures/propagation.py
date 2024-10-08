@@ -1,6 +1,5 @@
 import logging
 import time
-from importlib.metadata import metadata
 
 import numpy as np
 import pandas as pd
@@ -29,7 +28,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                  threshold=0.2, delete_vertices=True, frequency='1D',
                  available_datasets=None, small_size_multiplier=15, big_size_multiplier=50,
                  user_highlight_color='rgb(0, 0, 255)', max_edges_propagation_tree=None,
-                 max_edges_backbone=None):
+                 max_edges_backbone=None, preload=True):
         super().__init__(host, port, available_datasets)
         self.max_edges_propagation_tree = max_edges_propagation_tree
         self.max_edges_backbone = max_edges_backbone
@@ -50,6 +49,14 @@ class PropagationPlotFactory(MongoPlotFactory):
         self.diffusion_metrics = DiffusionMetrics(egonet=self.egonet, host=host, port=port,
                                                   reference_types=reference_types)
         self._hidden_network_plot_cache = {}
+        self.preload = preload
+        if self.preload:
+            logger.info('Preloading hidden network plots')
+            start_time = pd.Timestamp.now()
+            for dataset in available_datasets:
+                self.plot_hidden_network(dataset)
+            elapsed_time = pd.Timestamp.now() - start_time
+            logger.info(f'Preloading hidden network plots took {elapsed_time} seconds')
 
     def plot_egonet(self, collection, author_id, depth, start_date=None, end_date=None, hashtag=None):
         egonet = self._get_egonet(collection, author_id, depth, start_date, end_date, hashtag)
@@ -87,12 +94,15 @@ class PropagationPlotFactory(MongoPlotFactory):
         # if start_date, end_date or hashtag are not none we need to recompute the graph and layout
         start_date, end_date = self._validate_dates(dataset, start_date, end_date)
         if start_date or end_date or hashtags:
+            logger.info(f'Hidden network filters on dataset {dataset}: start_date {start_date}, end_date {end_date}, '
+                        f'hashtags {hashtags}')
             hidden_network = self._compute_hidden_network_backbone(dataset, start_date, end_date, hashtags)
 
             layout = self.compute_layout(hidden_network)
             return self.plot_user_graph(hidden_network, dataset, layout)
         else:
             if not dataset in self._hidden_network_plot_cache:
+                logger.info(f'Loading hidden network from db for dataset {dataset}')
                 # Load hidden network from db
                 if self.threshold > 0:
                     hidden_network = self._get_backbone(dataset)
@@ -107,6 +117,7 @@ class PropagationPlotFactory(MongoPlotFactory):
     def _get_backbone(self, dataset):
         if dataset not in self._backbone_cache:
             try:
+                logger.info(f'Loading hidden network backbone from db for dataset {dataset}')
                 backbone = self._load_graph_from_mongodb(dataset, 'hidden_network_backbone')
             except Exception as e:
                 logger.error(f'Error loading hidden network backbone: {e}. Recomputing')

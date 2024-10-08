@@ -52,6 +52,8 @@ class EgonetComponent(RemissComponent):
 
         # Show egonet for the selected user
         try:
+            if user is None:
+                raise ValueError('User is None')
             fig = self.plot_factory.plot_egonet(dataset, user, depth, start_date, end_date, hashtags)
             try:
                 username = self.plot_factory.get_username(dataset, user)
