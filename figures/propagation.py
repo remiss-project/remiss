@@ -175,6 +175,9 @@ class PropagationPlotFactory(MongoPlotFactory):
 
                 except ValueError:
                     logger.error(f'Node {author_id} not found in graph')
+                except KeyError:
+                    logger.error(f'Error getting username for node {author_id}')
+
         metadata['User type'] = metadata['User type'].fillna('Unknown')
 
         def user_hover(x):
