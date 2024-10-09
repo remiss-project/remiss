@@ -117,9 +117,14 @@ class NetworkMetrics(BasePropagationMetrics):
 
     def persist(self, datasets):
         for dataset in datasets:
+            logger.info(f'Computing network metrics for {dataset}')
+            logger.debug('Computing legitimacy')
             legitimacy = self.compute_legitimacy(dataset)
+            logger.debug('Computing reputation')
             reputation = self.compute_reputation(dataset)
+            logger.debug('Computing status')
             status = self.compute_status(dataset)
+            logger.debug('Persisting metrics')
             self._persist_metrics(dataset, legitimacy, reputation, status)
 
     def _persist_metrics(self, dataset, legitimacy, reputation, status):
