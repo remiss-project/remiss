@@ -40,7 +40,8 @@ class Prepopulator:
                                                           max_edges_propagation_tree=propagation_config[
                                                               'max_edges'].get('propagation_tree', None),
                                                           max_edges_backbone=propagation_config['max_edges'].get(
-                                                              'hidden_network', None))
+                                                              'hidden_network', None),
+                                                          preload=False)
         self.control_plot_factory = ControlPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
                                                        available_datasets=config['available_datasets'],
                                                        max_wordcloud_words=config['wordcloud']['max_words'])
