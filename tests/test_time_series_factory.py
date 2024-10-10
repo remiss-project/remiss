@@ -11,7 +11,7 @@ class TestTimeSeriesFactory(unittest.TestCase):
     def setUp(self):
         self.tweet_user_plot = TimeSeriesFactory()
         self.test_dataset = 'test_dataset_2'
-        self.tmp_dataset = str(uuid.uuid4().hex)
+        self.tmp_dataset = 'tmp_dataset'
         self.test_tweet_id = '1167074391315890176'
         self.missing_tweet_id = '1077146799692021761'
 

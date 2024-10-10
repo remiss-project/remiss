@@ -18,7 +18,7 @@ from tests.conftest import find_components
 class TestMultimodalComponentComponent(TestCase):
     def setUp(self):
         self.test_dataset = 'test_dataset_2'
-        self.tmp_dataset = str(uuid.uuid4().hex)
+        self.tmp_dataset = 'tmp_dataset'
         self.client = MongoClient('localhost', 27017)
         self.client.drop_database(self.tmp_dataset)
         self.database = self.client.get_database(self.tmp_dataset)

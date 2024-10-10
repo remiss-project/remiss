@@ -28,10 +28,10 @@ class PropagationPlotFactory(MongoPlotFactory):
                  threshold=0.2, delete_vertices=True, frequency='1D',
                  available_datasets=None, small_size_multiplier=15, big_size_multiplier=50,
                  user_highlight_color='rgb(0, 0, 255)', max_edges_propagation_tree=None,
-                 max_edges_backbone=None, preload=True):
+                 max_edges_hidden_network=None, preload=True):
         super().__init__(host, port, available_datasets)
         self.max_edges_propagation_tree = max_edges_propagation_tree
-        self.max_edges_backbone = max_edges_backbone
+        self.max_edges_hidden_network = max_edges_hidden_network
         self.big_size_multiplier = big_size_multiplier
         self.small_size_multiplier = small_size_multiplier
         self.node_highlight_color = user_highlight_color
@@ -149,7 +149,7 @@ class PropagationPlotFactory(MongoPlotFactory):
             return hidden_network
 
         backbone = compute_backbone(hidden_network, threshold=self.threshold, delete_vertices=self.delete_vertices,
-                                    max_edges=self.max_edges_backbone)
+                                    max_edges=self.max_edges_hidden_network)
 
         return backbone
 

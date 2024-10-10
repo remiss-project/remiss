@@ -13,7 +13,7 @@ class TestTextualFigures(TestCase):
     def setUp(self):
         self.plot_factory = TextualFactory()
         self.test_dataset = 'test_dataset_2'
-        self.tmp_dataset = str(uuid.uuid4().hex)
+        self.tmp_dataset = 'tmp_dataset'
 
     def tearDown(self):
         client = MongoClient('localhost', 27017)

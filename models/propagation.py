@@ -459,7 +459,8 @@ class PropagationCascadeModel:
                  X.select_dtypes(include='object').columns),
             ], remainder='passthrough', verbose_feature_names_out=False)),
             ('scaler', StandardScaler()),
-            ('classifier', XGBClassifier(scale_pos_weight=(len(y) - y.sum()) / y.sum()))
+            ('classifier', XGBClassifier(scale_pos_weight=(len(y) - y.sum()) / y.sum(),
+                                         n_estimators=4))
         ])
         model.fit(X, y)
 

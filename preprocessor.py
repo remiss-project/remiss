@@ -3,25 +3,39 @@ import logging
 import pandas as pd
 from pymongo import MongoClient
 
-from propagation import DiffusionMetrics, NetworkMetrics, Egonet
-from propagation.histogram import Histogram
+from prepopulate import Prepopulator
 
 logger = logging.getLogger(__name__)
 
 
 class PropagationPreprocessor:
-    def __init__(self, dataset, data, host='localhost', port=27017, reference_types=('retweeted', 'quoted')):
+    def __init__(self, dataset, data, host='localhost', port=27017,
+                 reference_types=('retweeted', 'quoted', 'replied_to'),
+                 graph_layout='fruchterman_reingold',
+                 propagation_threshold=0.2, propagation_frequency='1D', max_edges_propagation_tree=1000,
+                 max_edges_hidden_network=4000, wordcloud_max_words=15,
+                 max_cascades=23):
         self.dataset = dataset
         self.data = data
         cast_strings_to_timestamps(self.data)
         self.host = host
         self.port = port
         self.reference_types = reference_types
-
-        self.diffusion_metrics = DiffusionMetrics(host=self.host, port=self.port, reference_types=self.reference_types)
-        self.network_metrics = NetworkMetrics(host=self.host, port=self.port, reference_types=self.reference_types)
-        self.egonet = Egonet(host=self.host, port=self.port, reference_types=self.reference_types)
-        self.histogram = Histogram(host=self.host, port=self.port)
+        self.prepopulator = Prepopulator(
+            host=self.host,
+            port=self.port,
+            reference_types=self.reference_types,
+            graph_layout=graph_layout,
+            propagation_threshold=propagation_threshold,
+            propagation_frequency=propagation_frequency,
+            max_edges_propagation_tree=max_edges_propagation_tree,
+            max_edges_hidden_network=max_edges_hidden_network,
+            wordcloud_max_words=wordcloud_max_words,
+            available_datasets=[self.dataset],
+            erase_existing=False,
+            max_cascades=max_cascades,
+            modules=('egonet', 'layout', 'diffusion', 'diffusion_static_plots', 'network', 'histogram',
+                     'wordcloud', 'tweet_table'))
 
     def process(self):
         logger.info(f"Processing dataset {self.dataset} with data {self.data}")
@@ -32,30 +46,13 @@ class PropagationPreprocessor:
         except Exception as e:
             logger.error(f"Error storing data in raw collection: {e}")
             raise RuntimeError(f"Error storing data in raw collection: {e}") from e
-        logger.info('Generating diffusion metrics')
+
+        # Prepopulate the database
+        logger.info(f"Prepopulating database")
         try:
-            self.diffusion_metrics.persist([self.dataset])
+            self.prepopulator.prepopulate()
         except Exception as e:
-            logger.error(f"Error generating diffusion metrics: {e}")
-            raise RuntimeError(f"Error generating diffusion metrics: {e}") from e
-        logger.info('Generating network metrics')
-        try:
-            self.network_metrics.persist([self.dataset])
-        except Exception as e:
-            logger.error(f"Error generating network metrics: {e}")
-            raise RuntimeError(f"Error generating network metrics: {e}") from e
-        logger.info('Generating egonet metrics')
-        try:
-            self.egonet.persist([self.dataset])
-        except Exception as e:
-            logger.error(f"Error generating egonet metrics: {e}")
-            raise RuntimeError(f"Error generating egonet metrics: {e}") from e
-        logger.info('Generating histograms')
-        try:
-            self.histogram.persist([self.dataset])
-        except Exception as e:
-            logger.error(f"Error generating histograms: {e}")
-            raise RuntimeError(f"Error generating histograms: {e}") from e
+            logger.error(f"Error prepopulating database: {e}")
 
     def store_raw_data(self):
         client = MongoClient(self.host, self.port)

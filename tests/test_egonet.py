@@ -21,7 +21,7 @@ class TestEgonetCase(unittest.TestCase):
     def setUp(self):
         self.egonet = Egonet()
         self.test_dataset = 'test_dataset_2'
-        self.tmp_dataset = str(uuid.uuid4().hex)
+        self.tmp_dataset = 'tmp_dataset'
 
     def tearDown(self):
         client = MongoClient('localhost', 27017)

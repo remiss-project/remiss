@@ -44,7 +44,14 @@ class Egonet(BasePropagationMetrics):
             network = self._compute_hidden_network(dataset, start_date=start_date, end_date=end_date, hashtags=hashtags)
         else:
             if dataset not in self._hidden_network_cache:
-                self._hidden_network_cache[dataset] = self.load_hidden_network(dataset)
+                try:
+                    self._hidden_network_cache[dataset] = self.load_hidden_network(dataset)
+                except ValueError as ex:
+                    if 'not found in database' in str(ex):
+                        network = self._compute_hidden_network(dataset)
+                        self._hidden_network_cache[dataset] = network
+                    else:
+                        raise ex
             network = self._hidden_network_cache[dataset]
 
         return network
@@ -199,9 +206,14 @@ class Egonet(BasePropagationMetrics):
     def _load_graph_from_mongodb(self, dataset, collection_name):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
-        collection = database.get_collection(f'{collection_name}_edges')
+        edges_collection_name = f'{collection_name}_edges'
+        vertices_collection_name = f'{collection_name}_vertices'
+        if edges_collection_name not in database.list_collection_names() or vertices_collection_name not in database.list_collection_names():
+            logger.error(f'Collection {edges_collection_name} or {vertices_collection_name} not found in database {dataset}')
+            raise ValueError(f'Collection {edges_collection_name} or {vertices_collection_name} not found in database {dataset}')
+        collection = database.get_collection(edges_collection_name)
         references = collection.aggregate_pandas_all([])
-        collection = database.get_collection(f'{collection_name}_vertices')
+        collection = database.get_collection(vertices_collection_name)
         authors = collection.aggregate_pandas_all([])
         client.close()
         g = ig.Graph(directed=True)

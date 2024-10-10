@@ -12,43 +12,68 @@ from propagation.histogram import Histogram
 logger = logging.getLogger('main')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+
 class Prepopulator:
-    def __init__(self, config_file='prod_config.yaml', available_datasets=None,
-                 modules=('diffusion', 'network', 'egonet', 'layout', 'histogram'), max_cascades=None,
-                 erase_existing=True):
+    def __init__(self, host='localhost', port=27017, reference_types=('retweeted', 'quoted', 'replied_to'),
+                 graph_layout='fruchterman_reingold',
+                 propagation_threshold=0.2, propagation_frequency='1D', max_edges_propagation_tree=None,
+                 max_edges_hidden_network=4000, wordcloud_max_words=None, available_datasets=None,
+                 erase_existing=True, max_cascades=None,
+                 modules=('layout', 'diffusion', 'diffusion_static_plots', 'network', 'egonet', 'histogram',
+                          'wordcloud', 'tweet_table')
+                 ):
+        # Initialization of the class attributes
         self.erase_existing = erase_existing
         self.max_cascades = max_cascades
         self.modules = modules
-        self.config_file = config_file
-        config = parse_config(config_file)
-        self.egonet = Egonet(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                             reference_types=config['reference_types'],
-                             )
-        self.diffusion_metrics = DiffusionMetrics(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                                  reference_types=config['reference_types'], egonet=self.egonet)
-        self.network_metrics = NetworkMetrics(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                              reference_types=config['reference_types'])
+        self.available_datasets = available_datasets
 
-        self.histogram = Histogram(host=config['mongodb']['host'], port=config['mongodb']['port'])
-        propagation_config = config['propagation']
-        self.propagation_factory = PropagationPlotFactory(host=config['mongodb']['host'],
-                                                          port=config['mongodb']['port'],
-                                                          layout=propagation_config['graph_layout'],
-                                                          threshold=propagation_config.get('threshold', 0.2),
-                                                          frequency=propagation_config['frequency'],
-                                                          available_datasets=config['available_datasets'],
-                                                          max_edges_propagation_tree=propagation_config[
-                                                              'max_edges'].get('propagation_tree', None),
-                                                          max_edges_backbone=propagation_config['max_edges'].get(
-                                                              'hidden_network', None),
-                                                          preload=False)
-        self.control_plot_factory = ControlPlotFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                                       available_datasets=config['available_datasets'],
-                                                       max_wordcloud_words=config['wordcloud']['max_words'])
-        self.tweet_table_factory = TweetTableFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
-                                                     available_datasets=config['available_datasets'])
+        # Initialize the various components with the provided arguments
+        self.egonet = Egonet(
+            host=host,
+            port=port,
+            reference_types=reference_types
+        )
+        self.diffusion_metrics = DiffusionMetrics(
+            host=host,
+            port=port,
+            reference_types=reference_types,
+            egonet=self.egonet
+        )
+        self.network_metrics = NetworkMetrics(
+            host=host,
+            port=port,
+            reference_types=reference_types
+        )
+        self.histogram = Histogram(
+            host=host,
+            port=port
+        )
 
-        self.available_datasets = config['available_datasets'] if available_datasets is None else available_datasets
+        self.propagation_factory = PropagationPlotFactory(
+            host=host,
+            port=port,
+            layout=graph_layout,
+            threshold=propagation_threshold,
+            frequency=propagation_frequency,
+            available_datasets=available_datasets,
+            max_edges_propagation_tree=max_edges_propagation_tree,
+            max_edges_hidden_network=max_edges_hidden_network,
+            preload=False
+        )
+
+        self.control_plot_factory = ControlPlotFactory(
+            host=host,
+            port=port,
+            available_datasets=available_datasets,
+            max_wordcloud_words=wordcloud_max_words
+        )
+
+        self.tweet_table_factory = TweetTableFactory(
+            host=host,
+            port=port,
+            available_datasets=available_datasets
+        )
 
     def _execute_with_logging(self, metric_type, persist_method, available_datasets, error_message):
         logger.info(f'Generating {metric_type}')
@@ -157,8 +182,18 @@ def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
     logger.info(f'Available datasets: {available_datasets}')
     logger.info(f'Modules: {modules}')
     logger.info(f'Max cascades: {max_cascades}, erase existing: {erase_existing}')
-    prepopulator = Prepopulator(config_file=config_file, available_datasets=available_datasets, modules=modules,
-                                max_cascades=max_cascades, erase_existing=erase_existing)
+    config = parse_config(config_file)
+    prepopulator = Prepopulator(host=config['mongodb']['host'],
+                                port=config['mongodb']['port'],
+                                reference_types=config['reference_types'],
+                                graph_layout=config['propagation']['graph_layout'],
+                                propagation_threshold=config['propagation'].get('threshold', 0.2),
+                                propagation_frequency=config['propagation']['frequency'],
+                                max_edges_propagation_tree=config['propagation']['max_edges'].get('propagation_tree'),
+                                max_edges_hidden_network=config['propagation']['max_edges'].get('hidden_network'),
+                                wordcloud_max_words=config['wordcloud']['max_words'],
+                                available_datasets=config['available_datasets']
+                                )
     prepopulator.prepopulate()
 
 

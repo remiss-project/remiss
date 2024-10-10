@@ -32,7 +32,7 @@ class Results:
         self.output_dir.mkdir(exist_ok=True, parents=True)
         self.dataset = dataset
         self.propagation_factory = PropagationPlotFactory(available_datasets=[self.dataset], host=self.host,
-                                                          port=self.port)
+                                                          port=self.port, preload=False)
         self.egonet_depth = egonet_depth
         self.features = features
 
@@ -288,6 +288,7 @@ class Results:
                 logger.info(f'Testing dataset {dataset}')
                 X, y = self._load_dataset(self.output_dir, dataset)
                 results[dataset] = self._test_dataset(X, y, dataset)
+
             except Exception as e:
                 logger.error(f'Failed to test dataset {dataset} due to {e}')
 
@@ -331,6 +332,22 @@ class Results:
         }
         results = pd.DataFrame(results).stack().swaplevel().sort_index(ascending=False)
         results.name = dataset
+
+
+        train_confmat = pd.crosstab(y_train, y_train_pred, rownames=['Actual'], colnames=['Predicted'])
+        (self.output_dir / f'{dataset}').mkdir(exist_ok=True, parents=True)
+        train_confmat.to_csv(self.output_dir / f'{dataset}' / 'train_confmat.csv')
+        test_confmat = pd.crosstab(y_test, y_test_pred, rownames=['Actual'], colnames=['Predicted'])
+        test_confmat.to_csv(self.output_dir / f'{dataset}' / 'test_confmat.csv')
+        # plot feature importance
+        feature_importances = pd.Series(model.model['classifier'].feature_importances_,
+                                        index=model.model['classifier'].feature_names_in_).sort_values(ascending=False)
+        # take top 20 features
+        feature_importances = feature_importances.head(20)
+        fig = px.bar(feature_importances, title='Feature importance')
+        fig.update_xaxes(title_text='Feature')
+        fig.update_yaxes(title_text='Importance')
+        fig.write_image(self.output_dir / f'{dataset}' / 'feature_importance.png')
         return results
 
     def _get_metrics(self, y_true, y_pred):
@@ -387,7 +404,7 @@ def run_results(dataset, host='localhost', port=27017, output_dir='./results', e
 
 
 if __name__ == '__main__':
-    fire.Fire(run_results)
+    # fire.Fire(run_results)
     #  - Openarms
     # - MENA_Agressions
     # - MENA_Ajudes
@@ -414,10 +431,10 @@ if __name__ == '__main__':
     #             features=('performance',),
     #             output_dir='results/performance',
     #             num_samples=50000)
-    # run_results(['Andalucia_2022', 'Barcelona_2019', 'Generales_2019', 'Generalitat_2021'],
-    #             host='mongodb://srvinv02.esade.es',
-    #             features=['performance'],
-    #             output_dir='results/performance/final',
-    #             num_samples=50000
-    #     )
+    run_results(['Andalucia_2022', 'Barcelona_2019', 'Generales_2019', 'Generalitat_2021'],
+                host='localhost',
+                features=['performance'],
+                output_dir='final_results/performance',
+                num_samples=50000
+        )
 

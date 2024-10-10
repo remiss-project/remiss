@@ -78,7 +78,7 @@ def create_app(config):
                                                  available_datasets=config['available_datasets'],
                                                  max_edges_propagation_tree=propagation_config['max_edges'].get(
                                                      'propagation_tree', None),
-                                                 max_edges_backbone=propagation_config['max_edges'].get(
+                                                 max_edges_hidden_network=propagation_config['max_edges'].get(
                                                      'hidden_network', None),
                                                  )
     textual_factory = TextualFactory(host=config['mongodb']['host'], port=config['mongodb']['port'],
