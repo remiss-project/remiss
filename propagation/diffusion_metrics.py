@@ -241,6 +241,7 @@ class DiffusionMetrics(BasePropagationMetrics):
     def compute_depth_over_time(self, shortest_paths):
         depths = shortest_paths.cummax()
         depths = depths.rename('Depth')
+        depths = depths[~depths.index.duplicated(keep='first')]
         return depths
 
     def compute_max_breadth_over_time(self, shortest_paths):
@@ -340,7 +341,8 @@ class DiffusionMetrics(BasePropagationMetrics):
         # shortest_paths = pd.Series(graph.shortest_paths_dijkstra(source=original_tweet_index)[0],
         #                            index=graph.vs['created_at'])
 
-        shortest_paths = pd.Series(graph.get_shortest_paths(0), index=graph.vs['created_at']).apply(lambda x: len(x) - 1)
+        shortest_paths = pd.Series(graph.get_shortest_paths(0), index=graph.vs['created_at']).apply(
+            lambda x: len(x) - 1)
         # Drop infinity
         shortest_paths = shortest_paths.replace(float('inf'), pd.NA)
         shortest_paths = shortest_paths.dropna()
@@ -410,17 +412,19 @@ class DiffusionMetrics(BasePropagationMetrics):
                 collection.drop()
 
             cascade_ids = self.get_cascade_by_retweet_count(dataset, max_cascades)
+            if cascade_ids.empty:
+                logger.warning(f'No cascades found for dataset {dataset}')
+            else:
+                for cascade_id in tqdm(cascade_ids['tweet_id']):
+                    # if not self.has_diffusion_metrics(dataset, cascade_id):
+                    jobs.append(delayed(self._compute_cascade_metrics_for_persistence)(dataset, cascade_id))
 
-            for cascade_id in tqdm(cascade_ids['tweet_id']):
-                # if not self.has_diffusion_metrics(dataset, cascade_id):
-                jobs.append(delayed(self._compute_cascade_metrics_for_persistence)(dataset, cascade_id))
+                cascade_data = Parallel(n_jobs=n_jobs, backend='threading', verbose=10)(jobs)
 
-            cascade_data = Parallel(n_jobs=n_jobs, backend='threading', verbose=10)(jobs)
-
-            collection.insert_many(cascade_data)
-            client.close()
-            logger.info(f'Finished persisting diffusion metrics for {dataset}. '
-                        f'Time elapsed: {datetime.datetime.now() - start_time}')
+                collection.insert_many(cascade_data)
+                client.close()
+                logger.info(f'Finished persisting diffusion metrics for {dataset}. '
+                            f'Time elapsed: {datetime.datetime.now() - start_time}')
 
         self.n_jobs = n_jobs
 

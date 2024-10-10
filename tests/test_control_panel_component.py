@@ -3,9 +3,10 @@ from contextvars import copy_context
 from datetime import datetime
 from unittest.mock import Mock
 
+import pandas as pd
 from dash._callback_context import context_value
 from dash._utils import AttributeDict
-from dash.dcc import Dropdown, Slider, Graph, DatePickerRange
+from dash.dcc import DatePickerRange
 from dash.exceptions import PreventUpdate
 from dash_holoniq_wordcloud import DashWordcloud
 
@@ -20,9 +21,10 @@ class MyTestCase(unittest.TestCase):
         plot_factory.get_date_range.return_value = (datetime(2023, 1, 1),
                                                     datetime(2023, 12, 31))
         plot_factory.get_users.return_value = ['user1', 'user2', 'user3']
-        plot_factory.get_hashtag_freqs.return_value = [('hashtag1', 10), ('hashtag2', 5),
-                                                       ('hashtag3', 3), ('hashtag4', 2),
-                                                       ('hashtag5', 1), ('hashtag6', 1), ]
+        plot_factory.get_hashtag_freqs.return_value = pd.DataFrame([('hashtag1', 10), ('hashtag2', 5),
+                                                                    ('hashtag3', 3), ('hashtag4', 2),
+                                                                    ('hashtag5', 1), ('hashtag6', 1), ],
+                                                                   columns=['hashtag', 'count'])
         state = RemissState(name='state')
         max_wordcloud_words = 100
         wordcloud_width = 800
@@ -32,7 +34,7 @@ class MyTestCase(unittest.TestCase):
         self.component = ControlPanelComponent(plot_factory,
                                                state=state,
                                                name='control',
-                                               max_wordcloud_words=max_wordcloud_words,
+
                                                wordcloud_width=wordcloud_width,
                                                wordcloud_height=wordcloud_height,
                                                match_wordcloud_width=match_wordcloud_width)
@@ -66,9 +68,10 @@ class MyTestCase(unittest.TestCase):
 
         ctx = copy_context()
         actual = ctx.run(run_callback)
-        self.assertEqual(actual, ([('hashtag1', 10), ('hashtag2', 5),
-                                   ('hashtag3', 3), ('hashtag4', 2),
-                                   ('hashtag5', 1), ('hashtag6', 1)], 10))
+        self.assertEqual(actual,
+                         [('hashtag1', 1.0), ('hashtag2', 0.5),
+                          ('hashtag3', 0.3), ('hashtag4', 0.2), ('hashtag5', 0.1),
+                          ('hashtag6', 0.1)])
 
     def test_hashtags(self):
         def run_callback():
@@ -89,7 +92,6 @@ class MyTestCase(unittest.TestCase):
         ctx = copy_context()
         with self.assertRaises(PreventUpdate):
             ctx.run(run_callback)
-
 
     def test_start_date(self):
         def run_callback():
@@ -138,7 +140,6 @@ class MyTestCase(unittest.TestCase):
         found_main_ids = ['-'.join(component.id.split('-')[-1:]) for component in found_components]
         self.assertIn(self.component.name, found_main_ids)
         self.assertEqual(len(set(found_main_ids)), 1)
-
 
 
 if __name__ == '__main__':

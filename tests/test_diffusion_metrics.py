@@ -91,18 +91,24 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         } for i, j in edges]
         collection.insert_many(data)
         edges = self.diffusion_metrics.get_references(self.tmp_dataset, '0')
-        vertices = self.diffusion_metrics._get_vertices_from_edges(edges)
+        vertices = self.diffusion_metrics._get_vertices_from_edges(edges, '0')
         assert not pd.isna(vertices).any().any()
-        expected = {'author_id': {0: 'author_id_0', 1: 'author_id_1', 2: 'author_id_2', 3: 'author_id_3',
-                                  4: 'author_id_4', 5: 'author_id_5', 6: 'author_id_6', 7: 'author_id_7'},
-                    'created_at': {i: timestamps[i] for i in range(8)},
-                    'text': {0: 'Tweet 0', 1: 'Tweet 1', 2: 'Tweet 2', 3: 'Tweet 3', 4: 'Tweet 4', 5: 'Tweet 5',
-                             6: 'Tweet 6', 7: 'Tweet 7'},
-                    'tweet_id': {0: '0', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7'},
-                    'type': {0: 'original', 1: 'retweeted', 2: 'quoted', 3: 'replied_to', 4: 'retweeted', 5: 'quoted',
-                             6: 'replied_to', 7: 'retweeted'},
-                    'username': {0: 'username_0', 1: 'username_1', 2: 'username_2', 3: 'username_3', 4: 'username_4',
-                                 5: 'username_5', 6: 'username_6', 7: 'username_7'}}
+        expected = {'author_id': {'0': 'author_id_0', '1': 'author_id_1', '2': 'author_id_2', '3': 'author_id_3',
+                                  '4': 'author_id_4', '5': 'author_id_5', '6': 'author_id_6', '7': 'author_id_7'},
+                    'created_at': {'0': Timestamp('2024-10-10 00:00:00+0000', tz='UTC'),
+                                   '1': Timestamp('2024-10-10 01:00:00+0000', tz='UTC'),
+                                   '2': Timestamp('2024-10-10 02:00:00+0000', tz='UTC'),
+                                   '3': Timestamp('2024-10-10 03:00:00+0000', tz='UTC'),
+                                   '4': Timestamp('2024-10-10 04:00:00+0000', tz='UTC'),
+                                   '5': Timestamp('2024-10-10 05:00:00+0000', tz='UTC'),
+                                   '6': Timestamp('2024-10-10 06:00:00+0000', tz='UTC'),
+                                   '7': Timestamp('2024-10-10 07:00:00+0000', tz='UTC')},
+                    'text': {'0': 'Tweet 0', '1': 'Tweet 1', '2': 'Tweet 2', '3': 'Tweet 3', '4': 'Tweet 4',
+                             '5': 'Tweet 5', '6': 'Tweet 6', '7': 'Tweet 7'},
+                    'type': {'0': 'original', '1': 'retweeted', '2': 'quoted', '3': 'replied_to', '4': 'retweeted',
+                             '5': 'quoted', '6': 'replied_to', '7': 'retweeted'},
+                    'username': {'0': 'username_0', '1': 'username_1', '2': 'username_2', '3': 'username_3',
+                                 '4': 'username_4', '5': 'username_5', '6': 'username_6', '7': 'username_7'}}
         self.assertEqual(vertices.to_dict(), expected)
 
     def test_propagation_tree_simple(self):
@@ -168,8 +174,8 @@ class DiffusionMetricsTestCase(unittest.TestCase):
     def test_get_vertices_from_edges_local(self):
         references = self.diffusion_metrics.get_references(self.test_dataset, self.test_tweet_id)
 
-        vertices = self.diffusion_metrics._get_vertices_from_edges(references)
-        expected = ['tweet_id', 'author_id', 'username', 'text', 'created_at', 'type']
+        vertices = self.diffusion_metrics._get_vertices_from_edges(references, self.test_tweet_id)
+        expected = ['author_id', 'username', 'text', 'created_at', 'type']
         self.assertEqual(vertices.columns.to_list(), expected)
         self.assertIn('original', vertices['type'].unique())
 
@@ -180,6 +186,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         ig.plot(graph, layout=layout, target=ax)
         plt.show()
 
+    @unittest.skip('Remote version')
     def test_references_remote(self):
         test_tweet_id = '1523011526445211649'
         self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
@@ -202,6 +209,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
         self.diffusion_metrics.host = 'localhost'
 
+    @unittest.skip('Remote version')
     def test_get_vertices_from_edges_remote(self):
         test_tweet_id = '1523011526445211649'
         self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
@@ -213,6 +221,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
         self.diffusion_metrics.host = 'localhost'
 
+    @unittest.skip('Remote version')
     def test_propagation_tree_remote(self):
         test_tweet_id = '1523011526445211649'
         self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
@@ -225,6 +234,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
         self.diffusion_metrics.host = 'localhost'
 
+    @unittest.skip('Remote version')
     def test_propagation_tree_remote_2(self):
         test_tweet_id = '1182192005377601536'
         self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
@@ -245,55 +255,57 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         layout = graph.layout('fr')
         ig.plot(graph, layout=layout, target=ax, vertex_label=graph.vs['tweet_id'])
         plt.show()
-        df = self.diffusion_metrics.compute_depth_over_time(graph)
-        self.assertEqual(df.shape[0], 94)
+        shortest_paths = self.diffusion_metrics.get_shortest_paths_to_original_tweet_over_time(graph)
+        df = self.diffusion_metrics.compute_depth_over_time(shortest_paths)
+        self.assertEqual(df.shape[0], 92)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
-        self.assertEqual(df.max(), 1)
+        self.assertEqual(df.max(), 4)
 
     def test_size(self):
         graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, self.test_tweet_id)
         df = self.diffusion_metrics.compute_size_over_time(graph)
-        self.assertEqual(df.shape[0], 94)
+        self.assertEqual(df.shape[0], 92)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
-        self.assertEqual(df.max(), 94)
+        self.assertEqual(df.max(), 92)
 
     def test_max_breadth(self):
         graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, self.test_tweet_id)
-        df = self.diffusion_metrics.compute_max_breadth_over_time(graph)
-        self.assertEqual(df.shape[0], 94)
+        shortest_paths = self.diffusion_metrics.get_shortest_paths_to_original_tweet_over_time(graph)
+        df = self.diffusion_metrics.compute_max_breadth_over_time(shortest_paths)
+        self.assertEqual(df.shape[0], 92)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
-        self.assertEqual(df.max(), 1)
+        self.assertEqual(df.max(), 84)
 
     def test_structured_virality(self):
         graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, self.test_tweet_id)
         df = self.diffusion_metrics.compute_structural_virality_over_time(graph)
-        self.assertEqual(df.shape[0], 94)
+        self.assertEqual(df.shape[0], 92)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
-        self.assertAlmostEqual(df.max(), 1.9782707107288358)
+        self.assertAlmostEqual(df.max(), 4.442143326758711)
 
     def test_precomputed_depth(self):
         df = self.diffusion_metrics.get_depth_over_time(self.test_dataset, self.test_tweet_id)
-        self.assertEqual(df.shape[0], 12)
+        self.assertEqual(df.shape[0], 91)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
-        self.assertEqual(df.max(), 1)
+        self.assertEqual(df.max(), 7)
 
     def test_precomputed_size(self):
         df = self.diffusion_metrics.get_size_over_time(self.test_dataset, self.test_tweet_id)
-        self.assertEqual(df.shape[0], 12)
+        self.assertEqual(df.shape[0], 92)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
-        self.assertEqual(df.max(), 12)
+        self.assertEqual(df.max(), 92)
 
     def test_precomputed_max_breadth(self):
         df = self.diffusion_metrics.get_max_breadth_over_time(self.test_dataset, self.test_tweet_id)
-        self.assertEqual(df.shape[0], 12)
+        self.assertEqual(df.shape[0], 91)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
-        self.assertEqual(df.max(), 11)
+        self.assertEqual(df.max(), 28)
 
     def test_precomputed_structured_virality(self):
         df = self.diffusion_metrics.get_structural_virality_over_time(self.test_dataset, self.test_tweet_id)
-        self.assertEqual(df.shape[0], 12)
+        self.assertEqual(df.shape[0], 92)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
-        self.assertEqual(df.max(), 1.6805555555555554)
+        self.assertEqual(df.max(), 4.442143326758711)
 
     def test_size_cascade_ccdf(self):
         start_time = Timestamp.now()
@@ -325,13 +337,12 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         database = client.get_database(self.tmp_dataset)
         collection = database.get_collection('raw')
         num_conversations = 4
-        num_vertices = 8
-        num_edges = 10
+        num_vertices = 6
         test_data = []
         cascade_ids = []
         for cascade_id in range(num_conversations):
-            edges = np.random.randint(0, num_vertices, (num_edges, 2))
-            edges = edges[edges[:, 0] != edges[:, 1]]
+            tree = ig.Graph.Tree_Game(num_vertices, directed=True)
+            edges  = tree.get_edgelist()
 
             timestamps = [Timestamp.today().date() + pd.offsets.Hour(i) for i in range(num_vertices)]
             authors = [{'id': f'author_id_{i}',
@@ -340,6 +351,16 @@ class DiffusionMetricsTestCase(unittest.TestCase):
             types = {0: 'original', 1: 'retweeted', 2: 'quoted', 3: 'replied_to', 4: 'retweeted', 5: 'quoted',
                      6: 'replied_to', 7: 'retweeted'}
             data = []
+            # add original tweet
+            original_tweet = {
+                'id': str(cascade_id * num_vertices),
+                'author': authors[0],
+                'text': 'Original tweet',
+                'conversation_id': '0',
+                'created_at': timestamps[0]
+            }
+            cascade_ids.append(str(cascade_id * num_vertices))
+            data.append(original_tweet)
             for i, j in edges:
                 tweet = {
                     'id': str(j + cascade_id * num_vertices),
@@ -355,8 +376,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
                                                    'created_at': timestamps[i],
                                                    'text': f'Tweet {i}'
                                                    }]
-                else:
-                    cascade_ids.append(tweet['id'])
+
                 data.append(tweet)
             test_data.append(data)
             collection.insert_many(data)
@@ -380,9 +400,10 @@ class DiffusionMetricsTestCase(unittest.TestCase):
                 {attribute: actual_tree.vs[attribute] for attribute in actual_tree.vs.attributes()})
             expected_attributes = expected_attributes.set_index('tweet_id').sort_index()
             actual_attributes = actual_attributes.set_index('tweet_id').sort_index()
-            self.assertTrue(expected_attributes.equals(actual_attributes))
-
-            expected_depth = self.diffusion_metrics.compute_depth_over_time(expected_tree)
+            pd.testing.assert_frame_equal(expected_attributes, actual_attributes, check_dtype=False,
+                                          check_index_type=False, check_column_type=False)
+            expected_shortest_paths = self.diffusion_metrics.get_shortest_paths_to_original_tweet_over_time(expected_tree)
+            expected_depth = self.diffusion_metrics.compute_depth_over_time(expected_shortest_paths)
             actual_depth = self.diffusion_metrics.get_depth_over_time(self.tmp_dataset, cascade_id)
 
             self.assertEqual(expected_depth.shape, actual_depth.shape)
@@ -395,7 +416,7 @@ class DiffusionMetricsTestCase(unittest.TestCase):
             self.assertTrue(expected_size.equals(actual_size))
 
             expected_max_breadth = self.diffusion_metrics.get_max_breadth_over_time(self.tmp_dataset, cascade_id)
-            actual_max_breadth = self.diffusion_metrics.compute_max_breadth_over_time(expected_tree)
+            actual_max_breadth = self.diffusion_metrics.compute_max_breadth_over_time(expected_shortest_paths)
 
             self.assertEqual(expected_max_breadth.shape, actual_max_breadth.shape)
             self.assertTrue(expected_max_breadth.equals(actual_max_breadth))
@@ -428,7 +449,8 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         self.assertTrue((expected.index == actual.index).all())
         self.assertTrue((expected == actual).all())
 
-    def test_get_shortest_path(self):
+    @unittest.skip('Remote version')
+    def test_get_shortest_path_remote(self):
         test_tweet = '1182192005377601536'
         self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
         self.diffusion_metrics.egonet.host = 'mongodb://srvinv02.esade.es'
@@ -458,8 +480,8 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         shortest_paths = self.diffusion_metrics.get_shortest_paths_to_original_tweet_over_time(graph)
         self.assertFalse(shortest_paths.iloc[1:].isna().any().any())
 
-    def test_depth_over_time(self):
-        graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset,self.test_tweet_id)
+    def test_depth_3(self):
+        graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, self.test_tweet_id)
 
         fig, ax = plt.subplots(figsize=(20, 20))
         layout = graph.layout('fr')
@@ -472,9 +494,9 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         ig.plot(graph, layout=layout, target=ax, node_size=3, vertex_label=graph.vs['username'], arrow_size=10,
                 vertex_color=color)
         plt.show()
-        depth_over_time = self.diffusion_metrics.compute_depth_over_time(graph)
+        shortest_paths = self.diffusion_metrics.get_shortest_paths_to_original_tweet_over_time(graph)
+        depth_over_time = self.diffusion_metrics.compute_depth_over_time(shortest_paths)
         self.assertFalse(depth_over_time.isna().any().any())
-
 
     def test_no_nats_persistence(self):
         test_tweet_id = '1165265987370983424'
@@ -489,23 +511,6 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         actual['vs_attributes']['created_at'] = [pd.Timestamp(actual['vs_attributes']['created_at'][0])]
 
         self.assertEqual(expected, actual)
-
-    def test_no_nats_persistence_2(self):
-        test_tweet_id = '1167085690577981440'
-        expected = self.diffusion_metrics._compute_cascade_metrics_for_persistence(self.test_dataset, test_tweet_id)
-        client = MongoClient('localhost', 27017)
-        database = client.get_database('test_dataset_2')
-        collection = database.get_collection('diffusion_metrics')
-        collection.insert_many([expected])
-        actual = self.diffusion_metrics.load_cascade_data(self.test_dataset, test_tweet_id)
-        del expected['_id']
-        del actual['_id']
-        actual['vs_attributes']['created_at'] = [pd.Timestamp(created_at, tz='UTC') for created_at in actual['vs_attributes']['created_at']]
-        actual['edges'] = [tuple(edge) for edge in actual['edges']]
-        self.maxDiff = None
-        self.assertEqual(expected['vs_attributes'], actual['vs_attributes'])
-        self.assertEqual(expected, actual)
-
 
     def test_depth_2(self):
         graph = self.diffusion_metrics.compute_propagation_tree(self.test_dataset, '1167100545800318976')

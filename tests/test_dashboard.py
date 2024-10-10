@@ -57,14 +57,35 @@ class RemissDashboardTest(TestCase):
                                                             datetime(2023, 12, 31))
         self.profile_factory.get_users.return_value = ['user1', 'user2', 'user3']
 
+        self.control_plot_factory = Mock()
+        self.control_plot_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
+        self.control_plot_factory.get_date_range.return_value = (datetime(2023, 1, 1),
+                                                                datetime(2023, 12, 31)
+                                                                )
+        self.control_plot_factory.get_users.return_value = ['user1', 'user2', 'user3']
+        self.control_plot_factory.get_hashtag_freqs.return_value = [('hashtag1', 10), ('hashtag2', 5),
+                                                                   ('hashtag3', 3), ('hashtag4', 2),
+                                                                   ('hashtag5', 1), ('hashtag6', 1), ]
+        self.profiling_factory = Mock()
+        self.profiling_factory.available_datasets = ['dataset1', 'dataset2', 'dataset3']
+        self.profiling_factory.get_date_range.return_value = (datetime(2023, 1, 1),
+                                                              datetime(2023, 12, 31))
+        self.profiling_factory.get_users.return_value = ['user1', 'user2', 'user3']
+        self.profiling_factory.get_hashtag_freqs.return_value = [('hashtag1', 10), ('hashtag2', 5),
+                                                                 ('hashtag3', 3), ('hashtag4', 2),
+                                                                 ('hashtag5', 1), ('hashtag6', 1), ]
+
+
         self.component = RemissDashboard(
+            self.control_plot_factory,
             self.tweet_user_plot_factory,
             self.tweet_table_factory,
             self.propagation_factory,
             self.textual_factory,
-            self.profile_factory,
+            self.profiling_factory,
             self.multimodal_factory,
-            name='remiss-dashboard')
+            name='remiss-dashboard',
+        )
 
         app = Dash(prevent_initial_callbacks="initial_duplicate",
                    )
@@ -119,7 +140,7 @@ class RemissDashboardTest(TestCase):
 
         # Pick all ids from the layout string
         ids = pd.Series(re.findall(r"id='(.*?)'", str(layout)))
-        self.assertEqual(len(ids), 60)
+        self.assertEqual(len(ids), 65)
         # Check for state
         assert ids.str.contains('state').any()
         # Check for upload
