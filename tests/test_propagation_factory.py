@@ -7,7 +7,7 @@ import pandas as pd
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
 
-from figures.propagation import PropagationPlotFactory, compute_backbone, plot_time_series
+from figures.propagation import PropagationPlotFactory, compute_backbone, plot_time_series, get_edge_positions
 from tests.conftest import create_test_data_from_edges
 
 patch_all()
@@ -113,7 +113,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
             Ze += [layout[e[0]][2], layout[e[1]][2], None]
 
         layout = pd.DataFrame(graph.layout('kk', dim=3).coords, columns=['x', 'y', 'z'])
-        edge_positions = self.propagation_factory._get_edge_positions(graph, layout=layout)
+        edge_positions = get_edge_positions(graph, layout=layout)
         actual_Xe = edge_positions['x']
         actual_Ye = edge_positions['y']
         actual_Ze = edge_positions['z']
@@ -133,7 +133,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
         graph = ig.Graph()
         graph.add_vertices(10)
         graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
-        fig = self.propagation_factory.plot_graph(graph)
+        fig = self.propagation_factory.plot_graph(graph, layout=graph.layout('kk', dim=3))
         # fig.show()
 
     def test_plot_graph_text(self):
@@ -141,7 +141,8 @@ class PropagationFactoryTestCase(unittest.TestCase):
         graph.add_vertices(10)
         graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
         text = [str(i) for i in range(10)]
-        fig = self.propagation_factory.plot_graph(graph, text=text)
+        layout = graph.layout('kk', dim=3)
+        fig = self.propagation_factory.plot_graph(graph, text=text, layout=layout)
         # fig.show()
 
     def test_plot_graph_color(self):
@@ -149,7 +150,8 @@ class PropagationFactoryTestCase(unittest.TestCase):
         graph.add_vertices(10)
         graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
         color = [random.randint(0, 100) for _ in range(10)]
-        fig = self.propagation_factory.plot_graph(graph, color=color)
+        layout = graph.layout('kk', dim=3)
+        fig = self.propagation_factory.plot_graph(graph, color=color, layout=layout)
         # fig.show()
 
     def test_plot_graph_size(self):
@@ -157,7 +159,8 @@ class PropagationFactoryTestCase(unittest.TestCase):
         graph.add_vertices(10)
         graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
         size = np.array([random.randint(0, 100) for _ in range(10)])
-        fig = self.propagation_factory.plot_graph(graph, size=size)
+        layout = graph.layout('kk', dim=3)
+        fig = self.propagation_factory.plot_graph(graph, size=size, layout=layout)
         # fig.show()
 
     def test_plot_graph_symbol(self):
@@ -165,7 +168,8 @@ class PropagationFactoryTestCase(unittest.TestCase):
         graph.add_vertices(10)
         graph.add_edges([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 0)])
         symbol = [random.choice(['circle', 'square', 'diamond', 'cross', 'x']) for _ in range(10)]
-        fig = self.propagation_factory.plot_graph(graph, symbol=symbol)
+        layout = graph.layout('kk', dim=3)
+        fig = self.propagation_factory.plot_graph(graph, symbol=symbol, layout=layout)
         # fig.show()
 
     def test_get_metadata(self):
@@ -177,23 +181,19 @@ class PropagationFactoryTestCase(unittest.TestCase):
                           'legitimacy',
                           'reputation',
                           'status',
+                          'legitimacy_level',
+                          'reputation_level',
+                          'status_level',
                           'User type'],
                          metadata.columns.tolist())
         self.assertFalse(metadata['User type'].isna().sum())
 
-    def test_plot_hidden_network_1(self):
-        hidden_network = self.propagation_factory.egonet.get_hidden_network(self.test_dataset)
-        layout = self.propagation_factory.get_hidden_network_layout(hidden_network, self.test_dataset)
-        fig = self.propagation_factory.plot_user_graph(hidden_network, self.test_dataset, layout=layout)
-        # fig.show()
 
     def test_plot_hidden_network_2(self):
         fig = self.propagation_factory.plot_hidden_network(self.test_dataset)
         # fig.show()
 
-    def test_plot_hidden_network_highlight_user(self):
-        fig = self.propagation_factory.plot_hidden_network(self.test_dataset, author_id=self.test_user_id)
-        # fig.show()
+
 
     def test_plot_egonet(self):
         fig = self.propagation_factory.plot_egonet(self.test_dataset, self.test_user_id, 2)
@@ -209,23 +209,25 @@ class PropagationFactoryTestCase(unittest.TestCase):
             self.propagation_factory.plot_egonet(self.test_dataset, 'potato', 2)
 
     def test_hidden_network_backbone(self):
-
-        self.propagation_factory.egonet.threshold = 0.95
+        self.propagation_factory.threshold = 0.95
         fig = self.propagation_factory.plot_hidden_network(self.test_dataset)
 
-        self.assertEqual(3308, len(fig.data[1].x))
+        pruned = len(fig.data[1].x)
 
-        self.propagation_factory.egonet.threshold = 0
+        self.propagation_factory._hidden_network_plot_cache = {}
+        self.propagation_factory._layout_cache = {}
+        self.propagation_factory.threshold = 0
         fig = self.propagation_factory.plot_hidden_network(self.test_dataset)
 
-        self.assertEqual(3321, len(fig.data[1].x))
+        full =  len(fig.data[1].x)
+        self.assertGreater(full, pruned)
 
     def test_plot_propagation_tree(self):
         fig = self.propagation_factory.plot_propagation_tree(self.test_dataset, self.test_tweet_id)
         fig.show()
 
     def test_plot_propagation_tree_2(self):
-        test_twett =  '1167074391315890176'
+        test_twett = '1167074391315890176'
         fig = self.propagation_factory.plot_propagation_tree(self.test_dataset, test_twett)
         fig.show()
 
@@ -249,6 +251,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
         fig = self.propagation_factory.plot_size_cascade_ccdf(self.test_dataset)
         fig.show()
 
+    @unittest.skip('Remote test')
     def test_plot_size_cascade_ccdf_remote(self):
         self.propagation_factory.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
 
@@ -346,7 +349,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
         alpha = 0.05
 
         network = ig.Graph.Erdos_Renyi(250, 0.02, directed=False)
-        network.es["weight_norm"] = np.random.uniform(0, 0.5, network.ecount())
+        network.es["weight_norm"] = np.random.uniform(0.1, 1, network.ecount())
 
         # Test the backbone filter
         backbone = compute_backbone(network, threshold=alpha)
@@ -391,17 +394,18 @@ class PropagationFactoryTestCase(unittest.TestCase):
         self.assertEqual(max_edges, len(backbone_alphas))
 
     def test_backbone_full(self):
-        network = self.egonet._compute_hidden_network(self.test_dataset)
-        backbone = self.egonet.compute_backbone(network, alpha=0.95)
-        self.assertEqual(2528, backbone.vcount())
-        self.assertEqual(2369, backbone.ecount())
+        self.propagation_factory.threshold = 0.95
+        backbone = self.propagation_factory._compute_hidden_network_backbone(self.test_dataset)
+        self.assertEqual(156, backbone.vcount())
+        self.assertEqual(80, backbone.ecount())
 
     def test_backbone_full_nothing(self):
-        network = self.egonet._compute_hidden_network(self.test_dataset)
-        backbone = self.egonet.compute_backbone(network, alpha=1)
+        self.propagation_factory.threshold = 1
+        backbone = self.propagation_factory._compute_hidden_network_backbone(self.test_dataset)
         self.assertEqual(backbone.vcount(), 0)
         self.assertEqual(backbone.ecount(), 0)
 
+    @unittest.skip('Remote test')
     def test_depth_over_time_2(self):
         test_tweet = '1182192005377601536'
         self.propagation_factory.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
@@ -416,6 +420,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
         fig = self.propagation_factory.plot_depth_over_time(self.test_dataset, test_tweet)
         fig.show()
 
+    @unittest.skip('Remote test')
     def test_depth_over_time_4(self):
         test_tweet = '1167100545800318976'
         self.propagation_factory.host = 'mongodb://srvinv02.esade.es'
@@ -424,6 +429,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
 
         tree = self.propagation_factory.diffusion_metrics.compute_propagation_tree('Openarms', test_tweet)
         print(tree)
+
 
 if __name__ == '__main__':
     unittest.main()

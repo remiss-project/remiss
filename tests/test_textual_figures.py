@@ -50,7 +50,7 @@ class TestTextualFigures(TestCase):
         assert len(fig.data) == 13
 
     def test_plot_average_emotion(self):
-        fig = self.plot_factory.plot_average_emotion(self.test_dataset, None, None)
+        fig = self.plot_factory.plot_average_emotion(self.test_dataset)
         # fig.show()
         assert isinstance(fig, Figure)
         assert len(fig.data) == 11

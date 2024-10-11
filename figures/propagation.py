@@ -373,7 +373,6 @@ class PropagationPlotFactory(MongoPlotFactory):
             logger.warning('Layout and graph have different number of vertices. Make sure persisted layout'
                            ' is correct. Recomputing layout')
             layout = self.compute_layout(graph)
-            layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
         logger.debug('Computing plot for network')
         logger.debug(graph.summary())
         start_time = time.time()
@@ -538,14 +537,13 @@ def compute_alphas(graph):
     weights = np.array(graph.es['weight_norm'])
     degrees = np.array([graph.degree(e[0]) for e in graph.get_edgelist()])
     alphas = (1 - weights) ** (degrees - 1)
-    return pd.Series(alphas)
+    alphas = pd.Series(alphas, name='alphas').sort_values(ascending=False)
+    return alphas
 
 
 def compute_backbone(graph, threshold=0.05, delete_vertices=True, max_edges=None):
     alphas = compute_alphas(graph)
-    rank = alphas.argsort()
-    alphas = alphas[rank]
-    good = rank[alphas > threshold]
+    good = alphas[alphas > threshold].index.to_list()
 
     if max_edges:
         good = good[:min(max_edges, len(good))]

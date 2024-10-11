@@ -79,7 +79,7 @@ def test_plot_all_users():
     collection = database.get_collection('profiling')
     user_ids = collection.distinct('twitter_id')
     for user_id in tqdm(user_ids):
-        cvc_plot_factory.plot_radarplot_emotions('test_dataset_2', user_id).show()
+        cvc_plot_factory.plot_radarplot_emotions('test_dataset_2', user_id)
 
 
 def test_plot_vertical_accumulated_barplot_by_genre():
