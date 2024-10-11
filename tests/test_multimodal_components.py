@@ -1,6 +1,5 @@
 import shutil
 import unittest
-import uuid
 from pathlib import Path
 from unittest import TestCase
 
@@ -57,6 +56,7 @@ class TestMultimodalComponentComponent(TestCase):
 
         test_data_dir = Path('./test_resources/multimodal')
         data_dir = Path('/tmp/multimodal_data') / self.tmp_dataset
+        shutil.rmtree(data_dir, ignore_errors=True)
         shutil.copytree(test_data_dir, data_dir)
         self.plot_factory = MultimodalPlotFactory(data_dir=data_dir.parent, available_datasets=[self.tmp_dataset])
 
@@ -74,8 +74,8 @@ class TestMultimodalComponentComponent(TestCase):
         found_components = []
         find_components(layout, found_components)
         component_ids = [component.id for component in found_components]
-        expected_components = ['multimodal-claim_text', 'fig-multimodal-claim_image', 'multimodal-visual_evidence_text',
-                               'fig-multimodal-evidence_image', 'multimodal-text_evidence_similarity_score',
+        expected_components = ['multimodal-claim_text', 'multimodal-claim_image', 'multimodal-visual_evidence_text',
+                               'multimodal-evidence_image', 'multimodal-text_evidence_similarity_score',
                                'multimodal-visual_evidence_similarity_score',
                                'multimodal-visual_evidence_graph_similarity_score', 'multimodal-visual_evidence_domain']
         self.assertEqual(set(component_ids), set(expected_components))
@@ -120,7 +120,7 @@ class TestMultimodalComponentComponent(TestCase):
 
         app.run_server(debug=True, port=8050)
 
-    # @unittest.skip("Render test")
+    @unittest.skip("Render test")
     def test_render_2(self):
         self.component.plot_factory._available_datasets = [self.test_dataset]
         self.component.plot_factory.data_dir = Path('../multimodal_data')
@@ -177,7 +177,9 @@ class TestMultimodalComponentComponent(TestCase):
                                               {'id': 'current-tweet-state', 'property': 'data'}])
         actual_output = [{'component_id': o.component_id, 'property': o.component_property} for o in
                          callback['output']]
-        self.assertEqual(actual_output, [{'component_id': 'multimodal-claim_text', 'property': 'children'},
+        self.assertEqual(actual_output, [{'component_id': 'multimodal-claim_image', 'property': 'figure'},
+                                         {'component_id': 'multimodal-evidence_image', 'property': 'figure'},
+                                         {'component_id': 'multimodal-claim_text', 'property': 'children'},
                                          {'component_id': 'multimodal-visual_evidence_text', 'property': 'children'},
                                          {'component_id': 'multimodal-text_evidence_similarity_score',
                                           'property': 'children'},
@@ -185,12 +187,7 @@ class TestMultimodalComponentComponent(TestCase):
                                           'property': 'children'},
                                          {'component_id': 'multimodal-visual_evidence_graph_similarity_score',
                                           'property': 'children'},
-                                         {'component_id': 'multimodal-visual_evidence_domain', 'property': 'children'},
-                                         {'component_id': 'fig-multimodal-claim_image', 'property': 'figure'},
-                                         {'component_id': 'fig-multimodal-evidence_image', 'property': 'figure'},
-                                         {'component_id': 'multimodal-collapse', 'property': 'is_open'}])
-
-
+                                         {'component_id': 'multimodal-visual_evidence_domain', 'property': 'children'}])
 
 
 if __name__ == '__main__':

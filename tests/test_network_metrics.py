@@ -33,10 +33,15 @@ class NetworkMetricsTestCase(unittest.TestCase):
         self.network_metrics.unit = 'day'
         self.network_metrics.bin_size = 20 + day_range
         actual = self.network_metrics.compute_legitimacy(self.tmp_dataset)
-        expected = pd.DataFrame({'author_id': [t['author']['id'] for t in test_data],
-                                 'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
+        expected = []
+        for t in test_data:
+            for referenced_tweet in t['referenced_tweets']:
+                expected.append({'author_id': referenced_tweet['author']['id'],
+                                 'legitimacy': 1})
 
-        expected = expected.groupby(['author_id'])['legitimacy'].sum()
+        expected = pd.DataFrame(expected)
+
+        expected = expected.groupby(['author_id']).count().sort_values('legitimacy', ascending=False)['legitimacy']
 
         pd.testing.assert_series_equal(expected, actual, check_dtype=False, check_like=True, check_index_type=False)
 
@@ -54,9 +59,14 @@ class NetworkMetricsTestCase(unittest.TestCase):
         self.network_metrics.host = 'localhost'
         self.network_metrics.port = 27017
         actual = self.network_metrics.compute_reputation(self.tmp_dataset)
-        expected = pd.DataFrame({'author_id': [t['author']['id'] for t in test_data],
-                                 'date': [t['created_at'].date() for t in test_data],
-                                 'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
+        expected = []
+        for t in test_data:
+            for referenced_tweet in t['referenced_tweets']:
+                expected.append({'author_id': referenced_tweet['author']['id'],
+                                 'date': t['created_at'].date(),
+                                 'legitimacy': 1})
+
+        expected = pd.DataFrame(expected)
 
         expected = expected.groupby(['author_id', 'date'])['legitimacy'].sum().to_frame()
         expected = expected.reset_index().pivot(index='author_id', columns='date', values='legitimacy')
@@ -77,15 +87,21 @@ class NetworkMetricsTestCase(unittest.TestCase):
         self.network_metrics.unit = 'day'
         self.network_metrics.bin_size = 20 + day_range
         actual = self.network_metrics._get_legitimacy_over_time(self.tmp_dataset)
-        expected = pd.DataFrame({'author_id': [t['author']['id'] for t in test_data],
-                                 'date': [t['created_at'].date() for t in test_data],
-                                 'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
+        expected = []
+        for t in test_data:
+            for referenced_tweet in t['referenced_tweets']:
+                expected.append({'author_id': referenced_tweet['author']['id'],
+                                 'date': t['created_at'].date(),
+                                 'legitimacy': 1})
 
-        expected = expected.groupby(['author_id'])['legitimacy'].sum()
+        expected = pd.DataFrame(expected)
 
-        expected = expected.to_frame()
-        expected.columns = actual.columns
-        pd.testing.assert_frame_equal(expected, actual, check_dtype=False, check_like=True, check_index_type=False)
+        expected = expected.groupby(['author_id']).count()
+
+        expected = expected['legitimacy'].sort_index()
+        actual = actual.iloc[:, 0].sort_index()
+        pd.testing.assert_series_equal(expected, actual, check_dtype=False, check_like=True, check_index_type=False,
+                                       check_names=False)
 
     def test__get_legitimacy_over_time_2(self):
         # compute legitimacy per time as the amount of referenced tweets attained by each user by unit of time
@@ -97,10 +113,14 @@ class NetworkMetricsTestCase(unittest.TestCase):
         collection.insert_many(test_data)
 
         actual = self.network_metrics._get_legitimacy_over_time(self.tmp_dataset)
-        expected = pd.DataFrame({
-            'author_id': [t['author']['id'] for t in test_data],
-            'date': [t['created_at'].date() for t in test_data],
-            'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
+        expected = []
+        for t in test_data:
+            for referenced_tweet in t['referenced_tweets']:
+                expected.append({'author_id': referenced_tweet['author']['id'],
+                                 'date': t['created_at'].date(),
+                                 'legitimacy': 1})
+
+        expected = pd.DataFrame(expected)
 
         expected = expected.groupby(['author_id', 'date'])['legitimacy'].sum().to_frame()
         expected = expected.reset_index().pivot(index='author_id', columns='date', values='legitimacy')
@@ -118,9 +138,14 @@ class NetworkMetricsTestCase(unittest.TestCase):
         collection.insert_many(test_data)
 
         actual = self.network_metrics.compute_status(self.tmp_dataset)
-        expected = pd.DataFrame({'author_id': [t['author']['id'] for t in test_data],
-                                 'date': [t['created_at'].date() for t in test_data],
-                                 'legitimacy': [len(t['referenced_tweets']) for t in test_data]})
+        expected = []
+        for t in test_data:
+            for referenced_tweet in t['referenced_tweets']:
+                expected.append({'author_id': referenced_tweet['author']['id'],
+                                 'date': t['created_at'].date(),
+                                 'legitimacy': 1})
+
+        expected = pd.DataFrame(expected)
 
         expected = expected.groupby(['author_id', 'date'])['legitimacy'].sum().to_frame()
         expected = expected.reset_index().pivot(index='author_id', columns='date', values='legitimacy')
@@ -133,7 +158,7 @@ class NetworkMetricsTestCase(unittest.TestCase):
     def test_legitimacy_full(self):
         actual = self.network_metrics.compute_legitimacy(self.test_dataset)
         actual = actual.to_list()[:5]
-        expected = [238, 233, 202, 195, 148]
+        expected = [1054, 797, 753, 733, 366]
         self.assertEqual(actual, expected)
 
     def test_legitimacy_no_nans(self):

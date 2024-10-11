@@ -56,6 +56,7 @@ class TestMultimodalPlotFactory(unittest.TestCase):
 
         test_data_dir = Path('./test_resources/multimodal')
         data_dir = Path('/tmp/multimodal_data') / self.tmp_dataset
+        shutil.rmtree(data_dir, ignore_errors=True)
         shutil.copytree(test_data_dir, data_dir)
         self.plot_factory = MultimodalPlotFactory(data_dir=data_dir.parent, available_datasets=[self.tmp_dataset])
 

@@ -390,6 +390,18 @@ class PropagationFactoryTestCase(unittest.TestCase):
         backbone_alphas = backbone_alphas.sort_values(ascending=False)
         self.assertEqual(max_edges, len(backbone_alphas))
 
+    def test_backbone_full(self):
+        network = self.egonet._compute_hidden_network(self.test_dataset)
+        backbone = self.egonet.compute_backbone(network, alpha=0.95)
+        self.assertEqual(2528, backbone.vcount())
+        self.assertEqual(2369, backbone.ecount())
+
+    def test_backbone_full_nothing(self):
+        network = self.egonet._compute_hidden_network(self.test_dataset)
+        backbone = self.egonet.compute_backbone(network, alpha=1)
+        self.assertEqual(backbone.vcount(), 0)
+        self.assertEqual(backbone.ecount(), 0)
+
     def test_depth_over_time_2(self):
         test_tweet = '1182192005377601536'
         self.propagation_factory.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'

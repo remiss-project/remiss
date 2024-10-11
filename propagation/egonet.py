@@ -13,9 +13,8 @@ logger = logging.getLogger(__name__)
 
 class Egonet(BasePropagationMetrics):
     def __init__(self, host='localhost', port=27017, delete_vertices=True,
-                 reference_types=('retweeted', 'quoted', 'reply_to'), include_unknown_authors=False):
+                 reference_types=('retweeted', 'quoted', 'reply_to')):
         super().__init__(host, port, reference_types)
-        self.include_unknown_authors = include_unknown_authors
         self.delete_vertices = delete_vertices
         self._hidden_network_cache = {}
         self.hidden_network_backbone_cache = {}
@@ -126,7 +125,7 @@ class Egonet(BasePropagationMetrics):
                           'weight_norm': {'$divide': ['$references.weight', '$node_weight']},
                           }},
         ]
-        # self._add_filters(references_pipeline, start_date, end_date, hashtags)
+        self._add_filters(references_pipeline, start_date, end_date, hashtags)
         logger.debug('Computing references')
         start_time = time.time()
         schema = Schema({'source': str, 'target': str, 'weight': int, 'weight_inv': float, 'weight_norm': float})

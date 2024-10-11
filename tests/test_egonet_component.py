@@ -117,7 +117,7 @@ class EgonetComponentTest(TestCase):
         self.plot_factory.plot_hidden_network.assert_called_once_with('test_dataset',
                                                                       start_date='2023-01-01',
                                                                       end_date='2023-12-31',
-                                                                      hashtag=['test_hashtags'])
+                                                                      hashtags=['test_hashtags'])
 
     @unittest.skip("Render")
     def test_render(self):

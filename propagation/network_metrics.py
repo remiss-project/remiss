@@ -54,8 +54,8 @@ class NetworkMetrics(BasePropagationMetrics):
         collection = database.get_collection('raw')
 
         node_pipeline = [
-            {'$unwind': {'path': '$referenced_tweets', 'preserveNullAndEmptyArrays': True}},
-            {'$group': {'_id': '$author.id',
+            {'$unwind': {'path': '$referenced_tweets'}},
+            {'$group': {'_id': '$referenced_tweets.author.id',
                         'legitimacy': {'$count': {}}}},
             {'$project': {'_id': 0,
                           'author_id': '$_id',
@@ -68,6 +68,8 @@ class NetworkMetrics(BasePropagationMetrics):
         legitimacy = legitimacy.set_index('author_id')
         legitimacy = legitimacy.sort_values('legitimacy', ascending=False)
         legitimacy = legitimacy['legitimacy']
+        # Drop na indexes
+        legitimacy = legitimacy[~legitimacy.index.isna()]
         logger.debug(f'Legitimacy computed in {time.time() - start_time} seconds')
         return legitimacy
 
@@ -77,8 +79,8 @@ class NetworkMetrics(BasePropagationMetrics):
         collection = database.get_collection('raw')
 
         node_pipeline = [
-            {'$unwind': {'path': '$referenced_tweets', 'preserveNullAndEmptyArrays': True}},
-            {'$group': {'_id': {'author': '$author.id',
+            {'$unwind': {'path': '$referenced_tweets'}},
+            {'$group': {'_id': {'author': '$referenced_tweets.author.id',
                                 'date': {
                                     "$dateTrunc": {'date': "$created_at", 'unit': self.unit, 'binSize': self.bin_size}}
                                 },
@@ -95,6 +97,8 @@ class NetworkMetrics(BasePropagationMetrics):
             raise ValueError(
                 f'No data available for the selected time range and dataset: {dataset} {self.unit} {self.bin_size}')
         legitimacy = legitimacy.pivot(columns='date', index='author_id', values='legitimacy')
+        # Drop na indexes
+        legitimacy = legitimacy[~legitimacy.index.isna()]
         legitimacy = legitimacy.fillna(0)
         return legitimacy
 
