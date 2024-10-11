@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 from unittest import TestCase
 
@@ -6,10 +5,10 @@ import pandas as pd
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
 
-
 from figures import TweetTableFactory
 
 patch_all()
+
 
 class TestTopTableFactory(TestCase):
     def setUp(self):
@@ -59,15 +58,16 @@ class TestTopTableFactory(TestCase):
         profiling_collection.insert_many(profiling_data)
 
         textual = self.database.get_collection('textual')
-        textual_data = [{'id': 0, 'fakeness_probabilities': 0.1},
-                        {'id': 1, 'fakeness_probabilities': 0.2},
-                        {'id': 2, 'fakeness_probabilities': 0.3}]
+        textual_data = [{'id_str': '0', 'fakeness_probabilities': 0.1},
+                        {'id_str': '1', 'fakeness_probabilities': 0.2},
+                        {'id_str': '2', 'fakeness_probabilities': 0.3}]
         textual.insert_many(textual_data)
 
         network_metrics_collection = self.database.get_collection('network_metrics')
-        network_metrics_data = [{'author_id': '0', 'legitimacy': 0, 'average_reputation': 0, 'average_status': 3},
-                                {'author_id': '1', 'legitimacy': 0, 'average_reputation': 0, 'average_status': 3},
-                                {'author_id': '2', 'legitimacy': 0, 'average_reputation': 0, 'average_status': 3}]
+        network_metrics_data = [
+            {'author_id': '0', 'legitimacy_level': 'Low', 'reputation_level': 'High', 'status_level': 'Low'},
+            {'author_id': '1', 'legitimacy_level': 'Medium', 'reputation_level': 'Medium', 'status_level': 'Low'},
+            {'author_id': '2', 'legitimacy_level': 'High', 'reputation_level': 'Low', 'status_level': 'Low'}]
         network_metrics_collection.insert_many(network_metrics_data)
 
     def tearDown(self):
@@ -87,17 +87,14 @@ class TestTopTableFactory(TestCase):
                     'ID': {0: '0', 1: '1', 2: '2'},
                     'Author ID': {0: '0', 1: '1', 2: '2'},
                     'Suspicious content': {0: 0.1, 1: 0.2, 2: 0.3},
-                    'Cascade size': {0: 1, 1: 1, 2: 1},
-                    'Legitimacy': {0: 0.0, 1: 0.0, 2: 0.0},
-                    'Reputation': {0: 0.0, 1: 0.0, 2: 0.0},
-                    'Status': {0: 3.0, 1: 3.0, 2: 3.0},
-                    'Conversation ID': {0: '0', 1: '1', 2: '2'}
+                    'Legitimacy': {0: 'Low', 1: 'Medium', 2: 'High'},
+                    'Reputation': {0: 'High', 1: 'Medium', 2: 'Low'},
+                    'Status': {0: 'Low', 1: 'Low', 2: 'Low'},
                     }
         expected = pd.DataFrame(expected)
         expected = expected.iloc[[2, 1, 0]].reset_index(drop=True)
         expected_columns = ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party', 'Multimodal', 'Profiling', 'ID',
-                            'Author ID', 'Suspicious content', 'Cascade size', 'Legitimacy', 'Reputation', 'Status',
-                            'Conversation ID']
+                            'Author ID', 'Suspicious content', 'Legitimacy', 'Reputation', 'Status']
         expected = expected[expected_columns]
         actual = actual[expected_columns].reset_index(drop=True)
 
@@ -106,8 +103,10 @@ class TestTopTableFactory(TestCase):
     def test_get_top_table_date_filtering(self):
         dataset = self.tmp_dataset
         actual = self.top_table_factory.compute_tweet_table_data(dataset,
-                                                                 start_time=datetime.fromisoformat('2019-01-01T00:00:00Z'),
-                                                                 end_time=datetime.fromisoformat('2019-01-02T00:00:00Z'))
+                                                                 start_time=datetime.fromisoformat(
+                                                                     '2019-01-01T00:00:00Z'),
+                                                                 end_time=datetime.fromisoformat(
+                                                                     '2019-01-02T00:00:00Z'))
         expected = {'Is usual suspect': {0: False, 1: False, 2: True},
                     'Party': {0: 'PSOE', 1: None, 2: 'VOX'},
                     'Retweets': {0: 1, 1: 2, 2: 3},
@@ -118,17 +117,15 @@ class TestTopTableFactory(TestCase):
                     'ID': {0: '0', 1: '1', 2: '2'},
                     'Author ID': {0: '0', 1: '1', 2: '2'},
                     'Suspicious content': {0: 0.1, 1: 0.2, 2: 0.3},
-                    'Cascade size': {0: 1, 1: 1, 2: 1},
-                    'Legitimacy': {0: 0.0, 1: 0.0, 2: 0.0},
-                    'Reputation': {0: 0.0, 1: 0.0, 2: 0.0},
-                    'Status': {0: 3.0, 1: 3.0, 2: 3.0},
-                    'Conversation ID': {0: '0', 1: '1', 2: '2'}
+                    'Legitimacy': {0: 'Low', 1: 'Medium', 2: 'High'},
+                    'Reputation': {0: 'High', 1: 'Medium', 2: 'Low'},
+                    'Status': {0: 'Low', 1: 'Low', 2: 'Low'},
                     }
         expected = pd.DataFrame(expected)
         expected = expected.iloc[[1, 0]].reset_index(drop=True)
         expected_columns = ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party', 'Multimodal', 'Profiling', 'ID',
-                            'Author ID', 'Suspicious content', 'Cascade size', 'Legitimacy', 'Reputation', 'Status',
-                            'Conversation ID']
+                            'Author ID', 'Suspicious content',  'Legitimacy', 'Reputation', 'Status',
+                            ]
         expected = expected[expected_columns]
         actual = actual[expected_columns].reset_index(drop=True)
 
@@ -137,8 +134,10 @@ class TestTopTableFactory(TestCase):
     def test_get_top_table_full_date_filtering(self):
         dataset = self.test_dataset
         actual = self.top_table_factory.compute_tweet_table_data(dataset,
-                                                                 start_time=datetime.fromisoformat('2019-01-01T00:00:00Z'),
-                                                                 end_time=datetime.fromisoformat('2019-01-02T00:00:00Z'))
+                                                                 start_time=datetime.fromisoformat(
+                                                                     '2019-01-01T00:00:00Z'),
+                                                                 end_time=datetime.fromisoformat(
+                                                                     '2019-01-02T00:00:00Z'))
 
         client = MongoClient('localhost', 27017)
         raw = client.get_database(dataset).get_collection('raw')
@@ -185,10 +184,18 @@ class TestTopTableFactory(TestCase):
         client = MongoClient('localhost', 27017)
         database = client.get_database(self.test_dataset)
         collection = database.get_collection('tweet_table')
-        has_hashtag =  [doc['ID'] for doc in collection.find() if 'hashtags' in doc]
-        has_hashtag = has_hashtag[10:20]
+        has_hashtag = []
+        for doc in collection.find():
+            try:
+                if 'OpenMafia' in doc['hashtags']:
+                    has_hashtag.append(doc['ID'])
+            except Exception as e:
+                pass
+        # has_hashtag = has_hashtag[10:20]
         expected = expected[expected['ID'].isin(has_hashtag)].reset_index(drop=True)
-        actual = self.top_table_factory.get_tweet_table(self.test_dataset, start_tweet=10, amount=10, hashtags=['OpenMafia'])
+        expected = expected.iloc[10:20].reset_index(drop=True)
+        actual = self.top_table_factory.get_tweet_table(self.test_dataset, start_tweet=10, amount=10,
+                                                        hashtags=['OpenMafia'])
         pd.testing.assert_frame_equal(actual, expected, check_dtype=False)
         self.assertGreater(len(actual), 0)
 
@@ -200,7 +207,7 @@ class TestTopTableFactory(TestCase):
         collection = client.get_database(self.test_dataset).get_collection('tweet_table')
         expected = collection.aggregate_pandas_all(pipeline)
         expected['created_at'] = pd.to_datetime(expected['created_at'])
-        start_time = expected['created_at'].iloc[10]
+        start_time = pd.to_datetime(expected['created_at'].iloc[10].date())
         expected = expected[expected['created_at'] >= start_time].reset_index(drop=True)
         actual = self.top_table_factory.get_tweet_table(self.test_dataset, start_time=start_time)
         actual = set(actual['ID'])
@@ -215,7 +222,7 @@ class TestTopTableFactory(TestCase):
         collection = client.get_database(self.test_dataset).get_collection('tweet_table')
         expected = collection.aggregate_pandas_all(pipeline)
         expected['created_at'] = pd.to_datetime(expected['created_at'])
-        end_time = expected['created_at'].iloc[10]  + pd.Timedelta(days=1)
+        end_time = expected['created_at'].iloc[10] + pd.Timedelta(days=1)
         expected = expected[expected['created_at'] < end_time].reset_index(drop=True)
         actual = self.top_table_factory.get_tweet_table(self.test_dataset, end_time=end_time)
         actual = set(actual['ID'])

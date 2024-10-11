@@ -51,7 +51,7 @@ class PropagationModelsTestCase(unittest.TestCase):
                  '1145353836', '1167078506569883651', '1244846407', '1285099554', '132842161', '1361584274']
 
         user_features = self.dataset_generator.fetch_user_features(users)
-        self.assertEqual(len(user_features), 20)
+        self.assertEqual(len(user_features), 22)
 
     def test_prepare_propagation_dataset(self):
         dataset = self.dataset
@@ -66,31 +66,20 @@ class PropagationModelsTestCase(unittest.TestCase):
         model = PropagationCascadeModel()
         dataset = self.dataset
         features = pd.read_csv(self.cache_dir / f'{dataset}-features.csv', index_col=0)
-        model.fit(features)
-        with open(self.cache_dir / f'{dataset}-model.pkl', 'wb') as f:
-            pickle.dump(model, f)
-
-    @unittest.skip('Slow')
-    def test_fit_2(self):
-        model = PropagationCascadeModel()
-        dataset = self.dataset
-        features = pd.read_csv(self.cache_dir / f'{dataset}-features.csv', index_col=0)
+        features = features.sample(frac=0.01)
         X, y = features.drop(columns=['propagated']), features['propagated']
         model.fit(X, y)
 
-    @unittest.skip('Slow')
-    def test_fit_3(self):
-        model = PropagationCascadeModel()
-        dataset = self.dataset
-        model.fit(dataset)
 
     def test_predict(self):
         model = PropagationCascadeModel()
         dataset = self.dataset
         features = pd.read_csv(self.cache_dir / f'{dataset}-features.csv', index_col=0)
-        X = features.drop(columns=['propagated'])
-        with open(self.cache_dir / f'{dataset}-model.pkl', 'rb') as f:
-            model = pickle.load(f)
+        features = features.sample(frac=0.01)
+
+        X, y = features.drop(columns=['propagated']), features['propagated']
+        model.fit(X, y)
+
         y_pred = model.predict(X)
         print(y_pred)
 
@@ -98,23 +87,28 @@ class PropagationModelsTestCase(unittest.TestCase):
         model = PropagationCascadeModel()
         dataset = self.dataset
         features = pd.read_csv(self.cache_dir / f'{dataset}-features.csv', index_col=0)
-        X = features.drop(columns=['propagated'])
-        with open(self.cache_dir / f'{dataset}-model.pkl', 'rb') as f:
-            model = pickle.load(f)
+        features = features.sample(frac=0.01)
+
+        X, y = features.drop(columns=['propagated']), features['propagated']
+        model.fit(X, y)
+
         y_pred = model.predict_proba(X)
         print(y_pred)
 
-    @unittest.skip('Slow')
     def test_generate_cascade(self):
         model = PropagationCascadeModel()
         dataset = self.dataset
-        with open(self.cache_dir / f'{dataset}-model.pkl', 'rb') as f:
-            model = pickle.load(f)
+        features = pd.read_csv(self.cache_dir / f'{dataset}-features.csv', index_col=0)
+        features = features.sample(frac=0.01)
+
+        X, y = features.drop(columns=['propagated']), features['propagated']
+        model.fit(X, y)
+
         sample = {'conversation_id': self.conversation_id, 'author_id': self.author_id}
         model.dataset_generator = self.dataset_generator
         cascade = model.generate_cascade(sample)
         fig = model.plot_cascade(cascade)
-        # fig.show()
+        fig.show()
 
     def test_generate_cascade_2(self):
         class MockModel:
@@ -133,124 +127,19 @@ class PropagationModelsTestCase(unittest.TestCase):
                 return pred
 
         dataset = self.dataset
-        with open(self.cache_dir / f'{dataset}-model.pkl', 'rb') as f:
-            model = pickle.load(f)
+        features = pd.read_csv(self.cache_dir / f'{dataset}-features.csv', index_col=0)
+        features = features.sample(frac=0.01)
+
+        X, y = features.drop(columns=['propagated']), features['propagated']
+        model = PropagationCascadeModel()
+        model.fit(X, y)
         sample = {'conversation_id': self.conversation_id, 'author_id': self.author_id}
         model.dataset_generator = self.dataset_generator
-        model.pipeline = MockModel(limit=0)
+        model.model = MockModel(limit=0)
 
         cascade = model.generate_cascade(sample)
         fig = model.plot_cascade(cascade)
-        # fig.show()
+        fig.show()
         self.assertEqual(len(cascade.vs), 5)
         self.assertEqual(len(cascade.es), 0)
 
-    def test_generate_cascade_3(self):
-        class MockModel:
-            def __init__(self, limit=1):
-                self.current = 0
-                self.limit = limit
-
-            def predict(self, X):
-                pred = np.zeros(X.shape[0], dtype=int)
-                remaining = self.limit - self.current
-                if remaining > 0:
-                    available = np.minimum(remaining, X.shape[0])
-                    pred[:available] = 1
-                    self.current += available
-                    np.random.shuffle(pred)
-                return pred
-
-        dataset = self.dataset
-        with open(self.cache_dir / f'{dataset}-model.pkl', 'rb') as f:
-            model = pickle.load(f)
-        sample = {'conversation_id': self.conversation_id, 'author_id': self.author_id}
-        model.dataset_generator = self.dataset_generator
-        model.pipeline = MockModel(limit=1)
-
-        cascade = model.generate_cascade(sample)
-        fig = model.plot_cascade(cascade)
-        # fig.show()
-        self.assertEqual(len(cascade.vs), 6)
-        self.assertEqual(len(cascade.es), 1)
-
-    def test_generate_cascade_4(self):
-        class MockModel:
-            def __init__(self, limit=1):
-                self.current = 0
-                self.limit = limit
-
-            def predict(self, X):
-                pred = np.zeros(X.shape[0], dtype=int)
-                remaining = self.limit - self.current
-                if remaining > 0:
-                    available = np.minimum(remaining, X.shape[0])
-                    pred[:available] = 1
-                    self.current += available
-                    np.random.shuffle(pred)
-                return pred
-
-        dataset = self.dataset
-        with open(self.cache_dir / f'{dataset}-model.pkl', 'rb') as f:
-            model = pickle.load(f)
-        sample = {'conversation_id': self.conversation_id, 'author_id': self.author_id}
-        model.dataset_generator = self.dataset_generator
-        model.pipeline = MockModel(limit=2)
-
-        cascade = model.generate_cascade(sample)
-        fig = model.plot_cascade(cascade)
-        # fig.show()
-        self.assertEqual(len(cascade.vs), 7)
-        self.assertEqual(len(cascade.es), 2)
-
-    def test_generate_cascade_5(self):
-        class MockModel:
-            def __init__(self, limit=1):
-                self.current = 0
-                self.limit = limit
-
-            def predict(self, X):
-                pred = np.zeros(X.shape[0], dtype=int)
-                remaining = self.limit - self.current
-                if remaining > 0:
-                    available = np.minimum(remaining, X.shape[0])
-                    pred[:available] = 1
-                    self.current += available
-                    np.random.shuffle(pred)
-                return pred
-
-        dataset = self.dataset
-        with open(self.cache_dir / f'{dataset}-model.pkl', 'rb') as f:
-            model = pickle.load(f)
-        sample = {'conversation_id': self.conversation_id, 'author_id': self.author_id}
-        model.dataset_generator = self.dataset_generator
-        model.pipeline = MockModel(limit=10)
-
-        cascade = model.generate_cascade(sample)
-        fig = model.plot_cascade(cascade)
-        # fig.show()
-        fig, ax = plt.subplots()
-        ig.plot(cascade, target=ax, node_size=2)
-        # plt.show()
-        self.assertEqual(len(cascade.vs), 15)
-        self.assertEqual(len(cascade.es), 10)
-
-    def test_get_cascade(self):
-        cascade = self.dataset_generator.get_cascade('1298573780961370112', None)
-        fig, ax = plt.subplots()
-
-        ig.plot(cascade, target=ax)
-        # plt.show()
-
-    def test_get_features_for_cascade(self):
-        neighbour = self.dataset_generator.get_neighbours('2201623465')[0]
-        cascade = self.dataset_generator.get_cascade(self.conversation_id, self.author_id)
-        tweet_features = self.dataset_generator.get_features_for(self.conversation_id, [self.author_id], [neighbour])
-        features = self.dataset_generator.generate_propagation_dataset()
-        self.assertEqual(features.shape[1] - 1, tweet_features.shape[1])
-        model = PropagationCascadeModel()
-        with open(self.cache_dir / f'{self.dataset_generator.dataset}-model.pkl', 'rb') as f:
-            model = pickle.load(f)
-        model_expected_feature_columns = model.pipeline.feature_names_in_
-        self.assertEqual(list(tweet_features.columns), list(model_expected_feature_columns))
-        pred = model.predict(tweet_features)

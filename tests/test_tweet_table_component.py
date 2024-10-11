@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 from unittest import TestCase
 
@@ -85,7 +84,10 @@ class TestTopTableComponent(TestCase):
         self.assertEqual(callback['inputs'], [{'id': 'current-dataset-state', 'property': 'data'},
                                               {'id': 'current-start-date-state', 'property': 'data'},
                                               {'id': 'current-end-date-state', 'property': 'data'},
-                                              {'id': 'current-hashtags-state', 'property': 'data'}])
+                                              {'id': 'current-hashtags-state', 'property': 'data'},
+                                              {'id': 'table-table_test', 'property': 'page_current'},
+                                              {'id': 'table-table_test', 'property': 'sort_by'},
+                                              {'id': 'table-table_test', 'property': 'filter_query'}])
         actual_output = callback['output']
         self.assertEqual(actual_output.component_id, 'table-table_test')
         self.assertEqual(actual_output.component_property, 'data')
