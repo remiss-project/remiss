@@ -13,7 +13,7 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 
 from figures.propagation import PropagationPlotFactory
-from models.propagation import PropagationCascadeModel, PropagationDatasetGenerator
+from models.propagation import PropagationModel, PropagationDatasetGenerator
 
 logger = logging.getLogger('results')
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -318,7 +318,7 @@ class Results:
 
     def _test_dataset(self, X, y, dataset):
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        model = PropagationCascadeModel()
+        model = PropagationModel()
         model.fit(X_train, y_train)
         y_train_pred = model.predict(X_train)
         y_test_pred = model.predict(X_test)

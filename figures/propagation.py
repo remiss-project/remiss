@@ -1,5 +1,7 @@
 import logging
+import pickle
 import time
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -12,6 +14,7 @@ from pymongoarrow.schema import Schema
 from sklearn import set_config
 
 from figures.figures import MongoPlotFactory
+from models.propagation import PropagationDatasetGenerator, CascadeGenerator
 from propagation import Egonet, NetworkMetrics, DiffusionMetrics
 
 patch_all()
@@ -28,8 +31,9 @@ class PropagationPlotFactory(MongoPlotFactory):
                  threshold=0.2, delete_vertices=True, frequency='1D',
                  available_datasets=None, small_size_multiplier=15, big_size_multiplier=50,
                  user_highlight_color='rgb(0, 0, 255)', max_edges_propagation_tree=None,
-                 max_edges_hidden_network=None, preload=True):
+                 max_edges_hidden_network=None, preload=True, model_dir='propagation_models'):
         super().__init__(host, port, available_datasets)
+        self.model_dir = Path(model_dir)
         self.max_edges_propagation_tree = max_edges_propagation_tree
         self.max_edges_hidden_network = max_edges_hidden_network
         self.big_size_multiplier = big_size_multiplier
@@ -530,6 +534,23 @@ class PropagationPlotFactory(MongoPlotFactory):
         layout = collection.aggregate_pandas_all([{'$project': {'_id': 0}}])
         client.close()
         return layout
+
+    def plot_propagation_generation(self, dataset, tweet_id):
+        model = self._load_propagation_model(dataset)
+        dataset_generator = PropagationDatasetGenerator(dataset, self.host, self.port)
+        cascade_generator = CascadeGenerator(model=model, dataset_generator=dataset_generator)
+        cascade = cascade_generator.generate_cascade(tweet_id)
+        self.diffusion_metrics._plot_graph_igraph(cascade)
+        layout = self.compute_layout(cascade)
+        color = ['blue' if v['ground_truth'] else 'red' for v in cascade.vs]
+        metadata = self.get_user_metadata(dataset, author_ids=cascade.vs['author_id'])
+        text = metadata['username'].fillna('Unknown')
+        return self.plot_graph(cascade, layout=layout, color=color, text=text)
+
+    def _load_propagation_model(self, dataset):
+        with open(self.model_dir / f'{dataset}-model.pkl', 'rb') as f:
+            model = pickle.load(f)
+        return model
 
 
 def compute_alphas(graph):

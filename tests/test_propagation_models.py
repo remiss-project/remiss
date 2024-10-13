@@ -1,13 +1,11 @@
-import pickle
 import unittest
 from pathlib import Path
+from unittest.mock import Mock
 
-import igraph as ig
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
 
-from models.propagation import PropagationDatasetGenerator, PropagationCascadeModel
+from models.propagation import PropagationDatasetGenerator, PropagationModel, CascadeGenerator
 
 
 class PropagationModelsTestCase(unittest.TestCase):
@@ -63,7 +61,7 @@ class PropagationModelsTestCase(unittest.TestCase):
         # plt.savefig('tmp/cache_propagation_2/pairplot.png')
 
     def test_fit(self):
-        model = PropagationCascadeModel()
+        model = PropagationModel()
         dataset = self.dataset
         features = pd.read_csv(self.cache_dir / f'{dataset}-features.csv', index_col=0)
         features = features.sample(frac=0.01)
@@ -72,7 +70,7 @@ class PropagationModelsTestCase(unittest.TestCase):
 
 
     def test_predict(self):
-        model = PropagationCascadeModel()
+        model = PropagationModel()
         dataset = self.dataset
         features = pd.read_csv(self.cache_dir / f'{dataset}-features.csv', index_col=0)
         features = features.sample(frac=0.01)
@@ -84,7 +82,7 @@ class PropagationModelsTestCase(unittest.TestCase):
         print(y_pred)
 
     def test_predict_proba(self):
-        model = PropagationCascadeModel()
+        model = PropagationModel()
         dataset = self.dataset
         features = pd.read_csv(self.cache_dir / f'{dataset}-features.csv', index_col=0)
         features = features.sample(frac=0.01)
@@ -96,21 +94,6 @@ class PropagationModelsTestCase(unittest.TestCase):
         print(y_pred)
 
     def test_generate_cascade(self):
-        model = PropagationCascadeModel()
-        dataset = self.dataset
-        features = pd.read_csv(self.cache_dir / f'{dataset}-features.csv', index_col=0)
-        features = features.sample(frac=0.01)
-
-        X, y = features.drop(columns=['propagated']), features['propagated']
-        model.fit(X, y)
-
-        sample = {'conversation_id': self.conversation_id, 'author_id': self.author_id}
-        model.dataset_generator = self.dataset_generator
-        cascade = model.generate_cascade(sample)
-        fig = model.plot_cascade(cascade)
-        fig.show()
-
-    def test_generate_cascade_2(self):
         class MockModel:
             def __init__(self, limit=1):
                 self.current = 0
@@ -125,21 +108,8 @@ class PropagationModelsTestCase(unittest.TestCase):
                     self.current += available
                     np.random.shuffle(pred)
                 return pred
+        model = MockModel(limit=5)
 
-        dataset = self.dataset
-        features = pd.read_csv(self.cache_dir / f'{dataset}-features.csv', index_col=0)
-        features = features.sample(frac=0.01)
-
-        X, y = features.drop(columns=['propagated']), features['propagated']
-        model = PropagationCascadeModel()
-        model.fit(X, y)
-        sample = {'conversation_id': self.conversation_id, 'author_id': self.author_id}
-        model.dataset_generator = self.dataset_generator
-        model.model = MockModel(limit=0)
-
-        cascade = model.generate_cascade(sample)
-        fig = model.plot_cascade(cascade)
-        fig.show()
-        self.assertEqual(len(cascade.vs), 5)
-        self.assertEqual(len(cascade.es), 0)
-
+        cascade_generator = CascadeGenerator(model=model, dataset_generator=self.dataset_generator)
+        cascade = cascade_generator.generate_cascade(self.test_tweet_id)
+        self.dataset_generator.diffusion_metrics._plot_graph_igraph(cascade)

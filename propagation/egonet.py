@@ -234,3 +234,15 @@ class Egonet(BasePropagationMetrics):
         if hashtags:
             # filter if it has at least a hashtag in the list
             pipeline.insert(0, {'$match': {'entities.hashtags.tag': {'$in': hashtags}}})
+    def get_neighbours(self, dataset, author_id):
+        hidden_network = self.get_hidden_network(dataset)
+        try:
+            node = hidden_network.vs.find(author_id=author_id)
+            neighbours = hidden_network.neighborhood(node)
+            neighbours = {hidden_network.vs[v]['author_id']: hidden_network.vs[v] for v in neighbours}
+        except ValueError as ex:
+            if 'not found' in str(ex):
+                neighbours = {}
+            else:
+                raise ex
+        return neighbours

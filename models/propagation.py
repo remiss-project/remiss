@@ -1,11 +1,8 @@
 import logging
 import random
-import time
 
 import pandas as pd
-import plotly.graph_objects as go
 import sklearn
-from numpy.random import shuffle
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
 from pymongoarrow.schema import Schema
@@ -36,6 +33,260 @@ class PropagationDatasetGenerator:
         self.tweet_features = {}
         self.egonet = Egonet(host, port)
         self.diffusion_metrics = DiffusionMetrics(host=host, port=port, egonet=self.egonet)
+        self.feature_names = ['num_replies', 'num_retweets', 'num_quotes', 'num_likes', 'language',
+                              'possibly_sensitive', 'retweet_count', 'reply_count', 'like_count', 'sentences',
+                              'POS_entities_1d', 'POS_tags_1d', 'TFIDF_1d', 'No ironico', 'Ironia', 'Odio', 'Dirigido',
+                              'Agresividad', 'others', 'Diversion', 'Tristeza', 'Enfado', 'Sorpresa', 'Disgusto',
+                              'Miedo', 'Negativo', 'Neutro', 'Positivo', 'REAL', 'FAKE', 'Toxico', 'Muy toxico',
+                              'fakeness', 'fakeness_probabilities', 'is_usual_suspect_prev', 'is_verified_prev',
+                              'followers_count_prev', 'friends_count_prev', 'listed_count_prev', 'favorites_count_prev',
+                              'statuses_count_prev', 'url_in_profile_prev', 'help_empath_prev', 'office_empath_prev',
+                              'dance_empath_prev', 'money_empath_prev', 'wedding_empath_prev',
+                              'domestic_work_empath_prev', 'sleep_empath_prev', 'medical_emergency_empath_prev',
+                              'cold_empath_prev', 'hate_empath_prev', 'cheerfulness_empath_prev',
+                              'aggression_empath_prev', 'occupation_empath_prev', 'envy_empath_prev',
+                              'anticipation_empath_prev', 'family_empath_prev', 'vacation_empath_prev',
+                              'crime_empath_prev', 'attractive_empath_prev', 'masculine_empath_prev',
+                              'prison_empath_prev', 'health_empath_prev', 'pride_empath_prev', 'dispute_empath_prev',
+                              'nervousness_empath_prev', 'government_empath_prev', 'weakness_empath_prev',
+                              'horror_empath_prev', 'swearing_terms_empath_prev', 'leisure_empath_prev',
+                              'suffering_empath_prev', 'royalty_empath_prev', 'wealthy_empath_prev',
+                              'tourism_empath_prev', 'furniture_empath_prev', 'school_empath_prev', 'magic_empath_prev',
+                              'beach_empath_prev', 'journalism_empath_prev', 'morning_empath_prev',
+                              'banking_empath_prev', 'social_media_empath_prev', 'exercise_empath_prev',
+                              'night_empath_prev', 'kill_empath_prev', 'blue_collar_job_empath_prev', 'art_empath_prev',
+                              'ridicule_empath_prev', 'play_empath_prev', 'computer_empath_prev', 'college_empath_prev',
+                              'optimism_empath_prev', 'stealing_empath_prev', 'real_estate_empath_prev',
+                              'home_empath_prev', 'divine_empath_prev', 'sexual_empath_prev', 'fear_empath_prev',
+                              'irritability_empath_prev', 'superhero_empath_prev', 'business_empath_prev',
+                              'driving_empath_prev', 'pet_empath_prev', 'childish_empath_prev', 'cooking_empath_prev',
+                              'exasperation_empath_prev', 'religion_empath_prev', 'hipster_empath_prev',
+                              'internet_empath_prev', 'surprise_empath_prev', 'reading_empath_prev',
+                              'worship_empath_prev', 'leader_empath_prev', 'independence_empath_prev',
+                              'movement_empath_prev', 'body_empath_prev', 'noise_empath_prev', 'eating_empath_prev',
+                              'medieval_empath_prev', 'zest_empath_prev', 'confusion_empath_prev', 'water_empath_prev',
+                              'sports_empath_prev', 'death_empath_prev', 'healing_empath_prev', 'legend_empath_prev',
+                              'heroic_empath_prev', 'celebration_empath_prev', 'restaurant_empath_prev',
+                              'violence_empath_prev', 'programming_empath_prev', 'dominant_heirarchical_empath_prev',
+                              'military_empath_prev', 'neglect_empath_prev', 'swimming_empath_prev',
+                              'exotic_empath_prev', 'love_empath_prev', 'hiking_empath_prev',
+                              'communication_empath_prev', 'hearing_empath_prev', 'order_empath_prev',
+                              'sympathy_empath_prev', 'hygiene_empath_prev', 'weather_empath_prev',
+                              'anonymity_empath_prev', 'trust_empath_prev', 'ancient_empath_prev',
+                              'deception_empath_prev', 'fabric_empath_prev', 'air_travel_empath_prev',
+                              'fight_empath_prev', 'dominant_personality_empath_prev', 'music_empath_prev',
+                              'vehicle_empath_prev', 'politeness_empath_prev', 'toy_empath_prev', 'farming_empath_prev',
+                              'meeting_empath_prev', 'war_empath_prev', 'speaking_empath_prev', 'listen_empath_prev',
+                              'urban_empath_prev', 'shopping_empath_prev', 'disgust_empath_prev', 'fire_empath_prev',
+                              'tool_empath_prev', 'phone_empath_prev', 'gain_empath_prev', 'sound_empath_prev',
+                              'injury_empath_prev', 'sailing_empath_prev', 'rage_empath_prev', 'science_empath_prev',
+                              'work_empath_prev', 'appearance_empath_prev', 'valuable_empath_prev',
+                              'warmth_empath_prev', 'youth_empath_prev', 'sadness_empath_prev', 'fun_empath_prev',
+                              'emotional_empath_prev', 'joy_empath_prev', 'affection_empath_prev',
+                              'traveling_empath_prev', 'fashion_empath_prev', 'ugliness_empath_prev',
+                              'lust_empath_prev', 'shame_empath_prev', 'torment_empath_prev', 'economics_empath_prev',
+                              'anger_empath_prev', 'politics_empath_prev', 'ship_empath_prev', 'clothing_empath_prev',
+                              'car_empath_prev', 'strength_empath_prev', 'technology_empath_prev',
+                              'breaking_empath_prev', 'shape_and_size_empath_prev', 'power_empath_prev',
+                              'white_collar_job_empath_prev', 'animal_empath_prev', 'party_empath_prev',
+                              'terrorism_empath_prev', 'smell_empath_prev', 'disappointment_empath_prev',
+                              'poor_empath_prev', 'plant_empath_prev', 'pain_empath_prev', 'beauty_empath_prev',
+                              'timidity_empath_prev', 'philosophy_empath_prev', 'negotiate_empath_prev',
+                              'negative_emotion_empath_prev', 'cleaning_empath_prev', 'messaging_empath_prev',
+                              'competing_empath_prev', 'law_empath_prev', 'friends_empath_prev', 'payment_empath_prev',
+                              'achievement_empath_prev', 'alcohol_empath_prev', 'liquid_empath_prev',
+                              'feminine_empath_prev', 'weapon_empath_prev', 'children_empath_prev',
+                              'monster_empath_prev', 'ocean_empath_prev', 'giving_empath_prev',
+                              'contentment_empath_prev', 'writing_empath_prev', 'rural_empath_prev',
+                              'positive_emotion_empath_prev', 'musical_empath_prev', 'surprise_emolex_prev',
+                              'trust_emolex_prev', 'positive_emolex_prev', 'anger_emolex_prev', 'disgust_emolex_prev',
+                              'anticipation_emolex_prev', 'sadness_emolex_prev', 'joy_emolex_prev',
+                              'negative_emolex_prev', 'fear_emolex_prev', 'negative_sentiment_prev',
+                              'neutral_sentiment_prev', 'positive_sentiment_prev', 'NOT-HATE_hate_sp_prev',
+                              'hate_hate_sp_prev', 'Verbos_liwc_prev', 'Present_liwc_prev', 'verbosEL_liwc_prev',
+                              'Funct_liwc_prev', 'Prepos_liwc_prev', 'TotPron_liwc_prev', 'PronImp_liwc_prev',
+                              'Adverb_liwc_prev', 'Negacio_liwc_prev', 'Incl_liwc_prev', 'Relativ_liwc_prev',
+                              'Social_liwc_prev', 'MecCog_liwc_prev', 'Afect_liwc_prev', 'EmoPos_liwc_prev',
+                              'Conjunc_liwc_prev', 'Excl_liwc_prev', 'Discrep_liwc_prev', 'Tiempo_liwc_prev',
+                              'Causa_liwc_prev', 'Tentat_liwc_prev', 'Insight_liwc_prev', 'Certeza_liwc_prev',
+                              'Biolog_liwc_prev', 'VerbAux_liwc_prev', 'Salud_liwc_prev', 'Sexual_liwc_prev',
+                              'Cuerpo_liwc_prev', 'gender_demo_prev', 'age_demo_prev', 'retweets_count_social_prev',
+                              'favs_count_social_prev', 'mentions_count_social_prev', 'ratio_quoted_tweet_types_prev',
+                              'ratio_retweets_tweet_types_prev', 'ratio_replies_tweet_types_prev',
+                              'ratio_original_tweet_types_prev', 'week_days_count_ratio_behav_prev',
+                              'weekend_days_count_ratio_behav_prev', 'median_time_betweet_tweets_behav_prev',
+                              'tweets_sleep_time_ratio_behav_prev', 'tweets_awake_time_ratio_behav_prev', 'lang_prev',
+                              'legitimacy_prev', 'reputation_prev', 'status_prev', 'is_usual_suspect_curr',
+                              'is_verified_curr', 'followers_count_curr', 'friends_count_curr', 'listed_count_curr',
+                              'favorites_count_curr', 'statuses_count_curr', 'url_in_profile_curr', 'help_empath_curr',
+                              'office_empath_curr', 'dance_empath_curr', 'money_empath_curr', 'wedding_empath_curr',
+                              'domestic_work_empath_curr', 'sleep_empath_curr', 'medical_emergency_empath_curr',
+                              'cold_empath_curr', 'hate_empath_curr', 'cheerfulness_empath_curr',
+                              'aggression_empath_curr', 'occupation_empath_curr', 'envy_empath_curr',
+                              'anticipation_empath_curr', 'family_empath_curr', 'vacation_empath_curr',
+                              'crime_empath_curr', 'attractive_empath_curr', 'masculine_empath_curr',
+                              'prison_empath_curr', 'health_empath_curr', 'pride_empath_curr', 'dispute_empath_curr',
+                              'nervousness_empath_curr', 'government_empath_curr', 'weakness_empath_curr',
+                              'horror_empath_curr', 'swearing_terms_empath_curr', 'leisure_empath_curr',
+                              'suffering_empath_curr', 'royalty_empath_curr', 'wealthy_empath_curr',
+                              'tourism_empath_curr', 'furniture_empath_curr', 'school_empath_curr', 'magic_empath_curr',
+                              'beach_empath_curr', 'journalism_empath_curr', 'morning_empath_curr',
+                              'banking_empath_curr', 'social_media_empath_curr', 'exercise_empath_curr',
+                              'night_empath_curr', 'kill_empath_curr', 'blue_collar_job_empath_curr', 'art_empath_curr',
+                              'ridicule_empath_curr', 'play_empath_curr', 'computer_empath_curr', 'college_empath_curr',
+                              'optimism_empath_curr', 'stealing_empath_curr', 'real_estate_empath_curr',
+                              'home_empath_curr', 'divine_empath_curr', 'sexual_empath_curr', 'fear_empath_curr',
+                              'irritability_empath_curr', 'superhero_empath_curr', 'business_empath_curr',
+                              'driving_empath_curr', 'pet_empath_curr', 'childish_empath_curr', 'cooking_empath_curr',
+                              'exasperation_empath_curr', 'religion_empath_curr', 'hipster_empath_curr',
+                              'internet_empath_curr', 'surprise_empath_curr', 'reading_empath_curr',
+                              'worship_empath_curr', 'leader_empath_curr', 'independence_empath_curr',
+                              'movement_empath_curr', 'body_empath_curr', 'noise_empath_curr', 'eating_empath_curr',
+                              'medieval_empath_curr', 'zest_empath_curr', 'confusion_empath_curr', 'water_empath_curr',
+                              'sports_empath_curr', 'death_empath_curr', 'healing_empath_curr', 'legend_empath_curr',
+                              'heroic_empath_curr', 'celebration_empath_curr', 'restaurant_empath_curr',
+                              'violence_empath_curr', 'programming_empath_curr', 'dominant_heirarchical_empath_curr',
+                              'military_empath_curr', 'neglect_empath_curr', 'swimming_empath_curr',
+                              'exotic_empath_curr', 'love_empath_curr', 'hiking_empath_curr',
+                              'communication_empath_curr', 'hearing_empath_curr', 'order_empath_curr',
+                              'sympathy_empath_curr', 'hygiene_empath_curr', 'weather_empath_curr',
+                              'anonymity_empath_curr', 'trust_empath_curr', 'ancient_empath_curr',
+                              'deception_empath_curr', 'fabric_empath_curr', 'air_travel_empath_curr',
+                              'fight_empath_curr', 'dominant_personality_empath_curr', 'music_empath_curr',
+                              'vehicle_empath_curr', 'politeness_empath_curr', 'toy_empath_curr', 'farming_empath_curr',
+                              'meeting_empath_curr', 'war_empath_curr', 'speaking_empath_curr', 'listen_empath_curr',
+                              'urban_empath_curr', 'shopping_empath_curr', 'disgust_empath_curr', 'fire_empath_curr',
+                              'tool_empath_curr', 'phone_empath_curr', 'gain_empath_curr', 'sound_empath_curr',
+                              'injury_empath_curr', 'sailing_empath_curr', 'rage_empath_curr', 'science_empath_curr',
+                              'work_empath_curr', 'appearance_empath_curr', 'valuable_empath_curr',
+                              'warmth_empath_curr', 'youth_empath_curr', 'sadness_empath_curr', 'fun_empath_curr',
+                              'emotional_empath_curr', 'joy_empath_curr', 'affection_empath_curr',
+                              'traveling_empath_curr', 'fashion_empath_curr', 'ugliness_empath_curr',
+                              'lust_empath_curr', 'shame_empath_curr', 'torment_empath_curr', 'economics_empath_curr',
+                              'anger_empath_curr', 'politics_empath_curr', 'ship_empath_curr', 'clothing_empath_curr',
+                              'car_empath_curr', 'strength_empath_curr', 'technology_empath_curr',
+                              'breaking_empath_curr', 'shape_and_size_empath_curr', 'power_empath_curr',
+                              'white_collar_job_empath_curr', 'animal_empath_curr', 'party_empath_curr',
+                              'terrorism_empath_curr', 'smell_empath_curr', 'disappointment_empath_curr',
+                              'poor_empath_curr', 'plant_empath_curr', 'pain_empath_curr', 'beauty_empath_curr',
+                              'timidity_empath_curr', 'philosophy_empath_curr', 'negotiate_empath_curr',
+                              'negative_emotion_empath_curr', 'cleaning_empath_curr', 'messaging_empath_curr',
+                              'competing_empath_curr', 'law_empath_curr', 'friends_empath_curr', 'payment_empath_curr',
+                              'achievement_empath_curr', 'alcohol_empath_curr', 'liquid_empath_curr',
+                              'feminine_empath_curr', 'weapon_empath_curr', 'children_empath_curr',
+                              'monster_empath_curr', 'ocean_empath_curr', 'giving_empath_curr',
+                              'contentment_empath_curr', 'writing_empath_curr', 'rural_empath_curr',
+                              'positive_emotion_empath_curr', 'musical_empath_curr', 'surprise_emolex_curr',
+                              'trust_emolex_curr', 'positive_emolex_curr', 'anger_emolex_curr', 'disgust_emolex_curr',
+                              'anticipation_emolex_curr', 'sadness_emolex_curr', 'joy_emolex_curr',
+                              'negative_emolex_curr', 'fear_emolex_curr', 'negative_sentiment_curr',
+                              'neutral_sentiment_curr', 'positive_sentiment_curr', 'NOT-HATE_hate_sp_curr',
+                              'hate_hate_sp_curr', 'Verbos_liwc_curr', 'Present_liwc_curr', 'verbosEL_liwc_curr',
+                              'Funct_liwc_curr', 'Prepos_liwc_curr', 'TotPron_liwc_curr', 'PronImp_liwc_curr',
+                              'Adverb_liwc_curr', 'Negacio_liwc_curr', 'Incl_liwc_curr', 'Relativ_liwc_curr',
+                              'Social_liwc_curr', 'MecCog_liwc_curr', 'Afect_liwc_curr', 'EmoPos_liwc_curr',
+                              'Conjunc_liwc_curr', 'Excl_liwc_curr', 'Discrep_liwc_curr', 'Tiempo_liwc_curr',
+                              'Causa_liwc_curr', 'Tentat_liwc_curr', 'Insight_liwc_curr', 'Certeza_liwc_curr',
+                              'Biolog_liwc_curr', 'VerbAux_liwc_curr', 'Salud_liwc_curr', 'Sexual_liwc_curr',
+                              'Cuerpo_liwc_curr', 'gender_demo_curr', 'age_demo_curr', 'retweets_count_social_curr',
+                              'favs_count_social_curr', 'mentions_count_social_curr', 'ratio_quoted_tweet_types_curr',
+                              'ratio_retweets_tweet_types_curr', 'ratio_replies_tweet_types_curr',
+                              'ratio_original_tweet_types_curr', 'week_days_count_ratio_behav_curr',
+                              'weekend_days_count_ratio_behav_curr', 'median_time_betweet_tweets_behav_curr',
+                              'tweets_sleep_time_ratio_behav_curr', 'tweets_awake_time_ratio_behav_curr', 'lang_curr',
+                              'legitimacy_curr', 'reputation_curr', 'status_curr', 'is_usual_suspect_original',
+                              'is_verified_original', 'followers_count_original', 'friends_count_original',
+                              'listed_count_original', 'favorites_count_original', 'statuses_count_original',
+                              'url_in_profile_original', 'help_empath_original', 'office_empath_original',
+                              'dance_empath_original', 'money_empath_original', 'wedding_empath_original',
+                              'domestic_work_empath_original', 'sleep_empath_original',
+                              'medical_emergency_empath_original', 'cold_empath_original', 'hate_empath_original',
+                              'cheerfulness_empath_original', 'aggression_empath_original',
+                              'occupation_empath_original', 'envy_empath_original', 'anticipation_empath_original',
+                              'family_empath_original', 'vacation_empath_original', 'crime_empath_original',
+                              'attractive_empath_original', 'masculine_empath_original', 'prison_empath_original',
+                              'health_empath_original', 'pride_empath_original', 'dispute_empath_original',
+                              'nervousness_empath_original', 'government_empath_original', 'weakness_empath_original',
+                              'horror_empath_original', 'swearing_terms_empath_original', 'leisure_empath_original',
+                              'suffering_empath_original', 'royalty_empath_original', 'wealthy_empath_original',
+                              'tourism_empath_original', 'furniture_empath_original', 'school_empath_original',
+                              'magic_empath_original', 'beach_empath_original', 'journalism_empath_original',
+                              'morning_empath_original', 'banking_empath_original', 'social_media_empath_original',
+                              'exercise_empath_original', 'night_empath_original', 'kill_empath_original',
+                              'blue_collar_job_empath_original', 'art_empath_original', 'ridicule_empath_original',
+                              'play_empath_original', 'computer_empath_original', 'college_empath_original',
+                              'optimism_empath_original', 'stealing_empath_original', 'real_estate_empath_original',
+                              'home_empath_original', 'divine_empath_original', 'sexual_empath_original',
+                              'fear_empath_original', 'irritability_empath_original', 'superhero_empath_original',
+                              'business_empath_original', 'driving_empath_original', 'pet_empath_original',
+                              'childish_empath_original', 'cooking_empath_original', 'exasperation_empath_original',
+                              'religion_empath_original', 'hipster_empath_original', 'internet_empath_original',
+                              'surprise_empath_original', 'reading_empath_original', 'worship_empath_original',
+                              'leader_empath_original', 'independence_empath_original', 'movement_empath_original',
+                              'body_empath_original', 'noise_empath_original', 'eating_empath_original',
+                              'medieval_empath_original', 'zest_empath_original', 'confusion_empath_original',
+                              'water_empath_original', 'sports_empath_original', 'death_empath_original',
+                              'healing_empath_original', 'legend_empath_original', 'heroic_empath_original',
+                              'celebration_empath_original', 'restaurant_empath_original', 'violence_empath_original',
+                              'programming_empath_original', 'dominant_heirarchical_empath_original',
+                              'military_empath_original', 'neglect_empath_original', 'swimming_empath_original',
+                              'exotic_empath_original', 'love_empath_original', 'hiking_empath_original',
+                              'communication_empath_original', 'hearing_empath_original', 'order_empath_original',
+                              'sympathy_empath_original', 'hygiene_empath_original', 'weather_empath_original',
+                              'anonymity_empath_original', 'trust_empath_original', 'ancient_empath_original',
+                              'deception_empath_original', 'fabric_empath_original', 'air_travel_empath_original',
+                              'fight_empath_original', 'dominant_personality_empath_original', 'music_empath_original',
+                              'vehicle_empath_original', 'politeness_empath_original', 'toy_empath_original',
+                              'farming_empath_original', 'meeting_empath_original', 'war_empath_original',
+                              'speaking_empath_original', 'listen_empath_original', 'urban_empath_original',
+                              'shopping_empath_original', 'disgust_empath_original', 'fire_empath_original',
+                              'tool_empath_original', 'phone_empath_original', 'gain_empath_original',
+                              'sound_empath_original', 'injury_empath_original', 'sailing_empath_original',
+                              'rage_empath_original', 'science_empath_original', 'work_empath_original',
+                              'appearance_empath_original', 'valuable_empath_original', 'warmth_empath_original',
+                              'youth_empath_original', 'sadness_empath_original', 'fun_empath_original',
+                              'emotional_empath_original', 'joy_empath_original', 'affection_empath_original',
+                              'traveling_empath_original', 'fashion_empath_original', 'ugliness_empath_original',
+                              'lust_empath_original', 'shame_empath_original', 'torment_empath_original',
+                              'economics_empath_original', 'anger_empath_original', 'politics_empath_original',
+                              'ship_empath_original', 'clothing_empath_original', 'car_empath_original',
+                              'strength_empath_original', 'technology_empath_original', 'breaking_empath_original',
+                              'shape_and_size_empath_original', 'power_empath_original',
+                              'white_collar_job_empath_original', 'animal_empath_original', 'party_empath_original',
+                              'terrorism_empath_original', 'smell_empath_original', 'disappointment_empath_original',
+                              'poor_empath_original', 'plant_empath_original', 'pain_empath_original',
+                              'beauty_empath_original', 'timidity_empath_original', 'philosophy_empath_original',
+                              'negotiate_empath_original', 'negative_emotion_empath_original',
+                              'cleaning_empath_original', 'messaging_empath_original', 'competing_empath_original',
+                              'law_empath_original', 'friends_empath_original', 'payment_empath_original',
+                              'achievement_empath_original', 'alcohol_empath_original', 'liquid_empath_original',
+                              'feminine_empath_original', 'weapon_empath_original', 'children_empath_original',
+                              'monster_empath_original', 'ocean_empath_original', 'giving_empath_original',
+                              'contentment_empath_original', 'writing_empath_original', 'rural_empath_original',
+                              'positive_emotion_empath_original', 'musical_empath_original', 'surprise_emolex_original',
+                              'trust_emolex_original', 'positive_emolex_original', 'anger_emolex_original',
+                              'disgust_emolex_original', 'anticipation_emolex_original', 'sadness_emolex_original',
+                              'joy_emolex_original', 'negative_emolex_original', 'fear_emolex_original',
+                              'negative_sentiment_original', 'neutral_sentiment_original',
+                              'positive_sentiment_original', 'NOT-HATE_hate_sp_original', 'hate_hate_sp_original',
+                              'Verbos_liwc_original', 'Present_liwc_original', 'verbosEL_liwc_original',
+                              'Funct_liwc_original', 'Prepos_liwc_original', 'TotPron_liwc_original',
+                              'PronImp_liwc_original', 'Adverb_liwc_original', 'Negacio_liwc_original',
+                              'Incl_liwc_original', 'Relativ_liwc_original', 'Social_liwc_original',
+                              'MecCog_liwc_original', 'Afect_liwc_original', 'EmoPos_liwc_original',
+                              'Conjunc_liwc_original', 'Excl_liwc_original', 'Discrep_liwc_original',
+                              'Tiempo_liwc_original', 'Causa_liwc_original', 'Tentat_liwc_original',
+                              'Insight_liwc_original', 'Certeza_liwc_original', 'Biolog_liwc_original',
+                              'VerbAux_liwc_original', 'Salud_liwc_original', 'Sexual_liwc_original',
+                              'Cuerpo_liwc_original', 'gender_demo_original', 'age_demo_original',
+                              'retweets_count_social_original', 'favs_count_social_original',
+                              'mentions_count_social_original', 'ratio_quoted_tweet_types_original',
+                              'ratio_retweets_tweet_types_original', 'ratio_replies_tweet_types_original',
+                              'ratio_original_tweet_types_original', 'week_days_count_ratio_behav_original',
+                              'weekend_days_count_ratio_behav_original', 'median_time_betweet_tweets_behav_original',
+                              'tweets_sleep_time_ratio_behav_original', 'tweets_awake_time_ratio_behav_original',
+                              'lang_original', 'legitimacy_original', 'reputation_original', 'status_original',
+                              ]
 
     def generate_propagation_dataset(self):
         logger.info('Generating propagation dataset')
@@ -93,7 +344,7 @@ class PropagationDatasetGenerator:
         dataset = dataset.drop(columns=['source', 'target', 'cascade_id', 'original_author'], errors='ignore')
         dataset = dataset.sample(frac=1).reset_index(drop=True)
         logger.info(f'Generated dataset with {len(dataset)} samples')
-        return dataset
+        return dataset[self.feature_names + ['propagated']]
 
     def get_rows(self, cascades):
         logger.info(f'Fetching rows for {len(cascades)} cascades')
@@ -439,16 +690,44 @@ class PropagationDatasetGenerator:
         user_features = collection.aggregate_pandas_all(pipeline).set_index('author_id')
         return user_features
 
+    def get_propagation_tree(self, tweet_id):
+        return self.diffusion_metrics.get_propagation_tree(self.dataset, tweet_id)
 
-class PropagationCascadeModel:
+    def get_neighbours(self, author_id):
+        return self.egonet.get_neighbours(self.dataset, author_id)
+
+    def get_features_for(self, tweet_id, op, sources, targets):
+        tweet_features = self.fetch_tweet_features([tweet_id])
+        user_features = self.fetch_user_features(sources + targets + [op])
+        sources = pd.Series(sources, name='source')
+        targets = pd.Series(targets, name='target')
+        features = pd.concat([sources, targets], axis=1)
+        features['cascade_id'] = tweet_id
+        features['op'] = op
+        features = features[['cascade_id', 'op', 'source', 'target']]
+        features = features.merge(tweet_features, left_on='cascade_id', right_index=True, how='inner')
+        features = features.merge(user_features.rename(columns=lambda x: f'{x}_prev'),
+                                  left_on='source',
+                                  right_index=True, how='inner')
+        features = features.merge(user_features.rename(columns=lambda x: f'{x}_curr'),
+                                  left_on='target',
+                                  right_index=True, how='inner')
+        features = features.merge(user_features.rename(columns=lambda x: f'{x}_original'),
+                                  left_on='op',
+                                  right_index=True, how='inner')
+        features = features.drop(columns=['source', 'target', 'cascade_id', 'op'], errors='ignore')
+        features = features.reindex(self.feature_names, axis=1)
+        return features
+
+
+class PropagationModel:
     def __init__(self, host='localhost', port=27017, reference_types=('replied_to', 'quoted', 'retweeted'),
-                 use_profiling='full', use_textual='full', dataset_generator=None):
+                 use_profiling='full', use_textual='full'):
         self.host = host
         self.port = port
         self.reference_types = reference_types
         self.use_profiling = use_profiling
         self.use_textual = use_textual
-        self.dataset_generator = dataset_generator
         self.model = None
 
     def fit(self, X, y):
@@ -482,118 +761,38 @@ class PropagationCascadeModel:
             raise RuntimeError('Model not fitted')
         return self.model.score(X, y)
 
-    def generate_cascade(self, x):
-        # Get the conversation id and user id from x
-        conversation_id = x['conversation_id']
-        user_id = x['author_id']
-        # Get the cascade of a given tweet
-        cascade = self.dataset_generator.get_cascade(conversation_id, user_id)
-        visited_nodes = set(cascade.vs['author_id'])
-        self._process_neighbour_propagation(x['author_id'], cascade, visited_nodes)
-        return cascade
 
-    def _process_neighbour_propagation(self, author_id, cascade, visited_nodes):
+class CascadeGenerator:
+    def __init__(self, model, dataset_generator):
+        self.model = model
+        self.dataset_generator = dataset_generator
+
+    def generate_cascade(self, tweet_id):
+        # Get the cascade of a given tweet
+        prop_tree = self.dataset_generator.get_propagation_tree(tweet_id)
+        prop_tree.vs['ground_truth'] = True
+        visited_nodes = set(prop_tree.vs['author_id'])
+        op = prop_tree.vs.find(tweet_id=tweet_id)['author_id']
+        self._process_neighbour_propagation(tweet_id, op, op, prop_tree, visited_nodes)
+        return prop_tree
+
+    def _process_neighbour_propagation(self, tweet_id, op, author_id, cascade, visited_nodes):
         neighbours = self.dataset_generator.get_neighbours(author_id)
-        available_neighbours = set(neighbours) - visited_nodes
-        visited_nodes.update(available_neighbours)
+        available_neighbours = set(neighbours.keys()) - visited_nodes
         sources = [author_id] * len(available_neighbours)
         targets = list(available_neighbours)
-        features = self.dataset_generator.get_features_for(cascade['conversation_id'], sources, targets)
+        features = self.dataset_generator.get_features_for(tweet_id, op, sources, targets)
         if not features.empty:
-            predictions = self.predict(features)
+            predictions = self.model.predict(features)
             predictions = pd.Series(predictions, index=targets)
             author_index = cascade.vs.find(author_id=author_id).index
-            for target, prediction in predictions[predictions == 1].items():
+            propagated = predictions[predictions == 1]
+            visited_nodes.update(propagated.index.to_list())
+            for target, prediction in propagated.items():
                 if target not in cascade.vs['author_id']:
-                    cascade.add_vertex(author_id=target, username=target, original='predicted')
+                    cascade.add_vertex(author_id=target, ground_truth=False)
                 target_index = cascade.vs.find(author_id=target).index
                 cascade.add_edge(author_index, target_index)
-                self._process_neighbour_propagation(target, cascade, visited_nodes)
+                visited_nodes.add(target)
+                self._process_neighbour_propagation(tweet_id, op, target, cascade, visited_nodes)
         return cascade
-
-    def plot_cascade(self, cascade):
-        layout = cascade.layout('kk', dim=3)
-        layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
-        print('Computing plot for network')
-        print(cascade.summary())
-        start_time = time.time()
-        edges = pd.DataFrame(cascade.get_edgelist(), columns=['source', 'target'])
-        edge_positions = layout.iloc[edges.values.flatten()].reset_index(drop=True)
-        nones = edge_positions[1::2].assign(x=None, y=None, z=None)
-        edge_positions = pd.concat([edge_positions, nones]).sort_index().reset_index(drop=True)
-
-        color_map = {'ground_truth': 'rgb(255, 234, 208)', 'seed': 'rgb(247, 111, 142)',
-                     'predicted': 'rgb(111, 247, 142)'}
-        original = pd.Series(cascade.vs['original'])
-        color = original.map(color_map)
-        size = original.map({'ground_truth': 10, 'seed': 15, 'predicted': 10})
-
-        # metadata = pd.DataFrame({'is_usual_suspect': network.vs['is_usual_suspect'], 'party': network.vs['party']})
-
-        edge_trace = go.Scatter3d(x=edge_positions['x'],
-                                  y=edge_positions['y'],
-                                  z=edge_positions['z'],
-                                  mode='lines',
-                                  line=dict(color='rgb(125,125,125)', width=1),
-                                  hoverinfo='none',
-                                  name='Interactions',
-                                  showlegend=False
-                                  )
-
-        text = []
-        for node in cascade.vs:
-            node_text = f'Author: {node["username"]}'
-            text.append(node_text)
-
-        node_trace = go.Scatter3d(x=layout['x'],
-                                  y=layout['y'],
-                                  z=layout['z'],
-                                  mode='markers',
-                                  marker=dict(
-                                      # symbol=markers,
-                                      size=size,
-                                      color=color,
-                                      # coloscale set to $champagne: #ffead0ff;
-                                      # to $bright-pink-crayola: #f76f8eff;
-                                      # colorscale=[[0, 'rgb(255, 234, 208)'], [1, 'rgb(247, 111, 142)']],
-                                      # colorbar=dict(thickness=20, title='Legitimacy'),
-                                      line=dict(color='rgb(50,50,50)', width=0.5),
-                                  ),
-                                  text=text,
-                                  hovertemplate='%{text}',
-                                  name='',
-                                  )
-
-        axis = dict(showbackground=False,
-                    showline=False,
-                    zeroline=False,
-                    showgrid=False,
-                    showticklabels=False,
-                    title=''
-                    )
-
-        layout = go.Layout(
-            showlegend=False,
-            scene=dict(
-                xaxis=dict(axis),
-                yaxis=dict(axis),
-                zaxis=dict(axis),
-            ),
-            # margin=dict(
-            #     t=100
-            # ),
-            hovermode='closest',
-
-        )
-
-        data = [edge_trace, node_trace]
-        fig = go.Figure(data=data, layout=layout)
-
-        camera = dict(
-            up=dict(x=0, y=0, z=1),
-            center=dict(x=0, y=0, z=0),
-            eye=dict(x=1.25, y=1.25, z=1.25)
-        )
-        fig.update_layout(scene_camera=camera)
-        print(f'Plot computed in {time.time() - start_time} seconds')
-        return fig

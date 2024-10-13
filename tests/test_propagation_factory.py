@@ -1,5 +1,6 @@
 import random
 import unittest
+from unittest.mock import Mock
 
 import igraph as ig
 import numpy as np
@@ -429,6 +430,27 @@ class PropagationFactoryTestCase(unittest.TestCase):
 
         tree = self.propagation_factory.diffusion_metrics.compute_propagation_tree('Openarms', test_tweet)
         print(tree)
+
+    def test_plot_propagation_generation(self):
+        class MockModel:
+            def __init__(self, limit=1):
+                self.current = 0
+                self.limit = limit
+
+            def predict(self, X):
+                pred = np.zeros(X.shape[0], dtype=int)
+                remaining = self.limit - self.current
+                if remaining > 0:
+                    available = np.minimum(remaining, X.shape[0])
+                    pred[:available] = 1
+                    self.current += available
+                    np.random.shuffle(pred)
+                return pred
+
+        model = MockModel(limit=50)
+        self.propagation_factory._load_propagation_model = Mock(return_value=model)
+        fig = self.propagation_factory.plot_propagation_generation(self.test_dataset, '1167074391315890176')
+        fig.show()
 
 
 if __name__ == '__main__':
