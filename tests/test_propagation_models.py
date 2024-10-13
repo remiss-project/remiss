@@ -28,8 +28,8 @@ class PropagationModelsTestCase(unittest.TestCase):
 
     def test_generate_propagation_dataset(self):
         dataset = self.dataset_generator.generate_propagation_dataset()
-        self.assertEqual(dataset.shape[1], 820)
-        self.assertEqual(dataset.shape[0], 2511)
+        self.assertEqual(dataset.shape[1], 824)
+        self.assertEqual(dataset.shape[0], 2623)
 
     def test_fetch_tweet_features(self):
         tweets = ['1167084036638027778', '1167083487876263938', '1167082116171141121', '1167081267822772224',

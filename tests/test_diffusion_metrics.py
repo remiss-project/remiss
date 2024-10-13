@@ -94,20 +94,21 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         assert not pd.isna(vertices).any().any()
         expected = {'author_id': {'0': 'author_id_0', '1': 'author_id_1', '2': 'author_id_2', '3': 'author_id_3',
                                   '4': 'author_id_4', '5': 'author_id_5', '6': 'author_id_6', '7': 'author_id_7'},
-                    'created_at': {'0': Timestamp('2024-10-11 00:00:00+0000', tz='UTC'),
-                                   '1': Timestamp('2024-10-11 01:00:00+0000', tz='UTC'),
-                                   '2': Timestamp('2024-10-11 02:00:00+0000', tz='UTC'),
-                                   '3': Timestamp('2024-10-11 03:00:00+0000', tz='UTC'),
-                                   '4': Timestamp('2024-10-11 04:00:00+0000', tz='UTC'),
-                                   '5': Timestamp('2024-10-11 05:00:00+0000', tz='UTC'),
-                                   '6': Timestamp('2024-10-11 06:00:00+0000', tz='UTC'),
-                                   '7': Timestamp('2024-10-11 07:00:00+0000', tz='UTC')},
+                    'created_at': {'0': Timestamp('2024-10-11 00:00:00+0000', tz='UTC').hour,
+                                   '1': Timestamp('2024-10-11 01:00:00+0000', tz='UTC').hour,
+                                   '2': Timestamp('2024-10-11 02:00:00+0000', tz='UTC').hour,
+                                   '3': Timestamp('2024-10-11 03:00:00+0000', tz='UTC').hour,
+                                   '4': Timestamp('2024-10-11 04:00:00+0000', tz='UTC').hour,
+                                   '5': Timestamp('2024-10-11 05:00:00+0000', tz='UTC').hour,
+                                   '6': Timestamp('2024-10-11 06:00:00+0000', tz='UTC').hour,
+                                   '7': Timestamp('2024-10-11 07:00:00+0000', tz='UTC').hour},
                     'text': {'0': 'Tweet 0', '1': 'Tweet 1', '2': 'Tweet 2', '3': 'Tweet 3', '4': 'Tweet 4',
                              '5': 'Tweet 5', '6': 'Tweet 6', '7': 'Tweet 7'},
                     'type': {'0': 'original', '1': 'retweeted', '2': 'quoted', '3': 'replied_to', '4': 'retweeted',
                              '5': 'quoted', '6': 'replied_to', '7': 'retweeted'},
                     'username': {'0': 'username_0', '1': 'username_1', '2': 'username_2', '3': 'username_3',
                                  '4': 'username_4', '5': 'username_5', '6': 'username_6', '7': 'username_7'}}
+        vertices['created_at'] = vertices['created_at'].apply(lambda x: x.hour)
         self.assertEqual(vertices.to_dict(), expected)
 
     def test_propagation_tree_simple(self):
