@@ -317,7 +317,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         cascade_ids = self.get_cascade_ids(dataset)
         cascade_ids = cascade_ids.fillna(1)
         cascade_ids = cascade_ids.set_index('created_at')
-        cascade_ids = cascade_ids.resample('ME').count()
+        cascade_ids = cascade_ids.resample('W').count()
         cascade_ids = cascade_ids.rename(columns={'tweet_id': 'Cascade Count'})
         cascade_ids = cascade_ids['Cascade Count']
         return cascade_ids

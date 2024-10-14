@@ -493,6 +493,13 @@ class PropagationFactoryTestCase(unittest.TestCase):
             self.assertTrue((size == metadata['reputation_level'].map(self.propagation_factory.sizes)).all())
             self.assertIsInstance(graph, ig.Graph)
 
+    def test_cascade_count_over_time_barcelona19(self):
+        self.propagation_factory.host = 'mongodb://srvinv02.esade.es'
+        self.propagation_factory.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
+        self.propagation_factory.diffusion_metrics.egonet.host = 'mongodb://srvinv02.esade.es'
+
+        fig = self.propagation_factory.plot_cascade_count_over_time('Andalucia_2022')
+        fig.show()
 
 
 if __name__ == '__main__':
