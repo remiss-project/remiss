@@ -443,7 +443,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         if size is not None:
             # Create a custom legend for marker sizes
             for value, size in self.sizes.items():
-                size = size * 10
+                size = size * self.small_size_multiplier
                 fig.add_trace(go.Scatter(
                     x=[None], y=[None],
                     mode='markers',
