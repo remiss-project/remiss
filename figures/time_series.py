@@ -39,6 +39,7 @@ class TimeSeriesFactory(MongoPlotFactory):
         return plot
 
     def plot_user_series(self, dataset, hashtags, start_time, end_time, unit='day', bin_size=1):
+        start_time, end_time = self._validate_dates(dataset, start_time, end_time)
         if hashtags or start_time or end_time:
             try:
                 logger.debug('Computing user series')
