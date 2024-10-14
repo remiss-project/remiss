@@ -489,7 +489,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
             color = kwargs.get('color')
             size = kwargs.get('size')
 
-            self.assertTrue((color == metadata['legitimacy']).all())
+            self.assertTrue((color == metadata['legitimacy_level'].map(self.propagation_factory.colors)).all())
             self.assertTrue((size == metadata['reputation_level'].map(self.propagation_factory.sizes)).all())
             self.assertIsInstance(graph, ig.Graph)
 

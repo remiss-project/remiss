@@ -29,17 +29,18 @@ class PropagationPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017,
                  reference_types=('quoted', 'retweeted'), layout='fruchterman_reingold',
                  threshold=0.2, delete_vertices=True, frequency='1D',
-                 available_datasets=None, small_size_multiplier=15, big_size_multiplier=50,
+                 available_datasets=None, small_size_multiplier=5, big_size_multiplier=10,
                  user_highlight_color='rgb(0, 0, 255)', max_edges_propagation_tree=None,
                  max_edges_hidden_network=None, preload=True, model_dir='propagation_models',
-                 sizes=None):
+                 sizes=None, colors=None):
         super().__init__(host, port, available_datasets)
         self.model_dir = Path(model_dir)
         self.max_edges_propagation_tree = max_edges_propagation_tree
         self.max_edges_hidden_network = max_edges_hidden_network
         self.big_size_multiplier = big_size_multiplier
         self.small_size_multiplier = small_size_multiplier
-        self.sizes = sizes if sizes else {'Low': 1, 'Medium': 2, 'High': 3, 'Unknown': 1}
+        self.sizes = sizes if sizes else {'Low': 1, 'Medium': 2, 'High': 3, 'Unknown': 0.5}
+        self.colors = colors if colors else {'Low': 1, 'Medium': 2, 'High': 3, 'Unknown': np.nan}
         self.node_highlight_color = user_highlight_color
         self.layout = layout
         self.frequency = frequency
@@ -157,73 +158,6 @@ class PropagationPlotFactory(MongoPlotFactory):
                                     max_edges=self.max_edges_hidden_network)
 
         return backbone
-
-    def compute_layout(self, network):
-        logger.debug(
-            f'Computing {self.layout} layout for graph {network.vcount()} vertices and {network.ecount()} edges')
-        start_time = time.time()
-        layout = network.layout(self.layout, dim=3)
-        layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
-        logger.debug(f'Layout computed in {time.time() - start_time} seconds')
-        return layout
-
-    def plot_user_graph(self, user_graph, collection, layout, highlight_node_index=None):
-        if user_graph.vcount() == 0:
-            logger.warning('Empty graph, nothing to plot')
-            fig = go.Figure()
-            # Remove borders and ticks
-            fig.update_layout(
-                xaxis={'showgrid': False, 'zeroline': False, 'showline': False, 'showticklabels': False},
-                yaxis={'showgrid': False, 'zeroline': False, 'showline': False, 'showticklabels': False}
-            )
-            return fig
-        metadata = self.get_user_metadata(collection, author_ids=user_graph.vs['author_id'])
-        metadata = metadata.reindex(user_graph.vs['author_id'])
-        # Try to patch missing metadata with graph info if available
-        if metadata.isna().any().any():
-            logger.warning('Missing metadata for some nodes, trying to patch with graph info')
-            missing_nodes = metadata.index[metadata.drop(columns='party').isna().any(axis=1)].to_list()
-            for author_id in missing_nodes:
-                try:
-                    node = user_graph.vs.find(author_id=author_id)
-                    metadata.loc[author_id, 'Username'] = node['username']
-                    metadata.loc[author_id, 'User type'] = 'Normal'
-
-                except ValueError:
-                    logger.warning(f'Node {author_id} not found in graph')
-                except KeyError:
-                    logger.warning(f'Error getting username for node {author_id}')
-
-        metadata['User type'] = metadata['User type'].fillna('Unknown')
-
-        def user_hover(x):
-            username = x['username']
-            user_type = x['User type']
-            legitimacy = x['legitimacy_level'] if x['legitimacy_level'] else ''
-            reputation = x['reputation_level'] if x['reputation_level'] else ''
-            status = x['status_level'] if x['status_level'] else ''
-            hover_template = (f'Username: {username}<br>User type: {user_type}<br>'
-                              f'Legitimacy: {legitimacy}<br>Reputation: {reputation}<br>Status: {status}')
-            return hover_template
-
-        text = metadata.apply(user_hover, axis=1)
-
-        size = metadata['reputation_level'].copy()
-        size = size.fillna('Unknown')
-        size = size.map(self.sizes)
-
-        color = metadata['legitimacy'].copy()
-
-        if highlight_node_index is not None:
-            color = color.to_list()
-            color[highlight_node_index] = self.node_highlight_color
-
-        # Available markers ['circle', 'circle-open', 'cross', 'diamond', 'diamond-open', 'square', 'square-open', 'x']
-        marker_map = {'Normal': 'circle', 'Suspect': 'cross', 'Politician': 'diamond', 'Suspect politician':
-            'square', 'Unknown': 'x'}
-        symbol = metadata.apply(lambda x: marker_map[x['User type']], axis=1)
-
-        return self.plot_graph(user_graph, layout=layout, text=text, size=size, color=color, symbol=symbol)
 
     def plot_propagation_tree(self, dataset, tweet_id):
         try:
@@ -359,17 +293,78 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         return metadata
 
-    def plot_graph(self, graph, layout, symbol=None, size=None, color=None, text=None, normalize=True):
-        if normalize:
-            # apply logarithm on color and size if available
-            if color is not None:
-                color = pd.Series(color)
-                color = color.apply(lambda x: np.log(x + 1) if isinstance(x, (int, float)) else x)
+    def compute_layout(self, network):
+        logger.debug(
+            f'Computing {self.layout} layout for graph {network.vcount()} vertices and {network.ecount()} edges')
+        start_time = time.time()
+        layout = network.layout(self.layout, dim=3)
+        layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
+        logger.debug(f'Layout computed in {time.time() - start_time} seconds')
+        return layout
 
-            if size is not None:
-                original_size = size
-                size = np.log(size + 1) / np.log(size.max() + 1) * self.small_size_multiplier
+    def plot_user_graph(self, user_graph, collection, layout, highlight_node_index=None):
+        if user_graph.vcount() == 0:
+            logger.warning('Empty graph, nothing to plot')
+            fig = go.Figure()
+            # Remove borders and ticks
+            fig.update_layout(
+                xaxis={'showgrid': False, 'zeroline': False, 'showline': False, 'showticklabels': False},
+                yaxis={'showgrid': False, 'zeroline': False, 'showline': False, 'showticklabels': False}
+            )
+            return fig
+        metadata = self.get_user_metadata(collection, author_ids=user_graph.vs['author_id'])
+        metadata = metadata.reindex(user_graph.vs['author_id'])
+        # Try to patch missing metadata with graph info if available
+        if metadata.isna().any().any():
+            logger.warning('Missing metadata for some nodes, trying to patch with graph info')
+            missing_nodes = metadata.index[metadata.drop(columns='party').isna().any(axis=1)].to_list()
+            for author_id in missing_nodes:
+                try:
+                    node = user_graph.vs.find(author_id=author_id)
+                    metadata.loc[author_id, 'Username'] = node['username']
+                    metadata.loc[author_id, 'User type'] = 'Normal'
 
+                except ValueError:
+                    logger.warning(f'Node {author_id} not found in graph')
+                except KeyError:
+                    logger.warning(f'Error getting username for node {author_id}')
+
+        metadata['User type'] = metadata['User type'].fillna('Unknown')
+
+        def user_hover(x):
+            username = x['username']
+            user_type = x['User type']
+            legitimacy = x['legitimacy_level'] if x['legitimacy_level'] else ''
+            reputation = x['reputation_level'] if x['reputation_level'] else ''
+            status = x['status_level'] if x['status_level'] else ''
+            hover_template = (f'Username: {username}<br>User type: {user_type}<br>'
+                              f'Legitimacy: {legitimacy}<br>Reputation: {reputation}<br>Status: {status}')
+            return hover_template
+
+        text = metadata.apply(user_hover, axis=1)
+
+        size = metadata['reputation_level'].copy()
+        size = size.fillna('Unknown')
+        size = size.map(self.sizes)
+
+        color = metadata['legitimacy_level'].copy()
+        color = color.fillna('Unknown')
+        color = color.map(self.colors)
+
+
+        if highlight_node_index is not None:
+            color = color.to_list()
+            color[highlight_node_index] = self.node_highlight_color
+
+        # Available markers ['circle', 'circle-open', 'cross', 'diamond', 'diamond-open', 'square', 'square-open', 'x']
+        marker_map = {'Normal': 'circle', 'Suspect': 'cross', 'Politician': 'diamond', 'Suspect politician':
+            'square', 'Unknown': 'x'}
+        symbol = metadata.apply(lambda x: marker_map[x['User type']], axis=1)
+
+        return self.plot_graph(user_graph, layout=layout, text=text, size=size, color=color, symbol=symbol)
+
+    def plot_graph(self, graph, layout, symbol=None, size=None, color=None, text=None):
+        size = size * self.small_size_multiplier if size is not None else None
         if isinstance(layout, Layout):
             layout = pd.DataFrame(layout.coords, columns=['x', 'y', 'z'])
 
@@ -402,12 +397,18 @@ class PropagationPlotFactory(MongoPlotFactory):
                                               # coloscale set to $champagne: #ffead0ff;
                                               # to $bright-pink-crayola: #f76f8eff;
                                               colorscale=[[0, 'rgb(255, 234, 208)'], [1, 'rgb(247, 111, 142)']],
-                                              colorbar=dict(thickness=20, title='Legitimacy'),
+                                              colorbar=dict(title='Legitimacy',
+                                                            tickvals=list(self.colors.values()),
+                                                            ticktext=list(self.colors.keys()),
+                                                            tickmode='array',
+                                                            ),
                                               line=dict(color='rgb(50,50,50)', width=0.5),
+
                                               ),
                                   text=text,
                                   hovertemplate='%{text}' if text is not None else None,
                                   name='',
+                                  showlegend=False
                                   )
 
         axis = dict(showbackground=False,
@@ -533,7 +534,7 @@ class PropagationPlotFactory(MongoPlotFactory):
         dataset_generator = PropagationDatasetGenerator(dataset, self.host, self.port)
         cascade_generator = CascadeGenerator(model=model, dataset_generator=dataset_generator)
         cascade = cascade_generator.generate_cascade(tweet_id)
-        self.diffusion_metrics._plot_graph_igraph(cascade)
+        # self.diffusion_metrics._plot_graph_igraph(cascade)
         layout = self.compute_layout(cascade)
         color = ['blue' if v['ground_truth'] else 'red' for v in cascade.vs]
         metadata = self.get_user_metadata(dataset, author_ids=cascade.vs['author_id'])
