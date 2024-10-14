@@ -235,8 +235,6 @@ class PropagationPlotFactory(MongoPlotFactory):
     def plot_cascade_count_over_time(self, dataset):
         try:
             cascade_count_over_time = self.diffusion_metrics.get_cascade_count_over_time(dataset)
-
-            raise Exception()
         except Exception as e:
             logger.error(f'Error getting cascade count over time: {e}. Recomputing')
             cascade_count_over_time = self.diffusion_metrics.compute_cascade_count_over_time(dataset)
