@@ -104,12 +104,8 @@ class PropagationComponent(RemissComponent):
             if self.plot_factory.get_cascade_size(dataset, tweet_id) > 1:
                 logger.debug(f'Updating propagation plots with dataset {dataset}, tweet {tweet_id}')
                 start_time = datetime.now()
-                prop_tree = self.plot_factory.plot_propagation_tree(dataset, tweet_id)
-                depth =    self.plot_factory.plot_depth_over_time(dataset, tweet_id)
-                size =     self.plot_factory.plot_size_over_time(dataset, tweet_id)
-                max_breath =  self.plot_factory.plot_max_breadth_over_time(dataset, tweet_id)
-                structural =  self.plot_factory.plot_structural_virality_over_time(dataset, tweet_id)
-                show =  True
+                prop_tree, depth, size, max_breath, structural = self.plot_factory.plot_propagation(dataset, tweet_id)
+                show = True
                 logger.debug(f'Propagation plots updated in {datetime.now() - start_time}')
                 return prop_tree, depth, size, max_breath, structural, show
             else:

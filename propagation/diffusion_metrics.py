@@ -36,39 +36,63 @@ class DiffusionMetrics(BasePropagationMetrics):
             raise RuntimeError(f'Diffusion metrics for conversation {cascade_id} not found')
         return cascade_data
 
-    def get_propagation_tree(self, dataset, tweet_id):
-        conversation_data = self.load_cascade_data(dataset, tweet_id)
+    def get_diffusion_metrics(self, dataset, tweet_id):
+        cascade_data = self.load_cascade_data(dataset, tweet_id)
+        propagation_tree = self._get_propagation_tree_from_cascade_data(cascade_data)
+        size_over_time = self._get_size_over_time_from_cascade_data(cascade_data)
+        depth_over_time = self._get_depth_over_time_from_cascade_data(cascade_data)
+        max_breadth_over_time = self._get_max_breadth_over_time_from_cascade_data(cascade_data)
+        structural_virality_over_time = self._get_structural_virality_over_time_from_cascade_data(cascade_data)
+        return propagation_tree, size_over_time, depth_over_time, max_breadth_over_time, structural_virality_over_time
+
+    def _get_propagation_tree_from_cascade_data(self, cascade_data):
         graph = ig.Graph(directed=True)
-        graph.add_vertices(len(conversation_data['vs_attributes']['author_id']))
-        for attribute, values in conversation_data['vs_attributes'].items():
+        graph.add_vertices(len(cascade_data['vs_attributes']['author_id']))
+        for attribute, values in cascade_data['vs_attributes'].items():
             graph.vs[attribute] = values
-        graph.add_edges(conversation_data['edges'])
+        graph.add_edges(cascade_data['edges'])
         return graph
 
-    def get_size_over_time(self, dataset, tweet_id):
-        conversation_data = self.load_cascade_data(dataset, tweet_id)
-        size_over_time = pd.Series(conversation_data['size_over_time'], name='Size')
+    def _get_size_over_time_from_cascade_data(self, cascade_data):
+        size_over_time = pd.Series(cascade_data['size_over_time'], name='Size')
         size_over_time.index = pd.to_datetime(size_over_time.index)
         return size_over_time
 
-    def get_depth_over_time(self, dataset, tweet_id):
-        conversation_data = self.load_cascade_data(dataset, tweet_id)
-        depth_over_time = pd.Series(conversation_data['depth_over_time'], name='Depth')
+    def _get_depth_over_time_from_cascade_data(self, cascade_data):
+        depth_over_time = pd.Series(cascade_data['depth_over_time'], name='Depth')
         depth_over_time.index = pd.to_datetime(depth_over_time.index)
         return depth_over_time
 
-    def get_max_breadth_over_time(self, dataset, tweet_id):
-        conversation_data = self.load_cascade_data(dataset, tweet_id)
-        max_breadth_over_time = pd.Series(conversation_data['max_breadth_over_time'], name='Max Breadth')
+    def _get_max_breadth_over_time_from_cascade_data(self, cascade_data):
+        max_breadth_over_time = pd.Series(cascade_data['max_breadth_over_time'], name='Max Breadth')
         max_breadth_over_time.index = pd.to_datetime(max_breadth_over_time.index)
         return max_breadth_over_time
 
-    def get_structural_virality_over_time(self, dataset, tweet_id):
-        conversation_data = self.load_cascade_data(dataset, tweet_id)
-        structural_virality_over_time = pd.Series(conversation_data['structural_virality_over_time'],
+    def _get_structural_virality_over_time_from_cascade_data(self, cascade_data):
+        structural_virality_over_time = pd.Series(cascade_data['structural_virality_over_time'],
                                                   name='Structural Virality')
         structural_virality_over_time.index = pd.to_datetime(structural_virality_over_time.index)
         return structural_virality_over_time
+
+    def get_propagation_tree(self, dataset, tweet_id):
+        cascade_data = self.load_cascade_data(dataset, tweet_id)
+        return self._get_propagation_tree_from_cascade_data(cascade_data)
+
+    def get_size_over_time(self, dataset, tweet_id):
+        cascade_data = self.load_cascade_data(dataset, tweet_id)
+        return self._get_size_over_time_from_cascade_data(cascade_data)
+
+    def get_depth_over_time(self, dataset, tweet_id):
+        cascade_data = self.load_cascade_data(dataset, tweet_id)
+        return self._get_depth_over_time_from_cascade_data(cascade_data)
+
+    def get_max_breadth_over_time(self, dataset, tweet_id):
+        cascade_data = self.load_cascade_data(dataset, tweet_id)
+        return self._get_max_breadth_over_time_from_cascade_data(cascade_data)
+
+    def get_structural_virality_over_time(self, dataset, tweet_id):
+        cascade_data = self.load_cascade_data(dataset, tweet_id)
+        return self._get_structural_virality_over_time_from_cascade_data(cascade_data)
 
     def compute_propagation_tree(self, dataset, tweet_id):
         hidden_network = self.egonet.get_hidden_network(dataset)
@@ -228,6 +252,24 @@ class DiffusionMetrics(BasePropagationMetrics):
                                 'created_at': tweet['created_at'],
                                 'type': 'original'}])
         return vertex
+
+    def compute_diffusion_metrics(self, dataset, tweet_id):
+        graph = self.compute_propagation_tree(dataset, tweet_id)
+        if graph.vcount() > 1:
+            shortest_paths = self.get_shortest_paths_to_original_tweet_over_time(graph)
+
+            size_over_time = self.compute_size_over_time(graph)
+            depth_over_time = self.compute_depth_over_time(shortest_paths)
+            max_breadth_over_time = self.compute_max_breadth_over_time(shortest_paths)
+            structural_virality_over_time = self.compute_structural_virality_over_time(graph)
+
+        else:
+            size_over_time = pd.Series([1], index=[graph.vs['created_at'][0]])
+            depth_over_time = pd.Series([0], index=[graph.vs['created_at'][0]])
+            max_breadth_over_time = pd.Series([1], index=[graph.vs['created_at'][0]])
+            structural_virality_over_time = pd.Series([0], index=[graph.vs['created_at'][0]])
+
+        return graph, size_over_time, depth_over_time, max_breadth_over_time, structural_virality_over_time
 
     def compute_size_over_time(self, graph):
         # get the difference between the first tweet and the rest in minutes
@@ -467,21 +509,8 @@ class DiffusionMetrics(BasePropagationMetrics):
 
     def _compute_cascade_metrics_for_persistence(self, dataset, cascade_id):
         try:
-            graph = self.compute_propagation_tree(dataset, cascade_id)
-            if graph.vcount() > 1:
-                shortest_paths = self.get_shortest_paths_to_original_tweet_over_time(graph)
-
-                size_over_time = self.compute_size_over_time(graph)
-                depth_over_time = self.compute_depth_over_time(shortest_paths)
-                max_breadth_over_time = self.compute_max_breadth_over_time(shortest_paths)
-                structural_virality_over_time = self.compute_structural_virality_over_time(graph)
-
-            else:
-                size_over_time = pd.Series([1], index=[graph.vs['created_at'][0]])
-                depth_over_time = pd.Series([0], index=[graph.vs['created_at'][0]])
-                max_breadth_over_time = pd.Series([1], index=[graph.vs['created_at'][0]])
-                structural_virality_over_time = pd.Series([0], index=[graph.vs['created_at'][0]])
-
+            graph, size_over_time, depth_over_time, max_breadth_over_time, structural_virality_over_time = \
+                self.compute_diffusion_metrics(dataset, cascade_id)
             try:
                 size_over_time = size_over_time.to_dict()
                 size_over_time = {str(key): value for key, value in size_over_time.items()}

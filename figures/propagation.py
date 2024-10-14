@@ -159,6 +159,32 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         return backbone
 
+    def plot_propagation(self, dataset, tweet_id):
+        try:
+            propagation_tree, size_over_time, depth_over_time, max_breadth_over_time, structural_virality_over_time = \
+                self.diffusion_metrics.get_diffusion_metrics(dataset, tweet_id)
+        except Exception as e:
+            logger.error(f'Error getting diffusion metrics: {e}. Recomputing')
+            propagation_tree, size_over_time, depth_over_time, max_breadth_over_time, structural_virality_over_time = \
+                self.diffusion_metrics.compute_diffusion_metrics(dataset, tweet_id)
+        prop_tree = self._plot_propagation_tree_from_graph(propagation_tree, dataset, tweet_id)
+        depth = plot_time_series(depth_over_time, 'Depth over time', 'Time', 'Depth')
+        size = plot_time_series(size_over_time, 'Size over time', 'Time', 'Size')
+        max_breath = plot_time_series(max_breadth_over_time, 'Max breadth over time', 'Time', 'Max breadth')
+        structural = plot_time_series(structural_virality_over_time, 'Structural virality over time', 'Time',
+                                      'Structural virality')
+        return prop_tree, depth, size, max_breath, structural
+
+    def _plot_propagation_tree_from_graph(self, graph, dataset, tweet_id):
+        try:
+            original_node_index = graph.vs.find(tweet_id=tweet_id).index
+        except ValueError:
+            logger.error(f'Tweet {tweet_id} not found in propagation tree')
+            original_node_index = None
+
+        layout = self.compute_layout(graph)
+        return self.plot_user_graph(graph, dataset, layout, highlight_node_index=original_node_index)
+
     def plot_propagation_tree(self, dataset, tweet_id):
         try:
             propagation_tree = self.diffusion_metrics.get_propagation_tree(dataset, tweet_id)
@@ -166,18 +192,7 @@ class PropagationPlotFactory(MongoPlotFactory):
             logger.error(f'Error getting propagation tree: {e}. Recomputing')
             propagation_tree = self.diffusion_metrics.compute_propagation_tree(dataset, tweet_id)
 
-        if self.max_edges_propagation_tree is not None and propagation_tree.ecount() > self.max_edges_propagation_tree:
-            # sample edges
-            edges = np.random.choice(propagation_tree.ecount(), self.max_edges_propagation_tree, replace=False)
-            propagation_tree = propagation_tree.subgraph_edges(edges)
-        try:
-            original_node_index = propagation_tree.vs.find(tweet_id=tweet_id).index
-        except ValueError:
-            logger.error(f'Tweet {tweet_id} not found in propagation tree')
-            original_node_index = None
-
-        layout = self.compute_layout(propagation_tree)
-        return self.plot_user_graph(propagation_tree, dataset, layout, highlight_node_index=original_node_index)
+        return self._plot_propagation_tree_from_graph(propagation_tree, dataset, tweet_id)
 
     def plot_size_over_time(self, dataset, tweet_id):
         try:
@@ -350,7 +365,6 @@ class PropagationPlotFactory(MongoPlotFactory):
         color = metadata['legitimacy_level'].copy()
         color = color.fillna('Unknown')
         color = color.map(self.colors)
-
 
         if highlight_node_index is not None:
             color = color.to_list()
