@@ -66,6 +66,10 @@ class TimeSeriesFactory(MongoPlotFactory):
         if len(df) == 1:
             plot = px.bar(df, labels={"value": "Count"})
         else:
-            plot = px.area(df, labels={"value": "Count"})
+            plot = px.area(df, labels={"value": "Count"}, )
+
+        # Set all but the first trace to legendonly
+        for i in range(1, len(plot.data)):
+            plot.data[i]['visible'] = 'legendonly'
 
         return plot

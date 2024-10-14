@@ -342,7 +342,8 @@ class PropagationPlotFactory(MongoPlotFactory):
                 except ValueError:
                     logger.warning(f'Node {author_id} not found in graph')
                 except KeyError:
-                    logger.warning(f'Error getting username for node {author_id}')
+                    pass
+                    # logger.warning(f'Error getting username for node {author_id}')
 
         metadata['User type'] = metadata['User type'].fillna('Unknown')
 
