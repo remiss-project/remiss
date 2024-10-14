@@ -1,3 +1,4 @@
+import itertools
 import random
 import unittest
 from unittest.mock import Mock
@@ -16,11 +17,11 @@ patch_all()
 
 class PropagationFactoryTestCase(unittest.TestCase):
     def setUp(self):
-        self.propagation_factory = PropagationPlotFactory(available_datasets=['test_dataset_2'])
+        self.propagation_factory = PropagationPlotFactory(available_datasets=['test_dataset_2'], preload=False)
         self.test_dataset = 'test_dataset_2'
         self.tmp_dataset = 'tmp_dataset'
         self.test_user_id = '2201623465'
-        self.test_tweet_id = '1167078759280889856'
+        self.test_tweet_id = '1167074391315890176'
 
     def tearDown(self):
         client = MongoClient('localhost', 27017)
@@ -451,6 +452,47 @@ class PropagationFactoryTestCase(unittest.TestCase):
         self.propagation_factory._load_propagation_model = Mock(return_value=model)
         fig = self.propagation_factory.plot_propagation_generation(self.test_dataset, '1167074391315890176')
         fig.show()
+
+    def test_sizes_and_markers(self):
+        legitimacy = [1, 10, 100]
+        reputation_levels = ['Low', 'Medium', 'High']
+        status_levels = ['Low', 'Medium', 'High']
+        marker_map = {'Normal': 'circle', 'Suspect': 'cross', 'Politician': 'diamond', 'Suspect politician':
+            'square', 'Unknown': 'x'}
+        user_types = list(marker_map.keys())
+        combinations = itertools.product(legitimacy, reputation_levels, status_levels, user_types)
+
+        metadata = pd.DataFrame(combinations, columns=['legitimacy', 'reputation_level', 'status_level', 'User type'])
+        metadata['legitimacy_level'] = metadata['legitimacy'].map({1: 'Low', 10: 'Medium', 100: 'High'})
+        metadata['username'] = metadata.index
+        metadata['author_id'] = metadata.index
+        # get random graph of size of metadata rows
+        graph = ig.Graph.Tree(metadata.shape[0], 2)
+        graph.vs['name'] = metadata['username']
+        graph.vs['author_id'] = metadata['author_id']
+        graph.vs['legitimacy'] = metadata['legitimacy']
+        graph.vs['reputation_level'] = metadata['reputation_level']
+        graph.vs['status_level'] = metadata['status_level']
+        graph.vs['User type'] = metadata['User type']
+        layout = graph.layout('kk', dim=3)
+
+        self.propagation_factory.get_user_metadata = Mock(return_value=metadata)
+        fig = self.propagation_factory.plot_user_graph(graph, self.test_dataset, layout)
+        fig.show()
+
+        self.propagation_factory.plot_graph = Mock(return_value=fig)
+        call_arguments = self.propagation_factory.plot_graph.call_args_list
+        self.propagation_factory.plot_user_graph(graph, self.test_dataset, layout)
+        for call in call_arguments:
+            args, kwargs = call
+            graph = args[0]
+            color = kwargs.get('color')
+            size = kwargs.get('size')
+
+            self.assertTrue((color == metadata['legitimacy']).all())
+            self.assertTrue((size == metadata['reputation_level'].map(self.propagation_factory.sizes)).all())
+            self.assertIsInstance(graph, ig.Graph)
+
 
 
 if __name__ == '__main__':

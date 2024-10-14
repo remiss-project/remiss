@@ -31,13 +31,15 @@ class PropagationPlotFactory(MongoPlotFactory):
                  threshold=0.2, delete_vertices=True, frequency='1D',
                  available_datasets=None, small_size_multiplier=15, big_size_multiplier=50,
                  user_highlight_color='rgb(0, 0, 255)', max_edges_propagation_tree=None,
-                 max_edges_hidden_network=None, preload=True, model_dir='propagation_models'):
+                 max_edges_hidden_network=None, preload=True, model_dir='propagation_models',
+                 sizes=None):
         super().__init__(host, port, available_datasets)
         self.model_dir = Path(model_dir)
         self.max_edges_propagation_tree = max_edges_propagation_tree
         self.max_edges_hidden_network = max_edges_hidden_network
         self.big_size_multiplier = big_size_multiplier
         self.small_size_multiplier = small_size_multiplier
+        self.sizes = sizes if sizes else {'Low': 1, 'Medium': 2, 'High': 3, 'Unknown': 1}
         self.node_highlight_color = user_highlight_color
         self.layout = layout
         self.frequency = frequency
@@ -73,7 +75,8 @@ class PropagationPlotFactory(MongoPlotFactory):
         egonet = self.egonet.get_egonet(collection, author_id, depth, start_date, end_date, hashtag)
 
         if self.max_edges_propagation_tree is not None and egonet.ecount() > self.max_edges_propagation_tree:
-            logger.warning(f'Egonet for {author_id} has {egonet.ecount()} edges, reducing to {self.max_edges_propagation_tree}')
+            logger.warning(
+                f'Egonet for {author_id} has {egonet.ecount()} edges, reducing to {self.max_edges_propagation_tree}')
             # Get author_id node just in case it gets removed in the backbone pruning
             author_id_node = egonet.vs.find(author_id=author_id)
 
@@ -115,8 +118,6 @@ class PropagationPlotFactory(MongoPlotFactory):
                 layout = self._get_layout(dataset)
                 self._hidden_network_plot_cache[dataset] = self.plot_user_graph(hidden_network, dataset, layout)
             return self._hidden_network_plot_cache[dataset]
-
-
 
     def _get_backbone(self, dataset):
         if dataset not in self._backbone_cache:
@@ -207,10 +208,9 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         text = metadata.apply(user_hover, axis=1)
 
-        size = metadata['reputation']
-        # Add 1 offset and set 1 as minimum size
-        size = size + 1
-        size = size.fillna(1)
+        size = metadata['reputation_level'].copy()
+        size = size.fillna('Unknown')
+        size = size.map(self.sizes)
 
         color = metadata['legitimacy'].copy()
 
@@ -441,14 +441,8 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         if size is not None:
             # Create a custom legend for marker sizes
-            if normalize:
-                legend_values = np.linspace(original_size.min(), original_size.max(), 5)  #
-                legend_values = np.array(sorted(set(legend_values.astype(int))))
-                legend_sizes = np.log(legend_values + 1) / np.log(original_size.max() + 1) * self.small_size_multiplier
-            else:
-                legend_values = np.linspace(size.min(), size.max(), 5)
-                legend_sizes = legend_values * self.small_size_multiplier
-            for size, value in zip(legend_sizes, legend_values):
+            for value, size in self.sizes.items():
+                size = size * 10
                 fig.add_trace(go.Scatter(
                     x=[None], y=[None],
                     mode='markers',
@@ -513,7 +507,6 @@ class PropagationPlotFactory(MongoPlotFactory):
                 self._persist_layout_to_mongodb(layout, dataset, 'hidden_network_layout')
             else:
                 logger.error(f'Empty layout for dataset {dataset}')
-
 
     def _persist_layout_to_mongodb(self, layout, dataset, collection_name):
         client = MongoClient(self.host, self.port)
