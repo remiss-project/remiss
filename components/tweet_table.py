@@ -1,8 +1,7 @@
 import logging
 
 import dash_bootstrap_components as dbc
-import pandas as pd
-from dash import Input, Output, dcc, html
+from dash import Input, Output, dcc, html, ctx
 from dash.dash_table import DataTable
 from dash.exceptions import PreventUpdate
 
@@ -25,10 +24,6 @@ class TweetTableComponent(RemissComponent):
         self.displayed_data = None
         self.state = state
         self.top_table_columns = top_table_columns
-
-
-        self._state_ids = {self.state.current_dataset.id, self.state.current_start_date.id,
-                           self.state.current_end_date.id, self.state.current_hashtags.id}
 
         self.table = DataTable(data=[], id=f'table-{self.name}',
                                columns=[{"name": i, "id": i} for i in self.top_table_columns],
@@ -114,10 +109,14 @@ class TweetTableComponent(RemissComponent):
             ], width=12),
         ], justify='center', style={'margin-bottom': '1rem'})
 
-
-
     def update(self, dataset, start_date, end_date, hashtags, page_current, sort_by, filter_query):
-        logger.debug(f'Updating whole tweet table with '
+        if ctx.triggered_id == self.state.current_dataset.id:
+            # The dataset has changed, reset the table controls
+            page_current = 0
+            sort_by = []
+            filter_query = ''
+
+        logger.debug(f'Updating tweet table with '
                      f'dataset {dataset}, start date {start_date}, end date {end_date}, hashtags {hashtags},'
                      f'page {page_current}, sort by {sort_by}, filter query {filter_query}')
         self.data = self.plot_factory.get_tweet_table(dataset, start_date, end_date, hashtags,
@@ -132,7 +131,8 @@ class TweetTableComponent(RemissComponent):
 
         return self.data.to_dict(orient='records')
 
-
+    def reset_table(self, dataset):
+        return 0, '', []
 
     def update_page_count(self, dataset, start_date, end_date, hashtags):
         size = self.plot_factory.get_tweet_table_size(dataset, start_date, end_date, hashtags)
@@ -200,3 +200,10 @@ class TweetTableComponent(RemissComponent):
             Output(self.state.current_tweet, 'data'),
             [Input(self.table, 'active_cell')],
         )(self.update_tweet_state)
+        app.callback(
+            Output(self.table, 'page_current'),
+            Output(self.table, 'filter_query'),
+            Output(self.table, 'sort_by'),
+            [Input(self.state.current_dataset, 'data')],
+        )(self.reset_table)
+
