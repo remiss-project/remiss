@@ -1,7 +1,7 @@
 import time
 import unittest
-import uuid
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.figure_factory as ff
@@ -197,7 +197,6 @@ class NetworkMetricsTestCase(unittest.TestCase):
         # Test the persistence and loading of the graph
         self.network_metrics.persist([self.test_dataset])
 
-
         start_time = time.time()
         expected_legitimacy = self.network_metrics.compute_legitimacy(self.test_dataset)
         expected_reputation = self.network_metrics.compute_reputation(self.test_dataset)
@@ -242,6 +241,51 @@ class NetworkMetricsTestCase(unittest.TestCase):
         # fig.show()
         fig = ff.create_distplot([mean_status], group_labels=['Status'])
         # fig.show()
+
+    def test_get_level(self):
+        legitimacy = pd.Series([np.nan, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+        reputation = pd.Series([np.nan, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+        status = pd.Series([np.nan, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+
+        legitimacy_level = self.network_metrics.get_level(legitimacy)
+        reputation_level = self.network_metrics.get_level(reputation)
+        status_level = self.network_metrics.get_level(status)
+
+        expected = ['Unknown', 'Low', 'Low', 'Low', 'Low', 'Medium', 'Medium', 'Medium', 'High', 'High', 'High', 'High']
+        self.assertEqual(legitimacy_level.tolist(), expected)
+        self.assertEqual(reputation_level.tolist(), expected)
+        self.assertEqual(status_level.tolist(), expected)
+
+    def test_get_level_2(self):
+        legitimacy = pd.Series([np.nan, 0, 0.1, 0.1, 0.11, 0.12, 0.13, 0.13, 0.14, 0.15, 0.9, 1.0])
+        reputation = pd.Series([np.nan, 0, 0.1, 0.1, 0.11, 0.12, 0.13, 0.13, 0.14, 0.15, 0.9, 1.0])
+        status = pd.Series([np.nan, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+
+        legitimacy_level = self.network_metrics.get_level(legitimacy)
+        reputation_level = self.network_metrics.get_level(reputation)
+        status_level = self.network_metrics.get_level(status)
+
+        expected = ['Unknown', 'Low', 'Low', 'Low', 'Low', 'Medium', 'Medium', 'Medium', 'High', 'High', 'High', 'High']
+        self.assertEqual(legitimacy_level.tolist(), expected)
+        self.assertEqual(reputation_level.tolist(), expected)
+        self.assertEqual(status_level.tolist(), expected)
+
+    def test_network_metrics_get_levels(self):
+        legitimacy = self.network_metrics.compute_legitimacy(self.test_dataset)
+        reputation = self.network_metrics.compute_reputation(self.test_dataset).mean(axis=1)
+        status = self.network_metrics.compute_status(self.test_dataset).mean(axis=1)
+
+        legitimacy_level = self.network_metrics.get_level(legitimacy)
+        reputation_level = self.network_metrics.get_level(reputation)
+        status_level = self.network_metrics.get_level(status)
+
+        self.assertEqual(legitimacy_level.shape, legitimacy.shape)
+        self.assertEqual(reputation_level.shape, reputation.shape)
+        self.assertEqual(status_level.shape, status.shape)
+
+        self.assertEqual(legitimacy_level.cat.categories.tolist(), ['Unknown', 'Low', 'High'])
+        self.assertEqual(reputation_level.cat.categories.tolist(), ['Unknown', 'Low', 'Medium', 'High'])
+        self.assertEqual(status_level.cat.categories.tolist(), ['Unknown', 'Low', 'Medium',  'High'])
 
 
 if __name__ == '__main__':

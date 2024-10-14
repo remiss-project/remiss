@@ -4,6 +4,7 @@ import time
 import pandas as pd
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
+from scipy.stats import rankdata
 
 from propagation.base import BasePropagationMetrics
 
@@ -99,12 +100,12 @@ class NetworkMetrics(BasePropagationMetrics):
         legitimacy = legitimacy.pivot(columns='date', index='author_id', values='legitimacy')
         # Drop na indexes
         legitimacy = legitimacy[~legitimacy.index.isna()]
-        legitimacy = legitimacy.fillna(0)
         return legitimacy
 
     def compute_reputation(self, dataset):
         start_time = time.time()
         legitimacy = self._get_legitimacy_over_time(dataset)
+        legitimacy = legitimacy.fillna(0)
         reputation = legitimacy.cumsum(axis=1)
         reputation.name = 'reputation'
 
@@ -114,8 +115,8 @@ class NetworkMetrics(BasePropagationMetrics):
     def compute_status(self, dataset):
         start_time = time.time()
         legitimacy = self._get_legitimacy_over_time(dataset)
-        reputation = legitimacy.cumsum(axis=1)
-        status = reputation.apply(lambda x: x.argsort())
+        reputation = legitimacy.fillna(0).cumsum(axis=1)
+        status = reputation.apply(lambda x: rankdata(x, method='dense', nan_policy='omit'))
         logger.debug(f'Status computed in {time.time() - start_time} seconds')
         return status
 
@@ -131,6 +132,21 @@ class NetworkMetrics(BasePropagationMetrics):
             logger.info('Persisting metrics')
             self._persist_metrics(dataset, legitimacy, reputation, status)
 
+    def get_level(self, data):
+        try:
+            levels = pd.qcut(data, len(self.cut_bins), labels=self.cut_bins)
+        except ValueError:
+            levels = pd.qcut(data, len(self.cut_bins), duplicates='drop')
+            labels = self.cut_bins[:len(levels.cat.categories)//2] + self.cut_bins[len(levels.cat.categories)//2 + 1:]
+            if len(labels) < len(levels.cat.categories):
+                labels.insert(len(labels)//2, 'Medium')
+            levels = levels.cat.rename_categories(labels)
+        # put unknown as the smallest
+        categories = levels.cat.categories.to_list()
+        levels = levels.cat.add_categories('Unknown')
+        levels = levels.cat.reorder_categories(['Unknown'] + categories)
+        return levels.fillna('Unknown')
+
     def _persist_metrics(self, dataset, legitimacy, reputation, status):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
@@ -140,9 +156,9 @@ class NetworkMetrics(BasePropagationMetrics):
         average_reputation = reputation.mean(axis=1)
         average_status = status.mean(axis=1)
 
-        legitimacy_level = pd.cut(legitimacy, len(self.cut_bins), labels=self.cut_bins)
-        reputation_level = pd.cut(average_reputation, len(self.cut_bins), labels=self.cut_bins)
-        status_level = pd.cut(average_status, len(self.cut_bins), labels=self.cut_bins)
+        legitimacy_level = self.get_level(legitimacy)
+        reputation_level = self.get_level(average_reputation)
+        status_level = self.get_level(average_status)
         data = []
         for author_id in legitimacy.index:
             current_average_reputation = average_reputation.loc[author_id]
