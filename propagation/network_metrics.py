@@ -1,6 +1,7 @@
 import logging
 import time
 
+import numpy as np
 import pandas as pd
 from pymongo import MongoClient
 from pymongoarrow.monkey import patch_all
@@ -54,7 +55,7 @@ class NetworkMetrics(BasePropagationMetrics):
         database = client.get_database(dataset)
         collection = database.get_collection('raw')
 
-        node_pipeline = [
+        positive_legitimacy_pipeline = [
             {'$unwind': {'path': '$referenced_tweets'}},
             {'$group': {'_id': '$referenced_tweets.author.id',
                         'legitimacy': {'$count': {}}}},
@@ -65,10 +66,20 @@ class NetworkMetrics(BasePropagationMetrics):
         ]
         logger.debug('Computing legitimacy')
         start_time = time.time()
-        legitimacy = collection.aggregate_pandas_all(node_pipeline)
+        legitimacy = collection.aggregate_pandas_all(positive_legitimacy_pipeline)
         legitimacy = legitimacy.set_index('author_id')
         legitimacy = legitimacy.sort_values('legitimacy', ascending=False)
         legitimacy = legitimacy['legitimacy']
+
+        # All pipeline
+        all_author_ids_pipeline  = [
+            {'$group': {'_id': '$author.id'}},
+            {'$project': {'_id': 0, 'author_id': '$_id'}},
+        ]
+        all_author_ids = collection.aggregate_pandas_all(all_author_ids_pipeline)
+        legitimacy = legitimacy.reindex(all_author_ids['author_id'])
+        legitimacy = legitimacy.fillna(0)
+
         # Drop na indexes
         legitimacy = legitimacy[~legitimacy.index.isna()]
         logger.debug(f'Legitimacy computed in {time.time() - start_time} seconds')
@@ -94,12 +105,21 @@ class NetworkMetrics(BasePropagationMetrics):
         logger.debug('Computing reputation')
 
         legitimacy = collection.aggregate_pandas_all(node_pipeline)
+
+        # All pipeline
+        all_author_ids_pipeline = [
+            {'$group': {'_id': '$author.id'}},
+            {'$project': {'_id': 0, 'author_id': '$_id'}},
+        ]
+        all_author_ids = collection.aggregate_pandas_all(all_author_ids_pipeline)
+
         if len(legitimacy) == 0:
             raise ValueError(
                 f'No data available for the selected time range and dataset: {dataset} {self.unit} {self.bin_size}')
         legitimacy = legitimacy.pivot(columns='date', index='author_id', values='legitimacy')
         # Drop na indexes
         legitimacy = legitimacy[~legitimacy.index.isna()]
+        legitimacy = legitimacy.reindex(all_author_ids['author_id'])
         return legitimacy
 
     def compute_reputation(self, dataset):
@@ -116,9 +136,9 @@ class NetworkMetrics(BasePropagationMetrics):
         start_time = time.time()
         legitimacy = self._get_legitimacy_over_time(dataset)
         reputation = legitimacy.fillna(0).cumsum(axis=1)
-        status = reputation.apply(lambda x: rankdata(x, method='dense', nan_policy='omit'))
+        status = reputation.apply(lambda x: rankdata(x, method='min', nan_policy='omit'))
         logger.debug(f'Status computed in {time.time() - start_time} seconds')
-        return status
+        return status - 1
 
     def persist(self, datasets):
         for dataset in datasets:
@@ -133,19 +153,25 @@ class NetworkMetrics(BasePropagationMetrics):
             self._persist_metrics(dataset, legitimacy, reputation, status)
 
     def get_level(self, data):
+        data[data == 0] = np.nan
         try:
             levels = pd.qcut(data, len(self.cut_bins), labels=self.cut_bins)
         except ValueError:
             levels = pd.qcut(data, len(self.cut_bins), duplicates='drop')
-            labels = self.cut_bins[:len(levels.cat.categories)//2] + self.cut_bins[len(levels.cat.categories)//2 + 1:]
-            if len(labels) < len(levels.cat.categories):
-                labels.insert(len(labels)//2, 'Medium')
+            if len(levels.cat.categories) == 2:
+                labels = ['Low', 'High']
+            elif len(levels.cat.categories) == 1:
+                labels = ['Low']
+            else:
+                labels = self.cut_bins
             levels = levels.cat.rename_categories(labels)
-        # put unknown as the smallest
-        categories = levels.cat.categories.to_list()
-        levels = levels.cat.add_categories('Unknown')
-        levels = levels.cat.reorder_categories(['Unknown'] + categories)
-        return levels.fillna('Unknown')
+        if data.isna().any():
+            # put unknown as the smallest
+            categories = levels.cat.categories.to_list()
+            levels = levels.cat.add_categories('Null')
+            levels = levels.cat.reorder_categories(['Null'] + categories)
+            levels = levels.fillna('Null')
+        return levels
 
     def _persist_metrics(self, dataset, legitimacy, reputation, status):
         client = MongoClient(self.host, self.port)

@@ -1,6 +1,5 @@
 import logging
 
-import fire
 from pyaml_env import parse_config
 
 from figures import TweetTableFactory
@@ -192,11 +191,12 @@ def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
                                 max_edges_propagation_tree=config['propagation']['max_edges'].get('propagation_tree'),
                                 max_edges_hidden_network=config['propagation']['max_edges'].get('hidden_network'),
                                 wordcloud_max_words=config['wordcloud']['max_words'],
-                                available_datasets=config['available_datasets']
+                                available_datasets=config['available_datasets'],
+                                modules=modules,
                                 )
     prepopulator.prepopulate()
 
 
 if __name__ == '__main__':
-    fire.Fire(run_prepopulator)
-    # run_prepopulator(modules=['egonet', 'layout'], config_file='dev_config.yaml')
+    # fire.Fire(run_prepopulator)
+    run_prepopulator(modules=['network'], config_file='dev_config.yaml')

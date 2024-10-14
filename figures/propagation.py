@@ -39,8 +39,8 @@ class PropagationPlotFactory(MongoPlotFactory):
         self.max_edges_hidden_network = max_edges_hidden_network
         self.big_size_multiplier = big_size_multiplier
         self.small_size_multiplier = small_size_multiplier
-        self.sizes = sizes if sizes else {'Low': 1, 'Medium': 2, 'High': 3, 'Unknown': 0.5}
-        self.colors = colors if colors else {'Low': 1, 'Medium': 2, 'High': 3, 'Unknown': np.nan}
+        self.sizes = sizes if sizes else {'Low': 1, 'Medium': 2, 'High': 3, 'Null': 0.5, 'Unknown': 0.5}
+        self.colors = colors if colors else {'Low': 1, 'Medium': 2, 'High': 3, 'Null': 0.5, 'Unknown': np.nan}
         self.node_highlight_color = user_highlight_color
         self.layout = layout
         self.frequency = frequency
@@ -303,7 +303,7 @@ class PropagationPlotFactory(MongoPlotFactory):
                                                                                           schema=network_metrics_schema)
         client.close()
         metadata = metadata.set_index('author_id')
-        metadata = metadata.join(network_metrics.set_index('author_id'))
+        metadata = metadata.join(network_metrics.set_index('author_id'), how='left')
         metadata['User type'] = metadata.apply(transform_user_type, axis=1).fillna('Unknown')
 
         return metadata
@@ -330,9 +330,9 @@ class PropagationPlotFactory(MongoPlotFactory):
         metadata = self.get_user_metadata(collection, author_ids=user_graph.vs['author_id'])
         metadata = metadata.reindex(user_graph.vs['author_id'])
         # Try to patch missing metadata with graph info if available
-        if metadata.isna().any().any():
+        if metadata['username'].isna().any():
             logger.warning('Missing metadata for some nodes, trying to patch with graph info')
-            missing_nodes = metadata.index[metadata.drop(columns='party').isna().any(axis=1)].to_list()
+            missing_nodes = metadata.index[metadata['username'].isna()].to_list()
             for author_id in missing_nodes:
                 try:
                     node = user_graph.vs.find(author_id=author_id)
@@ -343,7 +343,6 @@ class PropagationPlotFactory(MongoPlotFactory):
                     logger.warning(f'Node {author_id} not found in graph')
                 except KeyError:
                     pass
-                    # logger.warning(f'Error getting username for node {author_id}')
 
         metadata['User type'] = metadata['User type'].fillna('Unknown')
 
