@@ -15,7 +15,7 @@ reference_types:
   - quoted
   - replied_to
 theme: PULSE
-debug: "True"
+debug: False
 frequency: 1D
 textual:
   api_url: 'http://srvinv02.esade.es:5005/api'
