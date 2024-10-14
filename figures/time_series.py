@@ -19,6 +19,7 @@ class TimeSeriesFactory(MongoPlotFactory):
         self.histogram = Histogram(host=host, port=port)
 
     def plot_tweet_series(self, dataset, hashtags, start_time, end_time, unit='day', bin_size=1):
+        start_time, end_time = self._validate_dates(dataset, start_time, end_time)
         if hashtags or start_time or end_time:
             try:
                 logger.debug('Computing tweet series')
@@ -30,6 +31,7 @@ class TimeSeriesFactory(MongoPlotFactory):
                 raise RuntimeError(f'Error computing tweet series: {e}') from e
         else:
             try:
+                logger.debug('Loading tweet series from database')
                 df = self.histogram.load_histogram(dataset, 'tweet')
             except Exception as e:
                 logger.error(f'Error loading tweet series: {e}')
@@ -51,6 +53,7 @@ class TimeSeriesFactory(MongoPlotFactory):
                 raise RuntimeError('Error computing user series') from e
         else:
             try:
+                logger.debug('Loading user series from database')
                 df = self.histogram.load_histogram(dataset, 'user')
             except Exception as e:
                 logger.error(f'Error loading user series: {e}')
