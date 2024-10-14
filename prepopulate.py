@@ -1,5 +1,6 @@
 import logging
 
+import fire
 from pyaml_env import parse_config
 
 from figures import TweetTableFactory
@@ -176,7 +177,7 @@ class Prepopulator:
 def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
                      modules=('egonet', 'layout', 'diffusion', 'diffusion_static_plots', 'network', 'histogram',
                               'tweet_table'),
-                     max_cascades=None, erase_existing=True):
+                     max_cascades=23, erase_existing=True):
     logger.info(f'Running prepopulator with config file: {config_file}')
     logger.info(f'Available datasets: {available_datasets}')
     logger.info(f'Modules: {modules}')
@@ -198,5 +199,5 @@ def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
 
 
 if __name__ == '__main__':
-    # fire.Fire(run_prepopulator)
-    run_prepopulator(modules=['network'], config_file='dev_config.yaml')
+    fire.Fire(run_prepopulator)
+    # run_prepopulator(modules=['network'], config_file='dev_config.yaml')
