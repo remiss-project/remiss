@@ -440,7 +440,6 @@ class DiffusionMetrics(BasePropagationMetrics):
         self.persist_diffusion_static_plots(datasets)
 
     def persist_diffusion_metrics(self, datasets, max_cascades=None, erase_existing=False):
-        jobs = []
         n_jobs = self.n_jobs
         self.n_jobs = 1
 
@@ -457,6 +456,7 @@ class DiffusionMetrics(BasePropagationMetrics):
             if cascade_ids.empty:
                 logger.warning(f'No cascades found for dataset {dataset}')
             else:
+                jobs = []
                 for cascade_id in tqdm(cascade_ids['tweet_id']):
                     # if not self.has_diffusion_metrics(dataset, cascade_id):
                     jobs.append(delayed(self._compute_cascade_metrics_for_persistence)(dataset, cascade_id))
