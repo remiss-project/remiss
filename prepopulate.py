@@ -194,10 +194,11 @@ def run_prepopulator(config_file='prod_config.yaml', available_datasets=None,
                                 wordcloud_max_words=config['wordcloud']['max_words'],
                                 available_datasets=config['available_datasets'],
                                 modules=modules,
+                                max_cascades=max_cascades,
                                 )
     prepopulator.prepopulate()
 
 
 if __name__ == '__main__':
     fire.Fire(run_prepopulator)
-    # run_prepopulator(modules=['network'], config_file='dev_config.yaml')
+    # run_prepopulator(modules=['diffusion'], config_file='dev_config.yaml', max_cascades=23)
