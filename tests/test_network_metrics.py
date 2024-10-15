@@ -287,6 +287,22 @@ class NetworkMetricsTestCase(unittest.TestCase):
         self.assertEqual(reputation_level.cat.categories.tolist(), ['Unknown', 'Low', 'Medium', 'High'])
         self.assertEqual(status_level.cat.categories.tolist(), ['Unknown', 'Low', 'Medium',  'High'])
 
+    def test_get_legitimacy_for_author(self):
+        author_id = '280227352'
+        actual = self.network_metrics.load_legitimacy_for_author(self.test_dataset, author_id)
+        self.assertIsInstance(actual, (int, float))
+
+    def test_get_reputation_for_author(self):
+        author_id = '280227352'
+        actual = self.network_metrics.load_reputation_for_author(self.test_dataset, author_id)
+        self.assertIsInstance(actual, pd.Series)
+        self.assertGreater(actual.shape[0], 0)
+
+    def test_get_status_for_author(self):
+        author_id = '280227352'
+        actual = self.network_metrics.load_status_for_author(self.test_dataset, author_id)
+        self.assertIsInstance(actual, pd.Series)
+        self.assertGreater(actual.shape[0], 0)
 
 if __name__ == '__main__':
     unittest.main()

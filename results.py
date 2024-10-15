@@ -1,9 +1,7 @@
 import logging
-from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-import fire
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -21,7 +19,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(leve
 
 class Results:
 
-    def __init__(self, dataset, host='localhost', port=27017, output_dir='./results', egonet_depth=2,
+    def __init__(self, datasets, host='localhost', port=27017, output_dir='./results', egonet_depth=2,
                  features=('propagation_tree', 'egonet', 'legitimacy_status_reputation', 'cascades', 'nodes_edges',
                            'performance'), max_cascades=None, num_samples=None):
         self.num_samples = num_samples
@@ -30,222 +28,248 @@ class Results:
         self.port = port
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True, parents=True)
-        self.dataset = dataset
-        self.propagation_factory = PropagationPlotFactory(available_datasets=[self.dataset], host=self.host,
-                                                          port=self.port, preload=False)
+        self.datasets = datasets
+        self.propagation_factory = PropagationPlotFactory(available_datasets=[self.datasets], host=self.host,
+                                                          port=self.port, preload=False,
+                                                          max_edges_propagation_tree=4000, )
         self.egonet_depth = egonet_depth
         self.features = features
 
     def plot_propagation_trees(self):
-        normal, suspect, politician, suspect_politician = self._get_cascades()
-        for i, row in normal.iterrows():
-            try:
-                plot = self.propagation_factory.plot_propagation_tree(self.dataset, row['id'])
-                plot.write_image(f'{self.output_dir}/normal_propagation_tree_{i}.png')
-                logger.info(f'Plotted propagation tree for user {row["id"]} from dataset {self.dataset}')
-            except Exception as e:
-                logger.warning(
-                    f'Failed to plot propagation tree for user {row["id"]} from dataset {self.dataset} due to {e}')
+        cascades = self._get_cascades()
 
-        for i, row in suspect.iterrows():
-            try:
-                plot = self.propagation_factory.plot_propagation_tree(self.dataset, row['id'])
-                plot.write_image(f'{self.output_dir}/suspect_propagation_tree_{i}.png')
-                logger.info(f'Plotted propagation tree for user {row["id"]} from dataset {self.dataset}')
-            except Exception as e:
-                logger.warning(
-                    f'Failed to plot propagation tree for user {row["id"]} from dataset {self.dataset} due to {e}')
+        for user_type, group in cascades.groupby('user_type'):
+            logger.info(f'Plotting propagation trees for user type {user_type}')
+            for i, row in group.iterrows():
+                dataset, tweet_id = row['dataset'], row['id']
+                output_dir = self.output_dir / f'propagation_trees/{user_type}'
+                output_dir.mkdir(exist_ok=True, parents=True)
 
-        for i, row in politician.iterrows():
-            try:
-                plot = self.propagation_factory.plot_propagation_tree(self.dataset, row['id'])
-                plot.write_image(f'{self.output_dir}/politician_propagation_tree_{i}.png')
-                logger.info(f'Plotted propagation tree for user {row["id"]} from dataset {self.dataset}')
-            except Exception as e:
-                logger.warning(
-                    f'Failed to plot propagation tree for user {row["id"]} from dataset {self.dataset} due to {e}')
+                try:
+                    plot = self.propagation_factory.plot_propagation_tree(dataset, tweet_id)
+                    plot.write_image(output_dir / f'{dataset}-{tweet_id}.png')
+                    logger.info(f'Plotted propagation tree for user {tweet_id} from dataset {dataset}')
+                except Exception as e:
+                    logger.warning(
+                        f'Failed to plot propagation tree for user {tweet_id} from dataset {dataset} due to {e}')
 
-        for i, row in suspect_politician.iterrows():
-            try:
-                plot = self.propagation_factory.plot_propagation_tree(self.dataset, row['id'])
-                plot.write_image(f'{self.output_dir}/suspect_politician_propagation_tree_{i}.png')
-                logger.info(f'Plotted propagation tree for user {row["id"]} from dataset {self.dataset}')
-            except Exception as e:
-                logger.warning(
-                    f'Failed to plot propagation tree for user {row["id"]} from dataset {self.dataset} due to {e}')
+    def _create_cascade_pipeline(self, is_usual_suspect, party_ne=None):
+        """
+        Helper function to create MongoDB aggregation pipelines.
+        """
+        match_conditions = {
+            'referenced_tweets': {'$exists': False},
+            'author.remiss_metadata.is_usual_suspect': is_usual_suspect,
+            'author.remiss_metadata.party': {'$ne' if party_ne else '$eq': None}
+        }
+
+        return [
+            {'$match': match_conditions},
+            {'$sort': {'public_metrics.retweet_count': -1}},
+            {'$limit': 10},
+            {'$project': {'_id': 0, 'id': 1, 'retweet_count': '$public_metrics.retweet_count'}}
+        ]
+
+    def _process_data(self, raw, pipeline, schema):
+        """
+        Helper function to aggregate data and handle sampling.
+        """
+        data = raw.aggregate_pandas_all(pipeline, schema=schema)
+        return data
 
     def _get_cascades(self):
-        normal_pipeline = [
-            {'$match': {'referenced_tweets': {'$exists': False},
-                        'author.remiss_metadata.is_usual_suspect': False,
-                        'author.remiss_metadata.party': {'$eq': None},
-                        }},
-            {'$sort': {'public_metrics.retweet_count': -1}},
-            {'$limit': 100},
-            {'$project': {'_id': 0, 'id': 1, 'retweet_count': '$public_metrics.retweet_count'}}
-        ]
-        suspect_pipeline = [
-            {'$match': {'referenced_tweets': {'$exists': False},
-                        'author.remiss_metadata.is_usual_suspect': True,
-                        'author.remiss_metadata.party': {'$eq': None},
-                        }},
-            {'$sort': {'public_metrics.retweet_count': -1}},
-            {'$limit': 100},
-            {'$project': {'_id': 0, 'id': 1, 'retweet_count': '$public_metrics.retweet_count'}}
-        ]
-        politician_pipeline = [
-            {'$match': {'referenced_tweets': {'$exists': False},
-                        'author.remiss_metadata.is_usual_suspect': False,
-                        'author.remiss_metadata.party': {'$ne': None},
-                        }},
-            {'$sort': {'public_metrics.retweet_count': -1}},
-            {'$limit': 100},
-            {'$project': {'_id': 0, 'id': 1, 'retweet_count': '$public_metrics.retweet_count'}}
-        ]
-        suspect_politician_pipeline = [
-            {'$match': {'referenced_tweets': {'$exists': False},
-                        'author.remiss_metadata.is_usual_suspect': True,
-                        'author.remiss_metadata.party': {'$ne': None},
-                        }},
-            {'$sort': {'public_metrics.retweet_count': -1}},
-            {'$limit': 100},
-            {'$project': {'_id': 0, 'id': 1, 'retweet_count': '$public_metrics.retweet_count'}}
-        ]
+        schema = Schema({
+            'id': str,
+            'retweet_count': int
+        })
 
         client = MongoClient(self.host, self.port)
-        raw = client.get_database(self.dataset).get_collection('raw')
-        normal = raw.aggregate_pandas_all(normal_pipeline)
-        suspect = raw.aggregate_pandas_all(suspect_pipeline)
-        politician = raw.aggregate_pandas_all(politician_pipeline)
-        suspect_politician = raw.aggregate_pandas_all(suspect_politician_pipeline)
-        if normal.empty:
-            logger.warning('No normal users found')
-        if suspect.empty:
-            logger.warning('No suspect users found')
-        if politician.empty:
-            logger.warning('No politician users found')
-        if suspect_politician.empty:
-            logger.warning('No suspect politician users found')
-        return normal, suspect, politician, suspect_politician
+
+        pipelines = {
+            'normal': self._create_cascade_pipeline(is_usual_suspect=False, party_ne=False),
+            'suspect': self._create_cascade_pipeline(is_usual_suspect=True, party_ne=False),
+            'politician': self._create_cascade_pipeline(is_usual_suspect=False, party_ne=True),
+            'suspect_politician': self._create_cascade_pipeline(is_usual_suspect=True, party_ne=True)
+        }
+
+        # Initialize empty dictionaries to store data for each type
+        results = {key: {} for key in pipelines.keys()}
+
+        # Iterate over datasets and process each
+        for dataset in self.datasets:
+            raw = client.get_database(dataset).get_collection('raw')
+            for key, pipeline in pipelines.items():
+                results[key][dataset] = self._process_data(raw, pipeline, schema)
+
+        # Concatenate results across datasets for each user type
+        for key in results:
+            results[key] = pd.concat(results[key].values(), keys=results[key].keys()).reset_index().drop(
+                columns='level_1').rename(columns={'level_0': 'dataset'}).set_index(['dataset', 'id'])
+
+        # Log warnings for empty dataframes
+        for key in results:
+            if results[key].empty:
+                logger.warning(f'No {key.replace("_", " ")} users found')
+            else:
+                try:
+                    results[key] = results[key].sample(n=10)
+                except ValueError:
+                    pass
+
+        # Concatenate all user types into a single dataframe and add user_type
+        cascades = pd.concat(results.values(), keys=results.keys())
+        cascades = cascades.reset_index().rename(columns={'level_0': 'user_type'})
+        return cascades
+
+    def _create_users_pipeline(self, is_usual_suspect, party_ne=None):
+        """
+        Helper function to create MongoDB aggregation pipelines.
+        """
+        match_conditions = {
+            'referenced_tweets': {'$exists': False},
+            'author.remiss_metadata.is_usual_suspect': is_usual_suspect,
+            'author.remiss_metadata.party': {'$ne' if party_ne else '$eq': None},
+            'public_metrics.retweet_count': {'$gt': 100}
+        }
+
+        return [
+            {'$match': match_conditions},
+            {'$sort': {'public_metrics.retweet_count': -1}},
+            {'$group': {'_id': '$author.id', 'retweet_count': {'$sum': '$public_metrics.retweet_count'}}},
+            {'$sort': {'retweet_count': -1}},
+            {'$limit': 10},
+            {'$project': {'_id': 0, 'author_id': '$_id', 'retweet_count': 1}}
+
+        ]
+
+    def _get_users(self):
+        schema = Schema({
+            'author_id': str,
+            'retweet_count': int
+        })
+
+        client = MongoClient(self.host, self.port)
+
+        pipelines = {
+            'normal': self._create_users_pipeline(is_usual_suspect=False, party_ne=False),
+            'suspect': self._create_users_pipeline(is_usual_suspect=True, party_ne=False),
+            'politician': self._create_users_pipeline(is_usual_suspect=False, party_ne=True),
+            'suspect_politician': self._create_users_pipeline(is_usual_suspect=True, party_ne=True)
+        }
+
+        # Initialize empty dictionaries to store data for each type
+        results = {key: {} for key in pipelines.keys()}
+
+        # Iterate over datasets and process each
+        for dataset in self.datasets:
+            raw = client.get_database(dataset).get_collection('raw')
+            for key, pipeline in pipelines.items():
+                results[key][dataset] = self._process_data(raw, pipeline, schema)
+
+        # Concatenate results across datasets for each user type
+        for key in results:
+            results[key] = pd.concat(results[key].values(), keys=results[key].keys()).reset_index().drop(
+                columns='level_1').rename(columns={'level_0': 'dataset'}).set_index(['dataset', 'author_id'])
+
+        # Log warnings for empty dataframes
+        for key in results:
+            if results[key].empty:
+                logger.warning(f'No {key.replace("_", " ")} users found')
+            else:
+                try:
+                    results[key] = results[key].sample(n=10)
+                except ValueError:
+                    pass
+
+        # Concatenate all user types into a single dataframe and add user_type
+        users = pd.concat(results.values(), keys=results.keys())
+        users = users.reset_index().rename(columns={'level_0': 'user_type'})
+        return users
 
     def plot_egonet_and_backbone(self):
         logger.info('Plotting egonets and backbones')
-        logger.info('Getting degrees')
-        degrees = self._get_degrees()
+        logger.info('Getting users')
+        users = self._get_users()
 
         logger.info('Plotting egonets')
         # group by user type and plot the egonet for each user
-        for user_type, group in degrees.groupby('user_type'):
-            figures = []
-
+        for user_type, group in users.groupby('user_type'):
             for i, row in group.iterrows():
+                user_id = row['author_id']
+                dataset = row['dataset']
                 try:
-                    plot = self.propagation_factory.plot_egonet(self.dataset, row['index'], self.egonet_depth)
-                    figures.append(plot)
+                    fig = self.propagation_factory.plot_egonet(dataset, user_id, self.egonet_depth)
+                    output_path = self.output_dir / f'egonet_and_backbone/egonet_{dataset}_{user_type}_{user_id}.png'
+                    output_path.parent.mkdir(exist_ok=True, parents=True)
+                    fig.write_image(output_path)
                     logger.info(
-                        f'Plotted egonet for user {row["index"]} from dataset {self.dataset}')
-                    break
+                        f'Plotted egonet for user {user_id} from dataset {dataset}')
+
                 except Exception as e:
                     logger.warning(
-                        f'Failed to plot egonet for user {row["index"]} from dataset {self.dataset} due to {e}')
-
-            # save the plotly figures as png
-            for i, fig in enumerate(figures):
-                fig.write_image(f'{self.output_dir}/egonet_{user_type}_{i}.png')
-
-    def _get_degrees(self):
-
-        hidden_network = self.propagation_factory.egonet.get_hidden_network(self.dataset)
-        degree = pd.Series(hidden_network.degree(), index=hidden_network.vs['author_id'])
-        metadata = self._get_metadata(self.dataset)
-        # merge degree with metadata
-        degree = degree.to_frame('degree').join(metadata.set_index('author_id'))
-
-        # merge dfs with the dataset as a additional column
-        degree = degree.dropna(subset='is_usual_suspect').sort_values(ascending=False, by='degree').reset_index()
-        return degree
-
-    def _get_metadata(self, dataset):
-        client = MongoClient(self.host, self.port)
-        database = client.get_database(dataset)
-        collection = database.get_collection('raw')
-        # get a table with author_id, party, is_usual_suspect
-        pipeline = [
-            {'$project': {'_id': 0, 'author_id': 1, 'party': '$author.remiss_metadata.party',
-                          'is_usual_suspect': '$author.remiss_metadata.is_usual_suspect'}},
-        ]
-        schema = Schema({'author_id': str, 'party': str, 'is_usual_suspect': bool})
-
-        df = collection.aggregate_pandas_all(pipeline, schema=schema)
-
-        def get_user_type(row):
-            if row['is_usual_suspect']:
-                if row['party']:
-                    return 'suspect_politician'
-                return 'suspect'
-            if row['party']:
-                return 'politician'
-            return 'normal'
-
-        df['user_type'] = df.apply(get_user_type, axis=1)
-        return df
+                        f'Failed to plot egonet for user {user_id} from dataset {dataset} due to {e}')
 
     def plot_legitimacy_status_and_reputation(self):
-        logger.info('Plotting legitimacy, status and reputation')
-        logger.info('Getting legitimacy, status and reputation')
-        legitimacy = self.propagation_factory.network_metrics.get_legitimacy(self.dataset)
-        reputation = self.propagation_factory.network_metrics.get_reputation(self.dataset)
-        status = self.propagation_factory.network_metrics.get_status(self.dataset)
+        self.plot_legitimacy()
+        # self.plot_status_and_reputation()
 
-        logger.info('Getting degrees')
+    def plot_legitimacy(self):
+        # Get all legitimacies
+        logger.info('Getting legitimacies')
+        legitimacy = []
+        for dataset in self.datasets:
+            metadata = self.propagation_factory.get_user_metadata(dataset)
+            metadata['user_type'] = metadata.apply(transform_user_type, axis=1)
+            metadata['dataset'] = dataset
+            legitimacy.append(metadata[['legitimacy', 'user_type', 'dataset']])
+
+        legitimacy = pd.concat(legitimacy)
+        logger.info('Plotting legitimacy distribution')
+        fig = px.violin(legitimacy, y='legitimacy', color='user_type',  box=False, points='all', title='Legitimacy distribution',
+                        category_orders={'user_type': ['Normal', 'Suspect', 'Politician', 'Suspect politician']})
+        fig.show()
+        fig.write_image(self.output_dir / 'legitimacy_status_and_reputation/legitimacy_distribution_full.png')
+        legitimacy = legitimacy[legitimacy['legitimacy'] < 1000]
+        fig = px.violin(legitimacy, y='legitimacy', color='user_type', box=False, points='all', title='Legitimacy distribution',
+                        category_orders={'user_type': ['Normal', 'Suspect', 'Politician', 'Suspect politician']})
+        fig.show()
+        fig.write_image(self.output_dir / 'legitimacy_status_and_reputation/legitimacy_distribution_1000.png')
+
+
+
+    def plot_status_and_reputation(self):
+        logger.info('Getting users')
         # get degrees and metadata
-        degrees = self._get_degrees()
-        legitimacy_figures_data = defaultdict(list)
+        users = self._get_users()
         # group by user type and plot the egonet for each user
-        for user_type, group in degrees.groupby('user_type'):
-            reputation_figures = []
-            status_figures = []
+        for user_type, group in users.groupby('user_type'):
             for i, row in group.iterrows():
+                dataset = row['dataset']
+                author_id = row['author_id']
                 try:
-                    user_reputation = reputation.loc[row['index']]
-                    user_status = status.loc[row['index']]
-                    fig = self._plot_reputation(user_reputation)
-                    reputation_figures.append(fig)
-                    fig = self._plot_status(user_status)
-                    status_figures.append(fig)
-                    legitimacy_figures_data[user_type].append(legitimacy[row['index']])
+                    reputation = self.propagation_factory.network_metrics.load_reputation_for_author(dataset, author_id)
+                    status = self.propagation_factory.network_metrics.load_status_for_author(dataset, author_id)
+                    output_dir = self.output_dir / 'legitimacy_status_and_reputation' / 'reputation'
+                    output_dir.mkdir(exist_ok=True, parents=True)
+                    fig = self._plot_reputation(reputation)
+                    fig.write_image(f'{output_dir}/{user_type}_{dataset}_{author_id}.png')
+                    fig = self._plot_status(status)
+                    output_dir = self.output_dir / 'legitimacy_status_and_reputation' / 'status'
+                    output_dir.mkdir(exist_ok=True, parents=True)
+                    fig.write_image(f'{output_dir}/{user_type}_{dataset}_{author_id}.png')
 
-                    logger.info(f'Plotted legitimacy, reputation and status for '
-                                f'user from dataset {self.dataset}')
-                    break
+                    logger.info(f'Plotted reputation and status for '
+                                f'{author_id} from dataset {dataset} of {user_type}')
+
                 except Exception as e:
                     logger.warning(
-                        f'Failed to plot legitimacy, reputation and status for user  from dataset {self.dataset} due to {e}')
-
-            # save the plotly figures as png
-            for i, fig in enumerate(reputation_figures):
-                fig.write_image(f'{self.output_dir}/reputation_{user_type}_{i}.png')
-            for i, fig in enumerate(status_figures):
-                fig.write_image(f'{self.output_dir}/status_{user_type}_{i}.png')
-
-        legitimacy_figures = self._plot_legitimacy(legitimacy_figures_data)
-        for i, fig in enumerate(legitimacy_figures):
-            fig.write_image(f'{self.output_dir}/legitimacy_{i}.png')
+                        f'Failed to plot legitimacy, reputation and status for user  from dataset {dataset} due to {e}')
 
     def _plot_reputation(self, reputation):
         return self._plot_time_series(reputation, 'Reputation over time', 'Time', 'Reputation')
 
     def _plot_status(self, status):
         return self._plot_time_series(status, 'Status over time', 'Time', 'Status')
-
-    def _plot_legitimacy(self, data):
-        data = pd.DataFrame(data)
-        figures = []
-        for i, row in data.iterrows():
-            fig = px.bar(row, x=row.index, y=row.values, color=row.index)
-            fig.update_layout(title='Legitimacy', xaxis_title='User type', yaxis_title='Legitimacy')
-            figures.append(fig)
-        return figures
 
     def _plot_time_series(self, data, title, x_label, y_label):
         # Assume data is a pd.Series
@@ -259,7 +283,7 @@ class Results:
     def generate_nodes_and_edges_table(self, max_nodes=80000):
         logger.info('Generating nodes and edges table')
         num_nodes_edges = {}
-        for dataset in self.dataset:
+        for dataset in self.datasets:
             logger.info(f'Getting hidden network for dataset {dataset}')
             # hidden_network = self.propagation_factory.egonet.load_hidden_network_backbone(dataset)
             hidden_network = self.propagation_factory.egonet.load_hidden_network(dataset)
@@ -276,14 +300,17 @@ class Results:
                                         'closeness': closeness}
 
         num_nodes_edges = pd.DataFrame(num_nodes_edges).T
-        num_nodes_edges.to_csv(self.output_dir / 'nodes_edges.csv')
+        output_path = self.output_dir / 'nodes_and_edges/nodes_edges.csv'
+        output_path.parent.mkdir(exist_ok=True, parents=True)
+        num_nodes_edges.to_csv(output_path)
 
     def generate_performance_table(self):
         logger.info('Generating performance table')
-        results_filepath = self.output_dir / 'model_performance.csv'
+        results_filepath = self.output_dir / 'performance/model_performance.csv'
+        results_filepath.parent.mkdir(exist_ok=True, parents=True)
 
         results = {}
-        for dataset in self.dataset:
+        for dataset in self.datasets:
             try:
                 logger.info(f'Testing dataset {dataset}')
                 X, y = self._load_dataset(self.output_dir, dataset)
@@ -298,7 +325,7 @@ class Results:
         logger.info(results)
         logger.info(f'Saving results to {results_filepath}')
         results.to_csv(results_filepath, index=True)
-        results.to_markdown(self.output_dir / 'model_performance.md')
+        results.to_markdown(self.output_dir / 'performance/model_performance.md')
 
     def _load_dataset(self, output_dir, dataset):
         dataset_path = Path(output_dir) / f'{dataset}.csv'
@@ -314,7 +341,6 @@ class Results:
         y = features['propagated']
         X = features.drop(columns=['propagated'])
         return X, y
-
 
     def _test_dataset(self, X, y, dataset):
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -333,12 +359,11 @@ class Results:
         results = pd.DataFrame(results).stack().swaplevel().sort_index(ascending=False)
         results.name = dataset
 
-
         train_confmat = pd.crosstab(y_train, y_train_pred, rownames=['Actual'], colnames=['Predicted'])
         (self.output_dir / f'{dataset}').mkdir(exist_ok=True, parents=True)
-        train_confmat.to_csv(self.output_dir / f'{dataset}' / 'train_confmat.csv')
+        train_confmat.to_csv(self.output_dir / f'performance/{dataset}' / 'train_confmat.csv')
         test_confmat = pd.crosstab(y_test, y_test_pred, rownames=['Actual'], colnames=['Predicted'])
-        test_confmat.to_csv(self.output_dir / f'{dataset}' / 'test_confmat.csv')
+        test_confmat.to_csv(self.output_dir / f'performance/{dataset}' / 'test_confmat.csv')
         # plot feature importance
         feature_importances = pd.Series(model.model['classifier'].feature_importances_,
                                         index=model.model['classifier'].feature_names_in_).sort_values(ascending=False)
@@ -347,7 +372,7 @@ class Results:
         fig = px.bar(feature_importances, title='Feature importance')
         fig.update_xaxes(title_text='Feature')
         fig.update_yaxes(title_text='Importance')
-        fig.write_image(self.output_dir / f'{dataset}' / 'feature_importance.png')
+        fig.write_image(self.output_dir / f'performance/{dataset}' / 'feature_importance.png')
         return results
 
     def _get_metrics(self, y_true, y_pred):
@@ -372,7 +397,6 @@ class Results:
                     self.plot_egonet_and_backbone()
                 case 'legitimacy_status_reputation':
                     self.plot_legitimacy_status_and_reputation()
-
                 case 'nodes_edges':
                     self.generate_nodes_and_edges_table()
                 case 'performance':
@@ -383,11 +407,13 @@ class Results:
         logger.info('Results processed')
 
 
-def run_results(dataset, host='localhost', port=27017, output_dir='./results', egonet_depth=2,
+def run_results(datasets=('Openarms', 'MENA_Agressions', 'MENA_Ajudes', 'Barcelona_2019', 'Generales_2019',
+                          'Generalitat_2021', 'Andalucia_2022'),
+                host='localhost', port=27017, output_dir='./results', egonet_depth=2,
                 features=('propagation_tree', 'egonet', 'legitimacy', 'cascades', 'nodes_edges', 'performance'),
                 max_cascades=None, num_samples=None):
     logger.info('Running results')
-    logger.info(f'Datasets: {dataset}')
+    logger.info(f'Datasets: {datasets}')
     logger.info(f'Host: {host}')
     logger.info(f'Port: {port}')
     logger.info(f'Output directory: {output_dir}')
@@ -395,13 +421,23 @@ def run_results(dataset, host='localhost', port=27017, output_dir='./results', e
     logger.info(f'Max cascades: {max_cascades}')
     logger.info(f'Num samples: {num_samples}')
     logger.info(f'Features: {features}')
-    results = Results(dataset=dataset, host=host, port=port, output_dir=output_dir,
+    results = Results(datasets=datasets, host=host, port=port, output_dir=output_dir,
                       egonet_depth=egonet_depth,
                       features=features,
                       max_cascades=max_cascades,
                       num_samples=num_samples)
     results.process()
 
+
+def transform_user_type(x):
+    if x['is_usual_suspect'] and x['party'] is not None:
+        return 'Suspect politician'
+    elif x['is_usual_suspect']:
+        return 'Suspect'
+    elif x['party'] is not None:
+        return 'Politician'
+    else:
+        return 'Normal'
 
 if __name__ == '__main__':
     # fire.Fire(run_results)
@@ -421,20 +457,19 @@ if __name__ == '__main__':
     #             host='mongodb://srvinv02.esade.es',
     #             features=('legitimacy_status_reputation',),
     #             output_dir='results/openarms')
-    # run_results(['test_dataset_2'],
+    # run_results(['test_dataset_2', 'test_dataset_3'],
     #             host='localhost',
-    #             features=('performance',),
-    #             output_dir='results/local/performance',
+    #             features=('legitimacy_status_reputation',),
+    #             output_dir='results/local/',
     #             num_samples=1000)
     # run_results(['Openarms', 'MENA_Agressions', 'MENA_Ajudes'],
     #             host='mongodb://srvinv02.esade.es',
     #             features=('performance',),
     #             output_dir='results/performance',
     #             num_samples=50000)
-    run_results(['Andalucia_2022', 'Barcelona_2019', 'Generales_2019', 'Generalitat_2021'],
-                host='localhost',
-                features=['performance'],
-                output_dir='final_results/performance',
-                num_samples=50000
-        )
-
+    run_results(
+        host='mongodb://srvinv02.esade.es',
+        features=['nodes_edges'],
+        output_dir='results/final',
+        num_samples=50000
+    )

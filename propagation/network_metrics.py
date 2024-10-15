@@ -216,3 +216,38 @@ class NetworkMetrics(BasePropagationMetrics):
         except AttributeError:
             logger.error(f'Error serializing {name}')
         return metric
+
+    def load_legitimacy_for_author(self, dataset, author_id):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('network_metrics')
+        pipeline = [
+            {'$match': {'author_id': author_id}},
+            {'$project': {'_id': 0, 'legitimacy': 1}}
+        ]
+        legitimacy = collection.aggregate_pandas_all(pipeline)
+        return legitimacy['legitimacy'].values[0]
+
+    def load_reputation_for_author(self, dataset, author_id):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('network_metrics')
+        pipeline = [
+            {'$match': {'author_id': author_id}},
+            {'$project': {'_id': 0, 'author_id':1 , 'reputation': 1}}
+        ]
+        reputation = collection.aggregate_pandas_all(pipeline)
+        reputation = pd.Series(reputation['reputation'].values[0], name=reputation['author_id'].values[0])
+        return reputation
+
+    def load_status_for_author(self, dataset, author_id):
+        client = MongoClient(self.host, self.port)
+        database = client.get_database(dataset)
+        collection = database.get_collection('network_metrics')
+        pipeline = [
+            {'$match': {'author_id': author_id}},
+            {'$project': {'_id': 0, 'author_id': 1, 'status': 1}}
+        ]
+        status = collection.aggregate_pandas_all(pipeline)
+        status = pd.Series(status['status'].values[0], name=status['author_id'].values[0])
+        return status
