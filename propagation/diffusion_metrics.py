@@ -356,7 +356,9 @@ class DiffusionMetrics(BasePropagationMetrics):
         return cascades
 
     def compute_cascade_count_over_time(self, dataset):
+        logger.info(f'Computing cascade count over time for dataset {dataset}')
         cascade_ids = self.get_cascade_ids(dataset)
+        logger.info(f'Found {len(cascade_ids)} cascades in dataset {dataset}. Sampling')
         cascade_ids = cascade_ids.fillna(1)
         cascade_ids = cascade_ids.set_index('created_at')
         cascade_ids = cascade_ids.resample('W').count()
@@ -393,6 +395,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         return shortest_paths
 
     def get_cascade_ids(self, dataset):
+        logger.info(f'Getting cascades in dataset {dataset}')
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         collection = database.get_collection('raw')
