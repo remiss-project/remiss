@@ -371,7 +371,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         cascade_ids = cascade_ids.fillna(1)
         cascade_ids = cascade_ids.set_index('created_at')
         cascade_ids_week = cascade_ids.resample('W').count()
-        if cascade_ids_week.shape[0] <= 5:
+        if cascade_ids_week.shape[0] <= 20:
             cascade_ids = cascade_ids.resample('D').count()
         else:
             cascade_ids = cascade_ids_week
