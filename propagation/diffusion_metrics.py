@@ -559,20 +559,24 @@ class DiffusionMetrics(BasePropagationMetrics):
             raise e
 
     def _persist_plot_size_cascade_ccdf_to_mongodb(self, dataset):
+        logger.info(f'Persisting size cascade ccdf for {dataset}')
         size_cascade = self.compute_size_cascade_ccdf(dataset)
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         collection = database.get_collection('size_cascade_ccdf')
         collection.drop()
+        logger.info(f'Inserting {len(size_cascade)} records')
         collection.insert_many(size_cascade.reset_index().to_dict(orient='records'))
         client.close()
 
     def _persist_plot_cascade_count_over_time_to_mongodb(self, dataset):
+        logger.info(f'Persisting cascade count over time for {dataset}')
         cascade_count_over_time = self.compute_cascade_count_over_time(dataset)
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
         collection = database.get_collection('cascade_count_over_time')
         collection.drop()
+        logger.info(f'Inserting {len(cascade_count_over_time)} records')
         collection.insert_many(cascade_count_over_time.reset_index().to_dict(orient='records'))
         client.close()
 
