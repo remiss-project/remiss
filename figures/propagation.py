@@ -243,7 +243,18 @@ class PropagationPlotFactory(MongoPlotFactory):
             size_cascade = self.diffusion_metrics.compute_size_cascade_ccdf(dataset)
         bad_columns = size_cascade.columns[(~size_cascade.isna()).sum() <= 1].to_list()
         size_cascade = size_cascade.drop(columns=bad_columns)
-        # Interpolate by columns to fill the nan gaps
+        # Find first and last non nan values per column
+        first_non_nan = size_cascade.apply(lambda x: x.first_valid_index())
+        last_non_nan = size_cascade.apply(lambda x: x.last_valid_index())
+        # # Fill with 100 all the nans until the first non nan value
+        for column, first in first_non_nan.items():
+            size_cascade.loc[:first, column] = 100
+
+        # # Fill with 0 all the nans after the last non nan value
+        for column, last in last_non_nan.items():
+            size_cascade.loc[last:, column] = 0
+
+        # Interpolate in the middle
         size_cascade = size_cascade.interpolate(method='slinear', axis=0)
         return plot_time_series(size_cascade, 'Size cascade CCDF', 'Size', 'CCDF')
 
