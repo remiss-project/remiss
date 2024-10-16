@@ -153,6 +153,7 @@ class NetworkMetrics(BasePropagationMetrics):
             self._persist_metrics(dataset, legitimacy, reputation, status)
 
     def get_level(self, data):
+        data = data.copy()
         data[data == 0] = np.nan
         try:
             levels = pd.qcut(data, len(self.cut_bins), labels=self.cut_bins)
@@ -185,6 +186,9 @@ class NetworkMetrics(BasePropagationMetrics):
         legitimacy_level = self.get_level(legitimacy)
         reputation_level = self.get_level(average_reputation)
         status_level = self.get_level(average_status)
+
+        reputation.columns = reputation.columns.astype(str)
+        status.columns = status.columns.astype(str)
         data = []
         for author_id in legitimacy.index:
             current_average_reputation = average_reputation.loc[author_id]
@@ -194,8 +198,8 @@ class NetworkMetrics(BasePropagationMetrics):
             current_reputation_level = reputation_level.loc[author_id]
             current_status_level = status_level.loc[author_id]
 
-            current_reputation = self._serialize_date_metric(reputation.loc[author_id], 'reputation')
-            current_status = self._serialize_date_metric(status.loc[author_id], 'status')
+            current_reputation = reputation.loc[author_id].to_dict()
+            current_status = status.loc[author_id].to_dict()
 
             data.append({'author_id': author_id,
                          'legitimacy': float(legitimacy[author_id]),
@@ -211,8 +215,8 @@ class NetworkMetrics(BasePropagationMetrics):
 
     def _serialize_date_metric(self, metric, name):
         try:
+            metric.index = metric.index.astype(str)
             metric = metric.to_dict()
-            metric = {str(k): v for k, v in metric.items()}
         except AttributeError:
             logger.error(f'Error serializing {name}')
         return metric

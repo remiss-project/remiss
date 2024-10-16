@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.figure_factory as ff
+from pandas import Timestamp
 from pymongo import MongoClient
 
 from propagation import NetworkMetrics
@@ -195,7 +196,10 @@ class NetworkMetricsTestCase(unittest.TestCase):
 
     def test_persistence_and_loading_full(self):
         # Test the persistence and loading of the graph
+        start_time = Timestamp.now()
         self.network_metrics.persist([self.test_dataset])
+        end_time = Timestamp.now()
+        print(f'persisted in {end_time - start_time}')
 
         start_time = time.time()
         expected_legitimacy = self.network_metrics.compute_legitimacy(self.test_dataset)
