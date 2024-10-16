@@ -68,7 +68,6 @@ class NetworkMetrics(BasePropagationMetrics):
         start_time = time.time()
         legitimacy = collection.aggregate_pandas_all(positive_legitimacy_pipeline)
         legitimacy = legitimacy.set_index('author_id')
-        legitimacy = legitimacy.sort_values('legitimacy', ascending=False)
         legitimacy = legitimacy['legitimacy']
 
         # All pipeline
@@ -82,6 +81,7 @@ class NetworkMetrics(BasePropagationMetrics):
 
         # Drop na indexes
         legitimacy = legitimacy[~legitimacy.index.isna()]
+        legitimacy = legitimacy.sort_values(ascending=False)
         logger.debug(f'Legitimacy computed in {time.time() - start_time} seconds')
         return legitimacy
 

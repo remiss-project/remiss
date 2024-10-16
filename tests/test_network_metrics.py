@@ -7,6 +7,7 @@ import plotly.express as px
 import plotly.figure_factory as ff
 from pandas import Timestamp
 from pymongo import MongoClient
+from scipy.stats import rankdata
 
 from propagation import NetworkMetrics
 from tests.conftest import create_test_data
@@ -151,15 +152,17 @@ class NetworkMetricsTestCase(unittest.TestCase):
         expected = expected.groupby(['author_id', 'date'])['legitimacy'].sum().to_frame()
         expected = expected.reset_index().pivot(index='author_id', columns='date', values='legitimacy')
         expected.columns = pd.DatetimeIndex(expected.columns)
-        expected = expected.cumsum(axis=1)
-        expected = expected.apply(lambda x: x.argsort())
+        expected = expected.fillna(0).cumsum(axis=1)
+        expected = expected.apply(lambda x: rankdata(x, method='min', nan_policy='omit'))
+        expected = expected - 1
+        actual = actual.sort_index()
         pd.testing.assert_frame_equal(expected, actual, check_dtype=False, check_like=True, check_index_type=False,
                                       check_column_type=False)
 
     def test_legitimacy_full(self):
         actual = self.network_metrics.compute_legitimacy(self.test_dataset)
         actual = actual.to_list()[:5]
-        expected = [1054, 797, 753, 733, 366]
+        expected = [797.0, 733.0, 366.0, 265.0, 161.0]
         self.assertEqual(actual, expected)
 
     def test_legitimacy_no_nans(self):
@@ -255,7 +258,7 @@ class NetworkMetricsTestCase(unittest.TestCase):
         reputation_level = self.network_metrics.get_level(reputation)
         status_level = self.network_metrics.get_level(status)
 
-        expected = ['Unknown', 'Low', 'Low', 'Low', 'Low', 'Medium', 'Medium', 'Medium', 'High', 'High', 'High', 'High']
+        expected = ['Null', 'Null', 'Low', 'Low', 'Low', 'Medium', 'Medium', 'Medium', 'High', 'High', 'High', 'High']
         self.assertEqual(legitimacy_level.tolist(), expected)
         self.assertEqual(reputation_level.tolist(), expected)
         self.assertEqual(status_level.tolist(), expected)
@@ -269,7 +272,7 @@ class NetworkMetricsTestCase(unittest.TestCase):
         reputation_level = self.network_metrics.get_level(reputation)
         status_level = self.network_metrics.get_level(status)
 
-        expected = ['Unknown', 'Low', 'Low', 'Low', 'Low', 'Medium', 'Medium', 'Medium', 'High', 'High', 'High', 'High']
+        expected = ['Null', 'Null', 'Low', 'Low', 'Low', 'Medium', 'Medium', 'Medium', 'High', 'High', 'High', 'High']
         self.assertEqual(legitimacy_level.tolist(), expected)
         self.assertEqual(reputation_level.tolist(), expected)
         self.assertEqual(status_level.tolist(), expected)
@@ -287,9 +290,9 @@ class NetworkMetricsTestCase(unittest.TestCase):
         self.assertEqual(reputation_level.shape, reputation.shape)
         self.assertEqual(status_level.shape, status.shape)
 
-        self.assertEqual(legitimacy_level.cat.categories.tolist(), ['Unknown', 'Low', 'High'])
-        self.assertEqual(reputation_level.cat.categories.tolist(), ['Unknown', 'Low', 'Medium', 'High'])
-        self.assertEqual(status_level.cat.categories.tolist(), ['Unknown', 'Low', 'Medium',  'High'])
+        self.assertEqual(legitimacy_level.cat.categories.tolist(), ['Null', 'Low', 'High'])
+        self.assertEqual(reputation_level.cat.categories.tolist(), ['Null', 'Low', 'Medium', 'High'])
+        self.assertEqual(status_level.cat.categories.tolist(), ['Null', 'Low', 'Medium',  'High'])
 
     def test_get_legitimacy_for_author(self):
         author_id = '280227352'

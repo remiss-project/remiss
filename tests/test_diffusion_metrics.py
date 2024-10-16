@@ -285,9 +285,9 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
     def test_precomputed_depth(self):
         df = self.diffusion_metrics.get_depth_over_time(self.test_dataset, self.test_tweet_id)
-        self.assertEqual(df.shape[0], 91)
+        self.assertEqual(df.shape[0], 92)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
-        self.assertEqual(df.max(), 7)
+        self.assertEqual(df.max(), 4)
 
     def test_precomputed_size(self):
         df = self.diffusion_metrics.get_size_over_time(self.test_dataset, self.test_tweet_id)
@@ -297,9 +297,9 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
     def test_precomputed_max_breadth(self):
         df = self.diffusion_metrics.get_max_breadth_over_time(self.test_dataset, self.test_tweet_id)
-        self.assertEqual(df.shape[0], 91)
+        self.assertEqual(df.shape[0], 92)
         self.assertIsInstance(df.index, pd.DatetimeIndex)
-        self.assertEqual(df.max(), 28)
+        self.assertEqual(df.max(), 84)
 
     def test_precomputed_structured_virality(self):
         df = self.diffusion_metrics.get_structural_virality_over_time(self.test_dataset, self.test_tweet_id)

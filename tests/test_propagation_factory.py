@@ -267,6 +267,7 @@ class PropagationFactoryTestCase(unittest.TestCase):
         fig = self.propagation_factory.plot_cascade_count_over_time(self.test_dataset)
         fig.show()
 
+    @unittest.skip('Remote test')
     def test_cascade_count_over_time_remote(self):
         self.propagation_factory.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
 
