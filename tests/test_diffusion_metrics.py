@@ -338,6 +338,17 @@ class DiffusionMetricsTestCase(unittest.TestCase):
         print(f'Time taken: {end_time - start_time}')
         self.assertEqual('Cascade Count', df.name)
 
+    def test_cascade_count_over_time_remote(self):
+        self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
+        datasets = ('Openarms', 'MENA_Agressions', 'MENA_Ajudes', 'Barcelona_2019', 'Generales_2019',
+                          'Generalitat_2021', 'Andalucia_2022')
+        for dataset in datasets:
+            start_time = Timestamp.now()
+            df = self.diffusion_metrics.compute_cascade_count_over_time(dataset)
+            end_time = Timestamp.now()
+            print(f'Time taken: {end_time - start_time}')
+            self.assertGreater(df.shape[0], 3)
+
     def test_persistence(self):
         print(f'Persisting on {self.tmp_dataset}')
         client = MongoClient('localhost', 27017)
