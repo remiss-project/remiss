@@ -309,18 +309,27 @@ class DiffusionMetricsTestCase(unittest.TestCase):
 
     def test_size_cascade_ccdf(self):
         start_time = Timestamp.now()
-        df = self.diffusion_metrics.get_size_cascade_ccdf(self.test_dataset)
+        df = self.diffusion_metrics.compute_size_cascade_ccdf(self.test_dataset)
         end_time = Timestamp.now()
         print(f'Time taken: {end_time - start_time}')
         self.assertEqual(df.columns.to_list(), ['Normal', 'Politician'])
 
     def test_get_cascade_sizes(self):
-        start_time = Timestamp.now()
         cascade_sizes = self.diffusion_metrics.get_cascade_sizes(self.test_dataset)
+        self.assertEqual(cascade_sizes.shape[0], 221)
+        self.assertTrue((cascade_sizes['size'] >0).all())
+        self.assertEqual(['is_usual_suspect', 'party', 'size'], cascade_sizes.columns.to_list())
+
+    def test_get_cascade_sizes_remote(self):
+        self.diffusion_metrics.host = 'mongodb://srvinv02.esade.es'
+        start_time = Timestamp.now()
+        cascade_sizes = self.diffusion_metrics.get_cascade_sizes('Andalucia_2022')
         end_time = Timestamp.now()
         print(f'Time taken: {end_time - start_time}')
-        self.assertEqual(cascade_sizes.shape[0], 526)
+
+        self.assertEqual(cascade_sizes.shape[0], 104532)
         self.assertEqual(['is_usual_suspect', 'party', 'size'], cascade_sizes.columns.to_list())
+        self.diffusion_metrics.host = 'localhost'
 
     def test_cascade_count_over_time(self):
         start_time = Timestamp.now()

@@ -331,6 +331,7 @@ class DiffusionMetrics(BasePropagationMetrics):
         ccdf = ccdf * 100
         return ccdf
 
+
     def get_cascade_sizes(self, dataset):
         client = MongoClient(self.host, self.port)
         database = client.get_database(dataset)
@@ -345,13 +346,21 @@ class DiffusionMetrics(BasePropagationMetrics):
         ]
         schema = Schema({'original_id': str, 'is_usual_suspect': bool, 'party': str})
         cascades = collection.aggregate_pandas_all(pipeline, schema=schema)
-        client.close()
 
         original_ids = cascades['original_id'].tolist()
         cascades = cascades.set_index('original_id')
-        jobs = [delayed(self.get_references)(dataset, original_id) for original_id in original_ids]
-        references = Parallel(n_jobs=self.n_jobs, backend='threading', verbose=0)(jobs)
-        cascades['size'] = [len(cascade) for cascade in references]
+        cascade_size_pipeline = [
+            {'$match': {'referenced_tweets.id': {'$in': original_ids}}},
+            {'$unwind': '$referenced_tweets'},
+            {'$group': {'_id': '$referenced_tweets.id', 'size': {'$count': {}}}},
+            {'$project': {'_id': 0, 'cascade_id': '$_id', 'size': 1}}
+        ]
+        schema = Schema({'cascade_id': str, 'size': int})
+        cascade_sizes = collection.aggregate_pandas_all(cascade_size_pipeline, schema=schema)
+        client.close()
+
+        cascades = cascades.join(cascade_sizes.set_index('cascade_id'))
+        cascades = cascades.dropna(subset=['size'])
 
         return cascades
 
