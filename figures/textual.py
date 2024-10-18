@@ -101,7 +101,7 @@ class TextualFactory(MongoPlotFactory):
         dataset = database.get_collection('textual')
 
         emotions = ['Agresividad', 'Enfado', 'Disgusto', 'Miedo', 'Odio', 'Ironia', 'Diversion', 'Tristeza', 'Sorpresa',
-                    'Dirigido', 'Negativo', 'Neutro', 'Positivo']
+                    'Dirigido', 'Negativo', 'Neutro', 'Positivo', 'Toxico']
 
         pipeline = [
             {'$addFields': {'date': {'$toDate': '$date'}}},
@@ -131,8 +131,10 @@ class TextualFactory(MongoPlotFactory):
             'Dirigido': 'Targeted',
             'Negativo': 'Negative',
             'Neutro': 'Neutral',
-            'Positivo': 'Positive'
+            'Positivo': 'Positive',
+            'Toxico': 'Toxic'
         }
+
         df = df.rename(columns=translations)
 
         fig = px.line(df, x=df.index, y=df.columns)

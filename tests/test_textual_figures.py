@@ -1,10 +1,7 @@
-import unittest
-import uuid
 from datetime import datetime
 from unittest import TestCase
 
 from plotly.graph_objs import Figure
-from pymongo import MongoClient
 
 from figures.textual import TextualFactory
 
@@ -13,11 +10,6 @@ class TestTextualFigures(TestCase):
     def setUp(self):
         self.plot_factory = TextualFactory()
         self.test_dataset = 'test_dataset_2'
-        self.tmp_dataset = 'tmp_dataset'
-
-    def tearDown(self):
-        client = MongoClient('localhost', 27017)
-        client.drop_database(self.tmp_dataset)
 
     def test_plot_emotion_per_hour(self):
         fig = self.plot_factory.plot_emotion_per_hour(self.test_dataset, None, None)
@@ -55,23 +47,19 @@ class TestTextualFigures(TestCase):
         assert isinstance(fig, Figure)
         assert len(fig.data) == 11
 
-    @unittest.skip("Won't be used")
-    def test_plot_top_profiles(self):
-        fig = self.plot_factory.plot_top_profiles(self.test_dataset, None, None)
-        # fig.show()
-        assert isinstance(fig, Figure)
-        assert len(fig.data) == 2
+    def test_remote_emotion_per_hour(self):
+        self.plot_factory.host = 'mongodb://srvinv02.esade.es'
+        datasets = [
+            'Openarms', 'MENA_Agressions', 'MENA_Ajudes', 'Barcelona_2019', 'Andalucia_2022', 'Generales_2019'
+            'Generalitat_2021',
+        ]
 
-    @unittest.skip("Won't be used")
-    def test_plot_top_hashtags(self):
-        fig = self.plot_factory.plot_top_hashtags(self.test_dataset, None, None)
-        # fig.show()
-        assert isinstance(fig, Figure)
-        assert len(fig.data) == 2
-
-    @unittest.skip("Won't be used")
-    def test_plot_topic_ranking(self):
-        fig = self.plot_factory.plot_topic_ranking(self.test_dataset, None, None)
-        # fig.show()
-        assert isinstance(fig, Figure)
-        assert len(fig.data) == 2
+        for dataset in datasets:
+            fig = self.plot_factory.plot_emotion_per_hour(dataset, None, None)
+            fig.update_layout(title=dataset)
+            fig.show()
+            assert isinstance(fig, Figure)
+            assert len(fig.data) == 14
+            for trace in fig.data:
+                assert len(trace.x) >= 24
+                assert len(trace.y) >= 24
