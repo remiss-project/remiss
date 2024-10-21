@@ -16,7 +16,8 @@ class TestTopTableFactory(TestCase):
         self.test_dataset = 'test_dataset_2'
         self.tmp_dataset = 'tmp_dataset'
         self.client = MongoClient('localhost', 27017)
-        self.client.drop_database(self.tmp_dataset)
+        if self.tmp_dataset in self.client.list_database_names():
+            self.client.drop_database(self.tmp_dataset)
         self.database = self.client.get_database(self.tmp_dataset)
         self.collection = self.database.get_collection('raw')
         test_data = [{"id": '0', "created_at": datetime.fromisoformat("2019-01-01T23:20:00Z"),
@@ -124,7 +125,7 @@ class TestTopTableFactory(TestCase):
         expected = pd.DataFrame(expected)
         expected = expected.iloc[[1, 0]].reset_index(drop=True)
         expected_columns = ['User', 'Text', 'Retweets', 'Is usual suspect', 'Party', 'Multimodal', 'Profiling', 'ID',
-                            'Author ID', 'Suspicious content',  'Legitimacy', 'Reputation', 'Status',
+                            'Author ID', 'Suspicious content', 'Legitimacy', 'Reputation', 'Status',
                             ]
         expected = expected[expected_columns]
         actual = actual[expected_columns].reset_index(drop=True)
@@ -244,3 +245,21 @@ class TestTopTableFactory(TestCase):
     #         textual.update_many({'id_str':{'$exists': False}}, pipeline)
     #
     #     client.close()
+
+    def test_all_fields_present(self):
+        self.top_table_factory.host = 'mongodb://srvinv02.esade.es'
+        datasets = [
+            # 'Openarms', 'MENA_Agressions', 'MENA_Ajudes', 'Barcelona_2019',
+            'Andalucia_2022',
+            # 'Generales_2019',
+            # 'Generalitat_2021',
+        ]
+        for dataset in datasets:
+            print(f'Plotting {dataset}')
+            actual = self.top_table_factory.get_tweet_table(dataset, start_tweet=0, amount=50)
+            self.assertGreater(len(actual), 0)
+            self.assertEqual(
+                set(actual.columns.to_list()), {'ID', 'User', 'Text', 'Retweets', 'Is usual suspect', 'Party',
+                                                'Multimodal', 'Profiling', 'Suspicious content', 'Legitimacy',
+                                                'Reputation', 'Status', 'Author ID'})
+            self.assertFalse(actual['Suspicious content'].isna().all())

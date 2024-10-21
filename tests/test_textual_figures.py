@@ -50,11 +50,13 @@ class TestTextualFigures(TestCase):
     def test_remote_emotion_per_hour(self):
         self.plot_factory.host = 'mongodb://srvinv02.esade.es'
         datasets = [
-            'Openarms', 'MENA_Agressions', 'MENA_Ajudes', 'Barcelona_2019', 'Andalucia_2022', 'Generales_2019'
+            'Openarms', 'MENA_Agressions', 'MENA_Ajudes', 'Barcelona_2019', 'Andalucia_2022',
+            'Generales_2019',
             'Generalitat_2021',
         ]
 
         for dataset in datasets:
+            print(f'Plotting {dataset}')
             fig = self.plot_factory.plot_emotion_per_hour(dataset, None, None)
             fig.update_layout(title=dataset)
             fig.show()
