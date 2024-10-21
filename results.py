@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from pymongo import MongoClient
 from pymongoarrow.schema import Schema
 from sklearn.metrics import classification_report
@@ -20,8 +21,8 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(leve
 class Results:
 
     def __init__(self, datasets, host='localhost', port=27017, output_dir='./results', egonet_depth=2,
-                 features=('propagation_tree', 'egonet', 'legitimacy_status_reputation', 'cascades', 'nodes_edges',
-                           'performance'), max_cascades=None, num_samples=None):
+                 features=('propagation_trees', 'egonet', 'network_metrics', 'nodes_edges', 'performance',
+                           'network_metrics_analysis'), max_cascades=None, num_samples=None):
         self.num_samples = num_samples
         self.max_cascades = max_cascades
         self.host = host
@@ -209,7 +210,7 @@ class Results:
                     logger.warning(
                         f'Failed to plot egonet for user {user_id} from dataset {dataset} due to {e}')
 
-    def plot_legitimacy_status_and_reputation(self):
+    def plot_network_metrics(self):
         self.plot_legitimacy()
         # self.plot_status_and_reputation()
 
@@ -225,17 +226,17 @@ class Results:
 
         legitimacy = pd.concat(legitimacy)
         logger.info('Plotting legitimacy distribution')
-        fig = px.violin(legitimacy, y='legitimacy', color='user_type',  box=False, points='all', title='Legitimacy distribution',
+        fig = px.violin(legitimacy, y='legitimacy', color='user_type', box=False, points='all',
+                        title='Legitimacy distribution',
                         category_orders={'user_type': ['Normal', 'Suspect', 'Politician', 'Suspect politician']})
         fig.show()
         fig.write_image(self.output_dir / 'legitimacy_status_and_reputation/legitimacy_distribution_full.png')
         legitimacy = legitimacy[legitimacy['legitimacy'] < 1000]
-        fig = px.violin(legitimacy, y='legitimacy', color='user_type', box=False, points='all', title='Legitimacy distribution',
+        fig = px.violin(legitimacy, y='legitimacy', color='user_type', box=False, points='all',
+                        title='Legitimacy distribution',
                         category_orders={'user_type': ['Normal', 'Suspect', 'Politician', 'Suspect politician']})
         fig.show()
         fig.write_image(self.output_dir / 'legitimacy_status_and_reputation/legitimacy_distribution_1000.png')
-
-
 
     def plot_status_and_reputation(self):
         logger.info('Getting users')
@@ -387,6 +388,67 @@ class Results:
 
         return metrics
 
+    def generate_network_metrics_analysis(self):
+
+        try:
+            metrics = pd.read_csv(self.output_dir / 'network_metrics_analysis/network_metrics.csv')
+        except FileNotFoundError:
+            metrics = []
+            for dataset in self.datasets:
+                metadata = self.propagation_factory.get_user_metadata(dataset)
+                metadata['user_type'] = metadata.apply(transform_user_type, axis=1)
+                metadata['dataset'] = dataset
+                metrics.append(metadata)
+
+            metrics = pd.concat(metrics)
+            metrics.to_csv(self.output_dir / 'network_metrics_analysis/network_metrics.csv', index=False)
+
+        # metrics = metrics.sample(1000)
+        # is_usual_suspect,party,legitimacy_level,reputation_level,status_level,user_type
+        fig = go.Figure(data=[go.Parcats(
+            dimensions=[
+                {'label': 'User type', 'values': metrics['user_type']},
+                {'label': 'Legitimacy level', 'values': metrics['legitimacy_level'],
+                 'categoryorder': 'array', 'categoryarray': ['High', 'Medium', 'Low', 'Null']},
+                {'label': 'Reputation level', 'values': metrics['reputation_level'],
+                 'categoryorder': 'array', 'categoryarray': ['High', 'Medium', 'Low', 'Null']},
+                {'label': 'Status level', 'values': metrics['status_level'],
+                 'categoryorder': 'array', 'categoryarray': ['High', 'Medium', 'Low', 'Null']},
+            ],
+            line={'color': metrics['user_type'].map(
+                {'Normal': 0, 'Suspect': 0.33, 'Politician': 0.66, 'Suspect politician': 1}),
+                  'colorscale': [[0, 'blue'], [0.33, 'red'], [0.66, 'green'], [1, 'purple']]},
+
+        )])
+
+        fig.show()
+        output_filepath = self.output_dir / 'network_metrics_analysis/network_metrics_parcats_full.png'
+        output_filepath.parent.mkdir(exist_ok=True, parents=True)
+        fig.write_image(output_filepath)
+        fig.write_html(self.output_dir / 'network_metrics_analysis/network_metrics_parcats_full.html')
+
+        metrics = metrics[metrics['user_type'] != 'Normal']
+        fig = go.Figure(data=[go.Parcats(
+            dimensions=[
+                {'label': 'User type', 'values': metrics['user_type']},
+                {'label': 'Legitimacy level', 'values': metrics['legitimacy_level'],
+                 'categoryorder': 'array', 'categoryarray': ['High', 'Medium', 'Low', 'Null']},
+                {'label': 'Reputation level', 'values': metrics['reputation_level'],
+                 'categoryorder': 'array', 'categoryarray': ['High', 'Medium', 'Low', 'Null']},
+                {'label': 'Status level', 'values': metrics['status_level'],
+                 'categoryorder': 'array', 'categoryarray': ['High', 'Medium', 'Low', 'Null']},
+            ],
+            line={'color': metrics['user_type'].map({'Suspect': 0, 'Politician': 0.5, 'Suspect politician': 1}),
+                  'colorscale': [[0, 'red'], [0.5, 'green'], [1, 'purple']]},
+
+        )])
+
+        fig.show()
+        output_filepath = self.output_dir / 'network_metrics_analysis/network_metrics_parcats_suspect_politicians.png'
+        output_filepath.parent.mkdir(exist_ok=True, parents=True)
+        fig.write_image(output_filepath)
+        fig.write_html(self.output_dir / 'network_metrics_analysis/network_metrics_parcats_suspect_politicians.html')
+
     def process(self):
         logger.info('Processing results')
         for feature in self.features:
@@ -395,12 +457,14 @@ class Results:
                     self.plot_propagation_trees()
                 case 'egonet':
                     self.plot_egonet_and_backbone()
-                case 'legitimacy_status_reputation':
-                    self.plot_legitimacy_status_and_reputation()
+                case 'network_metrics':
+                    self.plot_network_metrics()
                 case 'nodes_edges':
                     self.generate_nodes_and_edges_table()
                 case 'performance':
                     self.generate_performance_table()
+                case 'network_metrics_analysis':
+                    self.generate_network_metrics_analysis()
                 case _:
                     logger.error(f'Feature {feature} not recognized')
 
@@ -410,7 +474,8 @@ class Results:
 def run_results(datasets=('Openarms', 'MENA_Agressions', 'MENA_Ajudes', 'Barcelona_2019', 'Generales_2019',
                           'Generalitat_2021', 'Andalucia_2022'),
                 host='localhost', port=27017, output_dir='./results', egonet_depth=2,
-                features=('propagation_tree', 'egonet', 'legitimacy', 'cascades', 'nodes_edges', 'performance'),
+                features=('propagation_trees', 'egonet', 'network_metrics', 'nodes_edges', 'performance',
+                          'network_metrics_analysis'),
                 max_cascades=None, num_samples=None):
     logger.info('Running results')
     logger.info(f'Datasets: {datasets}')
@@ -438,6 +503,7 @@ def transform_user_type(x):
         return 'Politician'
     else:
         return 'Normal'
+
 
 if __name__ == '__main__':
     # fire.Fire(run_results)
@@ -469,7 +535,7 @@ if __name__ == '__main__':
     #             num_samples=50000)
     run_results(
         host='mongodb://srvinv02.esade.es',
-        features=['nodes_edges'],
+        features=['network_metrics_analysis'],
         output_dir='results/final',
         num_samples=50000
     )
