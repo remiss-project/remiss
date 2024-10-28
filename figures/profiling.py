@@ -129,7 +129,7 @@ class ProfilingPlotFactory(MongoPlotFactory):
 
         title = "Emocions"
         values = [fake_news_spreaders, fact_checkers, control_cases, user_data]
-        colors = ['red', 'green', 'lightskyblue', 'orange']
+        colors = ['#1269A6', '#DD319D', '#6CAB12', '#319DE9']
 
         translations = {
             'alegría*': 'joy*',

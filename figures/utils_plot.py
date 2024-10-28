@@ -110,7 +110,7 @@ def create_user_info_image(userName, anonimyzedDescription, nFollowersStr, nFoll
 def draw_radarplot(categories0, valors0, etiquetes, titol, colors):
     categories1 = copy.deepcopy(categories0)
     valors1 = copy.deepcopy(valors0)  # we make a true local copy because we modify them.
-
+    dash = ['dot', 'dot', 'dot', 'solid']
     # Layout configuration
     layout = go.Layout(
         polar=dict(
@@ -122,12 +122,6 @@ def draw_radarplot(categories0, valors0, etiquetes, titol, colors):
     )
     fig = go.Figure(layout=layout)
 
-    #		# Create trace for the radial plot
-    #	trace = go.Scatterpolar(
-    #	    r=valors,
-    #	    theta=categories,
-    #	    fill='toself'  # Fill the area inside the plot
-    #	)
     # We add the initial item at the end to close the lines.
     categories1.append(categories1[0])
     for i, xValue in enumerate(valors1):
@@ -137,7 +131,8 @@ def draw_radarplot(categories0, valors0, etiquetes, titol, colors):
                 r=xValue,
                 theta=categories1,
                 mode='lines',
-                line_color=colors[i],
+                #line_color=colors[i],
+                line = dict(color=colors[i], dash=dash[i]),
                 name=etiquetes[i],
             )
         )
