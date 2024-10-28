@@ -125,7 +125,7 @@ class ProfilingPlotFactory(MongoPlotFactory):
                                                                                                           user_id,
                                                                                                           'emociones')
 
-        labels = ['Fake News Spreaders', 'Control Users', 'Fact Checkers', 'User']
+        labels = ['Narrative Shapers', 'Fact Checkers', 'Control Users', 'User']
 
         title = "Emocions"
         values = [fake_news_spreaders, fact_checkers, control_cases, user_data]
@@ -146,7 +146,7 @@ class ProfilingPlotFactory(MongoPlotFactory):
         return draw_radarplot(display_names, values, labels, title, colors)
 
     def plot_vertical_accumulated_barplot_by_genre(self):
-        user_types = ['Fake News Spreaders', 'Fact Checkers', 'Random Control Users']
+        user_types = ['Narrative Shapers', 'Fact Checkers', 'Random Control Users']
         title = "User Group by Gender"
 
         if self.lang == "ca":
@@ -170,7 +170,7 @@ class ProfilingPlotFactory(MongoPlotFactory):
                                                        labels, title)
 
     def plot_vertical_accumulated_barplot_by_age(self):
-        user_types = ['Fake News Spreaders', 'Fact Checkers', 'Random Control Users']
+        user_types = ['Narrative Shapers', 'Fact Checkers', 'Random Control Users']
         title = "User Groups by Age"
         if self.lang == "ca":
             lower_19 = [14.29, 17.24, 36.83]
@@ -210,7 +210,7 @@ class ProfilingPlotFactory(MongoPlotFactory):
         # label2 = 'Verificadors'
         # label3 = 'Usuaris de Control'
         # label4 = 'Usuari'
-        label1 = 'Fake News Spreaders'
+        label1 = 'Narrative Shapers'
         label2 = 'Fact Checkers'
         label3 = 'Control Users'
         label4 = 'User'
@@ -288,7 +288,7 @@ class ProfilingPlotFactory(MongoPlotFactory):
         control_cases = self.control_cases[features_names].values.astype(float).tolist()[0]
 
         # titles = ['Difusors de Notícies Falses', 'Verificadors', 'Usuaris de Control', 'Usuari']
-        titles = ['Fake News Spreaders', 'Fact Checkers', 'Control Users', 'User']
+        titles = ['Narrative Shapers', 'Fact Checkers', 'Control Users', 'User']
 
         # Data for the first donut plot
         values_to_show_1 = [[fake_news_spreaders[0], fake_news_spreaders[1]],
