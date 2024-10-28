@@ -137,7 +137,7 @@ def main(config='dev_config.yaml'):
     logger.info(f'Loading config from {config}...')
     config = load_config(config)
     app = create_app(config)
-    app.run(debug=config['debug'])
+    app.run(debug=config['debug'], host="0.0.0.0", port="8050")
 
 
 # Run the app
