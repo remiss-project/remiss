@@ -241,20 +241,15 @@ class RemissDashboard(RemissComponent):
             ),
             html.Div([], style={'margin-bottom': '1rem'}, id=f'placeholder-{self.name}') if self.debug else None,
             dbc.Stack([
-                dbc.Row([
-                    dbc.Col([
-                        self.upload.layout(params)
-                    ]),
-                ]),
+                #dbc.Row([
+                #    dbc.Col([
+                #        self.upload.layout(params)
+                #    ]),
+                #]),
                 dbc.Row([
                     dbc.Col([
                         self.dataset_dropdown
                     ]),
-                ]),
-                dbc.Row([
-                    dbc.Col([
-                        self.general_plots_component.layout(params)
-                    ])
                 ]),
                 dbc.Row([
                     dbc.Col([
@@ -263,6 +258,11 @@ class RemissDashboard(RemissComponent):
                     dbc.Col([
                         self.egonet_component.layout(params)
                     ], width=8, align='right'),
+                ]),
+                dbc.Row([
+                    dbc.Col([
+                        self.general_plots_component.layout(params)
+                    ])
                 ]),
                 dbc.Row([
                     dbc.Col([
