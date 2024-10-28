@@ -1,3 +1,4 @@
+import logging
 import copy
 
 import numpy as np
@@ -232,8 +233,9 @@ def draw_vertical_acumulated_barplot_plotly(barNames, valuesForEachGroup, colors
     return fig
 
 
-def draw_vertical_barplot(barNames, valuesToShow, colorsToShowValues, labels, title):
+def draw_vertical_barplot(barNames, valuesToShow, colorsToShowValues, labels):
     # set width of bar
+    opacity = [0.5, 0.5, 0.5, 1]
     barWidth = 0.25
     if len(valuesToShow) == 4:
         barWidth = 0.20
@@ -242,16 +244,27 @@ def draw_vertical_barplot(barNames, valuesToShow, colorsToShowValues, labels, ti
 
     # Set position of bar on X axis
     br1 = list(range(len(valuesToShow[0])))
+    logging.debug(f'Values to show {valuesToShow}')
 
     # Make the plots
     for i in range(len(valuesToShow)):
+        logging.debug(f'Values to show {valuesToShow}')
+
         spacer = i * barWidth
         br = [x + spacer for x in br1]
-        fig.add_trace(go.Bar(x=br, y=valuesToShow[i], marker_color=colorsToShowValues[i], name=labels[i]))
-
-    spacing = [r + barWidth for r in range(len(valuesToShow[0]))]
-    fig.update_xaxes(tickvals=spacing, ticktext=barNames, tickangle=25)
-
+        fig.add_trace(go.Bar(x=br, 
+                             y=valuesToShow[i], 
+                             marker_color=colorsToShowValues[i], 
+                             opacity=opacity[i],
+                             marker_line=dict(color=colorsToShowValues[i], width=2),  # Border color and thickness
+                             name=labels[i],
+                             hovertext=[labels[i] + " (" + str(round(valuesToShow[i][j], 2)) + ")" for j in range(len(labels))],  # Set hover text to barNames
+                             hoverinfo="text"  # Display only the text in hover
+                             ))
+    
+    logging.debug(f'Bar names {barNames}')
+    spacing = [r + barWidth + 0.1 for r in range(len(valuesToShow[0]))]
+    fig.update_xaxes(tickvals=spacing, ticktext=barNames, tickangle=0)
     fig.update_layout(barmode='group')
 
     return fig

@@ -1,3 +1,5 @@
+import logging
+
 from pathlib import Path
 
 import numpy as np
@@ -216,15 +218,17 @@ class ProfilingPlotFactory(MongoPlotFactory):
         label4 = 'User'
 
         values_to_show = [fake_news_spreaders, fact_checkers, control_cases, current_user]
-        colors_to_show_values = ['red', 'green', 'blue', 'orange']
+        # colors_to_show_values = ['red', 'green', 'blue', 'orange']
+        colors_to_show_values = ['#1269A6', '#DD319D', '#6CAB12', '#319DE9']
+
         labels = [label1, label2, label3, label4]
-        title = "Polaritat dels Tweets"
 
         translations = {'positiva*': 'Positive', 'negativa*': 'Negative*', 'neutral*': 'Neutral*',
                         "discurs d'odi": "Hate Speech"}
         bar_names = [translations.get(x, x) for x in bar_names]
+                
         return draw_vertical_barplot(bar_names, values_to_show, colors_to_show_values,
-                                     labels, title)
+                                     labels)
 
     def plot_horizontal_bars_plot_interactions(self, dataset, user_id):
         user_data = self.load_data_for_user(dataset, user_id)
