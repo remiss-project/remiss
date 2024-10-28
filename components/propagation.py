@@ -139,7 +139,7 @@ class CascadeCcdfComponent(RemissComponent):
 
     def layout(self, params=None):
         return dbc.Card([
-            dbc.CardHeader('Cascade CCDF'),
+            dbc.CardHeader('Cascade CCDF', style={'fontSize': '18px', 'fontWeight': 'bold'}),
             dbc.CardBody([
                 dcc.Loading(id=f'loading-cascade-ccdf-{self.name}',
                             type='default',
@@ -175,7 +175,7 @@ class CascadeCountOverTimeComponent(RemissComponent):
 
     def layout(self, params=None):
         return dbc.Card([
-            dbc.CardHeader('Cascade Count Over Time'),
+            dbc.CardHeader('Cascade Count Over Time', style={'fontSize': '18px', 'fontWeight': 'bold'}),
             dbc.CardBody([
                 dcc.Loading(id=f'loading-cascade-count-over-time-{self.name}',
                             type='default',
