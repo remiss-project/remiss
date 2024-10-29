@@ -17,13 +17,13 @@ class EmotionPerHourComponent(RemissComponent):
 
     def layout(self, params=None):
         return dbc.Card([
-            dbc.CardHeader('Emotion per hour', style={'fontSize': '18px', 'fontWeight': 'bold'}),
+            dbc.CardHeader('Evolution of Emotional Levels in Messages Across the Day', style={'fontSize': '18px', 'fontWeight': 'bold'}),
             dbc.CardBody([
                 dcc.Loading(id=f'loading-{self.name}',
                             type='default',
                             children=self.graph)
             ]),
-            dbc.CardFooter('Average emotion per hour of the day.')
+            dbc.CardFooter('This plot showcases how different emotions vary in intensity and frequency throughout the day, as analysed using the ROBERTUITO model. By mapping emotional trends across 24 hours, this visualization reveals patterns in emotional expression linked to specific times, capturing shifts in user sentiment from morning to night. This time-based analysis provides insights into how daily routines and events influence public sentiment on social networks, reflecting the dynamic nature of online interactions.')
         ])
 
     def update(self, dataset):
@@ -52,13 +52,13 @@ class AverageEmotionBarComponent(RemissComponent):
 
     def layout(self, params=None):
         return dbc.Card([
-            dbc.CardHeader('Average emotion', style={'fontSize': '18px', 'fontWeight': 'bold'}),
+            dbc.CardHeader('Distribution of emotional levels in the messages', style={'fontSize': '18px', 'fontWeight': 'bold'}),
             dbc.CardBody([
                 dcc.Loading(id=f'loading-{self.name}',
                             type='default',
                             children=self.graph)
             ]),
-            dbc.CardFooter('Average emotion over the entire dataset')
+            dbc.CardFooter('This plot displays the intensity and frequency of various emotions detected in Twitter messages, as analyzed using the ROBERTUITO model. Each emotion category is represented by distinct levels, providing insight into the predominant emotional trends and sentiment fluctuations across the dataset.')
         ])
 
     def update(self, dataset):

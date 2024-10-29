@@ -76,6 +76,7 @@ class TextualFactory(MongoPlotFactory):
             {'$project': {'_id': 0}}
         ]
         df = dataset.aggregate_pandas_all(pipeline).iloc[0]
+        df = df.sort_values(ascending=False)
         translations = {
             'Miedo': 'Fear',
             'Disgusto': 'Disgust',
@@ -89,10 +90,14 @@ class TextualFactory(MongoPlotFactory):
             'Toxico': 'Toxic',
             'Ironia': 'Irony'
         }
+        
         df = df.rename(index=translations)
-        fig = px.bar(x=df.index, y=df.values, labels={'x': 'Emotion', 'y': 'Average value'},
+        fig = px.bar(x=df.index, 
+                     y=df.values, 
+                     labels={'x': 'Emotions', 'y': 'Average Level'},
                      color=df.index)
         fig.update_layout(showlegend=False)
+        
         return fig
 
     def get_emotion_per_hour(self, dataset, start_time=None, end_time=None):
@@ -100,8 +105,20 @@ class TextualFactory(MongoPlotFactory):
         database = client.get_database(dataset)
         dataset = database.get_collection('textual')
 
-        emotions = ['Agresividad', 'Enfado', 'Disgusto', 'Miedo', 'Odio', 'Ironia', 'Diversion', 'Tristeza', 'Sorpresa',
-                    'Dirigido', 'Negativo', 'Neutro', 'Positivo', 'Toxico']
+        emotions = ['Agresividad', 
+                    'Enfado', 
+                    'Disgusto', 
+                    'Miedo', 
+                    'Diversion', 
+                    'Odio', 
+                    'Ironia', 
+                    'Tristeza', 
+                    'Sorpresa', 
+                    'Dirigido', 
+                    #'Negativo', 
+                    #'Neutro', 
+                    #'Positivo', 
+                    'Toxico']
 
         pipeline = [
             {'$addFields': {'date': {'$toDate': '$date'}}},
@@ -114,6 +131,7 @@ class TextualFactory(MongoPlotFactory):
         if end_time:
             pipeline.insert(2, {'$match': {'date': {'$lte': end_time}}})
         df = dataset.aggregate_pandas_all(pipeline)
+        
         return df
 
     def plot_emotion_per_hour(self, dataset, start_time=None, end_time=None):
@@ -138,5 +156,7 @@ class TextualFactory(MongoPlotFactory):
         df = df.rename(columns=translations)
 
         fig = px.line(df, x=df.index, y=df.columns)
-        fig.update_layout(yaxis_title='Average emotion', xaxis_title='Hour of the day')
+        fig.update_layout(yaxis_title='Average Emotion Level', 
+                          xaxis_title='Hour of the Day',
+                          legend_title_text="Emotions")
         return fig
