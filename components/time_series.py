@@ -20,25 +20,26 @@ class TimeSeriesComponent(RemissComponent):
         return dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader('Tweet frequency'),
+                    dbc.CardHeader('Distribution of Tweets Over Time',
+                                   style={'fontSize': '18px', 'fontWeight': 'bold'}),
                     dbc.CardBody([
                         dcc.Loading(id=f'loading-tweet-{self.name}',
                                     type='default',
                                     children=self.graph_tweet)
-
                     ]),
-                    dbc.CardFooter('Number of tweets per day')
+                    dbc.CardFooter('This figure illustrates the volume of tweets posted at different times, highlighting peak activity days and fluctuations. This visualisation offers insights into user behavior patterns, revealing when conversations are most active and potentially influenced by daily routines or global events.')
                 ]),
             ]),
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader('User frequency'),
+                    dbc.CardHeader('Distribution of Users Over Time',
+                                   style={'fontSize': '18px', 'fontWeight': 'bold'}),
                     dbc.CardBody([
                         dcc.Loading(id=f'loading-users-{self.name}',
                                     type='default',
                                     children=self.graph_users)
                     ]),
-                    dbc.CardFooter('Number of users that tweeted per day')
+                    dbc.CardFooter('This figure illustrated the user activity throughout the time, identifying peaks when the highest numbers of users are active. By mapping user engagement patterns, this visualisation provides insights into temporal cycles of user presence and highlights key dates of interaction.')
                 ]),
             ]),
         ])
