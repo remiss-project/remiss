@@ -61,6 +61,7 @@ class EgonetComponent(RemissComponent):
                 username = self.plot_factory.get_username(dataset, user)
             except RuntimeError:
                 username = user
+            #ToDo: Anonimization Egonet
             title = f'Egonet for {username}'
             show_depth_slider = True
             logger.debug(f'Plotting egonet for user {username} with id {user}')
