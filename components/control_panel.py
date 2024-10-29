@@ -105,7 +105,7 @@ class ControlPanelComponent(RemissComponent):
     def layout(self, params=None):
         return dbc.Stack([
             dbc.Card([
-                dbc.CardHeader('Date range'),
+                dbc.CardHeader('Date Range', style={'fontSize': '18px', 'fontWeight': 'bold'}),
                 dbc.CardBody([
                     self.date_picker
                 ])
@@ -113,7 +113,7 @@ class ControlPanelComponent(RemissComponent):
             self.filter_display.layout(),
 
             dbc.Card([
-                dbc.CardHeader('Hashtags'),
+                dbc.CardHeader('Hashtags', style={'fontSize': '18px', 'fontWeight': 'bold'}),
                 dbc.CardBody([
                     dcc.Loading(id=f'loading-wordcloud-{self.name}',
                                 type='default',
@@ -180,7 +180,7 @@ class FilterDisplayComponent(RemissComponent):
 
     def layout(self, params=None):
         return dbc.Collapse([dbc.Card([
-            dbc.CardHeader('Current Filters'),
+            dbc.CardHeader('Current Filters', style={'fontSize': '18px', 'fontWeight': 'bold'}),
             dbc.CardBody([
                 dbc.Stack([
                     dbc.Row([
