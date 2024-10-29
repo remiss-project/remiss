@@ -38,6 +38,16 @@ class TimeSeriesFactory(MongoPlotFactory):
                 raise RuntimeError('Error loading tweet series') from e
 
         plot = self._get_count_plot(df)
+        
+        # Update legend names using the array
+        new_legend_names = ['User', 'Narrative Shaper', 'Politician', 'Narrative Shaper (Politician)']
+        for i, trace in enumerate(plot.data):
+            trace.name = new_legend_names[i]
+        
+        plot.update_layout(legend_title_text="", 
+                           yaxis_title="Number of Tweets")
+
+
         return plot
 
     def plot_user_series(self, dataset, hashtags, start_time, end_time, unit='day', bin_size=1):
@@ -60,6 +70,15 @@ class TimeSeriesFactory(MongoPlotFactory):
                 raise RuntimeError('Error loading user series') from e
 
         plot = self._get_count_plot(df)
+        
+        # Update legend names using the array
+        new_legend_names = ['User', 'Narrative Shaper', 'Politician', 'Narrative Shaper (Politician)']
+        for i, trace in enumerate(plot.data):
+            trace.name = new_legend_names[i]
+        
+        plot.update_layout(legend_title_text="", 
+                           yaxis_title="Number of Users")
+
         return plot
 
     def _get_count_plot(self, df):
