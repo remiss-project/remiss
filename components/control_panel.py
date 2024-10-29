@@ -105,7 +105,8 @@ class ControlPanelComponent(RemissComponent):
     def layout(self, params=None):
         return dbc.Stack([
             dbc.Card([
-                dbc.CardHeader('Date Range', style={'fontSize': '18px', 'fontWeight': 'bold'}),
+                dbc.CardHeader('Date Range', 
+                               style={'fontSize': '18px', 'fontWeight': 'bold'}),
                 dbc.CardBody([
                     self.date_picker
                 ])
