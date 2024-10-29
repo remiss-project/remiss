@@ -17,7 +17,7 @@ class EmotionPerHourComponent(RemissComponent):
 
     def layout(self, params=None):
         return dbc.Card([
-            dbc.CardHeader('Emotion per hour'),
+            dbc.CardHeader('Emotion per hour', style={'fontSize': '18px', 'fontWeight': 'bold'}),
             dbc.CardBody([
                 dcc.Loading(id=f'loading-{self.name}',
                             type='default',
@@ -52,7 +52,7 @@ class AverageEmotionBarComponent(RemissComponent):
 
     def layout(self, params=None):
         return dbc.Card([
-            dbc.CardHeader('Average emotion'),
+            dbc.CardHeader('Average emotion', style={'fontSize': '18px', 'fontWeight': 'bold'}),
             dbc.CardBody([
                 dcc.Loading(id=f'loading-{self.name}',
                             type='default',
@@ -88,7 +88,7 @@ class TopProfilesComponent(RemissComponent):
         return dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader('Top profiles'),
+                    dbc.CardHeader('Top profiles', style={'fontSize': '18px', 'fontWeight': 'bold'}),
                     dbc.CardBody([
                         self.graph
                     ]),
@@ -120,7 +120,7 @@ class TopHashtagsComponent(RemissComponent):
         return dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader('Top hashtags'),
+                    dbc.CardHeader('Top hashtags', style={'fontSize': '18px', 'fontWeight': 'bold'}),
                     dbc.CardBody([
                         self.graph
                     ])
@@ -151,7 +151,7 @@ class TopicRankingComponent(RemissComponent):
         return dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader('Topic ranking'),
+                    dbc.CardHeader('Topic ranking', style={'fontSize': '18px', 'fontWeight': 'bold'}),
                     dbc.CardBody([
                         self.graph
                     ])
@@ -182,7 +182,7 @@ class NetworkTopicsComponent(RemissComponent):
         return dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader('Network topics'),
+                    dbc.CardHeader('Network topics', style={'fontSize': '18px', 'fontWeight': 'bold'}),
                     dbc.CardBody([
                         self.graph
                     ])
