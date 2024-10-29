@@ -72,7 +72,7 @@ class BaseProfilingComponent(RemissComponent):
         return dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(self.title),
+                    dbc.CardHeader(self.title, style={'fontSize': '18px', 'fontWeight': 'bold'}),
                     dbc.CardBody([
                         dcc.Loading(
                             id=f'loading-{self.name}',
