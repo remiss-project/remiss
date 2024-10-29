@@ -38,12 +38,13 @@ class PropagationComponent(RemissComponent):
                 dbc.Row([
                     dbc.Col([
                         dbc.Card([
-                            dbc.CardHeader('Propagation Tree'),
+                            dbc.CardHeader('Propagation Tree',
+                                       style={'fontSize': '18px', 'fontWeight': 'bold'}),
                             dbc.CardBody([
                                 self.graph_propagation_tree
                             ]),
                             dbc.CardFooter([
-                                'Propagation tree showing the structure of the cascade.'
+                                'This plot illustrates the branching pathways of information spread within the network, showcasing the hierarchical structure of the cascade. Each branch represents a new level in the propagation, capturing how information diffuses through different layers and nodes. This visualization provides insight into the depth, reach, and complexity of the cascade\'s spread.'
                             ])
                         ]),
                     ]),
@@ -51,7 +52,8 @@ class PropagationComponent(RemissComponent):
                 dbc.Row([
                     dbc.Col([
                         dbc.Card([
-                            dbc.CardHeader('Propagation Depth'),
+                            dbc.CardHeader('Propagation Depth', 
+                                       style={'fontSize': '18px', 'fontWeight': 'bold'}),
                             dbc.CardBody([
                                 self.graph_propagation_depth
                             ]),
@@ -62,7 +64,8 @@ class PropagationComponent(RemissComponent):
                     ], width=6),
                     dbc.Col([
                         dbc.Card([
-                            dbc.CardHeader('Propagation Size'),
+                            dbc.CardHeader('Propagation Size',
+                                       style={'fontSize': '18px', 'fontWeight': 'bold'}),
                             dbc.CardBody([
                                 self.graph_propagation_size
                             ]),
@@ -75,7 +78,8 @@ class PropagationComponent(RemissComponent):
                 dbc.Row([
                     dbc.Col([
                         dbc.Card([
-                            dbc.CardHeader('Propagation Max Breadth'),
+                            dbc.CardHeader('Maximum Propagation Breadth',
+                                           style={'fontSize': '18px', 'fontWeight': 'bold'}),                            
                             dbc.CardBody([
                                 self.graph_propagation_max_breadth
                             ]),
@@ -86,7 +90,8 @@ class PropagationComponent(RemissComponent):
                     ], width=6),
                     dbc.Col([
                         dbc.Card([
-                            dbc.CardHeader('Propagation Structural Virality'),
+                            dbc.CardHeader('Structural Virality of Propagation',
+                                       style={'fontSize': '18px', 'fontWeight': 'bold'}),
                             dbc.CardBody([
                                 self.graph_propagation_structural_virality
                             ]),
@@ -174,7 +179,8 @@ class CascadeCountOverTimeComponent(RemissComponent):
 
     def layout(self, params=None):
         return dbc.Card([
-            dbc.CardHeader('Cascade Count Over Time', style={'fontSize': '18px', 'fontWeight': 'bold'}),
+            dbc.CardHeader('Cascade Count Over Time', 
+                           style={'fontSize': '18px', 'fontWeight': 'bold'}),
             dbc.CardBody([
                 dcc.Loading(id=f'loading-cascade-count-over-time-{self.name}',
                             type='default',
@@ -207,7 +213,8 @@ class PropagationTreeComponent(RemissComponent):
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader('Propagation Tree'),
+                        dbc.CardHeader('Propagation Tree',
+                                       style={'fontSize': '18px', 'fontWeight': 'bold'}),
                         dbc.CardBody([
                             dcc.Loading(id=f'loading-propagation-tree-{self.name}',
                                         type='default',
@@ -242,7 +249,8 @@ class PropagationDepthComponent(RemissComponent):
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader('Propagation Depth'),
+                        dbc.CardHeader('Propagation Depth', 
+                                       style={'fontSize': '18px', 'fontWeight': 'bold'}),
                         dbc.CardBody([
                             dcc.Loading(id=f'loading-propagation-depth-{self.name}',
                                         type='default',
@@ -277,7 +285,8 @@ class PropagationSizeComponent(RemissComponent):
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader('Propagation Size'),
+                        dbc.CardHeader('Propagation Size',
+                                       style={'fontSize': '18px', 'fontWeight': 'bold'}),
                         dbc.CardBody([
                             dcc.Loading(id=f'loading-propagation-size-{self.name}',
                                         type='default',
@@ -312,7 +321,8 @@ class PropagationMaxBreadthComponent(RemissComponent):
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader('Propagation Max Breadth'),
+                        dbc.CardHeader('Maximum Propagation Breadth',
+                                       style={'fontSize': '18px', 'fontWeight': 'bold'}),
                         dbc.CardBody([
                             dcc.Loading(id=f'loading-propagation-max-breadth-{self.name}',
                                         type='default',
@@ -349,7 +359,8 @@ class PropagationStructuralViralityComponent(RemissComponent):
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader('Propagation Structural Virality'),
+                        dbc.CardHeader('Structural Virality of Propagation',
+                                       style={'fontSize': '18px', 'fontWeight': 'bold'}),
                         dbc.CardBody([
                             dcc.Loading(id=f'loading-propagation-structural-virality-{self.name}',
                                         type='default',
