@@ -256,7 +256,11 @@ class PropagationPlotFactory(MongoPlotFactory):
 
         # Interpolate in the middle
         size_cascade = size_cascade.interpolate(method='slinear', axis=0)
-        return plot_time_series(size_cascade, 'Size cascade CCDF', 'Size', 'CCDF')
+        return plot_time_series(size_cascade, 
+                                '', 
+                                'Cascade Size', 
+                                'CCDF', 
+                                ["User", "Politician", "Narrative Shaper"])
 
     def plot_cascade_count_over_time(self, dataset):
         try:
@@ -264,7 +268,10 @@ class PropagationPlotFactory(MongoPlotFactory):
         except Exception as e:
             logger.error(f'Error getting cascade count over time: {e}. Recomputing')
             cascade_count_over_time = self.diffusion_metrics.compute_cascade_count_over_time(dataset)
-        return plot_time_series(cascade_count_over_time, 'Cascade count over time', 'Time', 'Cascade count')
+        return plot_time_series(cascade_count_over_time, 
+                                'Cascade count over time', 
+                                'Time', 
+                                'Cascade Count')
 
     def get_user_metadata(self, dataset, author_ids=None):
         client = MongoClient(self.host, self.port)
@@ -613,13 +620,22 @@ def get_edge_positions(graph, layout):
     return edge_positions
 
 
-def plot_time_series(data, title, x_label, y_label):
+def plot_time_series(data, title, x_label, y_label, legend_labels=None):
+    show_legend = False
     if isinstance(data, pd.Series):
         data = data.to_frame()
+        
+    # Rename columns if custom legend labels are provided
+    # 
+    if legend_labels is not None:
+        data.columns = legend_labels
+        show_legend = True
+        
     fig = px.line(data, x=data.index, y=data.columns)
     fig.update_xaxes(title_text=x_label)
     fig.update_yaxes(title_text=y_label)
-    # fig.update_layout(title=title)
+    fig.update_layout(legend_title_text="", showlegend=show_legend)
+    
     return fig
 
 

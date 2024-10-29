@@ -139,14 +139,13 @@ class CascadeCcdfComponent(RemissComponent):
 
     def layout(self, params=None):
         return dbc.Card([
-            dbc.CardHeader('Cascade CCDF', style={'fontSize': '18px', 'fontWeight': 'bold'}),
+            dbc.CardHeader('Complementary Cumulative Distribution Function of Cascade Sizes', style={'fontSize': '18px', 'fontWeight': 'bold'}),
             dbc.CardBody([
                 dcc.Loading(id=f'loading-cascade-ccdf-{self.name}',
                             type='default',
                             children=self.graph_cascade_ccdf)
             ]),
-            dbc.CardFooter('Cascade Cumulative Distribution Function showing the probability of a cascade '
-                           'reaching a certain size over time.')
+            dbc.CardFooter('The Complementary Cumulative Distribution Function (CCDF) displays the probability that a cascade will reach or exceed a specific size. This distribution highlights the likelihood of large cascades occurring in the system. Cascade size refers to the number of nodes (such as people or accounts) involved in a "cascade" of interactions that spread through a network. In this case cascade represents the propagation of information from one node to another across a network.')
 
         ])
 
@@ -181,7 +180,7 @@ class CascadeCountOverTimeComponent(RemissComponent):
                             type='default',
                             children=self.graph_cascade_count_over_time)
             ]),
-            dbc.CardFooter('Cascade count over time showing the number of cascades over time.')
+            dbc.CardFooter('Cascade count over time illustrates the number of cascades, potentially signaling viral spread due to content relevance or emotional impact, thus boosting engagement and visibility. High cascade activity may also indicate the rapid spread of (mis)information, as users amplify aligned beliefs, forming echo chambers. Influencer-driven cascades highlight the role of key figures in sparking larger network-wide reactions.')
         ])
 
     def update_cascade(self, dataset):
