@@ -27,7 +27,9 @@ class EgonetComponent(RemissComponent):
 
     def layout(self, params=None):
         return dbc.Card([
-            dbc.CardHeader('Filtered network', id=f'title-{self.name}'),
+            dbc.CardHeader('Filtered Network', 
+                           id=f'title-{self.name}', 
+                           style={'fontSize': '18px', 'fontWeight': 'bold'}),
             dbc.CardBody([
                 dcc.Loading(id=f'loading-{self.name}',
                             type='default',
@@ -59,7 +61,7 @@ class EgonetComponent(RemissComponent):
                 username = self.plot_factory.get_username(dataset, user)
             except RuntimeError:
                 username = user
-            title = f'Egonet for user {username}'
+            title = f'Egonet for {username}'
             show_depth_slider = True
             logger.debug(f'Plotting egonet for user {username} with id {user}')
         except (RuntimeError, ValueError, KeyError) as e:
@@ -68,7 +70,7 @@ class EgonetComponent(RemissComponent):
             fig = self.plot_factory.plot_hidden_network(dataset, start_date=start_date, end_date=end_date,
                                                         hashtags=hashtags)
             show_depth_slider = False
-            title = 'Filtered hidden network'
+            title = 'Filtered Hidden Network'
             logger.debug(f'User {user} not available, plotting backbone')
 
         # remove margin
