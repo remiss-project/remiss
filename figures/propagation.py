@@ -370,7 +370,8 @@ class PropagationPlotFactory(MongoPlotFactory):
             legitimacy = x['legitimacy_level'] if x['legitimacy_level'] else ''
             reputation = x['reputation_level'] if x['reputation_level'] else ''
             status = x['status_level'] if x['status_level'] else ''
-            hover_template = (f'Username: {username}<br>User type: {user_type}<br>'
+            #TODO: Anonimization
+            hover_template = (#f'Username: {username}<br>User type: {user_type}<br>'
                               f'Legitimacy: {legitimacy}<br>Reputation: {reputation}<br>Status: {status}')
             return hover_template
 
@@ -494,10 +495,10 @@ class PropagationPlotFactory(MongoPlotFactory):
             # Update layout to position the legends
             fig.update_layout(
                 legend=dict(
-                    x=1.1,
-                    y=0.925,
+                    x=0,
+                    y=1,
                     traceorder='normal',
-                    xanchor='left',
+                    xanchor='right',
                     yanchor='top',
                     itemclick=False,  # Disable click events on legend items,
                     title='Reputation',
