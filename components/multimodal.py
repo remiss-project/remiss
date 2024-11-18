@@ -31,19 +31,19 @@ class MultimodalComponent(RemissComponent):
         claim_column = dbc.Col(
             dbc.Stack([
                 dbc.Card([
-                    dbc.CardHeader('Claim Text'),
+                    dbc.CardHeader('Claim Text', style={'fontSize': '18px', 'fontWeight': 'bold'}),
                     dbc.CardBody([
                         self.claim_text,
                     ]),
-                    dbc.CardFooter('Claim text extracted from the tweet')
+                    dbc.CardFooter('This is the text extracted from the original tweet')
                 ]),
                 dbc.Card([
-                    dbc.CardHeader('Claim Image'),
+                    dbc.CardHeader('Claim Image', style={'fontSize': '18px', 'fontWeight': 'bold'}),
                     dbc.CardBody([
                         dcc.Loading(id=f'{self.name}-claim_image_loading', children=[
                             self.claim_image], type='default')
                     ]),
-                    dbc.CardFooter('Claim image extracted from the tweet')
+                    dbc.CardFooter('This is the image extracted from the original tweet')
                 ]),
             ], gap=self.gap),
             width=4)
@@ -55,49 +55,49 @@ class MultimodalComponent(RemissComponent):
                         dbc.Col([
                             dbc.Stack([
                                 dbc.Card([
-                                    dbc.CardHeader('Visual Evidence Text'),
+                                    dbc.CardHeader('Visual Evidence Text', style={'fontSize': '18px', 'fontWeight': 'bold'}),
                                     dbc.CardBody([
                                         self.visual_evidence_text,
                                     ]),
-                                    dbc.CardFooter('Visual evidence text extracted from the image')
+                                    dbc.CardFooter('This is the text that accompanies the image that has been found as evidence of the original image')
 
                                 ]),
                                 dbc.Card([
-                                    dbc.CardHeader('Evidence Image'),
+                                    dbc.CardHeader('Visual Evidence Image', style={'fontSize': '18px', 'fontWeight': 'bold'}),
                                     dbc.CardBody([
                                         dcc.Loading(id=f'{self.name}-evidence_image_loading', children=[
                                             self.evidence_image], type='default')
 
                                     ]),
-                                    dbc.CardFooter('Visual evidence image extracted from the tweet')
+                                    dbc.CardFooter('This is the visual evidence of the original image from the tweet')
                                 ]),
                             ], gap=self.gap)
                         ], width=6),
                         dbc.Col(
                             dbc.Stack([
                                 dbc.Card([
-                                    dbc.CardHeader('Text Evidence Similarity Score'),
+                                    dbc.CardHeader('Text Similarity Score', style={'fontSize': '18px', 'fontWeight': 'bold'}),
                                     dbc.CardBody([
                                         self.text_evidence_similarity_score
                                     ]),
-                                    dbc.CardFooter('Similarity score between the claim and the visual evidence')
+                                    dbc.CardFooter('Similarity score between the claim and the text from the visual evidence')
                                 ]),
                                 dbc.Card([
-                                    dbc.CardHeader('Visual Evidence Similarity Score'),
+                                    dbc.CardHeader('Image Similarity Score', style={'fontSize': '18px', 'fontWeight': 'bold'}),
                                     dbc.CardBody([
                                         self.visual_evidence_similarity_score
                                     ]),
-                                    dbc.CardFooter('Similarity score between the claim and the visual evidence')
+                                    dbc.CardFooter('Similarity score between the image from the orginal claim and the image from the visual evidence')
                                 ]),
                                 dbc.Card([
-                                    dbc.CardHeader('Visual Evidence Graph Similarity Score'),
+                                    dbc.CardHeader('Graph Similarity Score', style={'fontSize': '18px', 'fontWeight': 'bold'}),
                                     dbc.CardBody([
                                         self.visual_evidence_graph_similarity_score
                                     ]),
-                                    dbc.CardFooter('Similarity score between the claim and the visual evidence graph')
+                                    dbc.CardFooter('Similarity score between the original claim and the visual evidence graph')
                                 ]),
                                 dbc.Card([
-                                    dbc.CardHeader('Visual Evidence Domain'),
+                                    dbc.CardHeader('Visual Evidence Domain', style={'fontSize': '18px', 'fontWeight': 'bold'}),
                                     dbc.CardBody([
                                         self.visual_evidence_domain
                                     ]),
