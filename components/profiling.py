@@ -182,7 +182,7 @@ class DonutPlotBehaviour1Component(BaseProfilingComponent):
 
 
 class DonutPlotBehaviour2Component(BaseProfilingComponent):
-    title = 'Dayly Posting Behaviour'
+    title = 'Daily Posting Behaviour'
     caption = 'This figure displays the distribution of tweet activity by hour of the day for the user, compared to other user groups'
 
     def update(self, dataset, user):
