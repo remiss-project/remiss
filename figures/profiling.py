@@ -12,6 +12,7 @@ from figures.figures import MongoPlotFactory
 from figures.utils_plot import draw_vertical_barplot, draw_radarplot, \
     draw_vertical_acumulated_barplot_plotly, draw_horizontal_barplot  # , draw_donutplot
 
+logger = logging.getLogger(__name__)
 
 class ProfilingPlotFactory(MongoPlotFactory):
     def __init__(self, host="localhost", port=27017, available_datasets=None, lang='en',
@@ -134,14 +135,14 @@ class ProfilingPlotFactory(MongoPlotFactory):
         colors = ['#1269A6', '#DD319D', '#6CAB12', '#319DE9']
 
         translations = {
-            'alegría*': 'joy*',
-            'confiança*': 'trust*',
-            'por*': 'fear*',
-            'sorpresa*': 'surprise*',
-            'tristesa': 'sadness',
-            'fàstic': 'disgust',
-            'ira*': 'anger*',
-            'anticipació*': 'anticipation*'
+            'Alegría*': 'Joy*',
+            'Confiança*': 'Trust*',
+            'Por*': 'Fear*',
+            'Sorpresa*': 'Surprise*',
+            'Tristesa': 'Sadness',
+            'Fàstic': 'Disgust',
+            'Ira*': 'Anger*',
+            'Anticipació*': 'Anticipation*'
         }
 
         display_names = [translations.get(x, x) for x in display_names]
@@ -223,7 +224,7 @@ class ProfilingPlotFactory(MongoPlotFactory):
 
         labels = [label1, label2, label3, label4]
 
-        translations = {'positiva*': 'Positive', 'negativa*': 'Negative*', 'neutral*': 'Neutral*',
+        translations = {'positiva*': 'Positive*', 'negativa*': 'Negative*', 'neutral*': 'Neutral*',
                         "discurs d'odi": "Hate Speech"}
         bar_names = [translations.get(x, x) for x in bar_names]
                 
@@ -280,10 +281,10 @@ class ProfilingPlotFactory(MongoPlotFactory):
         current_user = [user_data[x] for x in features_names]
 
         translations = {
-            'proporció de tweets publicats en días laborables (Dill-Div)': 'proportion of tweets posted on weekdays (Mon-Thurs)',
-            'proporció de tweets publicats en cap de setmana (Diss i Diu)': 'proportion of tweets posted on weekends (Sat and Sun)',
-            'proporció de tweets publicats a la nit': 'proportion of tweets posted at night',
-            'proporció de tweets publicats durant el día': 'proportion of tweets posted during the day'
+            'proporció de tweets publicats en días laborables (Dill-Div)': 'Proportion of tweets posted on weekdays (Monday to Friday)',
+            'proporció de tweets publicats en cap de setmana (Diss i Diu)': 'Proportion of tweets posted on weekends (Saturday and Sunday)',
+            'proporció de tweets publicats a la nit': 'Proportion of tweets posted at night',
+            'proporció de tweets publicats durant el día': 'Proportion of tweets posted during the day'
         }
         display_names = [translations.get(x, x) for x in display_names]
 
@@ -447,6 +448,13 @@ def format_description(description):
 
 
 def draw_donutplot(values, labels, titles):
+    
+    logger.debug(f'Values: {values}')
+    logger.debug(f'Labels: {labels}')
+    logger.debug(f'Titles: {titles}')
+
+    colors = ['#1269A6', '#DD319D', '#6CAB12', '#319DE9']
+    
     fig = make_subplots(
         rows=2, cols=2,
         specs=[[{'type': 'pie'}, {'type': 'pie'}], [{'type': 'pie'}, {'type': 'pie'}]],
@@ -456,22 +464,24 @@ def draw_donutplot(values, labels, titles):
     for i in range(len(values)):
         row = (i // 2) + 1
         col = (i % 2) + 1
-
+        
+        color = colors[i]
+        
         fig.add_trace(go.Pie(
             labels=labels,
             values=values[i],
-            hole=0.6,
-            marker=dict(colors=["blue", 'orange']),
+            hole=0.4,
+            marker=dict(colors=[color, color + "88"]),
             textinfo='percent',
             name=titles[i],
-            # domain=domain,
             textposition='inside',
             direction='clockwise',
             showlegend=True,
+            hoverinfo='label+percent',
         ), row, col)
 
     fig.update_layout(
-        showlegend=True,
+        showlegend=False,
     )
 
     return fig
