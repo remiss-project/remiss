@@ -174,18 +174,16 @@ class HorizontalBarplotInteraction2(BaseProfilingComponent):
 # plot_donut_plot_behaviour
 
 class DonutPlotBehaviour1Component(BaseProfilingComponent):
-    title = 'Donut plot behaviour 1'
-    caption = 'Donut plot showing the distribution of the days of the week of the tweets produced by the user ' \
-              'compared to other types of users'
+    title = 'Weekly Posting Behaviour'
+    caption = 'This figure illustrates the distribution of tweet activity by day of the week for the specified user, compared to other user groups.'
 
     def update(self, dataset, user):
         return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[0]
 
 
 class DonutPlotBehaviour2Component(BaseProfilingComponent):
-    title = 'Donut plot behaviour 2'
-    caption = 'Donut plot showing the distribution of the hours of the day of the tweets produced by the user ' \
-              'compared to other types of users'
+    title = 'Dayly Posting Behaviour'
+    caption = 'This figure displays the distribution of tweet activity by hour of the day for the user, compared to other user groups'
 
     def update(self, dataset, user):
         return self.plot_factory.plot_donut_plot_behaviour(dataset, user)[1]
