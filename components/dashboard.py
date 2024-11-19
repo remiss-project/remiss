@@ -246,8 +246,10 @@ class RemissDashboard(RemissComponent):
             "This is the dashboard of REMISS – Towards a methodology to reduce misinformation spread about vulnerable and stigmatised groups. REMISS platform stands as a resource for understanding the spread of toxic content and detect potential disinformation addressed to vulnerable collectives. This work brings models and insights to analyze the dynamics of information and its far-reaching effects. Through two distinct pilots, we delve into critical topics: ", html.Strong("Political Elections"),", exploring how misinformation influences democratic processes, and ", html.Strong("Migration Events"),", shedding light on the narratives surrounding migration through data sourced from Twitter. Each use case is enriched with in-depth analyses, including the study of content propagation, network science metrics, user behavior profiling, and multimodal image analysis.", html.Br(), "REMISS is the result of the work of a consortium of institutions, leveraging their combined expertise ", html.A("Eurecat", href="https://eurecat.org/home/en/", target="_blank", style={'color': '#444444'}),", ", html.A("ESADE", href="https://www.esade.edu/en", target="_blank", style={'color': '#444444'}), ", ", html.A("Vision Computer Center", href="https://www.cvc.uab.es/", target="_blank", style={'color': '#444444'}), ", ", html.A("Universitat de València", href="https://www.uv.es/", target="_blank", style={'color': '#444444'}),", and ", html.A("CCMA", href="https://www.3cat.cat/3cat/", target="_blank", style={'color': '#444444'})," – and the collaboration of ", html.A("Verificat", href="https://www.verificat.cat/", target="_blank", style={'color': '#444444'}),".",html.Br(), html.Br(), "This project ", html.Strong(["PLEC2021-007850"]), " has been funded by ", html.Strong("MCIN/AEI/10.13039/501100011033 and by the European Union NextGenerationEU/PRTR"), ". "
         ],style={'text-align': 'justify', 
                  'font-size': '1.2rem', 
-                 'margin-top': '10 rem', 
-                 'margin-left': '10 rem'}
+                 'margin-top': '2.5rem', 
+                 'margin-right': '2.5rem', 
+                 'margin-bottom': '2.5rem', 
+                 'margin-left': '2.5rem'}
             ),
             html.Div([], style={'margin-bottom': '1rem'}, id=f'placeholder-{self.name}') if self.debug else None,
             dbc.Stack([
