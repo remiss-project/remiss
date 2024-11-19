@@ -232,15 +232,26 @@ class RemissDashboard(RemissComponent):
         return dbc.Container([
             self.state.layout(),
             dbc.NavbarSimple(
-                brand="REMISS – Towards a methodology to reduce misinformation spread about vulnerable and stigmatised groups",
-                brand_href="#",
+                brand=html.Div([
+                    html.Span("REMISS", style={'display': 'block', 'font-size': '1.5rem', 'font-weight': 'bold'}),
+                ], style={'text-align': 'left', 'width': '100%'}),
+                brand_href="https://remiss-project.github.io/",
                 sticky="top",
-                style={'font-size': '1.5rem', 'font-weight': 'bold', 'margin-bottom': '1rem'},
+                expand=True,  # Ensures responsiveness
                 fluid=True,
+            ),
 
+            # Introductory paragraph
+            html.Div([
+            "This is the dashboard of REMISS – Towards a methodology to reduce misinformation spread about vulnerable and stigmatised groups. REMISS platform stands as a resource for understanding the spread of toxic content and detect potential disinformation addressed to vulnerable collectives. This work brings models and insights to analyze the dynamics of information and its far-reaching effects. Through two distinct pilots, we delve into critical topics: ", html.Strong("Political Elections"),", exploring how misinformation influences democratic processes, and ", html.Strong("Migration Events"),", shedding light on the narratives surrounding migration through data sourced from Twitter. Each use case is enriched with in-depth analyses, including the study of content propagation, network science metrics, user behavior profiling, and multimodal image analysis.", html.Br(), "REMISS is the result of the work of a consortium of institutions, leveraging their combined expertise ", html.A("Eurecat", href="https://eurecat.org/home/en/", target="_blank", style={'color': '#444444'}),", ", html.A("ESADE", href="https://www.esade.edu/en", target="_blank", style={'color': '#444444'}), ", ", html.A("Vision Computer Center", href="https://www.cvc.uab.es/", target="_blank", style={'color': '#444444'}), ", ", html.A("Universitat de València", href="https://www.uv.es/", target="_blank", style={'color': '#444444'}),", and ", html.A("CCMA", href="https://www.3cat.cat/3cat/", target="_blank", style={'color': '#444444'})," – and the collaboration of ", html.A("Verificat", href="https://www.verificat.cat/", target="_blank", style={'color': '#444444'}),".",html.Br(), html.Br(), "This project ", html.Strong(["PLEC2021-007850"]), " has been funded by ", html.Strong("MCIN/AEI/10.13039/501100011033 and by the European Union NextGenerationEU/PRTR"), ". "
+        ],style={'text-align': 'justify', 
+                 'font-size': '1.2rem', 
+                 'margin-top': '10 rem', 
+                 'margin-left': '10 rem'}
             ),
             html.Div([], style={'margin-bottom': '1rem'}, id=f'placeholder-{self.name}') if self.debug else None,
             dbc.Stack([
+                # This section is the drap and drop field
                 #dbc.Row([
                 #    dbc.Col([
                 #        self.upload.layout(params)
@@ -278,42 +289,16 @@ class RemissDashboard(RemissComponent):
                     dbc.Col([
                         html.Footer([
                             html.Div([
-                                html.H3("Consortium formed by: "),
-                                html.Img(src="/assets/logo-eurecat.png", style={
-                                    "height": "40px",
-                                    "width": "85px"
-                                }),
-                                html.Img(src="/assets/logo-uv.png", style={
-                                    "height": "40px",
-                                    "width": "85px"
-                                }),
-                                html.Img(src="/assets/logo-esade.png", style={
-                                    "height": "40px",
-                                    "width": "85px"
-                                }),
-                                html.Img(src="/assets/logo-ccma.png", style={
-                                    "height": "40px",
-                                    "width": "85px"
-                                }),
-                                html.Img(src="/assets/logo-cvc.png", style={
-                                    "height": "40px",
-                                    "width": "85px"
-                                }),
-                                html.Img(src="/assets/logo-verificat.png", style={
-                                    "height": "40px",
-                                    "width": "85px"
-                                }),
+                                html.H4("Project PLEC2021-007850 funded by:"),
                             ], style={
                                 "display": "flex",
                                 "justify-content": "center",
                                 "align-items": "center",
                                 "gap": "10px"
-                            }
-                            ),
+                            }),
                             html.Div([
-                                html.H3("Project PLEC2021-007850 funded by: "),
                                 html.Img(src="/assets/logos-funders.jpg", style={
-                                    "height": "40px",
+                                    "height": "80px",
                                 }),
                             ], style={
                                 "display": "flex",
