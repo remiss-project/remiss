@@ -124,9 +124,7 @@ class ProfilingPlotFactory(MongoPlotFactory):
                                      labels, title)
 
     def plot_radarplot_emotions(self, dataset, user_id):
-        user_data, fake_news_spreaders, fact_checkers, control_cases, display_names = self._get_plot_data(dataset,
-                                                                                                          user_id,
-                                                                                                          'emociones')
+        user_data, fake_news_spreaders, fact_checkers, control_cases, display_names = self._get_plot_data(dataset, user_id,'emociones')
 
         labels = ['Narrative Shapers', 'Fact Checkers', 'Control Users', 'User']
 
@@ -135,14 +133,14 @@ class ProfilingPlotFactory(MongoPlotFactory):
         colors = ['#1269A6', '#DD319D', '#6CAB12', '#319DE9']
 
         translations = {
-            'Alegría*': 'Joy*',
-            'Confiança*': 'Trust*',
-            'Por*': 'Fear*',
-            'Sorpresa*': 'Surprise*',
-            'Tristesa': 'Sadness',
-            'Fàstic': 'Disgust',
-            'Ira*': 'Anger*',
-            'Anticipació*': 'Anticipation*'
+            'alegría*': 'Joy*',
+            'confiança*': 'Trust*',
+            'por*': 'Fear*',
+            'sorpresa*': 'Surprise*',
+            'tristesa': 'Sadness',
+            'fàstic': 'Disgust',
+            'ira*': 'Anger*',
+            'anticipació*': 'Anticipation*'
         }
 
         display_names = [translations.get(x, x) for x in display_names]
