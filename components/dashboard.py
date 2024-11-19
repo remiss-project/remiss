@@ -192,7 +192,9 @@ class RemissDashboard(RemissComponent):
         self.state = RemissState(name='state')
 
         self.dataset_dropdown = self.get_dataset_dropdown_component()
-        self.general_plots_component = GeneralPlotsComponent(propagation_factory, profile_factory, textual_factory,
+        self.general_plots_component = GeneralPlotsComponent(propagation_factory, 
+                                                             profile_factory, 
+                                                             textual_factory,
                                                              self.state, name=f'general-plots-{self.name}')
         self.control_panel_component = ControlPanelComponent(control_panel_factory, self.state,
                                                              name=f'control-panel-{self.name}',
@@ -210,7 +212,7 @@ class RemissDashboard(RemissComponent):
                                                                    multimodal_factory,
                                                                    propagation_factory,
                                                                    self.state, name=f'filterable-plots-{self.name}')
-        self.upload = UploadComponent(target_api_url=target_api_url, name=f'upload-{self.name}')
+        #self.upload = UploadComponent(target_api_url=target_api_url, name=f'upload-{self.name}')
         self.gap = gap
 
     def get_dataset_dropdown_component(self):
@@ -345,7 +347,7 @@ class RemissDashboard(RemissComponent):
         self.egonet_component.callbacks(app)
         self.tweet_table_component.callbacks(app)
         self.filterable_plots_component.callbacks(app)
-        self.upload.callbacks(app)
+        #self.upload.callbacks(app)
 
         app.callback(
             Output(self.tweet_table_component.table, 'active_cell'),
