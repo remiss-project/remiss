@@ -4,14 +4,20 @@ mongodb:
 cache_dir:
 
 available_datasets:
-  - test_dataset_2
-  - test_dataset_3
+  - Openarms
+  - MENA_Agressions
+  - MENA_Ajudes
+  - Andalucia_2022
+  - Generalitat_2021
+  - Generales_2019
+  - Barcelona_2019
+
 reference_types:
   - retweeted
   - quoted
   - replied_to
 theme: PULSE
-debug: True
+debug: False
 
 textual:
   api_url: 'http://srvinv02.esade.es:5005/api'
