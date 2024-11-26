@@ -134,10 +134,16 @@ class TweetTableFactory(MongoPlotFactory):
                     })
 
                 elif operator == 'contains':
-                    # MongoDB regex for substring matching (case insensitive)
-                    mongo_filters.append({
-                        col_name: {self.operators[self._get_operator_index(operator)][0]: Regex(filter_value, 'i')}
-                    })
+                    if col_name in {'Profiling', 'Multimodal'}:
+                        # Binary fields in db, match using boolean
+                        filter_value = filter_value.lower() == 'yes' or filter_value.lower() == 'true'
+                        mongo_filters.append({col_name: filter_value})
+
+                    else:
+                        # MongoDB regex for substring matching (case insensitive)
+                        mongo_filters.append({
+                            col_name: {self.operators[self._get_operator_index(operator)][0]: Regex(filter_value, 'i')}
+                        })
 
                 elif operator == 'datestartswith':
                     # MongoDB regex for "startswith" (case insensitive)
@@ -145,6 +151,8 @@ class TweetTableFactory(MongoPlotFactory):
                         col_name: {
                             self.operators[self._get_operator_index(operator)][0]: Regex(f'^{filter_value}', 'i')}
                     })
+                else:
+                    logger.warning(f'Invalid operator {operator} in filter query: {filter_query}')
 
         # Combine all filters using `$and`
         if mongo_filters:
