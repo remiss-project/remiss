@@ -629,8 +629,12 @@ def plot_time_series(data, title, x_label, y_label, legend_labels=None):
     # Rename columns if custom legend labels are provided
     # 
     if legend_labels is not None:
-        data.columns = legend_labels
-        show_legend = True
+        try:
+            data.columns = legend_labels
+            show_legend = True
+        except Exception as e:
+            logger.error(f'Error renaming columns {data.columns.to_list()} with legend labels: {legend_labels}')
+            show_legend = True
         
     fig = px.line(data, x=data.index, y=data.columns)
     fig.update_xaxes(title_text=x_label)
