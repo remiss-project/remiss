@@ -4,6 +4,7 @@ import dash_bootstrap_components as dbc
 from dash import Input, Output, dcc, html, ctx
 from dash.dash_table import DataTable
 from dash.exceptions import PreventUpdate
+import hashlib
 
 from components.components import RemissComponent
 
@@ -25,8 +26,8 @@ class TweetTableComponent(RemissComponent):
         self.data = None
         self.displayed_data = None
         self.state = state
-        if self.anonymous:
-            top_table_columns = [x for x in top_table_columns if x not in ['User', 'Author ID']]
+        # if self.anonymous:
+        #     top_table_columns = [x for x in top_table_columns if x not in ['User', 'Author ID']]
         self.top_table_columns = top_table_columns
 
         self.table = DataTable(data=[], id=f'table-{self.name}',
@@ -134,7 +135,9 @@ class TweetTableComponent(RemissComponent):
         self.data['id'] = self.data['ID']
         data_to_show = self.data
         if self.anonymous:
-            data_to_show = data_to_show.drop(columns=['Author ID', 'User'])
+            # data_to_show = data_to_show.drop(columns=['Author ID', 'User'])
+            # Set md5 hash for user
+            data_to_show['User'] = data_to_show['User'].apply(lambda x: hashlib.md5(x.encode()).hexdigest()[:8])
         return data_to_show.to_dict(orient='records')
 
     def reset_table(self, dataset):

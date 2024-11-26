@@ -201,8 +201,11 @@ class RemissDashboard(RemissComponent):
                                                              name=f'control-panel-{self.name}',
                                                              wordcloud_width=wordcloud_width,
                                                              wordcloud_height=wordcloud_height,
-                                                             match_wordcloud_width=match_wordcloud_width)
-        self.egonet_component = EgonetComponent(propagation_factory, self.state, name=f'egonet-{self.name}')
+                                                             match_wordcloud_width=match_wordcloud_width,
+                                                             anonymous=self.anonymous
+                                                             )
+        self.egonet_component = EgonetComponent(propagation_factory, self.state, name=f'egonet-{self.name}',
+                                                anonymous=self.anonymous)
         self.tweet_table_component = TweetTableComponent(tweet_table_factory, self.state,
                                                          name=f'tweet-table-{self.name}',
                                                          page_size=page_size,

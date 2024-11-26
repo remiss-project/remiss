@@ -1,3 +1,4 @@
+import hashlib
 import logging
 
 import dash_bootstrap_components as dbc
@@ -14,8 +15,9 @@ logger = logging.getLogger(__name__)
 class ControlPanelComponent(RemissComponent):
     def __init__(self, plot_factory, state, name=None,
                  wordcloud_width=800, wordcloud_height=400, match_wordcloud_width=False,
-                 weigth_factor=800, min_size=0):
+                 weigth_factor=800, min_size=0, anonymous=False):
         super().__init__(name)
+        self.anonymous = anonymous
         self.min_size = min_size
         self.weight_factor = weigth_factor
         self.state = state
@@ -26,7 +28,8 @@ class ControlPanelComponent(RemissComponent):
         self.available_datasets = plot_factory.available_datasets
         self.date_picker = self.get_date_picker_component()
         self.wordcloud = self.get_wordcloud_component()
-        self.filter_display = FilterDisplayComponent(plot_factory, state, name=f'filter-display-{self.name}')
+        self.filter_display = FilterDisplayComponent(plot_factory, state, name=f'filter-display-{self.name}',
+                                                     anonymous=self.anonymous)
 
     @property
     def reset_button(self):
@@ -161,8 +164,9 @@ class ControlPanelComponent(RemissComponent):
 
 
 class FilterDisplayComponent(RemissComponent):
-    def __init__(self, plot_factory, state, name=None, gap=2):
+    def __init__(self, plot_factory, state, name=None, gap=2, anonymous=False):
         super().__init__(name)
+        self.anonymous = anonymous
         self.state = state
         self.plot_factory = plot_factory
         self.tweet_display = html.P(id=f'tweet-display-{self.name}', children='')
@@ -226,6 +230,8 @@ class FilterDisplayComponent(RemissComponent):
                 user = self.plot_factory.get_username(dataset, user)
             except RuntimeError as e:
                 logger.warning(f'Error getting username: {e}')
+            if self.anonymous:
+                user = hashlib.md5(user.encode()).hexdigest()[:8]
             return user, True
         else:
             return '', False

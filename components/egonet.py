@@ -1,3 +1,4 @@
+import hashlib
 import logging
 
 import dash_bootstrap_components as dbc
@@ -11,8 +12,9 @@ logger.setLevel(logging.DEBUG)
 
 
 class EgonetComponent(RemissComponent):
-    def __init__(self, plot_factory, state, name=None, debug=False):
+    def __init__(self, plot_factory, state, name=None, debug=False, anonymous=False):
         super().__init__(name=name)
+        self.anonymous = anonymous
         self.debug = debug
         self.dates = None
         self.plot_factory = plot_factory
@@ -61,7 +63,8 @@ class EgonetComponent(RemissComponent):
                 username = self.plot_factory.get_username(dataset, user)
             except RuntimeError:
                 username = user
-            #ToDo: Anonimization Egonet
+            if self.anonymous:
+                username = hashlib.md5(username.encode()).hexdigest()[:8]
             title = f'Egonet for {username}'
             show_depth_slider = True
             logger.debug(f'Plotting egonet for user {username} with id {user}')
