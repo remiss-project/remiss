@@ -18,7 +18,6 @@ reference_types:
   - replied_to
 theme: PULSE
 debug: False
-
 textual:
   api_url: 'http://srvinv02.esade.es:5005/api'
 profiling:
@@ -42,3 +41,5 @@ propagation:
     propagation_tree: 1000
   graph_layout: fruchterman_reingold
   frequency: 1D
+
+anonymous: True

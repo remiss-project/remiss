@@ -41,3 +41,5 @@ propagation:
   graph_layout: fruchterman_reingold
   frequency: 1D
   threshold: 0.2
+
+anonymous: True

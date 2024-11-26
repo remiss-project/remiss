@@ -40,3 +40,5 @@ propagation:
     propagation_tree: 1000
   graph_layout: fruchterman_reingold
   frequency: 1D
+
+anonympous: True
