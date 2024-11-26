@@ -1,3 +1,5 @@
+host: 'localhost'
+port: 8050
 mongodb:
   host: 'mongodb://srvinv02.esade.es'
   port: 27017

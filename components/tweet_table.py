@@ -25,6 +25,8 @@ class TweetTableComponent(RemissComponent):
         self.data = None
         self.displayed_data = None
         self.state = state
+        if self.anonymous:
+            top_table_columns = [x for x in top_table_columns if x not in ['User', 'Author ID']]
         self.top_table_columns = top_table_columns
 
         self.table = DataTable(data=[], id=f'table-{self.name}',
@@ -130,8 +132,10 @@ class TweetTableComponent(RemissComponent):
         self.data['Multimodal'] = self.data['Multimodal'].apply(lambda x: 'Yes' if x else 'No')
         self.data['Profiling'] = self.data['Profiling'].apply(lambda x: 'Yes' if x else 'No')
         self.data['id'] = self.data['ID']
-
-        return self.data.to_dict(orient='records')
+        data_to_show = self.data
+        if self.anonymous:
+            data_to_show = data_to_show.drop(columns=['Author ID', 'User'])
+        return data_to_show.to_dict(orient='records')
 
     def reset_table(self, dataset):
         return 0, '', []

@@ -1,23 +1,30 @@
+host: 'localhost'
+port: 8050
+
 mongodb:
   host: localhost
   port: 27017
 cache_dir:
 
+#available_datasets:
+#  - Openarms
+#  - MENA_Agressions
+#  - MENA_Ajudes
+#  - Andalucia_2022
+#  - Generalitat_2021
+#  - Generales_2019
+#  - Barcelona_2019
+
 available_datasets:
-  - Openarms
-  - MENA_Agressions
-  - MENA_Ajudes
-  - Andalucia_2022
-  - Generalitat_2021
-  - Generales_2019
-  - Barcelona_2019
+  - test_dataset_2
+  - test_dataset_3
 
 reference_types:
   - retweeted
   - quoted
   - replied_to
 theme: PULSE
-debug: False
+debug: True
 textual:
   api_url: 'http://srvinv02.esade.es:5005/api'
 profiling:
