@@ -185,8 +185,9 @@ class RemissDashboard(RemissComponent):
                  name=None,
                  wordcloud_width=400, wordcloud_height=400, match_wordcloud_width=False,
                  debug=False, gap=2, target_api_url='http://localhost:5000/process_dataset',
-                 page_size=10):
+                 page_size=10, anonymous=False):
         super().__init__(name=name)
+        self.anonymous = anonymous
         self.debug = debug
         self.available_datasets = tweet_user_plot_factory.available_datasets
         self.state = RemissState(name='state')
@@ -205,6 +206,7 @@ class RemissDashboard(RemissComponent):
         self.tweet_table_component = TweetTableComponent(tweet_table_factory, self.state,
                                                          name=f'tweet-table-{self.name}',
                                                          page_size=page_size,
+                                                         anonymous=self.anonymous
                                                          )
         self.filterable_plots_component = FilterablePlotsComponent(tweet_user_plot_factory,
                                                                    textual_factory,

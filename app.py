@@ -105,6 +105,7 @@ def create_app(config):
         name='dashboard',
         debug=config['debug'],
         page_size=config['tweet_table']['page_size'],
+        anonymous=config['anonymous'],
     )
     logger.info(f'Plot factories created in {time.time() - start_time} seconds.')
     logger.info('Creating app...')
@@ -137,7 +138,7 @@ def main(config='dev_config.yaml'):
     logger.info(f'Loading config from {config}...')
     config = load_config(config)
     app = create_app(config)
-    app.run(debug=config['debug'], host="0.0.0.0", port="8050")
+    app.run(debug=config['debug'], host=config['host'], port=config['host'])
 
 
 # Run the app

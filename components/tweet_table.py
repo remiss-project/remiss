@@ -16,8 +16,10 @@ class TweetTableComponent(RemissComponent):
                  top_table_columns=(
                          'ID', 'User', 'Text', 'Retweets', 'Party', 'Multimodal', 'Profiling',
                          'Suspicious content', 'Legitimacy', 'Reputation', 'Status'),
-                 page_size=10):
+                 page_size=10,
+                 anonymous=False):
         super().__init__(name=name)
+        self.anonymous = anonymous
         self.page_size = page_size
         self.plot_factory = plot_factory
         self.data = None
