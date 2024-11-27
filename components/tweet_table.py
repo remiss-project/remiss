@@ -157,18 +157,26 @@ class TweetTableComponent(RemissComponent):
         raise PreventUpdate()
 
     def update_tweet_state(self, active_cell):
-        if active_cell and active_cell['column_id'] == 'ID':
-            tweet_id = active_cell['row_id']
-            logger.debug(f'Updating tweet state with {tweet_id}')
-            return tweet_id
+        if active_cell:
+            tweet_id_clicked = active_cell['column_id'] == 'ID'
+            multimodal_clicked = active_cell['column_id'] == 'Multimodal'
+            has_multimodal = self.data[self.data['ID'] == active_cell['row_id']]['Multimodal'].values[0].lower() == 'yes'
+            if tweet_id_clicked or (multimodal_clicked and has_multimodal):
+                tweet_id = active_cell['row_id']
+                logger.debug(f'Updating tweet state with {tweet_id}')
+                return tweet_id
 
         raise PreventUpdate()
 
     def update_user_state(self, active_cell):
-        if active_cell and active_cell['column_id'] == 'User':
-            user = self.data[self.data['ID'] == active_cell['row_id']]['Author ID'].values[0]
-            logger.debug(f'Updating user state with {user}')
-            return user
+        if active_cell:
+            user_id_clicked = active_cell['column_id'] == 'User'
+            profiling_clicked = active_cell['column_id'] == 'Profiling'
+            has_profiling = self.data[self.data['ID'] == active_cell['row_id']]['Profiling'].values[0].lower() == 'yes'
+            if user_id_clicked or (profiling_clicked and has_profiling):
+                user = self.data[self.data['ID'] == active_cell['row_id']]['Author ID'].values[0]
+                logger.debug(f'Updating user state with {user}')
+                return user
 
         raise PreventUpdate()
 
